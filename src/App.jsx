@@ -564,9 +564,7 @@ function LoginPage({ onLogin }) {
               ))}
             </div>
           </div>
-          <p className="prototype-note">
-            Prototype only — credentials are stored locally in JSON.
-          </p>
+          <p className="prototype-note">Prototype only.</p>
         </div>
       </section>
       <footer className="login-page-footer">

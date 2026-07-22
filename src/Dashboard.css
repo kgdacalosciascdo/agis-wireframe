@@ -47,7 +47,7 @@
 .reference-dashboard .sidebar__brand .brand small {
   max-width: 135px;
   margin-top: 5px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -80,7 +80,7 @@
   background: transparent;
   border: 0;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: .02em;
   text-transform: uppercase;
@@ -116,7 +116,7 @@
 
 .sidebar-group__items > button {
   width: 100%;
-  min-height: 38px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -126,7 +126,7 @@
   border: 0;
   border-radius: 4px;
   text-align: left;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.2;
   transition: background .18s, transform .18s;
 }
@@ -182,14 +182,14 @@
 .reference-dashboard .sidebar__account strong {
   max-width: 160px;
   color: #fff;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .reference-dashboard .sidebar__account small {
   max-width: 160px;
   margin-top: 3px;
   color: rgba(255, 255, 255, .72);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sidebar__logout {
@@ -202,7 +202,7 @@
   color: rgba(255, 255, 255, .9);
   background: transparent;
   border: 0;
-  font-size: 12px;
+  font-size: 13.5px;
 }
 
 .sidebar__logout:hover {
@@ -258,7 +258,7 @@
   overflow: hidden;
   max-width: 360px;
   color: #121923;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -278,12 +278,12 @@
 }
 
 .reference-dashboard .search-box input {
-  font-size: 11px;
+  font-size: 12.5px;
 }
 
 .reference-dashboard .search-box kbd {
   color: #75869a;
-  font: 9px "Segoe UI", sans-serif;
+  font: 11px "Segoe UI", sans-serif;
   white-space: nowrap;
 }
 
@@ -309,8 +309,11 @@
 }
 
 .reference-dashboard .notification-button i {
-  top: 2px;
-  right: 1px;
+  width: 18px;
+  height: 18px;
+  top: 0;
+  right: 0;
+  font-size: 10px;
 }
 
 .reference-dashboard .profile-button {
@@ -323,6 +326,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
+  font-size: 12px;
 }
 
 .reference-dashboard .profile-button > span:nth-child(2) {
@@ -330,11 +334,12 @@
 }
 
 .reference-dashboard .profile-button strong {
-  font-size: 11px;
+  font-size: 12.5px;
 }
 
 .reference-dashboard .profile-button small {
-  font-size: 9px;
+  color: #66778d;
+  font-size: 11.5px;
 }
 
 .reference-dashboard .dashboard-content {
@@ -351,13 +356,13 @@
   height: 100%;
   min-width: 0;
   display: grid;
-  grid-template-rows: 42px minmax(220px, .95fr) minmax(210px, .95fr) minmax(170px, .75fr);
+  grid-template-rows: 52px minmax(220px, .95fr) minmax(210px, .95fr) minmax(170px, .75fr);
   gap: 8px;
   padding: 8px 12px 5px;
 }
 
 .reference-dashboard .welcome-row {
-  min-height: 42px;
+  min-height: 52px;
   align-items: center;
   margin: 0;
   animation: rise .35s ease both;
@@ -366,22 +371,22 @@
 .reference-dashboard .welcome-row h1 {
   margin: 0 0 3px;
   color: #29384b;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 500;
   letter-spacing: 0;
 }
 
 .reference-dashboard .welcome-row p {
-  color: #8795a7;
-  font-size: 12px;
+  color: #65778e;
+  font-size: 14px;
 }
 
 .reference-dashboard .welcome-row time {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #738298;
-  font-size: 11px;
+  color: #60738b;
+  font-size: 12.5px;
 }
 
 .reference-dashboard .module-grid {
@@ -433,7 +438,7 @@
 }
 
 .reference-dashboard .module-card__label {
-  min-height: 47px;
+  min-height: 54px;
   display: grid;
   place-items: center;
   margin: 4px 0 0;
@@ -441,7 +446,7 @@
 
 .reference-dashboard .module-card__label strong {
   color: var(--module-main);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.2;
 }
 
@@ -452,18 +457,19 @@
 .reference-dashboard .module-card__value {
   margin: auto 0 2px;
   color: var(--module-main);
-  font-size: 30px;
+  font-size: 34px;
 }
 
 .module-card__status {
-  min-height: 19px;
+  min-height: 22px;
   color: color-mix(in srgb, var(--module-main) 76%, #66758a);
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .reference-dashboard .module-card > button {
   width: 100%;
-  height: 30px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -473,7 +479,7 @@
   background: rgba(255, 255, 255, .88);
   border: 1px solid var(--module-border);
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   transition: background .18s, color .18s;
 }
@@ -503,19 +509,19 @@
 }
 
 .reference-dashboard .panel__header {
-  min-height: 34px;
-  height: 34px;
+  min-height: 38px;
+  height: 38px;
   padding: 0 10px;
 }
 
 .reference-dashboard .panel__header h2 {
   color: #4c6079;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .reference-dashboard .panel__header button {
   color: #426998;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .operations-grid > .panel {
@@ -525,7 +531,7 @@
 
 .reference-dashboard .task-list,
 .reference-dashboard .activity-schedule {
-  height: calc(100% - 34px);
+  height: calc(100% - 38px);
   display: grid;
   grid-template-rows: repeat(4, minmax(0, 1fr));
 }
@@ -550,17 +556,19 @@
 
 .reference-dashboard .task-name strong {
   color: #536781;
-  font-size: 12px;
+  font-size: 13.5px;
 }
 
 .reference-dashboard .task-name small {
-  color: #98a4b4;
-  font-size: 10px;
+  color: #6f8096;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .reference-dashboard .task-row > time {
-  color: #8694a6;
-  font-size: 10px;
+  color: #687a91;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -602,7 +610,7 @@
 .activity-schedule strong {
   overflow: hidden;
   color: #536781;
-  font-size: 11.5px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -610,24 +618,25 @@
 .activity-schedule small {
   overflow: hidden;
   margin-top: 2px;
-  color: #8e9bad;
-  font-size: 9.5px;
+  color: #6f8096;
+  font-size: 12px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .activity-schedule time {
   color: #536781;
-  font-size: 9.5px;
+  font-size: 12px;
   text-align: right;
 }
 
 .activity-schedule time b {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .engagement-table {
-  height: calc(100% - 34px);
+  height: calc(100% - 38px);
   display: grid;
   grid-template-rows: 28px repeat(5, minmax(0, 1fr));
   padding: 3px 10px;
@@ -644,15 +653,16 @@
 .engagement-table__head {
   min-height: 28px;
   color: #60738b;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .engagement-table__row {
   min-height: 0;
-  color: #7f8c9f;
+  color: #65768d;
   border-top: 1px solid #f0f3f6;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .engagement-table__row span {
@@ -679,7 +689,7 @@
 }
 
 .status-panel__body {
-  height: calc(100% - 34px);
+  height: calc(100% - 38px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,12 +728,12 @@
 
 .status-donut strong {
   color: #53617a;
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .status-donut span {
-  color: #8d99aa;
-  font-size: 9px;
+  color: #68788e;
+  font-size: 12px;
 }
 
 .status-legend {
@@ -738,7 +748,8 @@
   align-items: center;
   gap: 5px;
   color: #718096;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .status-legend i {
@@ -768,12 +779,12 @@
 
 .overdue-count strong {
   color: #d91e27;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .overdue-count span {
-  color: #7e8b9c;
-  font-size: 10px;
+  color: #68788e;
+  font-size: 12px;
 }
 
 .overdue-list {
@@ -788,7 +799,8 @@
   align-items: center;
   gap: 5px;
   color: #738197;
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .overdue-list i {
@@ -810,7 +822,7 @@
 }
 
 .reference-dashboard .quick-actions {
-  height: calc(100% - 34px);
+  height: calc(100% - 38px);
   grid-template-rows: repeat(4, minmax(0, 1fr));
   gap: 5px;
   padding: 8px 9px;
@@ -874,14 +886,14 @@
 }
 
 .reference-dashboard .quick-actions button {
-  min-height: 26px;
+  min-height: 30px;
   gap: 10px;
   padding: 0 11px;
   color: #62748d;
   background: #dcefe2;
   border: 0;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .reference-dashboard .quick-actions button:nth-child(2) { background: #ffead7; }
@@ -897,9 +909,45 @@
 .reference-dashboard .dashboard-footer {
   min-height: 22px;
   height: 22px;
+  gap: 16px;
   padding: 0 12px;
-  color: #97a3b2;
-  font-size: 8.5px;
+  color: #68798f;
+  font-size: 11.5px;
+}
+
+.reference-dashboard .dashboard-footer span {
+  white-space: nowrap;
+}
+
+.reference-dashboard .profile-popover strong {
+  font-size: 13px;
+}
+
+.reference-dashboard .profile-popover span,
+.reference-dashboard .profile-popover button {
+  font-size: 12px;
+}
+
+.reference-dashboard .toast {
+  font-size: 13px;
+}
+
+.reference-dashboard .toast span {
+  font-size: 11px;
+}
+
+.reference-dashboard .coming-soon-badge,
+.reference-dashboard .coming-soon-card > small {
+  font-size: 12px;
+}
+
+.reference-dashboard .coming-soon-card p {
+  color: #61738a;
+  font-size: 14px;
+}
+
+.reference-dashboard .coming-soon-card > button {
+  font-size: 13px;
 }
 
 .reference-dashboard .dashboard-footer span:last-child {
@@ -941,7 +989,7 @@
   .reference-dashboard .module-card:last-child { grid-column: auto; height: 238px; min-height: 238px; }
   .operations-grid, .insights-grid { grid-template-columns: 1fr; }
   .engagements-panel { grid-column: span 1; overflow-x: auto; }
-  .engagement-table { min-width: 520px; }
+  .engagement-table { min-width: 640px; }
   .reference-dashboard .welcome-row { align-items: flex-start; }
   .reference-dashboard .welcome-row time { display: none; }
   .reference-dashboard .dashboard-footer span:nth-child(2) { display: none; }

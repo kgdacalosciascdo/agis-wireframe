@@ -35,6 +35,7 @@
   width: 60px;
   height: 60px;
   flex: 0 0 60px;
+  background: transparent;
   border: 0;
   box-shadow: none;
 }

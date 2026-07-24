@@ -1,0 +1,332 @@
+import { useMemo, useState } from "react";
+import {
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  CircleHelp,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  UserRound,
+  X,
+} from "lucide-react";
+import { NavLink, Outlet, useLocation } from "react-router";
+import { useAuth } from "../auth/auth-context";
+import Brand from "../components/Brand";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import {
+  navigationSections,
+  pageForPath,
+  visibleFor,
+} from "../config/navigation";
+import { useToast } from "../ui/toast-context";
+
+function NavigationSection({ section, user, collapsed, onNavigate }) {
+  const [expanded, setExpanded] = useState(true);
+  const items = visibleFor(user, section.items);
+
+  if (items.length === 0) return null;
+
+  return (
+    <section className="border-b border-white/20 py-2">
+      {section.title && (
+        <button
+          className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-blue-50 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300"
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+          title={collapsed ? section.title : undefined}
+        >
+          {!collapsed && <span>{section.title}</span>}
+          {!collapsed &&
+            (expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />)}
+          {collapsed && <span className="mx-auto h-px w-9 bg-white/35" />}
+        </button>
+      )}
+
+      {(!section.title || expanded) && (
+        <nav className="grid gap-1" aria-label={section.title ?? "Primary"}>
+          {items.map((item) => {
+            const ItemIcon = item.icon;
+
+            return (
+              <NavLink
+                className={({ isActive }) =>
+                  `group flex min-h-10 items-center rounded-md px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
+                    isActive
+                      ? "bg-[#4a87cb] text-white shadow-sm"
+                      : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
+                  } ${collapsed ? "justify-center" : "gap-3"}`
+                }
+                key={item.path}
+                to={item.path}
+                onClick={onNavigate}
+                title={collapsed ? item.label : undefined}
+              >
+                <ItemIcon className="shrink-0" size={19} />
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
+    </section>
+  );
+}
+
+export default function AppLayout() {
+  const { user, logout } = useAuth();
+  const toast = useToast();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const currentPage = pageForPath(location.pathname);
+  const dateLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-PH", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date()),
+    [],
+  );
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? `${error.message} Your session is still active; please try again.`
+          : "Unable to sign out. Your session is still active; please try again.",
+      );
+    } finally {
+      setLoggingOut(false);
+      setLogoutOpen(false);
+    }
+  }
+
+  const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";
+
+  return (
+    <div className="flex min-h-screen bg-[#f3f8fc] font-['Segoe_UI',Arial,sans-serif] text-slate-800">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-[#28598f] text-white shadow-xl transition-all duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${sidebarWidth} ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div
+          className={`flex min-h-20 items-center border-b border-white/20 px-3 ${collapsed ? "lg:justify-center" : ""}`}
+        >
+          <Brand collapsed={collapsed} />
+          <button
+            className="ml-auto grid h-9 w-9 place-items-center rounded-md text-blue-50 transition hover:bg-white/15 lg:hidden"
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-color:rgba(255,255,255,.35)_transparent]">
+          {navigationSections.map((section) => (
+            <NavigationSection
+              key={section.key}
+              section={section}
+              user={user}
+              collapsed={collapsed}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          ))}
+        </div>
+
+        <div className="border-t border-white/20 p-3">
+          <div
+            className={`flex items-center ${collapsed ? "lg:justify-center" : "gap-3"}`}
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-sm font-bold text-[#28598f]">
+              {user.initials}
+            </span>
+            {!collapsed && (
+              <span className="min-w-0">
+                <strong className="block truncate text-sm">{user.name}</strong>
+                <small className="block truncate text-[11px] text-blue-100">
+                  {user.role}
+                </small>
+              </span>
+            )}
+          </div>
+          <button
+            className={`mt-3 flex h-10 w-full items-center rounded-md text-sm transition hover:bg-white/12 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
+              collapsed ? "justify-center" : "gap-3 px-2"
+            }`}
+            type="button"
+            onClick={() => setLogoutOpen(true)}
+            title={collapsed ? "Logout" : undefined}
+          >
+            <LogOut size={19} />
+            {!collapsed && "Logout"}
+          </button>
+        </div>
+      </aside>
+
+      {mobileOpen && (
+        <button
+          className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[1px] lg:hidden"
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close navigation"
+        />
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center border-b border-slate-200 bg-white px-3 shadow-sm sm:px-5">
+          <button
+            className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-100 lg:hidden"
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+          >
+            <Menu size={21} />
+          </button>
+
+          <button
+            className="mr-3 hidden h-11 w-11 place-items-center rounded-lg text-[#068bc7] transition duration-200 hover:scale-105 hover:bg-sky-50 lg:grid"
+            type="button"
+            onClick={() => setCollapsed((current) => !current)}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={26} />
+            ) : (
+              <PanelLeftClose size={26} />
+            )}
+          </button>
+
+          <h1 className="ml-3 truncate text-xl font-bold text-slate-800 sm:text-2xl lg:ml-0">
+            {currentPage?.label ??
+              (location.pathname === "/unauthorized"
+                ? "Access denied"
+                : "AGIS")}
+          </h1>
+
+          <div className="ml-auto flex items-center gap-2">
+            <label className="hidden h-10 w-64 items-center gap-2 rounded-lg border border-slate-200 px-3 text-slate-500 transition focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100 xl:flex">
+              <Search size={16} />
+              <input
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                placeholder="Search anything..."
+                aria-label="Search"
+              />
+              <kbd className="text-[10px]">Ctrl + K</kbd>
+            </label>
+            <button
+              className="relative grid h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100"
+              type="button"
+              onClick={() => toast.info("You have 6 unread notifications.")}
+              aria-label="Notifications"
+            >
+              <Bell size={20} />
+              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                6
+              </span>
+            </button>
+            <button
+              className="hidden h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100 sm:grid"
+              type="button"
+              onClick={() => toast.info("Help center is coming soon.")}
+              aria-label="Help"
+            >
+              <CircleHelp size={20} />
+            </button>
+
+            <div className="relative">
+              <button
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-slate-100"
+                type="button"
+                onClick={() => setProfileOpen((current) => !current)}
+                aria-expanded={profileOpen}
+              >
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-sky-600 text-xs font-bold text-white">
+                  {user.initials}
+                </span>
+                <span className="hidden max-w-36 text-left lg:block">
+                  <strong className="block truncate text-xs text-slate-800">
+                    {user.name}
+                  </strong>
+                  <small className="block truncate text-[10px] text-slate-500">
+                    {user.role}
+                  </small>
+                </span>
+                {profileOpen ? (
+                  <ChevronUp size={14} />
+                ) : (
+                  <ChevronDown size={14} />
+                )}
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-12 w-64 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+                  <strong className="block text-sm">{user.name}</strong>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {user.office}
+                  </span>
+                  <NavLink
+                    className="mt-3 flex w-full items-center gap-2 rounded-md bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
+                    onClick={() => setProfileOpen(false)}
+                    to="/profile"
+                  >
+                    <UserRound size={17} />
+                    Edit profile
+                  </NavLink>
+                  <button
+                    className="mt-2 flex w-full items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:bg-red-50 hover:text-red-700"
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      setLogoutOpen(true);
+                    }}
+                  >
+                    <LogOut size={17} />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1">
+          <Outlet context={{ dateLabel }} />
+        </div>
+
+        <footer className="flex min-h-8 flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-200 bg-white px-4 py-2 text-[10px] text-slate-500">
+          <span>AGIS v1.0.0</span>
+          <span>City Internal Audit Service (CIAS)</span>
+          <span className="sm:ml-auto">
+            © 2026 City Government of Cagayan de Oro. All rights reserved.
+          </span>
+        </footer>
+      </div>
+
+      <ConfirmDialog
+        busy={loggingOut}
+        confirmLabel="Sign out"
+        description="You will need to enter your credentials again to continue using AGIS."
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={handleLogout}
+        open={logoutOpen}
+        title="Sign out of AGIS?"
+        tone="logout"
+      />
+    </div>
+  );
+}

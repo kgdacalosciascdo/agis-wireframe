@@ -5,13 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "api": "php backend/artisan serve --host=127.0.0.1 --port=8000",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:api": "php backend/artisan test",
+    "format:api": "php backend/vendor/bin/pint"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "lucide-react": "^1.25.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-router": "^8.3.0",
+    "recharts": "^3.10.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

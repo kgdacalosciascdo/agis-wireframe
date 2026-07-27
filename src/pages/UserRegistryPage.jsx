@@ -582,72 +582,62 @@ export default function UserRegistryPage() {
         <SummaryCard
           icon={Archive}
           label="Archived accounts"
-          tone="slate"
+          tone="red"
           value={userStats.archived}
         />
       </section>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <header className="border-b border-slate-200 bg-white px-4 py-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-slate-800">
-                Employee accounts
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Showing {filtered.length} of {users.length} users
-              </p>
-            </div>
-
-            <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_13rem_11rem_auto] xl:w-auto">
-              <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
-                <Search size={17} className="shrink-0" />
-                <input
-                  className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search name, ID, office..."
-                  value={search}
-                />
-              </label>
-
-              <SearchableSelect
-                onChange={setRoleFilter}
-                options={[
-                  { value: "", label: "All roles" },
-                  ...roleFilterOptions,
-                ]}
-                placeholder="Filter by role"
-                searchPlaceholder="Search roles..."
-                value={roleFilter}
+        <header className="border-b border-slate-200 bg-white p-4">
+          <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_13rem_11rem_auto]">
+            <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
+              <Search size={17} className="shrink-0" />
+              <input
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search name, ID, office..."
+                type="search"
+                value={search}
               />
+            </label>
 
-              <SearchableSelect
-                onChange={setStatusFilter}
-                options={[
-                  { value: "", label: "All statuses" },
-                  { value: "active", label: "Active" },
-                  { value: "inactive", label: "Inactive" },
-                  { value: "archived", label: "Archived" },
-                ]}
-                placeholder="Filter by status"
-                searchPlaceholder="Search statuses..."
-                value={statusFilter}
-              />
+            <SearchableSelect
+              onChange={setRoleFilter}
+              options={[
+                { value: "", label: "All roles" },
+                ...roleFilterOptions,
+              ]}
+              placeholder="Filter by role"
+              searchPlaceholder="Search roles..."
+              value={roleFilter}
+            />
 
-              {hasActiveFilters && (
-                <button
-                  className="flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                  onClick={() => {
-                    setSearch("");
-                    setRoleFilter("");
-                    setStatusFilter("");
-                  }}
-                  type="button"
-                >
-                  <X size={16} /> Clear
-                </button>
-              )}
-            </div>
+            <SearchableSelect
+              onChange={setStatusFilter}
+              options={[
+                { value: "", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+                { value: "archived", label: "Archived" },
+              ]}
+              placeholder="Filter by status"
+              searchPlaceholder="Search statuses..."
+              value={statusFilter}
+            />
+
+            <button
+              className="flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+              disabled={!hasActiveFilters}
+              onClick={() => {
+                setSearch("");
+                setRoleFilter("");
+                setStatusFilter("");
+              }}
+              type="button"
+            >
+              <X size={16} />
+              Clear filters
+            </button>
           </div>
         </header>
 

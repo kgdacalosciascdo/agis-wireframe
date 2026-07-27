@@ -5,7 +5,10 @@ namespace Tests\Feature\Api;
 use App\Models\ActivityLog;
 use App\Models\AuditArea;
 use App\Models\AuditFocus;
+use App\Models\MasterList;
 use App\Models\Office;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,8 +34,8 @@ class CoreModuleTest extends TestCase
         $this->assertDatabaseCount('roles', 6);
         $this->assertDatabaseCount('users', 89);
         $this->assertDatabaseCount('audit_areas', 10);
-        $this->assertDatabaseCount('master_lists', 8);
-        $this->assertDatabaseCount('system_configurations', 10);
+        $this->assertDatabaseCount('master_lists', 18);
+        $this->assertDatabaseCount('system_configurations', 11);
         $this->assertGreaterThanOrEqual(50, $this->getConnection()->table('audit_focuses')->count());
         $this->assertGreaterThan(80, $this->getConnection()->table('audit_area_office')->count());
         $positionListId = $this->getConnection()
@@ -45,6 +48,19 @@ class CoreModuleTest extends TestCase
         );
         $this->assertDatabaseHas('master_lists', ['code' => 'OFFICE_SECTOR']);
         $this->assertDatabaseHas('master_lists', ['code' => 'GOVERNMENT_EMPLOYMENT_TYPE']);
+        $this->assertDatabaseHas('master_lists', ['code' => 'DOCUMENT_TYPE']);
+        foreach ([
+            'ENGAGEMENT_STATUS',
+            'RECOMMENDATION_STATUS',
+            'IAP_PLAN_STATUS',
+            'IAP_APPROVAL_ACTION',
+        ] as $removedList) {
+            $this->assertDatabaseMissing('master_lists', ['code' => $removedList]);
+        }
+        $this->assertDatabaseHas('master_list_items', [
+            'code' => 'INTERNAL_AUDIT_MANUAL',
+            'label' => 'Internal Audit Manual / PGIAM',
+        ]);
         $this->assertDatabaseHas('master_list_items', [
             'code' => 'CONTRACT_OF_SERVICE',
             'label' => 'Contract of Service',
@@ -106,9 +122,12 @@ class CoreModuleTest extends TestCase
         $this->getJson('/api/audit-focuses')->assertOk();
         $this->getJson('/api/users')->assertOk()->assertJsonCount(89, 'data.users');
         $this->getJson('/api/roles')->assertOk()->assertJsonCount(6, 'data.roles');
-        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(76, 'data.permissions');
-        $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(8, 'data.masterLists');
-        $this->getJson('/api/system-configurations')->assertOk()->assertJsonCount(10, 'data.configurations');
+        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(88, 'data.permissions');
+        $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(18, 'data.masterLists');
+        $this->getJson('/api/master-lists?configurableOnly=1')
+            ->assertOk()
+            ->assertJsonCount(16, 'data.masterLists');
+        $this->getJson('/api/system-configurations')->assertOk()->assertJsonCount(11, 'data.configurations');
 
         Sanctum::actingAs($this->user('mayor'));
         $this->getJson('/api/audit-areas')->assertOk();
@@ -124,6 +143,41 @@ class CoreModuleTest extends TestCase
         $this->assertFalse($auditee->hasPermission('offices.view'));
         $this->assertFalse($auditee->hasPermission('audit_areas.view'));
         $this->assertFalse($auditee->hasPermission('master_lists.view'));
+    }
+
+    public function test_internal_reference_lists_are_hidden_and_cannot_be_edited(): void
+    {
+        Sanctum::actingAs($this->user('admin'));
+        $list = MasterList::query()
+            ->with('items')
+            ->where('code', 'RISK_LEVEL')
+            ->firstOrFail();
+
+        $items = $list->items
+            ->map(fn ($item): array => [
+                'id' => $item->id,
+                'code' => $item->code,
+                'label' => $item->label,
+                'description' => $item->description,
+                'isActive' => true,
+            ])
+            ->values()
+            ->all();
+
+        $this->putJson("/api/master-lists/{$list->id}", [
+            'name' => $list->name,
+            'description' => $list->description,
+            'isActive' => true,
+            'items' => $items,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('masterList');
+
+        $this->getJson('/api/master-lists?configurableOnly=1')
+            ->assertOk()
+            ->assertJsonMissing(['code' => 'RISK_LEVEL'])
+            ->assertJsonMissing(['code' => 'IAP_COMMENT_TYPE'])
+            ->assertJsonFragment(['code' => 'DOCUMENT_TYPE']);
     }
 
     public function test_profile_and_password_changes_are_logged_with_old_and_new_values(): void
@@ -338,6 +392,58 @@ class CoreModuleTest extends TestCase
 
         Sanctum::actingAs($this->user('auditor'));
         $this->postJson('/api/master-lists', [])->assertForbidden();
+    }
+
+    public function test_access_roles_can_be_created_archived_and_restored_only_without_assigned_users(): void
+    {
+        Sanctum::actingAs($this->user('admin'));
+        $permissionIds = Permission::query()
+            ->whereIn('code', ['dashboard.view', 'documents.view'])
+            ->pluck('id')
+            ->all();
+
+        $this->postJson('/api/roles', [
+            'code' => 'regional reviewer',
+            'name' => 'Regional Reviewer',
+            'description' => 'Reviews authorized records for a designated region.',
+            'isActive' => true,
+            'permissionIds' => $permissionIds,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.role.code', 'regional_reviewer')
+            ->assertJsonPath('data.role.usersCount', 0)
+            ->assertJsonPath('data.role.isArchived', false)
+            ->assertJsonCount(2, 'data.role.permissionIds');
+
+        $role = Role::query()->where('code', 'regional_reviewer')->firstOrFail();
+        $assignedRole = Role::query()->where('code', 'auditee_representative')->firstOrFail();
+
+        $this->deleteJson("/api/roles/{$assignedRole->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('role');
+        $this->assertNotSoftDeleted('roles', ['id' => $assignedRole->id]);
+
+        $this->deleteJson("/api/roles/{$role->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Access role archived successfully.');
+        $this->assertSoftDeleted('roles', ['id' => $role->id]);
+
+        $this->getJson('/api/roles?include_archived=1')
+            ->assertOk()
+            ->assertJsonFragment([
+                'code' => 'regional_reviewer',
+                'isArchived' => true,
+            ]);
+
+        $this->postJson("/api/roles/{$role->id}/restore")
+            ->assertOk()
+            ->assertJsonPath('data.role.isActive', true)
+            ->assertJsonPath('data.role.isArchived', false);
+        $this->assertNotSoftDeleted('roles', ['id' => $role->id]);
+
+        $this->assertDatabaseHas('activity_logs', ['action' => 'role.created']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'role.archived']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'role.restored']);
     }
 
     private function user(string $username): User

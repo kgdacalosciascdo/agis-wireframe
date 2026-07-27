@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -52,10 +52,6 @@ export default function DataTable({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [sort, setSort] = useState({ key: null, direction: "asc" });
-
-  useEffect(() => {
-    setPage(1);
-  }, [rows.length]);
 
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;

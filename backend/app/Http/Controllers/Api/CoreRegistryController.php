@@ -11,14 +11,21 @@ use App\Models\Office;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\SystemConfiguration;
+use App\Support\ActivityRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CoreRegistryController extends Controller
 {
+    private const INTERNAL_REFERENCE_LISTS = [
+        'RISK_LEVEL',
+        'IAP_COMMENT_TYPE',
+    ];
+
     public function auditAreas(Request $request): JsonResponse
     {
         $includeArchived = $request->boolean('include_archived');
@@ -169,26 +176,56 @@ class CoreRegistryController extends Controller
         );
     }
 
-    public function roles(): JsonResponse
+    public function roles(Request $request): JsonResponse
     {
+        $includeArchived = $request->boolean('include_archived');
         $roles = Role::query()
-            ->with(['permissions:id,code,name,module,action'])
-            ->withCount('users')
+            ->when($includeArchived, fn ($query) => $query->withTrashed())
+            ->with([
+                'permissions:id,code,name,module,action',
+                'users' => fn ($query) => $query
+                    ->withTrashed()
+                    ->select(['id', 'role_id', 'employee_id', 'name', 'email', 'deleted_at']),
+            ])
             ->orderBy('name')
             ->get()
-            ->map(fn (Role $role): array => [
-                'id' => $role->id,
-                'code' => $role->code,
-                'name' => $role->name,
-                'description' => $role->description,
-                'isSystem' => $role->is_system,
-                'isActive' => $role->is_active,
-                'usersCount' => $role->users_count,
-                'permissionIds' => $role->permissions->pluck('id')->sort()->values(),
-                'permissions' => $role->permissions->pluck('code')->sort()->values(),
-            ]);
+            ->map(fn (Role $role): array => $this->roleData($role));
 
         return $this->success(['roles' => $roles]);
+    }
+
+    public function storeRole(Request $request): JsonResponse
+    {
+        $validated = $this->validateRole($request);
+
+        $role = DB::transaction(function () use ($validated): Role {
+            $role = Role::query()->create([
+                'code' => $validated['code'],
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'is_system' => false,
+                'is_active' => $validated['isActive'],
+            ]);
+            $role->permissions()->sync($validated['permissionIds']);
+
+            return $role;
+        });
+
+        ActivityRecorder::record(
+            $request,
+            'role.created',
+            "{$request->user()->name} created the {$role->name} access role.",
+            null,
+            null,
+            $this->roleActivityValues($role),
+            ['roleId' => $role->id],
+        );
+
+        return $this->success(
+            ['role' => $this->roleData($role)],
+            'Access role created successfully.',
+            201,
+        );
     }
 
     public function updateRole(Request $request, Role $role): JsonResponse
@@ -197,24 +234,91 @@ class CoreRegistryController extends Controller
             abort(403, 'Only a Platform Administrator can manage that role.');
         }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'isActive' => ['required', 'boolean'],
-            'permissionIds' => ['required', 'array'],
-            'permissionIds.*' => ['integer', Rule::exists('permissions', 'id')],
-        ]);
+        $validated = $this->validateRole($request, $role);
+        $oldValues = $this->roleActivityValues($role);
 
         DB::transaction(function () use ($role, $validated): void {
             $role->update([
+                'code' => $role->is_system ? $role->code : ($validated['code'] ?? $role->code),
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
                 'is_active' => $validated['isActive'],
             ]);
             $role->permissions()->sync($validated['permissionIds']);
         });
+        $role->unsetRelation('permissions');
 
-        return $this->success(message: 'Access role updated successfully.');
+        ActivityRecorder::record(
+            $request,
+            'role.updated',
+            "{$request->user()->name} updated the {$role->name} access role.",
+            null,
+            $oldValues,
+            $this->roleActivityValues($role),
+            ['roleId' => $role->id],
+        );
+
+        return $this->success(
+            ['role' => $this->roleData($role)],
+            'Access role updated successfully.',
+        );
+    }
+
+    public function destroyRole(Request $request, Role $role): JsonResponse
+    {
+        if ($role->code === 'platform_admin') {
+            throw ValidationException::withMessages([
+                'role' => ['The Platform Administrator role cannot be archived.'],
+            ]);
+        }
+
+        $assignedUsers = $role->users()->withTrashed()->count();
+        if ($assignedUsers > 0) {
+            throw ValidationException::withMessages([
+                'role' => [
+                    "This role cannot be archived while {$assignedUsers} ".
+                    str('user')->plural($assignedUsers).' are still assigned to it.',
+                ],
+            ]);
+        }
+
+        $oldValues = $this->roleActivityValues($role);
+        $role->forceFill(['is_active' => false])->save();
+        $role->delete();
+
+        ActivityRecorder::record(
+            $request,
+            'role.archived',
+            "{$request->user()->name} archived the {$role->name} access role.",
+            null,
+            $oldValues,
+            $this->roleActivityValues($role),
+            ['roleId' => $role->id],
+        );
+
+        return $this->success(message: 'Access role archived successfully.');
+    }
+
+    public function restoreRole(Request $request, int $role): JsonResponse
+    {
+        $record = Role::onlyTrashed()->findOrFail($role);
+        $record->restore();
+        $record->forceFill(['is_active' => true])->save();
+
+        ActivityRecorder::record(
+            $request,
+            'role.restored',
+            "{$request->user()->name} restored the {$record->name} access role.",
+            null,
+            ['isActive' => false, 'isArchived' => true],
+            $this->roleActivityValues($record),
+            ['roleId' => $record->id],
+        );
+
+        return $this->success(
+            ['role' => $this->roleData($record)],
+            'Access role restored successfully.',
+        );
     }
 
     public function permissions(): JsonResponse
@@ -227,9 +331,13 @@ class CoreRegistryController extends Controller
         return $this->success(['permissions' => $permissions]);
     }
 
-    public function masterLists(): JsonResponse
+    public function masterLists(Request $request): JsonResponse
     {
         $lists = MasterList::query()
+            ->when(
+                $request->boolean('configurableOnly'),
+                fn ($query) => $query->whereNotIn('code', self::INTERNAL_REFERENCE_LISTS),
+            )
             ->with('items')
             ->orderBy('name')
             ->get()
@@ -246,11 +354,19 @@ class CoreRegistryController extends Controller
             'isActive' => ['required', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['nullable', 'integer'],
-            'items.*.code' => ['required', 'string', 'max:60'],
+            'items.*.code' => ['required', 'string', 'max:60', 'distinct:ignore_case'],
             'items.*.label' => ['required', 'string', 'max:255'],
             'items.*.description' => ['nullable', 'string', 'max:1000'],
             'items.*.isActive' => ['required', 'boolean'],
         ]);
+
+        if (in_array($masterList->code, self::INTERNAL_REFERENCE_LISTS, true)) {
+            throw ValidationException::withMessages([
+                'masterList' => [
+                    "{$masterList->name} is an internal system reference and cannot be edited.",
+                ],
+            ]);
+        }
 
         DB::transaction(function () use ($masterList, $validated): void {
             $masterList->update([
@@ -480,6 +596,84 @@ class CoreRegistryController extends Controller
         ];
     }
 
+    /** @return array<string, mixed> */
+    private function validateRole(Request $request, ?Role $role = null): array
+    {
+        if ($request->filled('code')) {
+            $request->merge([
+                'code' => Str::of($request->string('code')->toString())
+                    ->lower()
+                    ->replaceMatches('/[^a-z0-9]+/', '_')
+                    ->trim('_')
+                    ->toString(),
+            ]);
+        }
+
+        return $request->validate([
+            'code' => [
+                $role ? 'sometimes' : 'required',
+                'string',
+                'max:50',
+                'regex:/^[a-z][a-z0-9_]*$/',
+                Rule::unique('roles', 'code')->ignore($role?->id),
+            ],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'isActive' => ['required', 'boolean'],
+            'permissionIds' => ['required', 'array'],
+            'permissionIds.*' => ['integer', 'distinct', Rule::exists('permissions', 'id')],
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function roleData(Role $role): array
+    {
+        $role->loadMissing([
+            'permissions:id,code,name,module,action',
+            'users' => fn ($query) => $query
+                ->withTrashed()
+                ->select(['id', 'role_id', 'employee_id', 'name', 'email', 'deleted_at']),
+        ]);
+
+        return [
+            'id' => $role->id,
+            'code' => $role->code,
+            'name' => $role->name,
+            'description' => $role->description,
+            'isSystem' => $role->is_system,
+            'isActive' => $role->is_active,
+            'isArchived' => $role->trashed(),
+            'usersCount' => $role->users->count(),
+            'users' => $role->users
+                ->sortBy('name')
+                ->values()
+                ->map(fn ($user): array => [
+                    'id' => $user->id,
+                    'employeeId' => $user->employee_id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'isArchived' => $user->trashed(),
+                ]),
+            'permissionIds' => $role->permissions->pluck('id')->sort()->values(),
+            'permissions' => $role->permissions->pluck('code')->sort()->values(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function roleActivityValues(Role $role): array
+    {
+        $role->loadMissing('permissions:id,code');
+
+        return [
+            'code' => $role->code,
+            'name' => $role->name,
+            'description' => $role->description,
+            'isActive' => $role->is_active,
+            'isArchived' => $role->trashed(),
+            'permissions' => $role->permissions->pluck('code')->sort()->values()->all(),
+        ];
+    }
+
     private function success(array $data = [], ?string $message = null, int $status = 200): JsonResponse
     {
         return response()->json([
@@ -500,6 +694,7 @@ class CoreRegistryController extends Controller
             'name' => $list->name,
             'description' => $list->description,
             'isActive' => $list->is_active,
+            'isConfigurable' => ! in_array($list->code, self::INTERNAL_REFERENCE_LISTS, true),
             'items' => $list->items->map(fn ($item): array => [
                 'id' => $item->id,
                 'code' => $item->code,

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
-  Crosshair,
+  CircleCheckBig,
+  CirclePause,
   Pencil,
   Plus,
   RotateCcw,
   Search,
+  Target,
+  X,
 } from "lucide-react";
 import { useAuth } from "../auth/auth-context";
 import DataTable from "../components/ui/DataTable";
@@ -15,6 +18,7 @@ import Modal from "../components/ui/Modal";
 import RegistryHeader from "../components/ui/RegistryHeader";
 import SearchableSelect from "../components/ui/SearchableSelect";
 import StatusBadge from "../components/ui/StatusBadge";
+import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
 import { ApiError, auditAreaApi, auditFocusApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
@@ -37,6 +41,8 @@ export default function AuditFocusRegistryPage() {
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
@@ -71,13 +77,43 @@ export default function AuditFocusRegistryPage() {
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim();
-    if (!query) return focuses;
-    return focuses.filter((focus) =>
-      [focus.code, focus.name, focus.auditAreaName, focus.description].some(
-        (value) => value?.toLowerCase().includes(query),
-      ),
+    return focuses.filter(
+      (focus) =>
+        (!query ||
+          [
+            focus.code,
+            focus.name,
+            focus.auditAreaCode,
+            focus.auditAreaName,
+            focus.description,
+          ].some((value) => value?.toLowerCase().includes(query))) &&
+        (!areaFilter || String(focus.auditAreaId) === String(areaFilter)) &&
+        (!statusFilter ||
+          (statusFilter === "archived"
+            ? focus.isArchived
+            : statusFilter === "active"
+              ? focus.isActive && !focus.isArchived
+              : !focus.isActive && !focus.isArchived)),
     );
-  }, [focuses, search]);
+  }, [areaFilter, focuses, search, statusFilter]);
+
+  const focusStats = useMemo(() => {
+    const active = focuses.filter(
+      (focus) => focus.isActive && !focus.isArchived,
+    ).length;
+    const archived = focuses.filter((focus) => focus.isArchived).length;
+    const inactive = focuses.length - active - archived;
+
+    return {
+      total: focuses.length,
+      active,
+      inactive,
+      archived,
+    };
+  }, [focuses]);
+
+  const hasActiveFilters = Boolean(search || areaFilter || statusFilter);
+
   const areaOptions = useMemo(
     () =>
       areas.map((area) => ({
@@ -158,9 +194,7 @@ export default function AuditFocusRegistryPage() {
     try {
       const restored = await auditFocusApi.restore(restoreTarget.id);
       setFocuses((current) =>
-        current.map((item) =>
-          item.id === restored.id ? restored : item,
-        ),
+        current.map((item) => (item.id === restored.id ? restored : item)),
       );
       setRestoreTarget(null);
       toast.success("Audit focus restored successfully.");
@@ -226,7 +260,10 @@ export default function AuditFocusRegistryPage() {
           {canUpdate && !focus.isArchived && (
             <button
               className="grid h-9 w-9 place-items-center rounded-lg text-blue-700 hover:bg-blue-100"
-              onClick={() => showEditor(focus)}
+              onClick={(event) => {
+                event.stopPropagation();
+                showEditor(focus);
+              }}
               type="button"
             >
               <Pencil size={17} />
@@ -235,7 +272,10 @@ export default function AuditFocusRegistryPage() {
           {canDelete && !focus.isArchived && (
             <button
               className="grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-100"
-              onClick={() => setArchiveTarget(focus)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setArchiveTarget(focus);
+              }}
               title="Archive audit focus"
               type="button"
             >
@@ -245,7 +285,10 @@ export default function AuditFocusRegistryPage() {
           {canRestore && focus.isArchived && (
             <button
               className="grid h-9 w-9 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-100"
-              onClick={() => setRestoreTarget(focus)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setRestoreTarget(focus);
+              }}
               title="Restore audit focus"
               type="button"
             >
@@ -272,29 +315,104 @@ export default function AuditFocusRegistryPage() {
           )
         }
         description="Maintain focused audit subjects. Every focus belongs to exactly one audit area."
-        icon={Crosshair}
+        icon={Target}
         readOnly={!canCreate && !canUpdate}
         title="Audit Focus Registry"
       />
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-          <strong>{filtered.length} audit focuses</strong>
-          <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-lg border px-3 text-slate-500">
-            <Search size={17} />
-            <input
-              className="min-w-0 flex-1 outline-none"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search audit focuses..."
-              value={search}
-            />
-          </label>
-        </header>
-        <DataTable
-          columns={columns}
-          loading={loading}
-          onRowClick={setSelectedFocus}
-          rows={filtered}
+
+      <section className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          icon={Target}
+          label="Total audit focuses"
+          tone="sky"
+          value={focusStats.total}
         />
+        <SummaryCard
+          icon={CircleCheckBig}
+          label="Active audit focuses"
+          tone="emerald"
+          value={focusStats.active}
+        />
+        <SummaryCard
+          icon={CirclePause}
+          label="Inactive audit focuses"
+          tone="amber"
+          value={focusStats.inactive}
+        />
+        <SummaryCard
+          icon={Archive}
+          label="Archived audit focuses"
+          tone="red"
+          value={focusStats.archived}
+        />
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <header className="border-b border-slate-200 bg-white p-4">
+          <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_16rem_11rem_auto]">
+            <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
+              <Search className="shrink-0" size={17} />
+              <input
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search focus, code, audit area..."
+                type="search"
+                value={search}
+              />
+            </label>
+
+            <SearchableSelect
+              onChange={setAreaFilter}
+              options={[
+                { value: "", label: "All audit areas" },
+                ...areaOptions,
+              ]}
+              placeholder="Filter by audit area"
+              searchPlaceholder="Search audit areas..."
+              value={areaFilter}
+            />
+
+            <SearchableSelect
+              onChange={setStatusFilter}
+              options={[
+                { value: "", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+                { value: "archived", label: "Archived" },
+              ]}
+              placeholder="Filter by status"
+              searchPlaceholder="Search statuses..."
+              value={statusFilter}
+            />
+
+            <button
+              className="flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+              disabled={!hasActiveFilters}
+              onClick={() => {
+                setSearch("");
+                setAreaFilter("");
+                setStatusFilter("");
+              }}
+              type="button"
+            >
+              <X size={16} />
+              Clear filters
+            </button>
+          </div>
+        </header>
+
+        <div className="[&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-sky-50/60 [&_thead]:bg-slate-50/90">
+          <DataTable
+            columns={columns}
+            emptyMessage="No audit focuses match your filters."
+            initialPageSize={8}
+            key={`${search}|${areaFilter}|${statusFilter}`}
+            loading={loading}
+            onRowClick={setSelectedFocus}
+            pageSizeOptions={[8, 10, 25, 50]}
+            rows={filtered}
+          />
+        </div>
       </section>
 
       <Modal
@@ -334,8 +452,7 @@ export default function AuditFocusRegistryPage() {
                   Parent audit area
                 </span>
                 <strong className="mt-1 block text-sm text-slate-700">
-                  {selectedFocus.auditAreaCode} —{" "}
-                  {selectedFocus.auditAreaName}
+                  {selectedFocus.auditAreaCode} — {selectedFocus.auditAreaName}
                 </strong>
               </div>
               <div className="rounded-lg border border-slate-200 p-4">
@@ -382,9 +499,7 @@ export default function AuditFocusRegistryPage() {
             required
           >
             <SearchableSelect
-              onChange={(auditAreaId) =>
-                setForm({ ...form, auditAreaId })
-              }
+              onChange={(auditAreaId) => setForm({ ...form, auditAreaId })}
               options={areaOptions}
               placeholder="Select an audit area"
               searchPlaceholder="Search audit areas..."

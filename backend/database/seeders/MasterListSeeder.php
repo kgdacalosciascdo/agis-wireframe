@@ -8,6 +8,13 @@ use Illuminate\Support\Str;
 
 class MasterListSeeder extends Seeder
 {
+    public const REMOVED_SYSTEM_LISTS = [
+        'ENGAGEMENT_STATUS',
+        'RECOMMENDATION_STATUS',
+        'IAP_PLAN_STATUS',
+        'IAP_APPROVAL_ACTION',
+    ];
+
     public const LISTS = [
         [
             'code' => 'CONFERENCE_TYPE',
@@ -16,23 +23,6 @@ class MasterListSeeder extends Seeder
             'items' => [
                 ['ENTRANCE', 'Entrance Conference', 'Opening conference to confirm scope, objectives, responsibilities, and schedules.'],
                 ['EXIT', 'Exit Conference', 'Closing conference to discuss observations, responses, and next actions.'],
-            ],
-        ],
-        [
-            'code' => 'ENGAGEMENT_STATUS',
-            'name' => 'Engagement Status',
-            'description' => 'Workflow states for audit engagements.',
-            'items' => [
-                ['DRAFT', 'Draft', 'Being prepared by the assigned audit team.'],
-                ['PENDING_REVIEW', 'Pending for Review', 'Submitted to a reviewer.'],
-                ['RETURNED', 'Returned', 'Returned for revision or additional information.'],
-                ['APPROVED', 'Approved', 'Approved to proceed.'],
-                ['REJECTED', 'Rejected', 'Not approved to proceed.'],
-                ['PLANNING', 'Planning', 'Engagement planning is underway.'],
-                ['EXECUTION', 'Execution', 'Fieldwork and testing are underway.'],
-                ['REPORTING', 'Reporting', 'Results are being drafted or finalized.'],
-                ['COMPLETED', 'Completed', 'All planned engagement work is complete.'],
-                ['CLOSED', 'Closed', 'Engagement has been administratively closed.'],
             ],
         ],
         [
@@ -58,25 +48,18 @@ class MasterListSeeder extends Seeder
                 ['GOVERNANCE', 'Governance', 'Weakness in oversight, accountability, risk, or decision-making.'],
             ],
         ],
-        [
-            'code' => 'RECOMMENDATION_STATUS',
-            'name' => 'Recommendation Status',
-            'description' => 'Lifecycle states for audit recommendations.',
-            'items' => [
-                ['OPEN', 'Open', 'Recommendation has been issued and awaits action.'],
-                ['IN_PROGRESS', 'In Progress', 'Management action is underway.'],
-                ['FOR_VALIDATION', 'For Validation', 'Evidence is ready for CIAS validation.'],
-                ['IMPLEMENTED', 'Implemented', 'Required corrective action has been validated.'],
-                ['OVERDUE', 'Overdue', 'Target date has passed without validated completion.'],
-                ['CLOSED', 'Closed', 'Recommendation monitoring is complete.'],
-            ],
-        ],
     ];
 
     public function run(): void
     {
+        MasterList::query()
+            ->whereIn('code', self::REMOVED_SYSTEM_LISTS)
+            ->each(fn (MasterList $list) => $list->delete());
+
         foreach ([
             ...self::LISTS,
+            $this->documentTypeList(),
+            ...$this->iapLists(),
             $this->sectorList(),
             $this->employmentTypeList(),
             $this->positionList(),
@@ -105,6 +88,187 @@ class MasterListSeeder extends Seeder
                 }
             }
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function documentTypeList(): array
+    {
+        return [
+            'code' => 'DOCUMENT_TYPE',
+            'name' => 'Document Type',
+            'description' => 'Reference-library classifications for laws, manuals, issuances, policies, books, templates, and other audit resources.',
+            'items' => [
+                ['INTERNAL_AUDIT_MANUAL', 'Internal Audit Manual / PGIAM', 'Philippine Government Internal Audit Manual volumes and related internal-audit guidance.'],
+                ['LAW_STATUTE', 'Law / Statute', 'Republic Acts and other statutes relevant to government auditing and public administration.'],
+                ['RULES_REGULATIONS', 'Rules and Regulations', 'Implementing rules, regulations, and related regulatory guidance.'],
+                ['COA_ISSUANCE', 'COA Circular / Issuance', 'Circulars, memoranda, decisions, and guidance issued by the Commission on Audit.'],
+                ['DBM_ISSUANCE', 'DBM Circular / Issuance', 'Budget, compensation, organization, and expenditure guidance issued by DBM.'],
+                ['LOCAL_ISSUANCE', 'Local Ordinance / Executive Issuance', 'City ordinances, executive orders, memoranda, and local administrative issuances.'],
+                ['POLICY_GUIDELINE', 'Policy / Guideline', 'Approved institutional policies, procedures, standards, and practice guides.'],
+                ['REFERENCE_BOOK', 'Reference Book / Publication', 'Books, research papers, articles, and professional reference publications.'],
+                ['TEMPLATE_FORM', 'Template / Form', 'Reusable audit programs, checklists, forms, and working-paper templates.'],
+                ['OTHER', 'Other Reference', 'Other authorized material relevant to audit work.'],
+            ],
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function iapLists(): array
+    {
+        return [
+            [
+                'code' => 'IAP_AUDIT_UNIVERSE_SUBJECT_TYPE',
+                'name' => 'IAP Audit Universe Subject Type',
+                'description' => 'Classifications for processes, programs, systems, services, projects, entities, funds, contracts, and other auditable subjects.',
+                'items' => [
+                    ['PROCESS', 'Process', 'A recurring operational, financial, administrative, or control process.'],
+                    ['PROGRAM', 'Program', 'A coordinated set of activities established to deliver public outcomes.'],
+                    ['SYSTEM', 'Information System', 'An application, platform, database, infrastructure service, or technology environment.'],
+                    ['SERVICE', 'Public Service', 'A service delivered to citizens, offices, partners, or other stakeholders.'],
+                    ['PROJECT', 'Project', 'A time-bound capital, development, technology, or organizational initiative.'],
+                    ['ENTITY_UNIT', 'Entity / Organizational Unit', 'An office, division, facility, hospital, market, terminal, or other organizational unit.'],
+                    ['FUND_ACCOUNT', 'Fund / Account', 'A fund, account, collection stream, trust, grant, or financial resource.'],
+                    ['CONTRACT', 'Contract / Procurement', 'A material contract, procurement arrangement, concession, or supplier relationship.'],
+                    ['ASSET_FACILITY', 'Asset / Facility', 'A material physical asset, property portfolio, infrastructure, or facility.'],
+                    ['CROSS_CUTTING', 'Cross-office Activity', 'A citywide or cross-office subject involving shared governance, controls, or service delivery.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_PLANNING_PERIOD_TYPE',
+                'name' => 'IAP Planning Period Type',
+                'description' => 'Period classifications used by internal audit plans.',
+                'items' => [
+                    ['ANNUAL', 'Annual', 'A plan covering one fiscal year.'],
+                    ['MULTI_YEAR', 'Multi-year', 'A strategic plan covering more than one fiscal year.'],
+                    ['SPECIAL', 'Special Planning Period', 'A formally authorized non-standard planning period.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_PLANNING_PRIORITY',
+                'name' => 'IAP Planning Priority',
+                'description' => 'Priority assigned to proposed audit engagements.',
+                'items' => [
+                    ['IMMEDIATE', 'Immediate', 'Must be scheduled at the earliest practicable date.'],
+                    ['HIGH', 'High', 'Should be included and scheduled early in the plan.'],
+                    ['MEDIUM', 'Medium', 'Should be included subject to available resources.'],
+                    ['LOW', 'Low', 'May be deferred when higher-priority work consumes available resources.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_RISK_CRITERION',
+                'name' => 'IAP Risk Criterion',
+                'description' => 'Weighted criteria used to score office and audit-area planning risk. Default weights total 100 percent.',
+                'items' => [
+                    ['FINANCIAL_MATERIALITY', 'Financial Exposure and Materiality', 'Default weight 15%. Considers budget, assets, collections, disbursements, and financial significance.'],
+                    ['PRIOR_FINDINGS', 'Prior Findings and Recommendations', 'Default weight 15%. Considers prior findings, overdue actions, recurrence, and unresolved recommendations.'],
+                    ['CONTROL_MATURITY', 'Internal-control Maturity', 'Default weight 15%. Considers control design, operation, documentation, monitoring, and known weaknesses.'],
+                    ['LEGAL_REGULATORY', 'Legal and Regulatory Exposure', 'Default weight 10%. Considers applicable laws, regulations, contractual duties, and compliance consequences.'],
+                    ['COMPLEXITY_CHANGE', 'Operational Complexity and Change', 'Default weight 10%. Considers process complexity, reorganizations, new programs, and rapid change.'],
+                    ['FRAUD_INTEGRITY', 'Fraud, Integrity and Safeguarding Exposure', 'Default weight 10%. Considers opportunity, susceptibility, prior incidents, and safeguarding responsibility.'],
+                    ['PUBLIC_SERVICE_IMPACT', 'Public-service and Stakeholder Impact', 'Default weight 10%. Considers service criticality, affected stakeholders, health, safety, and reputational impact.'],
+                    ['TIME_SINCE_AUDIT', 'Time Since Last Audit', 'Default weight 5%. Considers the time elapsed since adequate independent assurance work.'],
+                    ['MANAGEMENT_CONCERN', 'Management or Oversight Concern', 'Default weight 5%. Considers formally raised management, council, oversight, or public concerns.'],
+                    ['IT_DATA_DEPENDENCY', 'Information-system and Data Dependency', 'Default weight 5%. Considers cybersecurity, privacy, data integrity, availability, and system reliance.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_ENGAGEMENT_TYPE',
+                'name' => 'IAP Engagement Type',
+                'description' => 'Types of proposed internal audit engagements.',
+                'items' => [
+                    ['FINANCIAL', 'Financial Audit', 'Examines financial records, reporting, safeguarding, and related controls.'],
+                    ['COMPLIANCE', 'Compliance Audit', 'Examines compliance with laws, regulations, contracts, and internal policies.'],
+                    ['PERFORMANCE', 'Performance / Value-for-money Audit', 'Examines economy, efficiency, effectiveness, and achievement of outcomes.'],
+                    ['OPERATIONAL', 'Operational Audit', 'Examines processes, controls, resources, and operational performance.'],
+                    ['INFORMATION_SYSTEMS', 'Information Systems Audit', 'Examines IT governance, security, processing, data, and system controls.'],
+                    ['GOVERNANCE', 'Governance and Risk Audit', 'Examines governance, risk management, accountability, and oversight.'],
+                    ['FOLLOW_UP', 'Follow-up Audit', 'Validates implementation and effectiveness of prior corrective actions.'],
+                    ['SPECIAL', 'Special Audit / Management Request', 'Addresses a specially authorized concern, request, or emerging risk.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_AUDIT_APPROACH',
+                'name' => 'IAP Audit Approach',
+                'description' => 'Primary approaches proposed for audit engagements.',
+                'items' => [
+                    ['RISK_BASED', 'Risk-based', 'Directs work toward the most significant risks and controls.'],
+                    ['SYSTEMS_BASED', 'Systems-based', 'Evaluates systems, processes, and control design and operation.'],
+                    ['COMPLIANCE_BASED', 'Compliance-based', 'Tests conformance with identified legal and policy criteria.'],
+                    ['TRANSACTION_BASED', 'Transaction-based', 'Examines selected transactions and supporting records.'],
+                    ['PERFORMANCE_BASED', 'Performance-based', 'Evaluates economy, efficiency, effectiveness, and outcomes.'],
+                    ['DATA_ANALYTICS', 'Data Analytics', 'Uses complete or targeted datasets to identify patterns, anomalies, and risk.'],
+                    ['BLENDED', 'Blended Approach', 'Combines two or more audit approaches.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_TEAM_ROLE',
+                'name' => 'IAP Team Role',
+                'description' => 'Roles assigned to proposed-engagement team members.',
+                'items' => [
+                    ['LEAD_AUDITOR', 'Lead Auditor', 'Leads planning and delivery of the proposed engagement.'],
+                    ['TEAM_MEMBER', 'Team Member', 'Performs assigned planning and audit work.'],
+                    ['REVIEWER', 'Reviewer', 'Provides supervision and independent review.'],
+                    ['SPECIALIST', 'Specialist', 'Provides technical, legal, IT, engineering, or other specialist expertise.'],
+                    ['SUPPORT', 'Audit Support', 'Provides authorized administrative, data, or logistical support.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_COMMENT_TYPE',
+                'name' => 'IAP Comment Type',
+                'description' => 'Classifications for plan and proposed-engagement comments.',
+                'items' => [
+                    ['GENERAL', 'General Planning Comment', 'General internal planning discussion.'],
+                    ['REVIEW', 'Reviewer Comment', 'Comment made during formal review.'],
+                    ['RETURN_INSTRUCTION', 'Return-for-revision Instruction', 'Required correction or clarification when returning a plan.'],
+                    ['MANAGEMENT', 'Management Comment', 'CIAS management direction or observation.'],
+                    ['APPROVAL_NOTE', 'Approval Note', 'Comment recorded with an approval decision.'],
+                    ['REVISION_EXPLANATION', 'Revision Explanation', 'Explanation of changes made in a formal revision.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_ATTACHMENT_TYPE',
+                'name' => 'IAP Attachment Type',
+                'description' => 'Classifications for files supporting an internal audit plan.',
+                'items' => [
+                    ['RISK_SUPPORT', 'Risk Assessment Support', 'Evidence or analysis supporting a planning risk score.'],
+                    ['PLANNING_WORKPAPER', 'Planning Working Paper', 'Internal working paper used to prepare the plan.'],
+                    ['MANAGEMENT_DIRECTIVE', 'Management Directive', 'Authorized management instruction or planning request.'],
+                    ['BUDGET_RESOURCE_SUPPORT', 'Budget / Resource Support', 'Resource, budget, capacity, or person-day support.'],
+                    ['APPROVAL_SUPPORT', 'Approval Support', 'Document associated with review or approval.'],
+                    ['OTHER', 'Other IAP Attachment', 'Other authorized planning attachment.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_AUDITOR_SPECIALIZATION',
+                'name' => 'IAP Auditor Specialization',
+                'description' => 'Professional and technical capabilities used to match IAP engagement requirements with available auditors.',
+                'items' => [
+                    ['FINANCIAL_AUDIT', 'Financial Audit and Accounting', 'Financial reporting, accounting, treasury, disbursement, and safeguarding controls.'],
+                    ['COMPLIANCE', 'Compliance and Regulatory Audit', 'Assessment of compliance with laws, rules, contracts, policies, and regulatory requirements.'],
+                    ['PERFORMANCE', 'Performance and Value-for-money Audit', 'Economy, efficiency, effectiveness, service outcomes, and performance measurement.'],
+                    ['PROCUREMENT', 'Procurement and Supply Management', 'Procurement planning, bidding, contracting, receiving, inventory, and property controls.'],
+                    ['INFORMATION_SYSTEMS', 'Information Systems Audit', 'IT governance, application controls, infrastructure, data integrity, and system availability.'],
+                    ['CYBERSECURITY', 'Cybersecurity and Data Protection', 'Cybersecurity, privacy, access control, incident response, backup, and recovery.'],
+                    ['REVENUE', 'Revenue and Collection Audit', 'Taxes, fees, permits, collections, deposits, receivables, and revenue assurance.'],
+                    ['HR_PAYROLL', 'Human Resources and Payroll', 'Appointments, attendance, compensation, payroll, benefits, and personnel records.'],
+                    ['ENGINEERING', 'Engineering and Infrastructure', 'Public works, project delivery, construction, inspection, asset condition, and contract administration.'],
+                    ['FRAUD_INVESTIGATION', 'Fraud and Integrity Review', 'Fraud-risk assessment, investigative methods, evidence handling, and integrity controls.'],
+                    ['DATA_ANALYTICS', 'Audit Data Analytics', 'Data acquisition, validation, analysis, visualization, anomaly detection, and continuous auditing.'],
+                    ['GOVERNANCE_RISK', 'Governance and Risk Management', 'Governance, enterprise risk, internal control, accountability, and management oversight.'],
+                ],
+            ],
+            [
+                'code' => 'IAP_UNAVAILABILITY_TYPE',
+                'name' => 'IAP Auditor Unavailability Type',
+                'description' => 'Reasons an auditor cannot be assigned during a specified period.',
+                'items' => [
+                    ['LEAVE', 'Leave', 'Approved vacation, sick, parental, or other authorized leave.'],
+                    ['TRAINING', 'Training / Professional Development', 'Training, conference, certification, or other professional-development activity.'],
+                    ['OFFICIAL_BUSINESS', 'Official Business', 'Authorized assignment or official business outside planned audit work.'],
+                    ['OTHER', 'Other Unavailable Period', 'Other documented period when the auditor is unavailable for assignment.'],
+                ],
+            ],
+        ];
     }
 
     /** @return array<string, mixed> */

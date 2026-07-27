@@ -20,6 +20,7 @@ class SystemConfigurationSeeder extends Seeder
             ['password_min_length', 'Minimum Password Length', 8, 'integer', 'security', 'Minimum length for non-demo account passwords.'],
             ['failed_login_limit', 'Failed Login Limit', 5, 'integer', 'security', 'Failed attempts allowed before temporary account lockout.'],
             ['account_lock_minutes', 'Account Lock Duration', 15, 'integer', 'security', 'Minutes an account remains locked after repeated failed logins.'],
+            ['iap_default_annual_person_days', 'Default IAP Annual Person-days', 180, 'integer', 'planning', 'Default yearly capacity for an active CIAS auditor until ARMIS provides an authoritative capacity record.'],
         ];
 
         foreach ($configurations as [$key, $name, $value, $type, $group, $description]) {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
+  CircleCheckBig,
+  CirclePause,
+  Network,
   Pencil,
   Plus,
   RotateCcw,
   Search,
-  Target,
   X,
 } from "lucide-react";
 import { useAuth } from "../auth/auth-context";
@@ -16,6 +18,7 @@ import Modal from "../components/ui/Modal";
 import RegistryHeader from "../components/ui/RegistryHeader";
 import SearchableSelect from "../components/ui/SearchableSelect";
 import StatusBadge from "../components/ui/StatusBadge";
+import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
 import { ApiError, auditAreaApi, officeApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
@@ -42,6 +45,8 @@ export default function AuditAreaRegistryPage() {
   const [offices, setOffices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [officeFilter, setOfficeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -66,7 +71,9 @@ export default function AuditAreaRegistryPage() {
       .then(([areaRecords, officeRecords]) => {
         if (!active) return;
         setAreas(areaRecords);
-        setOffices(officeRecords.filter((office) => office.code !== "AGIS-SYS"));
+        setOffices(
+          officeRecords.filter((office) => office.code !== "AGIS-SYS"),
+        );
       })
       .catch((error) => {
         if (active) toast.error(error.message);
@@ -82,13 +89,49 @@ export default function AuditAreaRegistryPage() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return areas;
-    return areas.filter((area) =>
-      [area.code, area.name, area.description].some((value) =>
-        value?.toLowerCase().includes(query),
-      ),
+    return areas.filter(
+      (area) =>
+        (!query ||
+          [
+            area.code,
+            area.name,
+            area.description,
+            ...area.offices.flatMap((office) => [
+              office.code,
+              office.name,
+              office.sector,
+            ]),
+          ].some((value) => value?.toLowerCase().includes(query))) &&
+        (!officeFilter ||
+          area.offices.some(
+            (office) => String(office.id) === String(officeFilter),
+          )) &&
+        (!statusFilter ||
+          (statusFilter === "archived"
+            ? area.isArchived
+            : statusFilter === "active"
+              ? area.isActive && !area.isArchived
+              : !area.isActive && !area.isArchived)),
     );
-  }, [areas, search]);
+  }, [areas, officeFilter, search, statusFilter]);
+
+  const areaStats = useMemo(() => {
+    const active = areas.filter(
+      (area) => area.isActive && !area.isArchived,
+    ).length;
+    const archived = areas.filter((area) => area.isArchived).length;
+    const inactive = areas.length - active - archived;
+
+    return {
+      total: areas.length,
+      active,
+      inactive,
+      archived,
+    };
+  }, [areas]);
+
+  const hasActiveFilters = Boolean(search || officeFilter || statusFilter);
+
   const officeOptions = useMemo(
     () =>
       offices.map((office) => ({
@@ -174,9 +217,7 @@ export default function AuditAreaRegistryPage() {
     try {
       const restored = await auditAreaApi.restore(restoreTarget.id);
       setAreas((current) =>
-        current.map((area) =>
-          area.id === restored.id ? restored : area,
-        ),
+        current.map((area) => (area.id === restored.id ? restored : area)),
       );
       setRestoreTarget(null);
       toast.success("Audit area restored successfully.");
@@ -192,7 +233,9 @@ export default function AuditAreaRegistryPage() {
       key: "code",
       label: "Code",
       render: (area) => (
-        <strong className="whitespace-nowrap text-slate-800">{area.code}</strong>
+        <strong className="whitespace-nowrap text-slate-800">
+          {area.code}
+        </strong>
       ),
     },
     {
@@ -231,18 +274,10 @@ export default function AuditAreaRegistryPage() {
       render: (area) => (
         <StatusBadge
           tone={
-            area.isArchived
-              ? "inactive"
-              : area.isActive
-                ? "active"
-                : "warning"
+            area.isArchived ? "inactive" : area.isActive ? "active" : "warning"
           }
         >
-          {area.isArchived
-            ? "Archived"
-            : area.isActive
-              ? "Active"
-              : "Inactive"}
+          {area.isArchived ? "Archived" : area.isActive ? "Active" : "Inactive"}
         </StatusBadge>
       ),
     },
@@ -259,7 +294,10 @@ export default function AuditAreaRegistryPage() {
           {canUpdate && !area.isArchived && (
             <button
               className="grid h-9 w-9 place-items-center rounded-lg text-blue-700 hover:bg-blue-100"
-              onClick={() => openEdit(area)}
+              onClick={(event) => {
+                event.stopPropagation();
+                openEdit(area);
+              }}
               title="Edit audit area"
               type="button"
             >
@@ -269,7 +307,10 @@ export default function AuditAreaRegistryPage() {
           {canDelete && !area.isArchived && (
             <button
               className="grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-100"
-              onClick={() => setDeleteTarget(area)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setDeleteTarget(area);
+              }}
               title="Archive audit area"
               type="button"
             >
@@ -279,7 +320,10 @@ export default function AuditAreaRegistryPage() {
           {canRestore && area.isArchived && (
             <button
               className="grid h-9 w-9 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-100"
-              onClick={() => setRestoreTarget(area)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setRestoreTarget(area);
+              }}
               title="Restore audit area"
               type="button"
             >
@@ -306,30 +350,104 @@ export default function AuditAreaRegistryPage() {
           )
         }
         description="Define auditable subject areas and link each area to one or more city offices."
-        icon={Target}
+        icon={Network}
         readOnly={!canCreate && !canUpdate}
         title="Audit Area Registry"
       />
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
-          <strong className="text-slate-800">{filtered.length} audit areas</strong>
-          <label className="flex h-10 w-full max-w-sm items-center gap-2 rounded-lg border border-slate-300 px-3 text-slate-500 focus-within:border-sky-500">
-            <Search size={17} />
-            <input
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search audit areas..."
-              value={search}
-            />
-          </label>
-        </header>
-        <DataTable
-          columns={columns}
-          loading={loading}
-          onRowClick={setSelectedArea}
-          rows={filtered}
+      <section className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          icon={Network}
+          label="Total audit areas"
+          tone="sky"
+          value={areaStats.total}
         />
+        <SummaryCard
+          icon={CircleCheckBig}
+          label="Active audit areas"
+          tone="emerald"
+          value={areaStats.active}
+        />
+        <SummaryCard
+          icon={CirclePause}
+          label="Inactive audit areas"
+          tone="amber"
+          value={areaStats.inactive}
+        />
+        <SummaryCard
+          icon={Archive}
+          label="Archived audit areas"
+          tone="red"
+          value={areaStats.archived}
+        />
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <header className="border-b border-slate-200 bg-white p-4">
+          <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_16rem_11rem_auto]">
+            <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
+              <Search className="shrink-0" size={17} />
+              <input
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search audit area, code, office..."
+                type="search"
+                value={search}
+              />
+            </label>
+
+            <SearchableSelect
+              onChange={setOfficeFilter}
+              options={[
+                { value: "", label: "All offices" },
+                ...officeOptions,
+              ]}
+              placeholder="Filter by office"
+              searchPlaceholder="Search offices..."
+              value={officeFilter}
+            />
+
+            <SearchableSelect
+              onChange={setStatusFilter}
+              options={[
+                { value: "", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+                { value: "archived", label: "Archived" },
+              ]}
+              placeholder="Filter by status"
+              searchPlaceholder="Search statuses..."
+              value={statusFilter}
+            />
+
+            <button
+              className="flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+              disabled={!hasActiveFilters}
+              onClick={() => {
+                setSearch("");
+                setOfficeFilter("");
+                setStatusFilter("");
+              }}
+              type="button"
+            >
+              <X size={16} />
+              Clear filters
+            </button>
+          </div>
+        </header>
+
+        <div className="[&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-sky-50/60 [&_thead]:bg-slate-50/90">
+          <DataTable
+            columns={columns}
+            emptyMessage="No audit areas match your filters."
+            initialPageSize={8}
+            key={`${search}|${officeFilter}|${statusFilter}`}
+            loading={loading}
+            onRowClick={setSelectedArea}
+            pageSizeOptions={[8, 10, 25, 50]}
+            rows={filtered}
+          />
+        </div>
       </section>
 
       <Modal
@@ -425,8 +543,7 @@ export default function AuditAreaRegistryPage() {
               <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
                 {form.officeIds.map((officeId) => {
                   const office = offices.find(
-                    (candidate) =>
-                      String(candidate.id) === String(officeId),
+                    (candidate) => String(candidate.id) === String(officeId),
                   );
                   if (!office) return null;
 

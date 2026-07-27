@@ -30,7 +30,7 @@ export default function MasterListsPage() {
   useEffect(() => {
     let active = true;
     masterListApi
-      .list()
+      .list({ configurableOnly: true })
       .then((records) => active && setLists(records))
       .catch((error) => active && toast.error(error.message))
       .finally(() => active && setLoading(false));
@@ -91,7 +91,7 @@ export default function MasterListsPage() {
     try {
       if (editing) await masterListApi.update(editing.id, form);
       else await masterListApi.create(form);
-      setLists(await masterListApi.list());
+      setLists(await masterListApi.list({ configurableOnly: true }));
       setSaveConfirmOpen(false);
       setEditorOpen(false);
       setEditing(null);

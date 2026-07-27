@@ -30,6 +30,33 @@ const SystemConfigurationPage = lazy(
   () => import("./pages/SystemConfigurationPage"),
 );
 const ActivityLogPage = lazy(() => import("./pages/ActivityLogPage"));
+const DocumentManagementPage = lazy(
+  () => import("./pages/DocumentManagementPage"),
+);
+const IapPlanRegistryPage = lazy(
+  () => import("./pages/IapPlanRegistryPage"),
+);
+const IapDashboardPage = lazy(() => import("./pages/IapDashboardPage"));
+const SiapPlanRegistryPage = lazy(
+  () => import("./pages/SiapPlanRegistryPage"),
+);
+const IapAuditUniversePage = lazy(
+  () => import("./pages/IapAuditUniversePage"),
+);
+const IapRiskAssessmentPeriodsPage = lazy(
+  () => import("./pages/IapRiskAssessmentPeriodsPage"),
+);
+const IapPrioritizationPage = lazy(
+  () => import("./pages/IapPrioritizationPage"),
+);
+const IapPlanWorkspacePage = lazy(
+  () => import("./pages/IapPlanWorkspacePage"),
+);
+const IapSchedulingPage = lazy(() => import("./pages/IapSchedulingPage"));
+const IapResourceCapacityPage = lazy(
+  () => import("./pages/IapResourceCapacityPage"),
+);
+const IapReportsPage = lazy(() => import("./pages/IapReportsPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -41,7 +68,17 @@ const implementedCorePaths = new Set([
   "/permission-registry",
   "/master-lists",
   "/activity-log",
+  "/document-management",
   "/system-configuration",
+  "/internal-audit-planning",
+  "/internal-audit-planning/dashboard",
+  "/internal-audit-planning/strategic-plan",
+  "/internal-audit-planning/audit-universe",
+  "/internal-audit-planning/risk-assessment",
+  "/internal-audit-planning/prioritization",
+  "/internal-audit-planning/scheduling",
+  "/internal-audit-planning/resource-capacity",
+  "/internal-audit-planning/reports",
 ]);
 
 function RouteLoading() {
@@ -171,6 +208,116 @@ export default function App() {
               <ProtectedPage permission="activity_logs.view">
                 <Suspense fallback={<RouteLoading />}>
                   <ActivityLogPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="document-management"
+            element={
+              <ProtectedPage permission="documents.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <DocumentManagementPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/dashboard"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapDashboardPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/strategic-plan"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <SiapPlanRegistryPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapPlanRegistryPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/audit-universe"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapAuditUniversePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/risk-assessment"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapRiskAssessmentPeriodsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/prioritization"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapPrioritizationPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/scheduling"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapSchedulingPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/resource-capacity"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapResourceCapacityPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/reports"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapReportsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/:planId"
+            element={
+              <ProtectedPage permission="iap.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapPlanWorkspacePage />
                 </Suspense>
               </ProtectedPage>
             }

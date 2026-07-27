@@ -8,6 +8,7 @@ import {
   ChartNoAxesCombined,
   Database,
   FileText,
+  FileBarChart,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -21,6 +22,63 @@ import {
   UsersRound,
   Workflow,
 } from "lucide-react";
+
+export const iapPages = [
+  {
+    label: "IAP Dashboard",
+    path: "/internal-audit-planning/dashboard",
+    permission: "iap.view",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Strategic Audit Plan",
+    path: "/internal-audit-planning/strategic-plan",
+    permission: "iap.view",
+    icon: ChartNoAxesCombined,
+  },
+  {
+    label: "Audit Universe",
+    path: "/internal-audit-planning/audit-universe",
+    permission: "iap.view",
+    icon: Blocks,
+  },
+  {
+    label: "Risk Assessment",
+    path: "/internal-audit-planning/risk-assessment",
+    permission: "iap.view",
+    icon: ShieldAlert,
+  },
+  {
+    label: "Audit Prioritization",
+    path: "/internal-audit-planning/prioritization",
+    permission: "iap.view",
+    icon: ListChecks,
+  },
+  {
+    label: "Annual Audit Plan",
+    path: "/internal-audit-planning",
+    permission: "iap.view",
+    icon: CalendarDays,
+  },
+  {
+    label: "Audit Scheduling",
+    path: "/internal-audit-planning/scheduling",
+    permission: "iap.view",
+    icon: CalendarDays,
+  },
+  {
+    label: "Resource Capacity",
+    path: "/internal-audit-planning/resource-capacity",
+    permission: "iap.view",
+    icon: UsersRound,
+  },
+  {
+    label: "IAP Reports",
+    path: "/internal-audit-planning/reports",
+    permission: "iap.view",
+    icon: FileBarChart,
+  },
+];
 
 export const modules = [
   {
@@ -38,12 +96,13 @@ export const modules = [
     key: "iap",
     code: "IAP",
     label: "Internal Audit Planning",
-    path: "/internal-audit-planning",
+    path: "/internal-audit-planning/dashboard",
     permission: "iap.view",
     icon: CalendarDays,
     value: 3,
     note: "Plans in Progress",
     tone: "blue",
+    children: iapPages,
   },
   {
     key: "aem",
@@ -210,7 +269,7 @@ export const navigationSections = [
 ];
 
 export const pageRoutes = [
-  ...modules,
+  ...modules.flatMap((module) => [module, ...(module.children ?? [])]),
   ...navigationSections.flatMap((section) => section.items),
 ].filter(
   (item, index, items) =>
@@ -231,6 +290,14 @@ export function visibleFor(user, items) {
 }
 
 export function pageForPath(pathname) {
+  if (/^\/internal-audit-planning\/\d+$/.test(pathname)) {
+    return {
+      label: "Annual Audit Plan",
+      icon: CalendarDays,
+      permission: "iap.view",
+    };
+  }
+
   if (pathname === "/profile") {
     return {
       label: "My Profile",

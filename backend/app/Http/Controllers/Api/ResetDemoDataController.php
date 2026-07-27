@@ -8,11 +8,16 @@ use App\Models\AuditLog;
 use App\Models\Office;
 use App\Support\ActivityRecorder;
 use Database\Seeders\AuditAreaSeeder;
+use Database\Seeders\AuditUniverseSeeder;
 use Database\Seeders\CoreUserSeeder;
 use Database\Seeders\DemoUserSeeder;
+use Database\Seeders\IapPrioritizationSeeder;
+use Database\Seeders\IapRiskPeriodSeeder;
+use Database\Seeders\IapSchedulingSeeder;
 use Database\Seeders\MasterListSeeder;
 use Database\Seeders\OfficeSeeder;
 use Database\Seeders\RolePermissionSeeder;
+use Database\Seeders\SiapSeeder;
 use Database\Seeders\SystemConfigurationSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,6 +47,11 @@ class ResetDemoDataController extends Controller
             app(SystemConfigurationSeeder::class)->run();
             app(DemoUserSeeder::class)->run();
             app(CoreUserSeeder::class)->run();
+            app(AuditUniverseSeeder::class)->run();
+            app(SiapSeeder::class)->run();
+            app(IapRiskPeriodSeeder::class)->run();
+            app(IapPrioritizationSeeder::class)->run();
+            app(IapSchedulingSeeder::class)->run();
 
             AuditLog::query()->create([
                 'user_id' => $actorId,

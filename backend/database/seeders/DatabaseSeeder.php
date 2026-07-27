@@ -23,6 +23,11 @@ class DatabaseSeeder extends Seeder
             $this->call([
                 DemoUserSeeder::class,
                 CoreUserSeeder::class,
+                AuditUniverseSeeder::class,
+                SiapSeeder::class,
+                IapRiskPeriodSeeder::class,
+                IapPrioritizationSeeder::class,
+                IapSchedulingSeeder::class,
             ]);
         }
     }

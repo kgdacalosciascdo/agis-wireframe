@@ -25,6 +25,10 @@ import { useToast } from "../ui/toast-context";
 
 function NavigationSection({ section, user, collapsed, onNavigate }) {
   const [expanded, setExpanded] = useState(true);
+  const location = useLocation();
+  const [expandedItems, setExpandedItems] = useState(() => ({
+    iap: location.pathname.startsWith("/internal-audit-planning"),
+  }));
   const items = visibleFor(user, section.items);
 
   if (items.length === 0) return null;
@@ -50,24 +54,92 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
         <nav className="grid gap-1" aria-label={section.title ?? "Primary"}>
           {items.map((item) => {
             const ItemIcon = item.icon;
+            const childItems = visibleFor(user, item.children ?? []);
+            const childExpanded =
+              expandedItems[item.key] ??
+              location.pathname.startsWith(item.path);
 
             return (
-              <NavLink
-                className={({ isActive }) =>
-                  `group flex min-h-10 items-center rounded-md px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
-                    isActive
-                      ? "bg-[#4a87cb] text-white shadow-sm"
-                      : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
-                  } ${collapsed ? "justify-center" : "gap-3"}`
-                }
-                key={item.path}
-                to={item.path}
-                onClick={onNavigate}
-                title={collapsed ? item.label : undefined}
-              >
-                <ItemIcon className="shrink-0" size={19} />
-                {!collapsed && <span>{item.label}</span>}
-              </NavLink>
+              <div className="grid gap-1" key={item.path}>
+                <div className="flex items-center gap-1">
+                  <NavLink
+                    className={({ isActive }) =>
+                      `group flex min-h-10 min-w-0 flex-1 items-center rounded-md px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
+                        isActive
+                          ? "bg-[#4a87cb] text-white shadow-sm"
+                          : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
+                      } ${collapsed ? "justify-center" : "gap-3"}`
+                    }
+                    to={item.path}
+                    onClick={() => {
+                      if (childItems.length > 0) {
+                        setExpandedItems((current) => ({
+                          ...current,
+                          [item.key]: !childExpanded,
+                        }));
+                      }
+                      onNavigate();
+                    }}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <ItemIcon className="shrink-0" size={19} />
+                    {!collapsed && (
+                      <span className="min-w-0 flex-1 truncate">
+                        {item.label}
+                      </span>
+                    )}
+                  </NavLink>
+                  {!collapsed && childItems.length > 0 && (
+                    <button
+                      aria-expanded={childExpanded}
+                      aria-label={`${childExpanded ? "Hide" : "Show"} ${item.label} pages`}
+                      className="grid h-9 w-8 shrink-0 place-items-center rounded-md text-blue-100 transition hover:bg-white/12 hover:text-white"
+                      onClick={() =>
+                        setExpandedItems((current) => ({
+                          ...current,
+                          [item.key]: !childExpanded,
+                        }))
+                      }
+                      type="button"
+                    >
+                      {childExpanded ? (
+                        <ChevronUp size={15} />
+                      ) : (
+                        <ChevronDown size={15} />
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {!collapsed && childItems.length > 0 && childExpanded && (
+                  <nav
+                    aria-label={`${item.label} pages`}
+                    className="ml-4 grid gap-1 border-l border-blue-200/30 pl-3"
+                  >
+                    {childItems.map((child) => {
+                      const ChildIcon = child.icon;
+                      return (
+                        <NavLink
+                          className={({ isActive }) =>
+                            `flex min-h-9 items-center gap-2 rounded-md px-2.5 text-[12px] font-medium transition ${
+                              isActive
+                                ? "bg-white/18 text-white shadow-sm"
+                                : "text-blue-100 hover:bg-white/10 hover:text-white"
+                            }`
+                          }
+                          end={child.path === "/internal-audit-planning"}
+                          key={child.path}
+                          onClick={onNavigate}
+                          to={child.path}
+                        >
+                          <ChildIcon className="shrink-0" size={15} />
+                          <span className="truncate">{child.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </nav>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -114,6 +186,7 @@ export default function AppLayout() {
   }
 
   const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";
+  const navigationCollapsed = collapsed && !mobileOpen;
 
   return (
     <div className="flex min-h-screen bg-[#f3f8fc] font-['Segoe_UI',Arial,sans-serif] text-slate-800">
@@ -125,7 +198,7 @@ export default function AppLayout() {
         <div
           className={`flex min-h-20 items-center border-b border-white/20 px-3 ${collapsed ? "lg:justify-center" : ""}`}
         >
-          <Brand collapsed={collapsed} />
+          <Brand collapsed={navigationCollapsed} />
           <button
             className="ml-auto grid h-9 w-9 place-items-center rounded-md text-blue-50 transition hover:bg-white/15 lg:hidden"
             type="button"
@@ -142,7 +215,7 @@ export default function AppLayout() {
               key={section.key}
               section={section}
               user={user}
-              collapsed={collapsed}
+              collapsed={navigationCollapsed}
               onNavigate={() => setMobileOpen(false)}
             />
           ))}

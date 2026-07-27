@@ -97,6 +97,21 @@ class User extends Authenticatable
         return $this->hasMany(ActivityLog::class);
     }
 
+    public function iapCapacities(): HasMany
+    {
+        return $this->hasMany(IapAuditorCapacity::class);
+    }
+
+    public function iapUnavailability(): HasMany
+    {
+        return $this->hasMany(IapAuditorUnavailability::class);
+    }
+
+    public function iapSkills(): HasMany
+    {
+        return $this->hasMany(IapAuditorSkill::class);
+    }
+
     public function changes(): MorphMany
     {
         return $this->morphMany(AuditLog::class, 'auditable');

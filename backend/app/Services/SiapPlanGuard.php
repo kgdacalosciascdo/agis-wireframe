@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\StrategicInternalAuditPlan;
+use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
+
+class SiapPlanGuard
+{
+    /** @param Builder<StrategicInternalAuditPlan> $query */
+    public function scopeVisible(Builder $query, User $user): Builder
+    {
+        if ($user->hasRole(['platform_admin', 'cias_management', 'agis_admin'])) {
+            return $query;
+        }
+
+        if ($user->hasRole('read_only')) {
+            return $query->whereIn('status', ['APPROVED', 'ACTIVE', 'COMPLETED']);
+        }
+
+        if ($user->hasRole('agis_user')) {
+            return $query->where(function (Builder $query) use ($user): void {
+                $query
+                    ->where('prepared_by', $user->id)
+                    ->orWhere('coordinator_id', $user->id);
+            });
+        }
+
+        return $query->where(function (Builder $query) use ($user): void {
+            $query
+                ->whereIn('status', ['APPROVED', 'ACTIVE', 'COMPLETED'])
+                ->orWhere('prepared_by', $user->id)
+                ->orWhere('coordinator_id', $user->id);
+        });
+    }
+
+    public function assertCanView(User $user, StrategicInternalAuditPlan $plan): void
+    {
+        if (! $this->scopeVisible(
+            StrategicInternalAuditPlan::query()->whereKey($plan->getKey()),
+            $user,
+        )->exists()) {
+            throw new AuthorizationException;
+        }
+    }
+
+    public function assertEditable(User $user, StrategicInternalAuditPlan $plan): void
+    {
+        $this->assertCanView($user, $plan);
+        if (! $user->hasRole(['platform_admin', 'cias_management'])
+            && $plan->prepared_by !== $user->id
+            && $plan->coordinator_id !== $user->id) {
+            throw new AuthorizationException;
+        }
+
+        if (! in_array($plan->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Only draft or returned strategic plans may be changed.'],
+            ]);
+        }
+    }
+
+    public function assertManagement(User $user): void
+    {
+        if (! $user->hasRole(['platform_admin', 'cias_management'])) {
+            throw new AuthorizationException;
+        }
+    }
+
+    public function assertLockVersion(StrategicInternalAuditPlan $plan, int $lockVersion): void
+    {
+        if ($plan->lock_version !== $lockVersion) {
+            throw ValidationException::withMessages([
+                'lockVersion' => [
+                    'This strategic plan was changed by another user. Refresh it before continuing.',
+                ],
+            ]);
+        }
+    }
+}

@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useAuth } from "../../auth/auth-context";
 
 function buildPageItems(currentPage, totalPages) {
   if (totalPages <= 7) {
@@ -45,13 +46,24 @@ export default function DataTable({
   rowKey = "id",
   loading = false,
   emptyMessage = "No records found.",
-  initialPageSize = 8,
-  pageSizeOptions = [8, 10, 25, 50],
+  initialPageSize,
+  pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
 }) {
+  const { runtimeConfig } = useAuth();
+  const configuredPageSize = Number(
+    initialPageSize ?? runtimeConfig.paginationSize ?? 25,
+  );
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [pageSize, setPageSize] = useState(configuredPageSize);
   const [sort, setSort] = useState({ key: null, direction: "asc" });
+  const availablePageSizes = useMemo(
+    () =>
+      [...new Set([configuredPageSize, ...pageSizeOptions])]
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .sort((left, right) => left - right),
+    [configuredPageSize, pageSizeOptions],
+  );
 
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;
@@ -254,7 +266,7 @@ export default function DataTable({
                 }}
                 value={pageSize}
               >
-                {pageSizeOptions.map((option) => (
+                {availablePageSizes.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>

@@ -5,6 +5,9 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Serializes auditable subjects with their office and audit-area relationships.
+ */
 class IapAuditUniverseResource extends JsonResource
 {
     /** @return array<string, mixed> */

@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
+/** Removes state-machine values that must remain controlled by application workflow rules. */
 return new class extends Migration
 {
     private const CODES = [

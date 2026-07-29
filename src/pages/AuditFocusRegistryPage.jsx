@@ -22,6 +22,7 @@ import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
 import { ApiError, auditAreaApi, auditFocusApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const emptyForm = {
   auditAreaId: "",
@@ -34,6 +35,10 @@ const emptyForm = {
 const inputClass =
   "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
 
+/**
+ * Maintains audit focuses, each of which belongs to exactly one audit area.
+ * The page owns filtering, pagination, soft archival, and detail presentation.
+ */
 export default function AuditFocusRegistryPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -52,6 +57,12 @@ export default function AuditFocusRegistryPage() {
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [selectedFocus, setSelectedFocus] = useState(null);
+  useRecordView(selectedFocus, {
+    module: "CORE",
+    recordType: "AUDIT_FOCUS",
+    code: (record) => record.code,
+    label: (record) => record.name,
+  });
   const canCreate = hasPermission(user, "audit_focus.create");
   const canUpdate = hasPermission(user, "audit_focus.update");
   const canDelete = hasPermission(user, "audit_focus.delete");
@@ -405,7 +416,6 @@ export default function AuditFocusRegistryPage() {
           <DataTable
             columns={columns}
             emptyMessage="No audit focuses match your filters."
-            initialPageSize={8}
             key={`${search}|${areaFilter}|${statusFilter}`}
             loading={loading}
             onRowClick={setSelectedFocus}

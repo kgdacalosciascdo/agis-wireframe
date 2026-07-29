@@ -6,6 +6,9 @@ use App\Models\IapRiskPeriod;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates a risk period and its weighted scoring criteria.
+ */
 class IapRiskPeriodRequest extends FormRequest
 {
     public function authorize(): bool

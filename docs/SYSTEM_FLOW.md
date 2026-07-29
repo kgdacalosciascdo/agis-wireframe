@@ -1,0 +1,464 @@
+# AGIS System Flow
+
+## 1. Scope
+
+This document explains the end-to-end behavior of the implemented AGIS platform:
+React browser application, Laravel API, PostgreSQL records, private/public file
+storage, authorization, reusable services, notifications, Activity Log, Audit
+Trail, and runtime configuration.
+
+Detailed business specifications are in:
+
+- [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
+- [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
+
+## 2. System context
+
+```mermaid
+flowchart LR
+    USER[Authorized AGIS user] -->|HTTPS| SPA[React + React Router]
+    SPA -->|JSON / multipart + Sanctum cookie| API[Laravel API]
+    API --> AUTH[Authentication and permission middleware]
+    AUTH --> SVC[Domain services and controllers]
+    SVC --> DB[(PostgreSQL)]
+    SVC --> PRIVATE[Private document/evidence storage]
+    SVC --> PUBLIC[Managed branding storage]
+    SVC --> MAIL[SMTP or log mail transport]
+    SVC --> LOGS[Activity Log and Audit Trail]
+    SVC --> NOTIFY[Notification Center]
+```
+
+The browser never connects directly to PostgreSQL. React does not decide final
+authorization. All protected reads and writes pass through Laravel.
+
+## 3. Technology and directory map
+
+| Layer | Technology | Main location |
+| --- | --- | --- |
+| Browser UI | React, React Router, Tailwind CSS, Lucide React, Recharts | `src/` |
+| API client | Fetch wrapper, CSRF/Sanctum handling, typed service groups | `src/services/api.js` |
+| API | Laravel controllers, requests, middleware, resources | `backend/app/Http` |
+| Domain rules | Laravel services/support classes | `backend/app/Services`, `backend/app/Support` |
+| Persistence | Eloquent and PostgreSQL migrations | `backend/app/Models`, `backend/database/migrations` |
+| Seed/reference data | Laravel seeders | `backend/database/seeders` |
+| Routes | React route tree and Laravel API routes | `src/App.jsx`, `backend/routes/api.php` |
+| Tests | Laravel feature tests and frontend lint/build | `backend/tests`, npm scripts |
+| Documentation | As-built guides and standards | `docs/` |
+
+## 4. Application startup flow
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant R as React AuthProvider
+    participant A as Laravel
+    participant C as RuntimeConfiguration
+    participant DB as PostgreSQL
+    B->>R: Load application
+    par Runtime branding
+        R->>A: GET /api/runtime-configuration
+        A->>C: Read cached safe values
+        C->>DB: Load settings on cache miss
+        A-->>R: Branding/display/session-safe values
+    and Existing session
+        R->>A: GET /api/me
+        A-->>R: User, roles, permissions, scopes or 401
+    and Local demo list
+        R->>A: GET /api/demo-accounts
+        A-->>R: Enabled local demo accounts or empty list
+    end
+    R->>R: Set title, logo/favicon, routes, and session state
+```
+
+Safe defaults keep the login screen usable if runtime configuration is not yet
+available. Public runtime data does not include SMTP credentials, password
+secrets, or internal security values.
+
+## 5. Request lifecycle
+
+Every authenticated API request follows this general path:
+
+```mermaid
+flowchart TD
+    A[React action] --> B[API service]
+    B --> C{Mutation?}
+    C -->|Yes| D[Fetch CSRF cookie]
+    C -->|No| E[Send request]
+    D --> E
+    E --> F[Laravel api middleware]
+    F --> G[Sanctum authentication]
+    G --> H[Runtime configuration middleware]
+    H --> I[Permission middleware]
+    I --> J[Form Request validation]
+    J --> K[Controller/domain service]
+    K --> L[Scope and business rules]
+    L --> M[Transaction/row lock if required]
+    M --> N[(PostgreSQL / file storage)]
+    N --> O[Activity/Audit/Notification side effects]
+    O --> P[JSON resource response]
+    P --> Q[React state + toast/modal/table]
+```
+
+### 5.1 Response behavior
+
+Typical status handling:
+
+| Status | Meaning | Frontend behavior |
+| --- | --- | --- |
+| `200` | Successful read/update/action | Replace state and show success where applicable |
+| `201` | Record created | Add/refresh record and show success |
+| `401` | No valid session | Return to login/session-expired flow |
+| `403` | Authenticated but not authorized | Show safe permission message |
+| `404` | Record/file unavailable or outside safe resolution | Show not-found message |
+| `409` or `422` | Conflict, stale state, or validation rule | Display actionable validation/conflict feedback |
+| `500` | Unexpected server failure | Show safe generic error; server retains diagnostic details |
+
+## 6. Authentication and authorization flow
+
+Authentication establishes identity. Authorization evaluates:
+
+1. active, non-archived, unlocked account;
+2. route permission;
+3. effective permissions from all active roles;
+4. office scope;
+5. engagement or assignment scope;
+6. record status/ownership;
+7. action-specific business rules.
+
+```mermaid
+flowchart TD
+    A[Authenticated user] --> B{Has module.action permission?}
+    B -->|No| X[403]
+    B -->|Yes| C{Record inside office/assignment scope?}
+    C -->|No| X
+    C -->|Yes| D{State allows action?}
+    D -->|No| V[422 validation/conflict]
+    D -->|Yes| E{Separation/concurrency valid?}
+    E -->|No| V
+    E -->|Yes| F[Perform action and record history]
+```
+
+Frontend permission checks must mirror, but never replace, these backend checks.
+
+## 7. Registry list and detail flow
+
+Implemented registry pages use a common interaction:
+
+1. Load the permission-scoped collection and dropdown/reference data.
+2. Render summary cards, a large search field, filters, sortable columns, and
+   pagination.
+3. Click a row to open details.
+4. Report the detail view to `POST /api/record-views`.
+5. The server validates the associated view permission.
+6. The server writes one Activity Log entry per user/record within five minutes.
+7. Edit/archive/restore actions use explicit controls and confirmation dialogs.
+
+The five-minute view window avoids false activity created by React rerenders.
+
+## 8. Create and update flow
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant F as Form
+    participant API as Laravel API
+    participant DB as PostgreSQL
+    participant L as Logs
+    U->>F: Enter and confirm data
+    F->>API: POST/PUT payload
+    API->>API: Authenticate + authorize
+    API->>API: Normalize + validate
+    API->>DB: Begin transaction
+    API->>DB: Check duplicates/scopes/current state
+    API->>DB: Insert/update related graph
+    API->>L: Record activity and old/new values
+    API->>DB: Commit
+    API-->>F: Resource + message
+    F-->>U: Refresh table/detail and show toast
+```
+
+Database unique constraints remain the final duplicate guard even when the form
+performs early checks.
+
+## 9. Archive and restore flow
+
+AGIS uses recoverable archive:
+
+```mermaid
+stateDiagram-v2
+    Active --> Archived: Authorized archive
+    Archived --> Active: Authorized restore
+```
+
+Archive normally sets an inactive state and `deleted_at`, then records history.
+It does not delete relationships, files, versions, workflow events, or audit
+lineage. Restore resolves the same record ID and reactivates it after validation.
+
+## 10. Controlled approval flow
+
+Module-critical approvals use code-defined transitions:
+
+1. User chooses an allowed action.
+2. Frontend sends action, lock version, required comment, and any confirmation.
+3. Backend locks the current row.
+4. Backend confirms the current status still allows the action.
+5. Backend checks permission, scope, completeness, and separation of duties.
+6. Backend updates status, actor/date fields, and lock version.
+7. Backend creates an immutable event with old/new values.
+8. Backend creates Activity/Audit records.
+9. Backend delivers an in-app notification and optional email.
+10. Transaction commits and the frontend reloads the record.
+
+Reusable generic workflows follow the same principles through workflow
+definitions, steps, transitions, instances, and immutable events.
+
+## 11. Document and file flow
+
+### 11.1 Shared document upload
+
+```mermaid
+flowchart TD
+    A[Upload metadata + file] --> B[Validate permission, type, size, MIME]
+    B --> C[Validate confidentiality authority]
+    C --> D[Resolve authorized module links]
+    D --> E[Store private file with generated storage name]
+    E --> F[Create document metadata]
+    F --> G[Generate configured document code]
+    G --> H[Create immutable version 1 + SHA-256]
+    H --> I[Set current version + links]
+    I --> J[Audit and activity log]
+```
+
+If the database transaction fails after storage, the just-uploaded file is
+removed.
+
+### 11.2 New document version
+
+The service stores a new private file, rejects duplicate checksums, increments the
+version number under a lock, updates the current-version pointer, and preserves
+all earlier versions.
+
+### 11.3 Download
+
+The backend:
+
+1. applies permission middleware;
+2. applies confidentiality/ownership policy;
+3. confirms document-version ownership;
+4. confirms the private file exists;
+5. records download activity;
+6. streams the file with a safe original filename and MIME type.
+
+No private storage path is exposed as a public URL.
+
+### 11.4 Runtime logo
+
+Branding images are the exception: validated logo files are stored in managed
+public storage because the login page must display them before authentication.
+
+## 12. Notification flow
+
+```mermaid
+flowchart LR
+    A[Business/workflow event] --> B[Select permitted recipients]
+    B --> C[Apply category preferences]
+    C --> D[Create/update in-app notification]
+    D --> E{Email enabled globally and for user?}
+    E -->|Yes| F[Send through configured transport]
+    E -->|No| G[Finish]
+    F --> G
+    D --> H[Header badge and Notification Center]
+    H --> I[Deep-link to subject route]
+```
+
+Deduplication keys prevent repeated reminder jobs from creating duplicate
+notifications. Email delivery is secondary and non-transactional from the user's
+perspective: the in-app record remains authoritative.
+
+## 13. Logging flow
+
+### 13.1 Activity Log
+
+Operational actions create a concise human-readable event plus metadata:
+
+- actor and optional subject user;
+- action code and description;
+- old/new values when useful;
+- IP, user agent, module, record type/ID/code, and route;
+- timestamp.
+
+### 13.2 Audit Trail
+
+Significant data changes create a durable delta:
+
+- auditable model and ID;
+- action;
+- old values;
+- new values;
+- actor and request metadata.
+
+Exports are themselves logged.
+
+## 14. Runtime configuration flow
+
+```mermaid
+sequenceDiagram
+    actor A as Administrator
+    participant UI as System Configuration
+    participant API as Laravel
+    participant DB as PostgreSQL
+    participant RC as RuntimeConfiguration
+    A->>UI: Change validated settings
+    UI->>API: PUT /api/system-configurations
+    API->>API: Validate each key using its definition
+    API->>API: Encrypt secret values
+    API->>DB: Save changed values and actor
+    API->>RC: Forget cache and apply settings
+    API-->>UI: Safe public runtime values
+    UI->>UI: Refresh title, brand, logo, and defaults
+```
+
+Number-format tokens:
+
+| Token | Meaning |
+| --- | --- |
+| `{YEAR}` | Current/configured fiscal or record year |
+| `{START_YEAR}` | Strategic planning start |
+| `{END_YEAR}` | Strategic planning end |
+| `{SEQ:n}` | Sequence padded to `n` digits |
+
+Example: `DOC-{YEAR}-{SEQ:5}` becomes `DOC-2026-00042`.
+
+## 15. IAP system flow
+
+```mermaid
+flowchart TD
+    C[Core offices, users, audit areas/focuses] --> S[SIAP direction]
+    C --> U[Audit Universe]
+    S --> U
+    U --> RP[Open risk period]
+    RP --> RA[Score subjects and upload evidence]
+    RA --> VL[Validate and lock]
+    VL --> PR[Generate prioritization ranking]
+    PR --> FD[Select/defer/not select and finalize]
+    FD --> AP[Import selected subjects to annual plan]
+    AP --> EG[Complete objectives, scope, type, quarter, person-days]
+    EG --> RS[Assign resources and schedules]
+    RS --> CF[Resolve conflicts/capacity warnings]
+    CF --> SB[Submit complete plan]
+    SB --> RV{CIAS review}
+    RV -->|Return| AP
+    RV -->|Approve| FR[Freeze approved revision]
+    FR --> AC[Activate and monitor]
+    AC --> CP[Complete or create formal revision]
+```
+
+See [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) for every state and rule.
+
+## 16. Search, sort, filter, and pagination flow
+
+Large registries accept server-side parameters where implemented:
+
+- `search`;
+- domain filters such as role, status, office, area, fiscal year;
+- `sortBy` and `sortDirection`;
+- `page` and `perPage`;
+- explicit archive inclusion.
+
+The runtime pagination default is bounded by backend minimum/maximum rules.
+Archived records are returned only when the actor has the required management
+access.
+
+## 17. Error and concurrency flow
+
+Concurrent controlled records carry `lock_version`:
+
+```mermaid
+sequenceDiagram
+    participant A as Browser A
+    participant B as Browser B
+    participant API as Laravel
+    A->>API: Update with lockVersion 3
+    API-->>A: Saved, lockVersion 4
+    B->>API: Update stale lockVersion 3
+    API-->>B: 422 refresh-and-retry conflict
+```
+
+Approval transitions also use database row locks so two approvals cannot both
+advance the same old state.
+
+## 18. Seed and reset flow
+
+The ordered seed chain creates:
+
+1. roles and permissions;
+2. configurable master lists;
+3. offices;
+4. audit areas and focuses;
+5. system configuration;
+6. Core users and optional local demo users;
+7. IAP planning data;
+8. workflows;
+9. notifications.
+
+The demo reset endpoint is restricted to system-configuration administrators and
+is intended for local prototype/demo data. Production deployment must disable
+demo accounts and protect destructive/reseed operations.
+
+## 19. Testing and release flow
+
+```mermaid
+flowchart LR
+    C[Code change] --> L[ESLint]
+    C --> B[Vite production build]
+    C --> T[Laravel feature tests]
+    L --> R{All pass?}
+    B --> R
+    T --> R
+    R -->|Yes| M[Apply migration]
+    M --> S[Run safe seeders]
+    S --> V[Smoke-test health, login, permissions, files]
+    R -->|No| C
+```
+
+Current standard commands:
+
+```powershell
+npm.cmd run lint
+npm.cmd run build
+
+cd backend
+php artisan test --testsuite=Feature
+php artisan migrate --force
+```
+
+## 20. Security boundaries
+
+- Use HTTPS outside local development.
+- Keep Sanctum cookies HTTP-only and CSRF protection enabled.
+- Keep `APP_DEBUG=false` in production.
+- Do not place secrets in source, URLs, Activity Log, Audit Trail, or public
+  runtime configuration.
+- Back up PostgreSQL and both private/public managed storage.
+- Enforce upload MIME/size policies and malware scanning when production
+  infrastructure is available.
+- Monitor lockouts, failed logins, export volume, workflow deadlines, mail
+  failures, queue failures, disk usage, and database health.
+- Restore tests are as important as backup creation.
+
+## 21. Traceability checklist
+
+Every implemented record flow should be traceable through:
+
+1. frontend route and navigation permission;
+2. API service method;
+3. Laravel route permission;
+4. request validation;
+5. controller/domain service;
+6. model/table constraints;
+7. Activity/Audit event;
+8. notification when applicable;
+9. feature test;
+10. documentation.
+
+If one element is absent, the feature is not fully complete.

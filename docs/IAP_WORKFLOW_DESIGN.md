@@ -1,669 +1,643 @@
 # Internal Audit Planning (IAP) Workflow Design
 
-## 1. Purpose and scope
+## 1. Document purpose
 
-The IAP module decides what should be audited and when. Its authoritative planning
-sequence is:
+This is the as-built functional and technical specification for the AGIS Internal
+Audit Planning module. It explains how strategic planning, the audit universe,
+risk assessment, prioritization, annual planning, scheduling, temporary resource
+capacity, approvals, supporting records, dashboards, reports, security, and
+history work together.
 
-```text
-Audit Universe
-  -> Risk Assessment
-  -> Prioritization
-  -> Internal Annual Audit Plan
-  -> Scheduling
-  -> Approval
+The IAP module answers two questions:
+
+1. What should the City Internal Audit Office audit?
+2. When and with what audit resources should the work be performed?
+
+The implemented planning chain is:
+
+```mermaid
+flowchart LR
+    A[AGIS Core registries] --> B[Strategic Internal Audit Plan]
+    A --> C[Audit Universe]
+    B --> C
+    C --> D[Risk-assessment period]
+    D --> E[Validated and locked assessments]
+    E --> F[Prioritization run]
+    F --> G[Finalized selection decisions]
+    G --> H[Annual Internal Audit Plan]
+    H --> I[Audit schedules]
+    I --> J[Capacity and conflict monitoring]
+    H --> K[Approval and plan freeze]
+    K --> L[Dashboard and reports]
 ```
 
-The module also maintains the longer-term Strategic Internal Audit Plan that guides
-annual priorities. The approved planning scope therefore consists of seven
-connected capabilities:
-
-1. Strategic Internal Audit Plan (SIAP)
-2. Audit Universe Registry
-3. Risk Assessment
-4. Audit Prioritization
-5. Internal Annual Audit Plan (IAAP)
-6. Audit Scheduling
-7. IAP Dashboard
-
-The Annual Internal Audit Plan implementation described later in this document is
-the IAAP capability. It is one part of the complete IAP module and must not be
-treated as the whole module.
-
-Detailed engagement execution belongs to AEM. Findings and recommendations belong
-to AFR. Recommendation monitoring belongs to CMS. Staff availability and capacity
-come from ARMIS.
-
-## 1.1 Required IAP screens and capabilities
-
-### A. Strategic Internal Audit Plan (SIAP)
-
-SIAP defines the multi-year direction that annual plans must support.
-
-Required functions:
-
-- create a strategic plan and define its planning period;
-- add strategic objectives;
-- add audit priorities or themes;
-- map audit areas to one or more strategic objectives;
-- submit for review;
-- approve or return the plan;
-- create a formal plan revision;
-- preserve and view every approved version.
-
-Example: `SIAP 2026-2030`, with objectives for revenue collection controls, IT
-governance, and procurement compliance.
-
-### B. Audit Universe Registry
-
-The Audit Universe is the authoritative inventory of auditable subjects. An
-auditable subject may be a process, program, system, service, project, location,
-entity, fund, contract, or cross-office activity.
-
-Required functions:
-
-- add, edit, archive, and restore an auditable subject;
-- assign its responsible office;
-- assign its primary Audit Area;
-- assign zero or more stakeholder offices;
-- record its last audit date;
-- record materiality or exposure information;
-- view linked historical audits;
-- search, sort, paginate, and filter the Audit Universe.
-
-Example: `Business Tax Collection Process`, owned by the City Treasurer's Office
-under the Revenue Collection Audit Area, last audited in 2023.
-
-### C. Risk Assessment
-
-Risk assessment evaluates an Audit Universe item during an opened assessment
-period.
-
-Required functions:
-
-- open and close an assessment period;
-- select an Audit Universe item;
-- answer configured risk criteria;
-- assign criterion scores and evidence;
-- add assessment justification;
-- upload supporting evidence;
-- calculate inherent risk;
-- record control effectiveness;
-- calculate residual risk;
-- submit the assessment;
-- validate or return the assessment;
-- lock a validated assessment.
-
-The initial criteria include financial exposure, service impact, control weakness,
-complexity, and compliance sensitivity. The ten detailed criteria already seeded
-by AGIS remain valid configurable criteria.
-
-### D. Audit Prioritization
-
-Prioritization produces a repeatable ranked list from validated Audit Universe risk
-assessments.
-
-Required functions:
-
-- calculate and store a priority score;
-- rank assessed Audit Universe items;
-- filter High and Critical risks;
-- compare risk components and total scores;
-- decide `Selected`, `Deferred`, or `Not Selected`;
-- require a reason for manual ranking or decision overrides;
-- preserve the source risk assessment and ranking snapshot used by an IAAP.
-
-### E. Internal Annual Audit Plan (IAAP)
-
-IAAP converts selected prioritized items into the approved annual audit workload.
-The existing `internal_audit_plans` implementation is the foundation of this
-capability.
-
-Required functions:
-
-- create an annual plan;
-- add selected prioritized Audit Universe items;
-- remove or defer an item with a reason;
-- define planned objectives and preliminary scope;
-- select engagement type;
-- assign planned person-days;
-- set a target quarter;
-- calculate total planned demand;
-- compare demand against available ARMIS capacity;
-- submit, return, revise, and approve the plan;
-- freeze every approved revision.
-
-### F. Audit Scheduling
-
-Scheduling turns approved IAAP items into dated proposed engagements.
-
-Required functions:
-
-- schedule an approved audit item;
-- set planned start, end, and expected-report dates;
-- assign a proposed Team Leader;
-- display a calendar view;
-- detect auditor and date conflicts;
-- reschedule only with a reason;
-- cancel a schedule with authorization and a reason;
-- preserve complete schedule history.
-
-### G. IAP Dashboard
-
-The dashboard must derive its values from the records above. Initial cards and
-views:
-
-- Total Audit Universe;
-- Critical Risk Areas;
-- High Risk Areas;
-- Planned Audits;
-- Unplanned Audits;
-- Available Person-Days from ARMIS;
-- Allocated Person-Days;
-- Plan Accomplishment;
-- Upcoming Audits.
-
-## 1.2 Expanded data model
-
-The complete IAP module requires these additional normalized record groups:
-
-| Capability         | Required records                                                                                                                                                      |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SIAP               | strategic plans, objectives, themes/priorities, objective-to-audit-area mappings, revisions, and workflow events                                                      |
-| Audit Universe     | auditable subjects, responsible office, stakeholder-office pivot, primary audit area, materiality/exposure, last-audit metadata, and archive state                    |
-| Assessment periods | period header, open/close/lock status, responsible assessors, and workflow history                                                                                    |
-| Risk               | assessment linked to an Audit Universe item, criterion answers, evidence, inherent score, control-effectiveness result, residual score, validation, and lock metadata |
-| Prioritization     | prioritization run, ranked item snapshot, calculated rank/score, final decision, manual override, and deferral/non-selection reason                                   |
-| IAAP               | annual plan, selected prioritization items, proposed objectives/scope/type/quarter/person-days, capacity snapshot, revisions, and approval                            |
-| Scheduling         | schedule header, proposed team leader, expected report date, conflict result, cancellation, rescheduling reason, and immutable schedule history                       |
-
-An Audit Universe item is the planning subject. Office and Audit Area are
-classifications and ownership relationships; they are not substitutes for the
-auditable subject itself.
-
-## 1.3 Implementation status and required evolution
-
-| Capability      | Current status                            | Required next work                                                                                                                                                                                     |
-| --------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| SIAP            | Not yet implemented                       | Build strategic-plan records, objective/theme mappings, versioning, and approval                                                                                                                       |
-| Audit Universe  | Not yet implemented                       | Build first because risk, prioritization, and IAAP selection depend on it                                                                                                                              |
-| Risk Assessment | Partially implemented                     | Current office/audit-area assessment and weighted scoring must be linked to Audit Universe items and assessment periods; add evidence, inherent/control/residual calculations, validation, and locking |
-| Prioritization  | Not yet implemented                       | Add ranked snapshots and selected/deferred/not-selected decisions                                                                                                                                      |
-| IAAP            | Foundation implemented                    | Link proposed engagements to selected prioritization items, add target quarter, capacity comparison, and approved-version freeze                                                                       |
-| Scheduling      | Partially represented by engagement dates | Add a dedicated schedule and immutable reschedule/cancellation history with conflict detection                                                                                                         |
-| Dashboard       | Existing dashboard is illustrative        | Replace IAP cards with derived planning metrics                                                                                                                                                        |
-
-## 1.4 Implementation dependency order
-
-The remaining work must be implemented in this order:
-
-1. Audit Universe Registry
-2. SIAP and strategic objective/theme mappings
-3. Assessment Periods and Audit-Universe-based Risk Assessment
-4. Audit Prioritization
-5. IAAP selection and ARMIS capacity comparison
-6. Audit Scheduling and conflict/history controls
-7. IAP Dashboard and reports
-
-This order prevents annual-plan and scheduling records from being built on
-temporary office-only risk subjects.
-
-## 2. Core design decisions
-
-1. AGIS normally has one current Annual Internal Audit Plan for each fiscal year.
-2. An approved plan is immutable. Changes require a new revision copied from the
-   approved plan.
-3. Every revision has its own engagements, risk assessments, assignments,
-   comments, attachments, and approval history.
-4. Workflow transitions are performed by server actions, never by directly editing
-   the status field.
-5. Workflow history is permanent and cannot be edited or deleted.
-6. Deletion is implemented as archival through soft deletion.
-7. Risk ratings come from scored criteria, while an authorized reviewer may make a
-   documented override.
-8. Proposed engagements may cover multiple offices, audit areas, and audit focuses.
-9. Team members are assigned to individual proposed engagements, with a planned
-   person-day allocation.
-10. All workflow actions use database transactions, row locking, backend
-    authorization, and audit logging.
-
-## 3. Main records
-
-### 3.1 Annual Internal Audit Plan
-
-Suggested record name: `internal_audit_plans`
-
-| Field                   | Required | Purpose                                             |
-| ----------------------- | -------: | --------------------------------------------------- |
-| `id`                    |      Yes | Internal primary key                                |
-| `plan_code`             |      Yes | Human-readable identifier, such as `IAP-2027-R00`   |
-| `fiscal_year`           |      Yes | Covered fiscal year                                 |
-| `planning_period_start` |      Yes | Beginning of the covered planning period            |
-| `planning_period_end`   |      Yes | End of the covered planning period                  |
-| `title`                 |      Yes | Formal plan title                                   |
-| `executive_summary`     |       No | High-level planning context and priorities          |
-| `planning_methodology`  |       No | Risk assessment and prioritization approach         |
-| `overall_objective`     |      Yes | Overall objective of the annual plan                |
-| `overall_scope`         |      Yes | Overall organizational and operational coverage     |
-| `limitations`           |       No | Known planning limitations and exclusions           |
-| `status`                |      Yes | Controlled workflow status                          |
-| `revision_number`       |      Yes | Starts at `0` and increases for formal revisions    |
-| `supersedes_plan_id`    |       No | Previous approved revision                          |
-| `is_current_revision`   |      Yes | Identifies the current revision for the fiscal year |
-| `prepared_by`           |      Yes | Primary plan preparer                               |
-| `coordinator_id`        |       No | CIAS management coordinator                         |
-| `submitted_at/by`       |       No | Submission metadata                                 |
-| `approved_at/by`        |       No | Approval metadata                                   |
-| `activated_at/by`       |       No | Activation metadata                                 |
-| `completed_at/by`       |       No | Completion metadata                                 |
-| `lock_version`          |      Yes | Prevents concurrent overwrite or double approval    |
-| `is_active`             |      Yes | Operational active flag                             |
-| timestamps              |      Yes | Creation and update timestamps                      |
-| `deleted_at`            |       No | Soft-deletion timestamp                             |
-
-Recommended constraints:
-
-- `plan_code` is globally unique.
-- `(fiscal_year, revision_number)` is unique.
-- only one non-archived row per fiscal year may have `is_current_revision=true`;
-- `planning_period_start <= planning_period_end`;
-- fiscal year is between 2000 and 2100.
-
-### 3.2 Risk Assessment
-
-Suggested records:
-
-- `iap_risk_assessments`
-- `iap_risk_assessment_scores`
-
-One assessment evaluates an office and audit area for a specific plan revision.
-
-Risk assessment fields:
-
-| Field                       |    Required | Purpose                            |
-| --------------------------- | ----------: | ---------------------------------- |
-| `plan_id`                   |         Yes | Plan revision being prepared       |
-| `office_id`                 |         Yes | Assessed city office               |
-| `audit_area_id`             |         Yes | Assessed audit area                |
-| `assessed_by`               |         Yes | Responsible assessor               |
-| `assessment_date`           |         Yes | Date assessed                      |
-| `last_audit_date`           |          No | Most recent related audit          |
-| `inherent_risk_notes`       |          No | Inherent exposure                  |
-| `control_environment_notes` |          No | Known control conditions           |
-| `total_weighted_score`      |         Yes | Calculated score from 1.00 to 5.00 |
-| `calculated_risk_level`     |         Yes | System-derived risk level          |
-| `override_risk_level`       |          No | Reviewer-authorized risk override  |
-| `override_reason`           | Conditional | Required when an override is used  |
-| `final_risk_level`          |         Yes | Calculated or authorized override  |
-| `justification`             |         Yes | Planning rationale                 |
-
-Risk score fields:
-
-- risk assessment;
-- risk criterion master-list item;
-- criterion weight;
-- rating from 1 to 5;
-- weighted score;
-- assessor comment.
-
-Proposed initial criteria:
-
-1. Financial exposure and materiality
-2. Prior audit findings and unresolved recommendations
-3. Internal-control maturity
-4. Legal and regulatory exposure
-5. Operational complexity and organizational change
-6. Fraud, integrity, and safeguarding exposure
-7. Public-service and stakeholder impact
-8. Time elapsed since the last audit
-9. Management or oversight concern
-10. Information-system and data dependency
-
-The criteria weights for an assessment must total 100%.
-
-Initial risk thresholds:
-
-| Weighted score | Risk level |
-| -------------: | ---------- |
-|      1.00–1.99 | Low        |
-|      2.00–2.99 | Medium     |
-|      3.00–3.99 | High       |
-|      4.00–5.00 | Critical   |
-
-The thresholds should be centrally configurable rather than hard-coded in React.
-
-### 3.3 Proposed Audit Engagement
-
-Suggested record name: `iap_plan_engagements`
-
-| Field                   | Required | Purpose                                           |
-| ----------------------- | -------: | ------------------------------------------------- |
-| `plan_id`               |      Yes | Parent plan revision                              |
-| `engagement_code`       |      Yes | Proposed identifier, such as `IAP-2027-001`       |
-| `title`                 |      Yes | Proposed engagement title                         |
-| `engagement_type_id`    |      Yes | Master-list engagement type                       |
-| `priority_id`           |      Yes | Master-list planning priority                     |
-| `risk_level_id`         |      Yes | Final planning risk level                         |
-| `risk_assessment_id`    |       No | Principal supporting assessment                   |
-| `background`            |       No | Reason for proposing the engagement               |
-| `objectives`            |      Yes | Intended engagement objectives                    |
-| `scope`                 |      Yes | Processes, units, periods, and boundaries covered |
-| `exclusions`            |       No | Explicit scope exclusions                         |
-| `audit_criteria`        |       No | Laws, policies, standards, or criteria expected   |
-| `proposed_methodology`  |       No | Planned approach and methods                      |
-| `planned_start_date`    |      Yes | Proposed start                                    |
-| `planned_end_date`      |      Yes | Proposed end                                      |
-| `estimated_person_days` |      Yes | Total planned audit effort                        |
-| `estimated_cost`        |       No | Estimated direct cost                             |
-| `sequence_number`       |      Yes | Display and implementation order                  |
-| `planning_notes`        |       No | Additional planning notes                         |
-| `aem_engagement_id`     |       No | AEM record created after plan activation          |
-| `is_active`             |      Yes | Operational active flag                           |
-| timestamps              |      Yes | Creation and update timestamps                    |
-| `deleted_at`            |       No | Soft deletion                                     |
-
-Coverage relationships:
-
-- `iap_engagement_offices`: one engagement to one or more offices;
-- `iap_engagement_audit_areas`: one engagement to one or more audit areas;
-- `iap_engagement_audit_focuses`: optional detailed focus coverage.
-
-Every selected audit focus must belong to a selected audit area. Every selected
-office/audit-area combination must be valid in the Core Office and Audit Area
-registries.
-
-### 3.4 Assigned Audit Team
-
-Suggested record name: `iap_engagement_team_members`
-
-| Field                 | Required | Purpose                                        |
-| --------------------- | -------: | ---------------------------------------------- |
-| `plan_engagement_id`  |      Yes | Proposed engagement                            |
-| `user_id`             |      Yes | Active CIAS user                               |
-| `team_role_id`        |      Yes | Lead, member, reviewer, specialist, or support |
-| `planned_person_days` |      Yes | Planned allocation                             |
-| `assignment_notes`    |       No | Responsibility or specialist scope             |
+## 2. Implementation status
+
+The following IAP capabilities are implemented:
+
+| Capability | Status | Primary frontend route |
+| --- | --- | --- |
+| IAP dashboard | Implemented with live aggregates | `/internal-audit-planning` |
+| Strategic Internal Audit Plan | Implemented | `/internal-audit-planning/strategic-plan` |
+| Audit Universe Registry | Implemented | `/internal-audit-planning/audit-universe` |
+| Risk-assessment periods | Implemented | `/internal-audit-planning/risk-assessment` |
+| Audit prioritization | Implemented | `/internal-audit-planning/prioritization` |
+| Annual Internal Audit Plan | Implemented | `/internal-audit-planning/annual-plan` |
+| Audit scheduling | Implemented | `/internal-audit-planning/scheduling` |
+| Temporary resource capacity | Implemented | `/internal-audit-planning/resources` |
+| Supporting records and comments | Implemented in annual-plan workspace | Annual-plan detail route |
+| Reports and exports | Implemented | `/internal-audit-planning/reports` |
+
+ARMS/ARMIS remains a separate future operational module. Until it becomes the
+authoritative resource source, IAP uses its temporary annual-capacity,
+unavailability, skill, and workload records.
+
+## 3. Navigation behavior
+
+The sidebar item **Internal Audit Planning** opens the IAP dashboard. Its adjacent
+toggle expands or collapses the IAP submenu. Expanding the submenu does not
+change the current route.
+
+Every route is protected by `iap.*` permissions. Hiding a submenu or action in
+React is only a user-interface convenience; Laravel middleware and services make
+the final authorization decision.
+
+## 4. Roles and permissions
+
+The IAP permission catalogue is action-specific:
+
+| Permission | Purpose |
+| --- | --- |
+| `iap.view` | View authorized IAP dashboards and records |
+| `iap.manage_universe` | Maintain Audit Universe subjects |
+| `iap.create` | Create planning records |
+| `iap.update` | Edit mutable planning records |
+| `iap.assess_risk` | Score and maintain risk assessments |
+| `iap.manage_engagements` | Add, import, update, defer, or archive proposed engagements |
+| `iap.assign_team` | Maintain schedules, capacity, skills, and teams |
+| `iap.submit` | Submit or resubmit controlled records |
+| `iap.review` | Return records and add formal review comments |
+| `iap.approve` | Approve, validate, or finalize records |
+| `iap.activate` | Activate approved plans or lock validated periods |
+| `iap.complete` | Complete active plans |
+| `iap.create_revision` | Create a formal revision of an approved/active plan |
+| `iap.archive` | Soft-delete eligible records |
+| `iap.restore` | Restore archived records |
+| `iap.export` | Generate downloadable IAP reports |
+
+Default role behavior:
+
+| Role | Typical IAP access |
+| --- | --- |
+| Platform Administrator | Full IAP access for platform administration and support |
+| AGIS Administrator | View and platform-monitoring access |
+| CIAS Management | Planning ownership, review, approval, resource assignment, reports |
+| AGIS User | Authorized operational planning and assigned audit work |
+| Auditee Representative | No IAP access by default |
+| Read Only User | Approved/authorized inquiry-only planning views |
+
+Office and assignment scopes are also evaluated. A permission does not
+automatically grant access to every office or engagement.
+
+## 5. Strategic Internal Audit Plan
+
+### 5.1 Purpose
+
+The Strategic Internal Audit Plan (SIAP) records the multi-year direction that
+annual plans should support. A typical period is 2027–2031.
+
+### 5.2 Record content
+
+A strategic plan contains:
+
+- plan code generated from `siap_plan_number_format`, unless supplied;
+- start and end year;
+- title, strategic context, vision, and mission alignment;
+- planning methodology and expected outcomes;
+- preparer and optional coordinator;
+- strategic objectives;
+- audit priorities/themes;
+- objective-to-audit-area mappings;
+- revision lineage and current-revision flag;
+- workflow dates, actors, comments, and immutable events.
+
+An objective describes an intended audit contribution. A priority/theme describes
+a recurring area of emphasis. Objectives can link to one or more reusable Core
+Audit Areas.
+
+### 5.3 Workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> PENDING_REVIEW: Submit
+    PENDING_REVIEW --> RETURNED_FOR_REVISION: Return
+    RETURNED_FOR_REVISION --> RESUBMITTED: Resubmit
+    RESUBMITTED --> RETURNED_FOR_REVISION: Return
+    PENDING_REVIEW --> APPROVED: Approve
+    RESUBMITTED --> APPROVED: Approve
+    APPROVED --> ACTIVE: Activate
+    ACTIVE --> COMPLETED: Complete
+```
 
 Rules:
 
-- a user may appear only once per engagement;
-- at least one lead auditor and one reviewer must be assigned before submission;
-- only active CIAS Management or AGIS User accounts may be assigned;
-- member person-days must total the engagement's estimated person-days;
-- allocations may not exceed the user's available planning-period capacity;
-- the reviewer cannot also be the sole lead auditor.
+- Draft and returned records may be edited by authorized users.
+- Return actions require a comment.
+- The submitter cannot approve the same version.
+- Completion requires an explicit confirmation.
+- Approved, active, and completed versions are immutable.
+- A change to an approved or active plan requires a formal revision.
+- A revision copies the approved content, links it to the superseded version, and
+  becomes the only current revision for that strategic period.
+- Archive is a soft-delete state and is not a workflow status.
 
-### 3.5 Approval History
+## 6. Audit Universe Registry
 
-Suggested record name: `iap_workflow_events`
+### 6.1 Purpose
 
-Each workflow action creates an immutable event containing:
+The Audit Universe is the inventory of auditable subjects. An Office or Audit Area
+is a classification or owner; it is not itself a substitute for an auditable
+subject.
 
-- plan revision;
-- action;
-- previous status;
-- resulting status;
-- actor and actor role at the time of action;
-- comment or decision rationale;
-- action timestamp;
-- IP address and user agent;
-- plan `lock_version`;
-- optional metadata, such as validation warnings or generated report identifiers.
+Examples:
 
-This domain history is separate from the technical audit trail. Both are retained.
+- Business Tax Collection Process;
+- Procurement Planning and Bidding;
+- Payroll Administration;
+- Disaster-response Operations;
+- City Financial Management Information System.
 
-### 3.6 Comments
+### 6.2 Record content and relationships
 
-Suggested record name: `iap_comments`
+Each subject includes:
 
-A comment may belong to the plan or a proposed engagement.
+- subject code and name;
+- subject type from a configurable master list;
+- description and audit rationale;
+- responsible office;
+- primary audit area;
+- additional stakeholder offices;
+- materiality or financial exposure;
+- service impact and compliance sensitivity;
+- last audit date and last audit result;
+- active/archive state;
+- immutable change history.
 
-Comment types:
+Core dependencies:
 
-- general planning comment;
-- reviewer comment;
-- return-for-revision instruction;
-- management comment;
-- approval note;
-- revision explanation.
+- the responsible office must be active and visible to the actor;
+- the primary audit area must be linked to the responsible office;
+- stakeholder offices come from the Office Registry;
+- subject types come from `IAP_AUDIT_UNIVERSE_SUBJECT_TYPE`.
 
-Fields include author, comment type, body, internal/shared visibility, optional
-parent comment, timestamps, and soft deletion. Comments required by a workflow
-decision become immutable after the decision is recorded.
+### 6.3 Lifecycle
 
-### 3.7 Attachments
+Authorized users can create, edit, search, filter, sort, archive, and restore a
+subject. Archive never removes risk, prioritization, or historical plan lineage.
+Records already referenced by later planning stages remain historically
+resolvable.
 
-Suggested record name: `iap_attachments`
+## 7. Risk assessment
 
-Attachments use the shared private document-storage service and associate a stored
-document with:
+### 7.1 Assessment period
 
-- a plan revision;
-- optionally, a proposed engagement or risk assessment;
-- attachment purpose/type;
-- display name;
-- uploaded-by and uploaded-at metadata;
-- internal/shared visibility.
+Risk scoring is controlled by an assessment period rather than performed as
+unstructured edits. A period defines:
 
-IAP working attachments must not automatically appear in the general reference
-library. Step 2 should extend the shared document service with module ownership or
-a document-link association rather than expose plan working files publicly.
+- generated or supplied period code;
+- assessment year and date range;
+- instructions;
+- weighted criteria totaling exactly 100%;
+- lifecycle state and workflow actors;
+- optimistic `lock_version`.
 
-## 4. Workflow
+### 7.2 Assessment-period workflow
 
-```text
-Draft
-  └─ Submit ───────────────→ Pending Review
-                                  ├─ Return ─────→ Returned for Revision
-                                  │                    └─ Resubmit ─→ Resubmitted
-                                  │                                      ├─ Return
-                                  │                                      ├─ Approve
-                                  │                                      └─ Reject
-                                  ├─ Approve ────→ Approved
-                                  └─ Reject ─────→ Rejected
-
-Approved ── Activate ─────────→ Active
-Active ──── Complete ─────────→ Completed
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> OPEN: Open
+    OPEN --> PENDING_VALIDATION: Submit
+    PENDING_VALIDATION --> RETURNED_FOR_REVISION: Return
+    RETURNED_FOR_REVISION --> RESUBMITTED: Resubmit
+    RESUBMITTED --> RETURNED_FOR_REVISION: Return
+    PENDING_VALIDATION --> VALIDATED: Validate
+    RESUBMITTED --> VALIDATED: Validate
+    VALIDATED --> LOCKED: Lock
 ```
 
-### 4.1 Transition rules
+Rules:
 
-| Current status        | Action   | Next status           | Required permission | Comment                     |
-| --------------------- | -------- | --------------------- | ------------------- | --------------------------- |
-| Draft                 | Submit   | Pending Review        | `iap.submit`        | Optional                    |
-| Returned for Revision | Resubmit | Resubmitted           | `iap.submit`        | Required summary of changes |
-| Pending Review        | Return   | Returned for Revision | `iap.review`        | Required                    |
-| Resubmitted           | Return   | Returned for Revision | `iap.review`        | Required                    |
-| Pending Review        | Approve  | Approved              | `iap.approve`       | Optional                    |
-| Resubmitted           | Approve  | Approved              | `iap.approve`       | Optional                    |
-| Pending Review        | Reject   | Rejected              | `iap.review`        | Required                    |
-| Resubmitted           | Reject   | Rejected              | `iap.review`        | Required                    |
-| Approved              | Activate | Active                | `iap.activate`      | Optional                    |
-| Active                | Complete | Completed             | `iap.complete`      | Optional                    |
+- Only unused drafts may have their criteria structure edited.
+- Criterion weights must total 100%.
+- An open or returned period accepts assessment work.
+- At least one assessment is required before submission.
+- A return requires instructions.
+- The submitter cannot validate the same period.
+- Only validated/locked results can enter prioritization.
+- Locked assessments are immutable.
 
-Archive is not a workflow status. It is a recoverable record state.
+### 7.3 Subject assessment
 
-### 4.2 Status behavior
+Each assessment belongs to one Audit Universe subject and records:
 
-**Draft**
+- one rating and comment for each weighted criterion;
+- weighted inherent-risk score;
+- control-effectiveness percentage and notes;
+- calculated residual-risk score;
+- inherent and residual risk levels;
+- justification and assessment date;
+- assessor/validator information;
+- supporting evidence metadata and secured storage path;
+- validation/lock state and archive state.
 
-- Editable by authorized preparers.
-- Risk assessments, engagements, teams, comments, and attachments may be changed.
-- May be archived if never submitted.
+The default risk level is read from `default_risk_level_code`. Scoring remains
+criterion-driven; the configuration supplies a safe default only where a new
+record legitimately omits an explicit level.
 
-**Pending Review**
+Evidence downloads require authorization and are activity-logged. Evidence is
+soft-deleted when archived.
 
-- Content is locked.
-- Reviewers may comment, return, approve, or reject.
-- Preparers may not edit until returned.
+## 8. Audit prioritization
 
-**Returned for Revision**
+### 8.1 Preconditions
 
-- Content is editable.
-- The reviewer’s return comment remains visible.
-- Resubmission requires a change summary.
+A prioritization run can be created only from a risk period containing validated
+or locked assessments. Only one active run may use a risk period.
 
-**Resubmitted**
+### 8.2 Ranking and decisions
 
-- Content is locked.
-- Review actions are the same as Pending Review.
+Creation generates a snapshot item for every eligible assessed subject. Each item
+preserves:
 
-**Approved**
+- source period and assessment IDs;
+- subject, office, and audit-area identity;
+- inherent and residual scores;
+- calculated priority score and system rank;
+- final rank;
+- decision: selected, deferred, or not selected;
+- decision reason;
+- manual override and override reason.
 
-- Content is immutable.
-- Activation is allowed.
-- A change requires `Create Revision`, which clones the approved plan into a new
-  Draft revision and preserves the approved revision.
+If final rank differs from system rank, an override reason is mandatory. Deferred
+and not-selected decisions require an explanation.
 
-**Active**
+### 8.3 Workflow
 
-- The approved plan is the basis for creating and monitoring AEM engagements.
-- Planning content is immutable.
-- Schedule adjustments must be processed through a formal revision.
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> PENDING_REVIEW: Submit
+    PENDING_REVIEW --> RETURNED_FOR_REVISION: Return
+    RETURNED_FOR_REVISION --> RESUBMITTED: Resubmit
+    RESUBMITTED --> RETURNED_FOR_REVISION: Return
+    PENDING_REVIEW --> FINALIZED: Finalize
+    RESUBMITTED --> FINALIZED: Finalize
+```
 
-**Completed**
+The submitter cannot finalize the same run. Finalization verifies complete
+decisions, required explanations, valid ranks, and validated source assessments.
+A finalized ranking is immutable and is the only valid source for annual-plan
+imports.
 
-- All linked AEM engagements must be completed, closed, cancelled with authority,
-  or formally carried forward before plan completion.
-- The plan is read-only.
+## 9. Annual Internal Audit Plan
 
-**Rejected**
+### 9.1 Header
 
-- The revision is terminal and read-only.
-- A new revision may be created using the rejected content as a starting point.
+The annual plan contains:
 
-## 5. Submission completeness checks
+- plan code generated from `iap_plan_number_format`, unless supplied;
+- fiscal year and planning date range;
+- planning-period type;
+- source finalized prioritization run;
+- executive summary, methodology, overall objective and scope;
+- limitations, management direction, and resource assumptions;
+- preparer and coordinator;
+- revision lineage;
+- status, workflow actors/dates, lock version, and archive state.
 
-The server must reject submission unless:
+Only one non-archived current revision may exist for a fiscal year.
 
-1. the fiscal year, period, objective, and scope are complete;
-2. at least one risk assessment exists;
-3. every risk assessment has 100% criterion weight and a final risk level;
-4. at least one proposed engagement exists;
-5. every engagement has an office, audit area, objectives, scope, priority, risk
-   level, start date, end date, and positive person-day estimate;
-6. engagement dates fall within the planning period;
-7. every selected audit focus belongs to a selected audit area;
-8. every engagement has a lead, reviewer, and valid team allocation;
-9. team person-days equal the engagement estimate;
-10. there are no duplicate engagement codes;
-11. required attachments or management comments configured by policy are present;
-12. no stale edit exists according to `lock_version`.
+### 9.2 Importing selected subjects
 
-The UI may display the checks early, but Laravel and PostgreSQL remain authoritative.
+The annual-plan workspace imports selected prioritization items. An import:
 
-## 6. Revision rules
+- prevents duplicate subject selection;
+- preserves the source prioritization item and risk-assessment links;
+- carries responsible office and primary audit area;
+- carries source scores, level, decision, and final rank;
+- requires the planner to complete objectives and preliminary scope;
+- assigns engagement type and audit approach;
+- assigns target quarter and planned person-days.
 
-1. Only Approved or Active plans may use `Create Revision`.
-2. The action creates a new Draft row with the next revision number.
-3. The header, assessments, scores, engagements, coverage, and team allocations are
-   copied in one transaction.
-4. The previous revision remains immutable and readable.
-5. A revision reason is required.
-6. Only one revision for a fiscal year may be current.
-7. Activating an approved revision supersedes the previously active revision.
-8. Links to AEM engagements are preserved and reconciled rather than silently
-   deleted.
+Selected, deferred, and unplanned subjects remain visible for coverage analysis.
+Removing or archiving an engagement does not erase source lineage.
 
-## 7. Permission model
+### 9.3 Proposed engagement content
 
-Recommended action permissions:
+A proposed engagement includes:
 
-- `iap.view`
-- `iap.create`
-- `iap.update`
-- `iap.assess_risk`
-- `iap.manage_engagements`
-- `iap.assign_team`
-- `iap.submit`
-- `iap.review`
-- `iap.approve`
-- `iap.activate`
-- `iap.complete`
-- `iap.create_revision`
-- `iap.archive`
-- `iap.restore`
-- `iap.export`
+- engagement code and title;
+- engagement type, approach, planning priority, and risk level;
+- background, objectives, scope, exclusions, criteria, and methodology;
+- planned start/end dates and target quarter;
+- estimated person-days and optional cost;
+- linked offices, audit areas, and audit focuses;
+- proposed team leader and members;
+- required skills;
+- scheduling status and history;
+- prioritization and risk source snapshot.
 
-Recommended role defaults:
+Every selected audit area must cover every selected office in Core. Every focus
+must belong to a selected area.
 
-| Role                   | Default IAP access                                                                                             |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Platform Administrator | All actions for support and emergency administration; business approval use should be restricted operationally |
-| AGIS Administrator     | View and administrative monitoring only                                                                        |
-| CIAS Management        | Full planning, review, approval, activation, completion, revision, archive, restore, and export                |
-| AGIS User              | View; edit assigned Draft/Returned plans; assess risk; manage assigned engagements and teams                   |
-| Auditee Representative | No IAP access by default                                                                                       |
-| Read Only User         | View and export Approved, Active, and Completed plans only                                                     |
+### 9.4 Completeness gate
 
-Permissions do not replace record scope. Backend policies must also check status,
-assignment, office, role, and whether the user is acting on their own submission.
+Before submission, the backend checks at least:
 
-## 8. Separation of duties
+- required plan header fields;
+- valid planning dates;
+- a finalized source prioritization where applicable;
+- at least one active proposed engagement;
+- engagement objectives and scope;
+- valid office/audit-area coverage;
+- planned person-days;
+- assigned team/capacity requirements where required;
+- no unresolved structural validation errors.
 
-- A preparer should not be the sole approver of the same plan.
-- The actor who submits a plan cannot approve it unless an explicitly documented
-  emergency override is authorized.
-- A plan reviewer should not be the only lead auditor for every engagement.
-- Risk overrides require CIAS Management authority and a reason.
-- The approval action stores the approver’s role and permission snapshot.
+The endpoint returns a completeness result that the frontend displays. The
+transition endpoint independently repeats the authoritative checks.
 
-## 9. Archival and retention
+### 9.5 Annual-plan workflow
 
-- Draft, Returned, Rejected, and Completed revisions may be archived by authorized
-  users.
-- Pending Review, Resubmitted, Approved, and Active revisions cannot be archived.
-- A current plan revision cannot be archived until another current revision is
-  established or the plan is formally completed.
-- Restore must verify that referenced offices, audit areas, users, master-list
-  values, and attachments still exist.
-- Workflow events and technical audit logs are never soft-deleted with the plan.
-- Retention duration must follow the approved City Government and National Archives
-  records-disposition rules configured for production.
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> PENDING_REVIEW: Submit
+    PENDING_REVIEW --> RETURNED_FOR_REVISION: Return
+    RETURNED_FOR_REVISION --> RESUBMITTED: Resubmit
+    RESUBMITTED --> RETURNED_FOR_REVISION: Return
+    PENDING_REVIEW --> APPROVED: Approve
+    RESUBMITTED --> APPROVED: Approve
+    PENDING_REVIEW --> REJECTED: Reject
+    RESUBMITTED --> REJECTED: Reject
+    APPROVED --> ACTIVE: Activate
+    ACTIVE --> COMPLETED: Complete
+```
 
-## 10. Notifications
+Rules:
 
-The workflow should generate notifications for:
+- Return and rejection require comments.
+- The submitter cannot approve the same plan.
+- Approved versions are frozen.
+- Active plans cannot be structurally edited.
+- Completion requires confirmation that planned engagements are completed.
+- Only approved or active plans can be formally revised.
+- Revision copies the plan graph and preserves supersession links.
+- Workflow actions record actor, timestamp, comment, old values, and new values.
 
-- plan submitted for review;
-- plan returned with required revisions;
-- plan resubmitted;
-- plan approved or rejected;
-- plan activated;
-- plan nearing its planning-period start without activation;
-- team assignment or assignment change;
-- approved plan revision created;
-- active plan completed.
+## 10. Audit scheduling
 
-Notification delivery failure must not roll back the workflow transaction. Events
-should be queued after the database commit.
+### 10.1 Schedule content
 
-## 11. Reports and outputs
+Scheduling extends a proposed engagement with:
 
-Initial outputs:
+- planned start and end date;
+- expected report date;
+- proposed team leader and audit team;
+- allocated person-days;
+- schedule status;
+- cancellation or rescheduling reason;
+- immutable schedule-event history.
 
-1. Annual Internal Audit Plan
-2. Risk Assessment Summary
-3. Audit Universe and Coverage Matrix
-4. Proposed Engagement Schedule
-5. Auditor Person-Day Allocation
-6. Office and Audit Area Coverage Summary
-7. Approval and Revision History
-8. Uncovered High/Critical Risk Areas
+### 10.2 Conflict engine
 
-Approved reports must show the plan code, fiscal year, revision number, status,
-generation timestamp, and approving authority.
+Before saving and on dashboard aggregation, the service checks:
 
-## 12. Step 1 acceptance criteria
+- an auditor assigned to overlapping engagements;
+- overlapping audits of the same responsible office;
+- an auditor unavailable because of leave, training, or another block;
+- assigned person-days exceeding available capacity;
+- missing required skills or specialization;
+- malformed date ranges or report dates.
 
-Step 1 is complete when the project accepts this specification as the basis for:
+Warnings are returned to the UI. Business-critical conflicts can prevent a save;
+informational warnings remain visible for management action.
 
-- normalized migrations and database constraints;
-- master-list seed data;
-- granular IAP permissions;
-- backend workflow policies and transition endpoints;
-- list, form, risk assessment, engagement, team, review, and detail screens;
-- notification events, reports, and automated tests.
+### 10.3 Rescheduling and cancellation
 
-The next implementation step is to convert this design into the IAP migrations,
-models, master-list seeders, and permission updates.
+Rescheduling requires a reason and creates a history event containing the old and
+new schedule values. Cancellation changes status and records an event; it does
+not hard-delete the engagement or its schedule history.
+
+The page supports table and calendar views.
+
+## 11. Temporary capacity integration
+
+Until ARMIS becomes authoritative, IAP maintains:
+
+- annual auditor capacity;
+- available person-days;
+- leave, training, and unavailable date ranges;
+- auditor skills;
+- engagement skill requirements;
+- planned allocations and calculated remaining capacity.
+
+`iap_default_annual_person_days` supplies a fallback for an active eligible
+auditor without an explicit capacity record.
+
+When ARMIS is implemented, these interfaces should remain stable while the
+capacity service changes its source of truth. Historical IAP capacity snapshots
+must remain unchanged.
+
+## 12. Supporting records and management comments
+
+The annual-plan workspace supports:
+
+- risk-assessment evidence;
+- planning working papers;
+- management directives;
+- capacity calculations;
+- approval documents;
+- reviewer comments;
+- return instructions;
+- revision explanations.
+
+Attachments retain file name, MIME type, size, checksum, uploader, timestamps,
+visibility, and archive state. Comments retain author, type, text, parent/comment
+context, and timestamps. Approved plans freeze supporting records where changing
+them would alter the approved planning basis.
+
+General reference documents belong in Core Document Management. IAP attachments
+remain owned by their planning record unless explicitly linked into the shared
+repository.
+
+## 13. Dashboard
+
+The IAP dashboard derives live, role-scoped values:
+
+- total Audit Universe;
+- critical and high-risk subjects;
+- selected and deferred subjects;
+- planned and unplanned audits;
+- available and allocated person-days;
+- capacity utilization;
+- upcoming audits;
+- annual-plan approval status;
+- plan accomplishment;
+- risk distribution charts;
+- schedule-conflict warnings.
+
+Dashboard values are calculated from the same visible records used by the detail
+pages. A card must never reveal counts for records the user cannot open.
+
+## 14. Reports and exports
+
+Implemented reports:
+
+1. Approved Strategic Internal Audit Plan
+2. Audit Universe Report
+3. Risk-assessment Matrix
+4. Risk Heat Map
+5. Prioritization Ranking
+6. Approved Annual Internal Audit Plan
+7. Annual Audit Schedule
+8. Auditor Allocation Report
+9. Plan Revision History
+
+Supported output modes are PDF, Excel, CSV, and print view. Report preview and
+export enforce the same role, office, approved-state, and record visibility rules
+as interactive pages. Export actions are activity-logged.
+
+## 15. Data model map
+
+| Record group | Main tables/models | Key relationship |
+| --- | --- | --- |
+| SIAP | strategic plans, objectives, priorities, SIAP events | objectives map to Core Audit Areas |
+| Audit Universe | universe items, stakeholder offices, history | subject belongs to responsible Office and primary Audit Area |
+| Risk periods | periods, criteria, period events | period owns weighted criteria and assessments |
+| Subject risk | universe risk assessments, scores, evidence | assessment belongs to period and universe subject |
+| Prioritization | runs, items, events | run snapshots validated assessment results |
+| Annual plan | plans, engagements, workflow events | current revision belongs to a fiscal year |
+| Coverage | engagement-office/area/focus pivots | many-to-many reusable Core classifications |
+| Resources | team members, capacities, unavailability, skills | allocations are per auditor and engagement |
+| Scheduling | engagement schedule fields and schedule events | every change preserves old/new schedule data |
+| Support | attachments and comments | records belong to an annual plan |
+
+Foreign keys preserve lineage. Unique constraints prevent duplicate current
+revisions and repeated subject imports. Soft deletes preserve recoverability.
+
+## 16. API map
+
+All routes below are under `/api` and require Sanctum authentication.
+
+| Area | Main endpoint family |
+| --- | --- |
+| Dashboard | `GET /iap/dashboard` |
+| SIAP | `/iap/strategic-plans` |
+| Audit Universe | `/iap/audit-universe` |
+| Risk periods and assessments | `/iap/risk-periods` |
+| Prioritization | `/iap/prioritizations` |
+| Annual plans | `/iap/plans` |
+| Engagements and teams | `/iap/plans/{plan}/engagements` |
+| Supporting records | `/iap/plans/{plan}/supporting-records`, attachments, comments |
+| Scheduling | `/iap/schedules` |
+| Capacity/resources | `/iap/resources` |
+| Reports | `/iap/reports` |
+
+Transitions use action endpoints rather than direct status updates:
+
+```text
+POST /api/iap/strategic-plans/{id}/transitions/{action}
+POST /api/iap/risk-periods/{id}/transitions/{action}
+POST /api/iap/prioritizations/{id}/transitions/{action}
+POST /api/iap/plans/{id}/transitions/{action}
+```
+
+## 17. Security, concurrency, and history
+
+- All mutation endpoints require specific permissions.
+- Scope services restrict plans and supporting records by role, office, or
+  assignment.
+- Read-only users cannot invoke mutation endpoints.
+- Workflow transitions use database transactions and row locks.
+- `lock_version` detects stale concurrent updates.
+- Submitter/approver separation is enforced server-side.
+- Approved records are immutable.
+- Archive uses soft deletion; restoration is a separate authorized action.
+- Files are validated and downloaded only through protected endpoints.
+- Activity Log records operational actions, exports, downloads, and detail views.
+- Audit Trail preserves significant old/new values.
+- Detail-view reports are deduplicated for five minutes to avoid UI-render noise.
+
+## 18. Notifications
+
+IAP actions can generate in-app notifications for submission, return, approval,
+assignment, due dates, schedule warnings, and workflow responsibility. A
+notification can deep-link to the relevant IAP route.
+
+When outbound mail and the user's email preference are enabled, the same message
+is also sent through the configured mail transport. Email failure is reported but
+does not roll back the planning transaction or in-app notification.
+
+## 19. Runtime configuration used by IAP
+
+| Key | Runtime effect |
+| --- | --- |
+| `iap_plan_number_format` | Annual-plan codes |
+| `siap_plan_number_format` | Strategic-plan codes |
+| `risk_period_number_format` | Risk-period codes |
+| `prioritization_number_format` | Prioritization-run codes |
+| `default_risk_level_code` | Safe default risk level |
+| `default_workflow_sla_hours` | SLA for workflow steps without an override |
+| `workflow_mapping_iap` | Published default reusable workflow for IAP |
+| `fiscal_year_start_month` | Current fiscal-year calculation |
+| `iap_default_annual_person_days` | Temporary capacity fallback |
+| `document_upload_max_mb` | IAP supporting-file limit |
+| `pagination_size` | Default API and table page size |
+| `timezone` and `date_format` | Display and deadline interpretation |
+
+Workflow state lists are intentionally not editable master lists. Adding arbitrary
+values to a dropdown must never create an unsupported transition.
+
+## 20. Testing and acceptance
+
+The IAP feature suite covers:
+
+- Audit Universe security and recovery;
+- live dashboard aggregation and scoped visibility;
+- prioritization lineage and duplicate prevention;
+- risk-period scoring, validation, evidence, locking, and recovery;
+- schedule conflicts, cancellation, and history;
+- capacity, unavailability, skills, and over-allocation;
+- supporting records, comments, freezing, archive, and restore;
+- annual-plan completeness, approval, separation of duties, revisions, and locks;
+- SIAP content, workflow, revision, and recovery;
+- all report previews and export formats;
+- role and office scopes.
+
+Run:
+
+```powershell
+cd backend
+php artisan test --testsuite=Feature
+
+cd ..
+npm.cmd run lint
+npm.cmd run build
+```
+
+## 21. Safe extension rules
+
+When extending IAP:
+
+1. Add a real state transition in backend code; do not create workflow states only
+   through a master list.
+2. Preserve source IDs and snapshot values when data crosses planning stages.
+3. Keep approved and historical versions immutable.
+4. Apply authorization and scope in the backend before returning counts or rows.
+5. Use a transaction and lock for multi-record decisions.
+6. Add Activity Log and Audit Trail events.
+7. Add feature tests for success, forbidden access, conflicts, and recovery.
+8. Update this document and the API/data documentation.

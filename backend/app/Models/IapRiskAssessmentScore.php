@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Stores one criterion score and justification within a risk assessment.
+ */
 class IapRiskAssessmentScore extends Model
 {
     use HasFactory;

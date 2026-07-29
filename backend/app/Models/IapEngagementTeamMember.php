@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Assigns an auditor, team role, and person-day allocation to an engagement.
+ */
 class IapEngagementTeamMember extends Model
 {
     use HasFactory;

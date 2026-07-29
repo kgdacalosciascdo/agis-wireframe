@@ -32,6 +32,7 @@ import {
   userApi,
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const statusLabels = {
   DRAFT: "Draft",
@@ -110,6 +111,10 @@ function availableActions(plan, user) {
   return actions;
 }
 
+/**
+ * Manages multi-year Strategic Internal Audit Plans, objectives, priorities,
+ * approval transitions, revisions, and preserved approved versions.
+ */
 export default function SiapPlanRegistryPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -125,6 +130,12 @@ export default function SiapPlanRegistryPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
+  useRecordView(selected, {
+    module: "IAP",
+    recordType: "SIAP",
+    code: (record) => record.planCode,
+    label: (record) => record.title,
+  });
   const [detailLoading, setDetailLoading] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);

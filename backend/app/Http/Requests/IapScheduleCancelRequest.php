@@ -4,6 +4,9 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Requires a reason when cancelling a schedule without deleting its history.
+ */
 class IapScheduleCancelRequest extends FormRequest
 {
     public function authorize(): bool

@@ -198,6 +198,10 @@ function ChartPanel({ title, description, children, action }) {
   );
 }
 
+/**
+ * Aggregates live IAP risk, plan, schedule, conflict, and capacity indicators
+ * into the planning module's dedicated dashboard.
+ */
 export default function IapDashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Preserves initial scheduling, rescheduling, cancellation, and conflict history.
+ */
 class IapScheduleEvent extends Model
 {
     use HasFactory;

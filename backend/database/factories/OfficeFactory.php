@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends Factory<Office>
  */
+/**
+ * Produces independent office records for tests and local fixtures.
+ */
 class OfficeFactory extends Factory
 {
     public function definition(): array

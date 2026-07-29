@@ -10,6 +10,9 @@ use App\Models\StrategicInternalAuditPlan;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds a representative strategic plan, objectives, priorities, and history.
+ */
 class SiapSeeder extends Seeder
 {
     public function run(): void

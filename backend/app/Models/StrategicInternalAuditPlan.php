@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents a versioned multi-year strategic plan and its immutable approvals.
+ */
 class StrategicInternalAuditPlan extends Model
 {
     use HasFactory, SoftDeletes;

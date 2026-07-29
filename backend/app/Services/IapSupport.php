@@ -4,10 +4,15 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\MasterListItem;
+use App\Support\ActivityRecorder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Provides shared IAP normalization, lookup, permission, and formatting helpers.
+ */
 class IapSupport
 {
     public function masterItem(int $id, string $listCode): MasterListItem
@@ -72,5 +77,24 @@ class IapSupport
             'user_agent' => mb_substr((string) $request->userAgent(), 0, 1000),
             'metadata' => $metadata,
         ]);
+        ActivityRecorder::record(
+            $request,
+            $action,
+            Str::headline(str_replace('.', ' ', $action)).': '.$this->subjectLabel($subject),
+            oldValues: $oldValues,
+            newValues: $newValues,
+            metadata: ['module' => 'IAP', 'recordType' => $subject::class, 'recordId' => $subject->getKey(), ...($metadata ?? [])],
+        );
+    }
+
+    private function subjectLabel(Model $subject): string
+    {
+        foreach (['title', 'name', 'plan_code', 'period_code', 'run_code', 'engagement_code', 'subject_code', 'code'] as $key) {
+            if ($subject->getAttribute($key)) {
+                return (string) $subject->getAttribute($key);
+            }
+        }
+
+        return Str::headline(class_basename($subject)).' #'.$subject->getKey();
     }
 }

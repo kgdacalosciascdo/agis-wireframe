@@ -6,6 +6,9 @@ use App\Models\InternalAuditPlan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates Annual Plan identity, fiscal period, capacity, and management metadata.
+ */
 class IapPlanRequest extends FormRequest
 {
     public function authorize(): bool

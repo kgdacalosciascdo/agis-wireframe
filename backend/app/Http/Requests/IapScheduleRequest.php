@@ -5,6 +5,9 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates schedule dates, proposed team assignments, and revision context.
+ */
 class IapScheduleRequest extends FormRequest
 {
     public function authorize(): bool

@@ -8,31 +8,25 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Enforces SIAP completeness and approved-version immutability constraints.
+ */
 class SiapPlanGuard
 {
     /** @param Builder<StrategicInternalAuditPlan> $query */
     public function scopeVisible(Builder $query, User $user): Builder
     {
-        if ($user->hasRole(['platform_admin', 'cias_management', 'agis_admin'])) {
-            return $query;
-        }
+        if ($user->hasGlobalEngagementAccess()) {
+            if (! $user->isReadOnlyOnly()) {
+                return $query;
+            }
 
-        if ($user->hasRole('read_only')) {
             return $query->whereIn('status', ['APPROVED', 'ACTIVE', 'COMPLETED']);
-        }
-
-        if ($user->hasRole('agis_user')) {
-            return $query->where(function (Builder $query) use ($user): void {
-                $query
-                    ->where('prepared_by', $user->id)
-                    ->orWhere('coordinator_id', $user->id);
-            });
         }
 
         return $query->where(function (Builder $query) use ($user): void {
             $query
-                ->whereIn('status', ['APPROVED', 'ACTIVE', 'COMPLETED'])
-                ->orWhere('prepared_by', $user->id)
+                ->where('prepared_by', $user->id)
                 ->orWhere('coordinator_id', $user->id);
         });
     }
@@ -50,9 +44,7 @@ class SiapPlanGuard
     public function assertEditable(User $user, StrategicInternalAuditPlan $plan): void
     {
         $this->assertCanView($user, $plan);
-        if (! $user->hasRole(['platform_admin', 'cias_management'])
-            && $plan->prepared_by !== $user->id
-            && $plan->coordinator_id !== $user->id) {
+        if (! $user->hasPermission('iap.update')) {
             throw new AuthorizationException;
         }
 

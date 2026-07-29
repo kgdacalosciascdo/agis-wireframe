@@ -10,14 +10,21 @@ use App\Models\IapRiskPeriodCriterion;
 use App\Models\IapRiskPeriodEvent;
 use App\Models\User;
 use App\Services\IapSupport;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Controls risk-assessment periods, criteria, validation, and baseline locking.
+ */
 class IapRiskPeriodController extends Controller
 {
-    public function __construct(private readonly IapSupport $support) {}
+    public function __construct(
+        private readonly IapSupport $support,
+        private readonly RuntimeConfiguration $runtime,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -53,7 +60,7 @@ class IapRiskPeriodController extends Controller
 
         $periods = $query
             ->orderBy($validated['sortBy'] ?? 'assessment_year', $validated['sortDirection'] ?? 'desc')
-            ->paginate((int) ($validated['perPage'] ?? 10))
+            ->paginate((int) ($validated['perPage'] ?? app(\App\Services\RuntimeConfiguration::class)->paginationSize()))
             ->withQueryString();
 
         return response()->json([
@@ -80,7 +87,11 @@ class IapRiskPeriodController extends Controller
 
         $period = DB::transaction(function () use ($request, $validated): IapRiskPeriod {
             $period = IapRiskPeriod::query()->create([
-                'period_code' => $validated['periodCode'] ?: 'RISK-'.$validated['assessmentYear'].'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)),
+                'period_code' => $validated['periodCode'] ?: $this->runtime->formatNumber(
+                    'risk_period_number_format',
+                    ((int) IapRiskPeriod::withTrashed()->max('id')) + 1,
+                    ['YEAR' => $validated['assessmentYear']],
+                ),
                 'name' => $validated['name'],
                 'assessment_year' => $validated['assessmentYear'],
                 'start_date' => $validated['startDate'],

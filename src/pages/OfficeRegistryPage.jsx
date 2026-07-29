@@ -4,12 +4,14 @@ import {
   Building2,
   BuildingIcon,
   CircleOff,
+  History,
   Pencil,
   Plus,
   RefreshCcw,
   RotateCcw,
   Search,
   ShieldCheck,
+  Users,
   X,
 } from "lucide-react";
 import { useAuth } from "../auth/auth-context";
@@ -29,11 +31,14 @@ import {
   officeApi,
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const emptyForm = {
   code: "",
   name: "",
   acronym: "",
+  officeTypeId: "",
+  headUserId: "",
   sector: "",
   contactNumber: "",
   description: "",
@@ -55,12 +60,20 @@ export default function OfficeRegistryPage() {
   const [offices, setOffices] = useState([]);
   const [auditAreas, setAuditAreas] = useState([]);
   const [sectors, setSectors] = useState([]);
+  const [officeTypes, setOfficeTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [sectorFilter, setSectorFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedOffice, setSelectedOffice] = useState(null);
+  useRecordView(selectedOffice, {
+    module: "CORE",
+    recordType: "OFFICE",
+    code: (record) => record.code,
+    label: (record) => record.name,
+  });
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingOffice, setEditingOffice] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -92,6 +105,10 @@ export default function OfficeRegistryPage() {
             masterLists.find((list) => list.code === "OFFICE_SECTOR")?.items ??
               [],
           );
+          setOfficeTypes(
+            masterLists.find((list) => list.code === "OFFICE_TYPE")?.items ??
+              [],
+          );
         }
       })
       .catch((error) => {
@@ -121,11 +138,19 @@ export default function OfficeRegistryPage() {
             office.code,
             office.name,
             office.acronym,
+            office.officeType?.label,
             office.description,
             office.sector,
             office.headName,
             office.contactNumber,
+            ...(office.users ?? []).flatMap((officeUser) => [
+              officeUser.name,
+              officeUser.employeeId,
+              officeUser.position,
+              officeUser.role,
+            ]),
           ].some((value) => value?.toLowerCase().includes(query))) &&
+        (!typeFilter || String(office.officeTypeId) === String(typeFilter)) &&
         (!sectorFilter || office.sector === sectorFilter) &&
         (!statusFilter ||
           (statusFilter === "archived"
@@ -134,7 +159,7 @@ export default function OfficeRegistryPage() {
               ? office.isActive && !office.isArchived
               : !office.isActive && !office.isArchived)),
     );
-  }, [offices, search, sectorFilter, statusFilter]);
+  }, [offices, search, sectorFilter, statusFilter, typeFilter]);
 
   const officeStats = useMemo(() => {
     const active = offices.filter(
@@ -146,7 +171,9 @@ export default function OfficeRegistryPage() {
     return { total: offices.length, active, inactive, archived };
   }, [offices]);
 
-  const hasActiveFilters = Boolean(search || sectorFilter || statusFilter);
+  const hasActiveFilters = Boolean(
+    search || sectorFilter || statusFilter || typeFilter,
+  );
 
   const sectorOptions = useMemo(
     () =>
@@ -169,6 +196,28 @@ export default function OfficeRegistryPage() {
       })),
     [auditAreas],
   );
+  const officeTypeOptions = useMemo(
+    () =>
+      officeTypes
+        .filter((type) => type.isActive)
+        .map((type) => ({
+          value: type.id,
+          label: type.label,
+          keywords: `${type.code} ${type.description ?? ""}`,
+        })),
+    [officeTypes],
+  );
+  const officeHeadOptions = useMemo(
+    () =>
+      (editingOffice?.users ?? [])
+        .filter((candidate) => candidate.isActive)
+        .map((candidate) => ({
+          value: candidate.id,
+          label: candidate.name,
+          keywords: `${candidate.employeeId ?? ""} ${candidate.position ?? ""} ${candidate.role ?? ""}`,
+        })),
+    [editingOffice],
+  );
 
   function openCreate() {
     setEditingOffice(null);
@@ -183,6 +232,8 @@ export default function OfficeRegistryPage() {
       code: office.code,
       name: office.name,
       acronym: office.acronym ?? "",
+      officeTypeId: office.officeTypeId ?? "",
+      headUserId: office.headId ?? "",
       sector: office.sector ?? "",
       contactNumber: office.contactNumber ?? "",
       description: office.description ?? "",
@@ -204,6 +255,13 @@ export default function OfficeRegistryPage() {
 
   function submitOffice(event) {
     event.preventDefault();
+    if (!form.officeTypeId) {
+      setErrors((current) => ({
+        ...current,
+        officeTypeId: ["Select an office type."],
+      }));
+      return;
+    }
     setSaveConfirmOpen(true);
   }
 
@@ -333,6 +391,16 @@ export default function OfficeRegistryPage() {
             </span>
           </span>
         </div>
+      ),
+    },
+    {
+      key: "officeType",
+      label: "Type",
+      sortValue: (office) => office.officeType?.label ?? "",
+      render: (office) => (
+        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+          {office.officeType?.label || "Not classified"}
+        </span>
       ),
     },
     {
@@ -466,7 +534,8 @@ export default function OfficeRegistryPage() {
                 Office Registry
               </h2>
               <p className="text-sm text-slate-500">
-                Maintain offices used across AGIS records and audit assignments.
+                Maintain independent offices, assigned heads, users, and audit
+                coverage. Offices do not have parent offices in AGIS.
               </p>
             </div>
           </div>
@@ -528,7 +597,7 @@ export default function OfficeRegistryPage() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <header className="border-b border-slate-200 bg-white p-4">
-          <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_15rem_11rem_auto]">
+          <div className="grid w-full gap-2 lg:grid-cols-[minmax(16rem,1fr)_13rem_15rem_11rem_auto]">
             <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
               <Search size={17} className="shrink-0" />
 
@@ -540,6 +609,17 @@ export default function OfficeRegistryPage() {
                 value={search}
               />
             </label>
+
+            <SearchableSelect
+              onChange={setTypeFilter}
+              options={[
+                { value: "", label: "All office types" },
+                ...officeTypeOptions,
+              ]}
+              placeholder="Filter by type"
+              searchPlaceholder="Search office types..."
+              value={typeFilter}
+            />
 
             <SearchableSelect
               onChange={setSectorFilter}
@@ -567,6 +647,7 @@ export default function OfficeRegistryPage() {
               disabled={!hasActiveFilters}
               onClick={() => {
                 setSearch("");
+                setTypeFilter("");
                 setSectorFilter("");
                 setStatusFilter("");
               }}
@@ -581,7 +662,6 @@ export default function OfficeRegistryPage() {
         <DataTable
           columns={columns}
           emptyMessage="No offices match your search."
-          initialPageSize={8}
           loading={loading}
           onRowClick={setSelectedOffice}
           pageSizeOptions={[8, 10, 25, 50]}
@@ -649,6 +729,46 @@ export default function OfficeRegistryPage() {
                 onChange={updateField}
                 placeholder="e.g. CIO"
                 value={form.acronym}
+              />
+            </FormField>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              error={firstError(errors, "officeTypeId")}
+              label="Office type"
+              required
+            >
+              <SearchableSelect
+                onChange={(officeTypeId) =>
+                  setForm((current) => ({ ...current, officeTypeId }))
+                }
+                options={officeTypeOptions}
+                placeholder="Select an office type"
+                searchPlaceholder="Search office types..."
+                value={form.officeTypeId}
+              />
+            </FormField>
+            <FormField
+              error={firstError(errors, "headUserId")}
+              label="Office head"
+              hint={
+                editingOffice
+                  ? "Only active users already assigned to this office can be selected."
+                  : "Create the office first, assign users to it, then select its office head."
+              }
+            >
+              <SearchableSelect
+                disabled={!editingOffice}
+                onChange={(headUserId) =>
+                  setForm((current) => ({ ...current, headUserId }))
+                }
+                options={[
+                  { value: "", label: "No assigned office head" },
+                  ...officeHeadOptions,
+                ]}
+                placeholder="Select an office head"
+                searchPlaceholder="Search office users..."
+                value={form.headUserId}
               />
             </FormField>
           </div>
@@ -793,9 +913,14 @@ export default function OfficeRegistryPage() {
               {[
                 ["Office code", selectedOffice.code],
                 ["Acronym", selectedOffice.acronym || "—"],
+                [
+                  "Office type",
+                  selectedOffice.officeType?.label || "Not classified",
+                ],
                 ["Sector", selectedOffice.sector || "—"],
                 ["Office head", selectedOffice.headName || "Not assigned"],
                 ["Contact", selectedOffice.contactNumber || "—"],
+                ["Assigned users", selectedOffice.usersCount ?? 0],
                 [
                   "Status",
                   selectedOffice.isArchived
@@ -814,6 +939,38 @@ export default function OfficeRegistryPage() {
                   </strong>
                 </div>
               ))}
+            </div>
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <Users size={16} className="text-sky-700" />
+                Office users ({selectedOffice.users?.length ?? 0})
+              </h3>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {selectedOffice.users?.map((officeUser) => (
+                  <article
+                    className="rounded-lg border border-slate-200 p-3"
+                    key={officeUser.id}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <strong className="text-sm text-slate-800">
+                        {officeUser.name}
+                      </strong>
+                      {officeUser.isOfficeHead && (
+                        <StatusBadge tone="active">Office head</StatusBadge>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {officeUser.employeeId || "No employee ID"} ·{" "}
+                      {officeUser.position || officeUser.role || "No position"}
+                    </p>
+                  </article>
+                ))}
+                {!selectedOffice.users?.length && (
+                  <p className="text-sm text-slate-500">
+                    No active users belong to this office.
+                  </p>
+                )}
+              </div>
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-800">
@@ -844,6 +1001,35 @@ export default function OfficeRegistryPage() {
                 {!selectedOffice.auditAreas?.length && (
                   <p className="text-sm text-slate-500">
                     No audit areas are linked to this office.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <History size={16} className="text-sky-700" />
+                Office history
+              </h3>
+              <div className="mt-2 space-y-2">
+                {selectedOffice.history?.map((entry) => (
+                  <article
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    key={entry.id}
+                  >
+                    <strong className="block text-sm text-slate-700">
+                      {entry.action.replaceAll("_", " ")}
+                    </strong>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {entry.actor} ·{" "}
+                      {entry.createdAt
+                        ? new Date(entry.createdAt).toLocaleString()
+                        : "Date unavailable"}
+                    </span>
+                  </article>
+                ))}
+                {!selectedOffice.history?.length && (
+                  <p className="text-sm text-slate-500">
+                    No recorded changes are available yet.
                   </p>
                 )}
               </div>

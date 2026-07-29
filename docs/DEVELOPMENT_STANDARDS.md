@@ -29,6 +29,19 @@ These rules apply to every module and workflow added to AGIS.
 - Use version columns or row locking where simultaneous edits could overwrite work or double-approve a record.
 - Keep previous/new values, actor, timestamp, IP address, user agent, and related record in audit history.
 
+## Code comments and documentation
+
+- Add comments where authorization, scope, state transitions, concurrency,
+  encryption, file cleanup, fallback behavior, or cross-module lineage is not
+  obvious from the code.
+- Explain why a rule exists and which invariant it protects; do not restate a
+  straightforward assignment or method name.
+- Use PHPDoc/JSDoc for public services, non-trivial payloads, and reusable
+  helpers.
+- Keep workflow statuses, transition rules, permissions, runtime settings,
+  endpoints, and data relationships synchronized with the documents in `docs/`.
+- Remove or update stale comments in the same change that modifies behavior.
+
 ## User experience and accessibility
 
 - Provide readable text, sufficient contrast, clear labels, visible focus, keyboard navigation, alt text, useful validation, empty states, loading states, and delete confirmations.
@@ -54,3 +67,4 @@ These rules apply to every module and workflow added to AGIS.
 - Feature and permission tests passing
 - Responsive and keyboard checks completed
 - API and operating documentation updated
+- Workflow design, system-flow impact, and code comments updated

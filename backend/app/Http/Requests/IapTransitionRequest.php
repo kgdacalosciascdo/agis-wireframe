@@ -4,6 +4,9 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates a guarded IAP lifecycle action and its supporting workflow comment.
+ */
 class IapTransitionRequest extends FormRequest
 {
     public function authorize(): bool

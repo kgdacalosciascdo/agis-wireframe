@@ -16,6 +16,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Aggregates live planning, risk, scheduling, and capacity dashboard metrics.
+ */
 class IapDashboardController extends Controller
 {
     public function __construct(
@@ -101,7 +104,7 @@ class IapDashboardController extends Controller
 
         $fiscalYear = (int) ($plan?->fiscal_year
             ?? $prioritization?->riskPeriod?->assessment_year
-            ?? now()->year);
+            ?? app(\App\Services\RuntimeConfiguration::class)->currentFiscalYear());
         $capacity = $this->capacity($fiscalYear, $plan);
         $warnings = $this->scheduleWarnings($activeEngagements);
         $upcoming = $activeEngagements

@@ -6,6 +6,9 @@ use App\Models\IapPrioritizationItem;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates a ranked subject's selection decision and mandatory override reason.
+ */
 class IapPrioritizationItemRequest extends FormRequest
 {
     public function authorize(): bool

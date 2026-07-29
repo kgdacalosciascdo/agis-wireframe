@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Creates Sanctum token storage for authenticated API clients. */
 return new class extends Migration
 {
     /**

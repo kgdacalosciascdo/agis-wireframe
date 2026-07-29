@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Creates risk periods, weighted criteria, assessments, scores, evidence, and events. */
 return new class extends Migration
 {
     public function up(): void

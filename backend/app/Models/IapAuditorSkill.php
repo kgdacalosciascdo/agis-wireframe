@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Associates an auditor with a planning skill or specialization.
+ */
 class IapAuditorSkill extends Model
 {
     use HasFactory;

@@ -152,6 +152,153 @@ export const authApi = {
   },
 };
 
+export const runtimeConfigurationApi = {
+  async show() {
+    const data = await request("/api/runtime-configuration");
+    return data?.configuration ?? {};
+  },
+};
+
+export const workflowApi = {
+  async list({ includeArchived = false, includeCompleted = true } = {}) {
+    const query = queryFrom({
+      include_archived: includeArchived,
+      include_completed: includeCompleted,
+    });
+    return request(`/api/workflows?${query.toString()}`);
+  },
+  async create(payload) {
+    const data = await request("/api/workflows", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.workflow ?? null;
+  },
+  async update(id, payload) {
+    const data = await request(`/api/workflows/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+    return data?.workflow ?? null;
+  },
+  async publish(id) {
+    const data = await request(`/api/workflows/${id}/publish`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.workflow ?? null;
+  },
+  async createRevision(id) {
+    const data = await request(`/api/workflows/${id}/revisions`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.workflow ?? null;
+  },
+  async archive(id) {
+    await request(`/api/workflows/${id}`, {
+      method: "DELETE",
+      csrf: true,
+    });
+  },
+  async restore(id) {
+    const data = await request(`/api/workflows/${id}/restore`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.workflow ?? null;
+  },
+  async start(payload) {
+    const data = await request("/api/workflow-instances", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.instance ?? null;
+  },
+  async showInstance(id) {
+    const data = await request(`/api/workflow-instances/${id}`);
+    return data?.instance ?? null;
+  },
+  async transition(id, action, payload) {
+    const data = await request(
+      `/api/workflow-instances/${id}/transitions/${action}`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.instance ?? null;
+  },
+  async cancel(id, payload) {
+    const data = await request(`/api/workflow-instances/${id}/cancel`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.instance ?? null;
+  },
+};
+
+export const notificationApi = {
+  async list(filters = {}) {
+    const query = queryFrom(filters);
+    return request(
+      `/api/notifications${query.size ? `?${query.toString()}` : ""}`,
+    );
+  },
+  async recent() {
+    return request("/api/notifications/recent");
+  },
+  async markRead(id) {
+    const data = await request(`/api/notifications/${id}/read`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.notification ?? null;
+  },
+  async markUnread(id) {
+    const data = await request(`/api/notifications/${id}/unread`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.notification ?? null;
+  },
+  async markAllRead() {
+    return request("/api/notifications/read-all", {
+      method: "POST",
+      csrf: true,
+    });
+  },
+  async archive(id) {
+    await request(`/api/notifications/${id}`, {
+      method: "DELETE",
+      csrf: true,
+    });
+  },
+  async restore(id) {
+    const data = await request(`/api/notifications/${id}/restore`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.notification ?? null;
+  },
+  async updatePreferences(payload) {
+    const data = await request("/api/notifications/preferences", {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+    return data?.preferences ?? null;
+  },
+  async deliver(payload) {
+    return request("/api/notifications", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+};
+
 export const officeApi = {
   async list({ includeArchived = false } = {}) {
     const data = await request(
@@ -253,6 +400,38 @@ export const auditFocusApi = crudApi(
 
 export const userApi = {
   ...crudApi("/api/users", "users", "user"),
+  async show(id) {
+    const data = await request(`/api/users/${id}`);
+    return data?.user ?? null;
+  },
+  async activate(id) {
+    const data = await request(`/api/users/${id}/activate`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.user ?? null;
+  },
+  async disable(id) {
+    const data = await request(`/api/users/${id}/disable`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.user ?? null;
+  },
+  async lock(id) {
+    const data = await request(`/api/users/${id}/lock`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.user ?? null;
+  },
+  async unlock(id) {
+    const data = await request(`/api/users/${id}/unlock`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.user ?? null;
+  },
   async resetPassword(id, password) {
     await request(`/api/users/${id}/password`, {
       method: "PUT",
@@ -283,6 +462,14 @@ export const roleApi = {
   async update(id, payload) {
     const data = await request(`/api/roles/${id}`, {
       method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+    return data?.role ?? null;
+  },
+  async clone(id, payload) {
+    const data = await request(`/api/roles/${id}/clone`, {
+      method: "POST",
       body: payload,
       csrf: true,
     });
@@ -320,6 +507,11 @@ export const documentApi = {
       documentTypes: Array.isArray(data?.documentTypes)
         ? data.documentTypes
         : [],
+      confidentialityLevels: Array.isArray(data?.confidentialityLevels)
+        ? data.confidentialityLevels
+        : [],
+      linkOptions: Array.isArray(data?.linkOptions) ? data.linkOptions : [],
+      linkModules: data?.linkModules ?? {},
     };
   },
   async create(formData) {
@@ -333,6 +525,14 @@ export const documentApi = {
   async update(id, formData) {
     formData.set("_method", "PUT");
     const data = await request(`/api/documents/${id}`, {
+      method: "POST",
+      body: formData,
+      csrf: true,
+    });
+    return data?.document ?? null;
+  },
+  async createVersion(id, formData) {
+    const data = await request(`/api/documents/${id}/versions`, {
       method: "POST",
       body: formData,
       csrf: true,
@@ -353,9 +553,21 @@ export const documentApi = {
     return data?.document ?? null;
   },
   async download(document) {
+    return this.downloadFile(
+      `/api/documents/${document.id}/download`,
+      document.fileName,
+    );
+  },
+  async downloadVersion(document, version) {
+    return this.downloadFile(
+      `/api/documents/${document.id}/versions/${version.id}/download`,
+      version.fileName,
+    );
+  },
+  async downloadFile(urlPath, fileName) {
     let response;
     try {
-      response = await fetch(`/api/documents/${document.id}/download`, {
+      response = await fetch(urlPath, {
         credentials: "include",
         headers: {
           Accept: "application/octet-stream",
@@ -377,7 +589,7 @@ export const documentApi = {
     const url = URL.createObjectURL(blob);
     const link = window.document.createElement("a");
     link.href = url;
-    link.download = document.fileName;
+    link.download = fileName;
     window.document.body.appendChild(link);
     link.click();
     link.remove();
@@ -414,19 +626,60 @@ export const configurationApi = {
     const data = await request("/api/system-configurations");
     return Array.isArray(data?.configurations) ? data.configurations : [];
   },
-  async update(configurations) {
-    await request("/api/system-configurations", {
-      method: "PUT",
-      body: { configurations },
+    async update(configurations) {
+      const data = await request("/api/system-configurations", {
+        method: "PUT",
+        body: { configurations },
+        csrf: true,
+      });
+      return data?.configuration ?? null;
+    },
+    async uploadLogo(file) {
+      const body = new FormData();
+      body.set("logo", file);
+      const data = await request("/api/system-configurations/logo", {
+        method: "POST",
+        body,
+        csrf: true,
+      });
+      return data?.configuration ?? null;
+    },
+    async testEmail(recipient) {
+      await request("/api/system-configurations/test-email", {
+        method: "POST",
+        body: { recipient },
+        csrf: true,
+      });
+    },
+  };
+
+export const activityLogApi = {
+  async list(filters = {}) {
+    const query = queryFrom(filters);
+    return request(`/api/activity-logs${query.size ? `?${query}` : ""}`);
+  },
+};
+
+export const viewActivityApi = {
+  async record(payload) {
+    return request("/api/record-views", {
+      method: "POST",
+      body: payload,
       csrf: true,
     });
   },
 };
 
-export const activityLogApi = {
-  async list() {
-    const data = await request("/api/activity-logs");
-    return Array.isArray(data?.activityLogs) ? data.activityLogs : [];
+export const logApi = {
+  async list(mode, filters = {}) {
+    const query = queryFrom(filters);
+    const path = mode === "audit" ? "audit-logs" : "activity-logs";
+    return request(`/api/${path}${query.size ? `?${query}` : ""}`);
+  },
+  exportUrl(mode, filters = {}) {
+    const query = queryFrom(filters);
+    const path = mode === "audit" ? "audit-logs" : "activity-logs";
+    return `/api/${path}/export?${query.toString()}`;
   },
 };
 

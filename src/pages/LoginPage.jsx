@@ -3,9 +3,19 @@ import { Eye, EyeOff, KeyRound, UserRound } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "../auth/auth-context";
 
+/**
+ * Authenticates users by employee ID and displays seeded demo accounts without
+ * exposing authentication implementation details to the dashboard shell.
+ */
 export default function LoginPage() {
-  const { login, sessionError, demoAccounts, demoLoading, demoError } =
-    useAuth();
+  const {
+    login,
+    sessionError,
+    demoAccounts,
+    demoLoading,
+    demoError,
+    runtimeConfig,
+  } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [employeeId, setEmployeeId] = useState("");
@@ -72,18 +82,19 @@ export default function LoginPage() {
             <div className="text-center">
               <img
                 className="mx-auto h-24 w-24 object-contain sm:h-28 sm:w-28"
-                src="/logo.png"
+                src={runtimeConfig.logoUrl}
                 alt="City Internal Audit Department"
               />
               <h1 className="mt-4 text-lg font-bold sm:text-xl">
-                Audit Governance Information System
+                {runtimeConfig.systemName}
               </h1>
               <div className="mx-auto mt-4 h-px w-full bg-white/75" />
               <h2 className="mt-7 text-2xl font-normal">
                 Sign in to your account
               </h2>
               <p className="mt-1 text-sm text-blue-100">
-                Enter your credentials to access AGIS.
+                Enter your credentials to access{" "}
+                {runtimeConfig.systemShortName}.
               </p>
             </div>
 
@@ -160,7 +171,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() =>
                     setError(
-                      "Please contact your AGIS administrator to reset your password.",
+                      `Please contact your ${runtimeConfig.systemShortName} administrator to reset your password.`,
                     )
                   }
                 >
@@ -243,13 +254,16 @@ export default function LoginPage() {
 
       <footer className="flex min-h-10 flex-wrap items-center justify-between gap-2 bg-[#0b3974] px-4 py-2 text-[11px] text-blue-100 sm:px-7">
         <div className="flex flex-wrap items-center gap-3">
-          <span>AGIS v1.0.0</span>
+          <span>
+            {runtimeConfig.systemShortName} v{runtimeConfig.systemVersion}
+          </span>
           <span>City Internal Audit Service (CIAS)</span>
           <span>Privacy Policy</span>
           <span>Terms of Use</span>
         </div>
         <span>
-          © 2026 City Government of Cagayan de Oro. All rights reserved.
+          © {new Date().getFullYear()} {runtimeConfig.organizationName}. All
+          rights reserved.
         </span>
       </footer>
     </main>

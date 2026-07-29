@@ -3,6 +3,8 @@ import {
   Archive,
   CircleCheckBig,
   CirclePause,
+  GitBranch,
+  History,
   Network,
   Pencil,
   Plus,
@@ -20,13 +22,23 @@ import SearchableSelect from "../components/ui/SearchableSelect";
 import StatusBadge from "../components/ui/StatusBadge";
 import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
-import { ApiError, auditAreaApi, officeApi } from "../services/api";
+import {
+  ApiError,
+  auditAreaApi,
+  masterListApi,
+  officeApi,
+} from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const emptyForm = {
   code: "",
   name: "",
   description: "",
+  scope: "",
+  parentAuditAreaId: "",
+  auditAreaTypeId: "",
+  responsibleOfficeId: "",
   isActive: true,
   officeIds: [],
 };
@@ -38,14 +50,20 @@ function firstError(errors, field) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+/**
+ * Maintains hierarchical audit areas and their many-to-many office coverage.
+ * Row selection opens the complete area, office, and focus relationship view.
+ */
 export default function AuditAreaRegistryPage() {
   const { user } = useAuth();
   const toast = useToast();
   const [areas, setAreas] = useState([]);
   const [offices, setOffices] = useState([]);
+  const [areaTypes, setAreaTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [officeFilter, setOfficeFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(null);
@@ -54,6 +72,12 @@ export default function AuditAreaRegistryPage() {
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [selectedArea, setSelectedArea] = useState(null);
+  useRecordView(selectedArea, {
+    module: "CORE",
+    recordType: "AUDIT_AREA",
+    code: (record) => record.code,
+    label: (record) => record.name,
+  });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const canCreate = hasPermission(user, "audit_areas.create");
@@ -67,12 +91,17 @@ export default function AuditAreaRegistryPage() {
     Promise.all([
       auditAreaApi.list({ includeArchived: true }),
       officeApi.list(),
+      masterListApi.list(),
     ])
-      .then(([areaRecords, officeRecords]) => {
+      .then(([areaRecords, officeRecords, masterLists]) => {
         if (!active) return;
         setAreas(areaRecords);
         setOffices(
           officeRecords.filter((office) => office.code !== "AGIS-SYS"),
+        );
+        setAreaTypes(
+          masterLists.find((list) => list.code === "AUDIT_AREA_TYPE")?.items ??
+            [],
         );
       })
       .catch((error) => {
@@ -96,12 +125,20 @@ export default function AuditAreaRegistryPage() {
             area.code,
             area.name,
             area.description,
+            area.scope,
+            area.auditAreaType?.label,
+            area.parentAuditArea?.code,
+            area.parentAuditArea?.name,
+            area.responsibleOffice?.code,
+            area.responsibleOffice?.name,
             ...area.offices.flatMap((office) => [
               office.code,
               office.name,
               office.sector,
             ]),
           ].some((value) => value?.toLowerCase().includes(query))) &&
+        (!typeFilter ||
+          String(area.auditAreaTypeId) === String(typeFilter)) &&
         (!officeFilter ||
           area.offices.some(
             (office) => String(office.id) === String(officeFilter),
@@ -113,7 +150,7 @@ export default function AuditAreaRegistryPage() {
               ? area.isActive && !area.isArchived
               : !area.isActive && !area.isArchived)),
     );
-  }, [areas, officeFilter, search, statusFilter]);
+  }, [areas, officeFilter, search, statusFilter, typeFilter]);
 
   const areaStats = useMemo(() => {
     const active = areas.filter(
@@ -130,7 +167,9 @@ export default function AuditAreaRegistryPage() {
     };
   }, [areas]);
 
-  const hasActiveFilters = Boolean(search || officeFilter || statusFilter);
+  const hasActiveFilters = Boolean(
+    search || officeFilter || statusFilter || typeFilter,
+  );
 
   const officeOptions = useMemo(
     () =>
@@ -141,6 +180,44 @@ export default function AuditAreaRegistryPage() {
       })),
     [offices],
   );
+  const areaTypeOptions = useMemo(
+    () =>
+      areaTypes
+        .filter((type) => type.isActive)
+        .map((type) => ({
+          value: type.id,
+          label: type.label,
+          keywords: `${type.code} ${type.description ?? ""}`,
+        })),
+    [areaTypes],
+  );
+  const parentAreaOptions = useMemo(() => {
+    const excluded = new Set();
+    if (editing) {
+      excluded.add(String(editing.id));
+      const collectDescendants = (parentId) => {
+        areas
+          .filter(
+            (area) =>
+              String(area.parentAuditAreaId) === String(parentId) &&
+              !excluded.has(String(area.id)),
+          )
+          .forEach((area) => {
+            excluded.add(String(area.id));
+            collectDescendants(area.id);
+          });
+      };
+      collectDescendants(editing.id);
+    }
+
+    return areas
+      .filter((area) => !area.isArchived && !excluded.has(String(area.id)))
+      .map((area) => ({
+        value: area.id,
+        label: `${area.code} — ${area.name}`,
+        keywords: `${area.auditAreaType?.label ?? ""} ${area.description ?? ""}`,
+      }));
+  }, [areas, editing]);
 
   function openCreate() {
     setEditing(null);
@@ -155,6 +232,10 @@ export default function AuditAreaRegistryPage() {
       code: area.code,
       name: area.name,
       description: area.description ?? "",
+      scope: area.scope ?? "",
+      parentAuditAreaId: area.parentAuditAreaId ?? "",
+      auditAreaTypeId: area.auditAreaTypeId ?? "",
+      responsibleOfficeId: area.responsibleOfficeId ?? "",
       isActive: area.isActive,
       officeIds: area.offices.map((office) => office.id),
     });
@@ -164,6 +245,17 @@ export default function AuditAreaRegistryPage() {
 
   function save(event) {
     event.preventDefault();
+    const validationErrors = {};
+    if (!form.auditAreaTypeId)
+      validationErrors.auditAreaTypeId = ["Select an audit area type."];
+    if (!form.responsibleOfficeId)
+      validationErrors.responsibleOfficeId = ["Select a responsible office."];
+    if (!form.officeIds.length)
+      validationErrors.officeIds = ["Select at least one stakeholder office."];
+    if (Object.keys(validationErrors).length) {
+      setErrors(validationErrors);
+      return;
+    }
     setSaveConfirmOpen(true);
   }
 
@@ -244,6 +336,11 @@ export default function AuditAreaRegistryPage() {
       render: (area) => (
         <div className="min-w-72">
           <strong className="block text-slate-800">{area.name}</strong>
+          <span className="mt-1 block text-xs font-semibold text-sky-700">
+            {area.parentAuditArea
+              ? `Subarea of ${area.parentAuditArea.code} — ${area.parentAuditArea.name}`
+              : "Top-level audit area"}
+          </span>
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
             {area.description}
           </p>
@@ -251,12 +348,27 @@ export default function AuditAreaRegistryPage() {
       ),
     },
     {
+      key: "auditAreaType",
+      label: "Type",
+      sortValue: (area) => area.auditAreaType?.label ?? "",
+      render: (area) => (
+        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+          {area.auditAreaType?.label || "Not classified"}
+        </span>
+      ),
+    },
+    {
       key: "coverage",
       label: "Office Coverage",
       render: (area) => (
-        <span className="font-semibold text-slate-700">
-          {area.offices.length} offices
-        </span>
+        <div className="min-w-40">
+          <strong className="block text-sm text-slate-700">
+            {area.offices.length} offices
+          </strong>
+          <span className="mt-1 block text-xs text-slate-500">
+            Lead: {area.responsibleOffice?.code || "Not assigned"}
+          </span>
+        </div>
       ),
     },
     {
@@ -349,7 +461,7 @@ export default function AuditAreaRegistryPage() {
             </button>
           )
         }
-        description="Define auditable subject areas and link each area to one or more city offices."
+        description="Define parent and sub-audit areas, responsibility, scope, and stakeholder-office coverage."
         icon={Network}
         readOnly={!canCreate && !canUpdate}
         title="Audit Area Registry"
@@ -384,7 +496,7 @@ export default function AuditAreaRegistryPage() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <header className="border-b border-slate-200 bg-white p-4">
-          <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_16rem_11rem_auto]">
+          <div className="grid w-full gap-2 lg:grid-cols-[minmax(16rem,1fr)_13rem_16rem_11rem_auto]">
             <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
               <Search className="shrink-0" size={17} />
               <input
@@ -395,6 +507,17 @@ export default function AuditAreaRegistryPage() {
                 value={search}
               />
             </label>
+
+            <SearchableSelect
+              onChange={setTypeFilter}
+              options={[
+                { value: "", label: "All area types" },
+                ...areaTypeOptions,
+              ]}
+              placeholder="Filter by type"
+              searchPlaceholder="Search area types..."
+              value={typeFilter}
+            />
 
             <SearchableSelect
               onChange={setOfficeFilter}
@@ -425,6 +548,7 @@ export default function AuditAreaRegistryPage() {
               disabled={!hasActiveFilters}
               onClick={() => {
                 setSearch("");
+                setTypeFilter("");
                 setOfficeFilter("");
                 setStatusFilter("");
               }}
@@ -440,8 +564,7 @@ export default function AuditAreaRegistryPage() {
           <DataTable
             columns={columns}
             emptyMessage="No audit areas match your filters."
-            initialPageSize={8}
-            key={`${search}|${officeFilter}|${statusFilter}`}
+            key={`${search}|${typeFilter}|${officeFilter}|${statusFilter}`}
             loading={loading}
             onRowClick={setSelectedArea}
             pageSizeOptions={[8, 10, 25, 50]}
@@ -509,6 +632,41 @@ export default function AuditAreaRegistryPage() {
               />
             </FormField>
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              error={firstError(errors, "auditAreaTypeId")}
+              label="Audit area type"
+              required
+            >
+              <SearchableSelect
+                onChange={(auditAreaTypeId) =>
+                  setForm((current) => ({ ...current, auditAreaTypeId }))
+                }
+                options={areaTypeOptions}
+                placeholder="Select an audit area type"
+                searchPlaceholder="Search area types..."
+                value={form.auditAreaTypeId}
+              />
+            </FormField>
+            <FormField
+              error={firstError(errors, "parentAuditAreaId")}
+              label="Parent audit area"
+              hint="Leave blank for a top-level audit area."
+            >
+              <SearchableSelect
+                onChange={(parentAuditAreaId) =>
+                  setForm((current) => ({ ...current, parentAuditAreaId }))
+                }
+                options={[
+                  { value: "", label: "No parent — top-level area" },
+                  ...parentAreaOptions,
+                ]}
+                placeholder="Select a parent audit area"
+                searchPlaceholder="Search audit areas..."
+                value={form.parentAuditAreaId}
+              />
+            </FormField>
+          </div>
           <FormField
             error={firstError(errors, "description")}
             htmlFor="area-description"
@@ -524,8 +682,49 @@ export default function AuditAreaRegistryPage() {
             />
           </FormField>
           <FormField
+            error={firstError(errors, "scope")}
+            htmlFor="area-scope"
+            label="Scope"
+            hint="Describe what is included in this area and the boundaries of coverage."
+          >
+            <textarea
+              className={`${inputClass} min-h-28 py-3`}
+              id="area-scope"
+              onChange={(event) =>
+                setForm({ ...form, scope: event.target.value })
+              }
+              value={form.scope}
+            />
+          </FormField>
+          <FormField
+            error={firstError(errors, "responsibleOfficeId")}
+            label="Responsible office"
+            hint="The lead office is automatically included in stakeholder coverage."
+            required
+          >
+            <SearchableSelect
+              onChange={(responsibleOfficeId) =>
+                setForm((current) => ({
+                  ...current,
+                  responsibleOfficeId,
+                  officeIds: current.officeIds.some(
+                    (id) => String(id) === String(responsibleOfficeId),
+                  )
+                    ? current.officeIds
+                    : [...current.officeIds, responsibleOfficeId].filter(
+                        Boolean,
+                      ),
+                }))
+              }
+              options={officeOptions}
+              placeholder="Select the responsible office"
+              searchPlaceholder="Search offices..."
+              value={form.responsibleOfficeId}
+            />
+          </FormField>
+          <FormField
             error={firstError(errors, "officeIds")}
-            label={`Office coverage (${form.officeIds.length} selected)`}
+            label={`Stakeholder office coverage (${form.officeIds.length} selected)`}
             required
           >
             <SearchableSelect
@@ -562,7 +761,11 @@ export default function AuditAreaRegistryPage() {
                       </span>
                       <button
                         aria-label={`Remove ${office.name}`}
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                        disabled={
+                          String(office.id) ===
+                          String(form.responsibleOfficeId)
+                        }
                         onClick={() =>
                           setForm((current) => ({
                             ...current,
@@ -625,10 +828,72 @@ export default function AuditAreaRegistryPage() {
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 {selectedArea.description}
               </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div>
+                  <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                    Area type
+                  </span>
+                  <strong className="mt-1 block text-sm text-slate-700">
+                    {selectedArea.auditAreaType?.label || "Not classified"}
+                  </strong>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                    Parent area
+                  </span>
+                  <strong className="mt-1 block text-sm text-slate-700">
+                    {selectedArea.parentAuditArea
+                      ? `${selectedArea.parentAuditArea.code} — ${selectedArea.parentAuditArea.name}`
+                      : "Top-level audit area"}
+                  </strong>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                    Responsible office
+                  </span>
+                  <strong className="mt-1 block text-sm text-slate-700">
+                    {selectedArea.responsibleOffice
+                      ? `${selectedArea.responsibleOffice.code} — ${selectedArea.responsibleOffice.name}`
+                      : "Not assigned"}
+                  </strong>
+                </div>
+              </div>
             </div>
             <section>
+              <h3 className="text-sm font-bold text-slate-800">Scope</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {selectedArea.scope || "No specific scope has been recorded."}
+              </p>
+            </section>
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <GitBranch size={16} className="text-sky-700" />
+                Sub-audit areas ({selectedArea.children?.length ?? 0})
+              </h3>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {selectedArea.children?.map((child) => (
+                  <div
+                    className="rounded-lg border border-slate-200 p-3"
+                    key={child.id}
+                  >
+                    <strong className="text-sm text-sky-700">
+                      {child.code}
+                    </strong>
+                    <span className="ml-2 text-sm text-slate-600">
+                      {child.name}
+                    </span>
+                  </div>
+                ))}
+                {!selectedArea.children?.length && (
+                  <p className="text-sm text-slate-500">
+                    This audit area has no subareas.
+                  </p>
+                )}
+              </div>
+            </section>
+            <section>
               <h3 className="text-sm font-bold text-slate-800">
-                Connected offices ({selectedArea.offices.length})
+                Stakeholder offices ({selectedArea.offices.length})
               </h3>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {selectedArea.offices.map((office) => (
@@ -642,6 +907,12 @@ export default function AuditAreaRegistryPage() {
                     <span className="ml-2 text-sm text-slate-600">
                       {office.name}
                     </span>
+                    {String(office.id) ===
+                      String(selectedArea.responsibleOfficeId) && (
+                      <span className="ml-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                        Responsible
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -664,6 +935,64 @@ export default function AuditAreaRegistryPage() {
                     </p>
                   </article>
                 ))}
+              </div>
+            </section>
+            <section>
+              <h3 className="text-sm font-bold text-slate-800">
+                Related planned audits ({selectedArea.relatedAudits?.length ?? 0})
+              </h3>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {selectedArea.relatedAudits?.map((audit) => (
+                  <article
+                    className="rounded-lg border border-slate-200 p-3"
+                    key={audit.id}
+                  >
+                    <strong className="block text-sm text-slate-800">
+                      {audit.engagementCode || audit.planCode || "Planned audit"}
+                    </strong>
+                    <span className="mt-1 block text-sm text-slate-600">
+                      {audit.title}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {audit.planCode || "No plan code"} ·{" "}
+                      {audit.planStatus || audit.scheduleStatus || "Draft"}
+                    </span>
+                  </article>
+                ))}
+                {!selectedArea.relatedAudits?.length && (
+                  <p className="text-sm text-slate-500">
+                    No annual-plan engagement is linked to this audit area yet.
+                  </p>
+                )}
+              </div>
+            </section>
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <History size={16} className="text-sky-700" />
+                Audit area history
+              </h3>
+              <div className="mt-2 space-y-2">
+                {selectedArea.history?.map((entry) => (
+                  <article
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    key={entry.id}
+                  >
+                    <strong className="block text-sm text-slate-700">
+                      {entry.action.replaceAll("_", " ")}
+                    </strong>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {entry.actor} ·{" "}
+                      {entry.createdAt
+                        ? new Date(entry.createdAt).toLocaleString()
+                        : "Date unavailable"}
+                    </span>
+                  </article>
+                ))}
+                {!selectedArea.history?.length && (
+                  <p className="text-sm text-slate-500">
+                    No recorded changes are available yet.
+                  </p>
+                )}
               </div>
             </section>
           </div>

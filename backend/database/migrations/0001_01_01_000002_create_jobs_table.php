@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Creates queue, batch, and failed-job storage for asynchronous work. */
 return new class extends Migration
 {
     /**

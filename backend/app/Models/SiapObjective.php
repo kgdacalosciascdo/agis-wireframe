@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * Defines a strategic audit objective and its linked audit areas.
+ */
 class SiapObjective extends Model
 {
     use HasFactory;

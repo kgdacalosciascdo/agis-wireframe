@@ -6,6 +6,9 @@ use App\Models\Office;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates unique office identity and its sector, head, and audit-area assignments.
+ */
 class OfficeRequest extends FormRequest
 {
     public function authorize(): bool
@@ -47,6 +50,18 @@ class OfficeRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:1000'],
             'sector' => ['nullable', 'string', 'max:120'],
             'contactNumber' => ['nullable', 'string', 'max:255'],
+            'officeTypeId' => [
+                'nullable',
+                'integer',
+                Rule::exists('master_list_items', 'id')->where('is_active', true),
+            ],
+            'headUserId' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at')),
+            ],
             'auditAreaIds' => ['sometimes', 'array'],
             'auditAreaIds.*' => [
                 'integer',

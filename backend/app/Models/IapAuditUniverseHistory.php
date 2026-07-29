@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Preserves significant changes and historical audit context for a universe item.
+ */
 class IapAuditUniverseHistory extends Model
 {
     use HasFactory, SoftDeletes;

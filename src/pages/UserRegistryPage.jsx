@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Archive,
+  BriefcaseBusiness,
+  CircleCheckBig,
+  CircleOff,
+  History,
   KeyRound,
+  LockKeyhole,
+  LockOpen,
   Pencil,
   Plus,
   RotateCcw,
@@ -14,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../auth/auth-context";
+import useRecordView from "../hooks/useRecordView";
 import DataTable from "../components/ui/DataTable";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import FormField from "../components/ui/FormField";
@@ -46,7 +53,8 @@ const emptyForm = {
   isOfficeHead: false,
   isActive: true,
   officeId: "",
-  roleId: "",
+  roleIds: [],
+  primaryRoleId: "",
   password: "lala",
 };
 const inputClass =
@@ -70,8 +78,12 @@ function SubtleBadge({ children, className = "" }) {
   );
 }
 
+/**
+ * Manages unique employee identities, office and employment data, multiple
+ * roles and scopes, account controls, password resets, and activity history.
+ */
 export default function UserRegistryPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, runtimeConfig } = useAuth();
   const toast = useToast();
   const [users, setUsers] = useState([]);
   const [offices, setOffices] = useState([]);
@@ -91,16 +103,31 @@ export default function UserRegistryPage() {
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [resetTarget, setResetTarget] = useState(null);
+  const [accountTarget, setAccountTarget] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  useRecordView(selectedUser, {
+    module: "CORE",
+    recordType: "USER",
+    code: (record) => record.employeeId,
+    label: (record) => record.name,
+  });
+  const [detailLoading, setDetailLoading] = useState(false);
   const [resetPassword, setResetPassword] = useState("lala");
   const canCreate = hasPermission(currentUser, "users.create");
   const canUpdate = hasPermission(currentUser, "users.update");
-  const canDeactivate = hasPermission(currentUser, "users.deactivate");
+  const canActivate = hasPermission(currentUser, "users.activate");
+  const canDisable = hasPermission(currentUser, "users.deactivate");
+  const canArchive = hasPermission(currentUser, "users.archive");
   const canRestore = hasPermission(currentUser, "users.restore");
+  const canLock = hasPermission(currentUser, "users.lock");
+  const canUnlock = hasPermission(currentUser, "users.unlock");
   const canResetPassword = hasPermission(currentUser, "users.reset_password");
   const canManage = canCreate || canUpdate;
+  const isPlatformAdministrator = (currentUser.roles ?? []).some(
+    (role) => role.code === "platform_admin",
+  );
   const assignableRoles =
-    currentUser.roleCode === "platform_admin"
+    isPlatformAdministrator
       ? roles
       : roles.filter((role) => role.code !== "platform_admin");
 
@@ -152,16 +179,20 @@ export default function UserRegistryPage() {
             user.name,
             user.office,
             user.role,
+            ...(user.roles ?? []).flatMap((role) => [role.name, role.code]),
             user.position,
             user.employmentType,
           ].some((value) => value?.toLowerCase().includes(query))) &&
-        (!roleFilter || user.roleCode === roleFilter) &&
+        (!roleFilter ||
+          (user.roles ?? []).some((role) => role.code === roleFilter)) &&
         (!statusFilter ||
           (statusFilter === "archived"
             ? user.isArchived
+            : statusFilter === "locked"
+              ? user.isLocked && !user.isArchived
             : statusFilter === "active"
-              ? user.isActive && !user.isArchived
-              : !user.isActive && !user.isArchived)),
+                ? user.isActive && !user.isLocked && !user.isArchived
+                : !user.isActive && !user.isArchived)),
     );
   }, [roleFilter, search, statusFilter, users]);
 
@@ -170,11 +201,17 @@ export default function UserRegistryPage() {
       (user) => user.isActive && !user.isArchived,
     ).length;
     const archived = users.filter((user) => user.isArchived).length;
-    const inactive = users.length - active - archived;
+    const locked = users.filter(
+      (user) => user.isLocked && user.isActive && !user.isArchived,
+    ).length;
+    const inactive = users.filter(
+      (user) => !user.isActive && !user.isArchived,
+    ).length;
 
     return {
       total: users.length,
-      active,
+      active: active - locked,
+      locked,
       inactive,
       archived,
     };
@@ -204,10 +241,15 @@ export default function UserRegistryPage() {
     () =>
       [
         ...new Map(
-          users.map((user) => [
-            user.roleCode,
-            { value: user.roleCode, label: user.role },
-          ]),
+          users.flatMap((user) =>
+            (user.roles?.length
+              ? user.roles
+              : [{ code: user.roleCode, name: user.role }]
+            ).map((role) => [
+              role.code,
+              { value: role.code, label: role.name },
+            ]),
+          ),
         ).values(),
       ].sort((left, right) => left.label.localeCompare(right.label)),
     [users],
@@ -255,13 +297,21 @@ export default function UserRegistryPage() {
             isOfficeHead: user.isOfficeHead,
             isActive: user.isActive,
             officeId: user.officeId,
-            roleId: user.roleId,
+            roleIds: user.roleIds ?? [user.roleId],
+            primaryRoleId: user.primaryRoleId ?? user.roleId,
             password: "",
           }
         : {
             ...emptyForm,
             officeId: offices[0]?.id ?? "",
-            roleId:
+            roleIds: [
+              assignableRoles.find(
+                (role) => role.code === "auditee_representative",
+              )?.id ??
+              assignableRoles[0]?.id ??
+              "",
+            ].filter(Boolean),
+            primaryRoleId:
               assignableRoles.find(
                 (role) => role.code === "auditee_representative",
               )?.id ??
@@ -292,8 +342,13 @@ export default function UserRegistryPage() {
     const payload = {
       ...form,
       officeId: Number(form.officeId),
-      roleId: Number(form.roleId),
+      roleIds: form.roleIds.map(Number),
+      primaryRoleId: Number(form.primaryRoleId),
     };
+    if (editing) {
+      delete payload.isActive;
+      delete payload.password;
+    }
 
     try {
       if (editing) await userApi.update(editing.id, payload);
@@ -383,6 +438,76 @@ export default function UserRegistryPage() {
     }
   }
 
+  async function showUserDetails(user) {
+    setSelectedUser(user);
+    setDetailLoading(true);
+    try {
+      const details = await userApi.show(user.id);
+      if (details) setSelectedUser(details);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function applyAccountAction() {
+    if (!accountTarget) return;
+    setSaving(true);
+    try {
+      const updated = await userApi[accountTarget.action](
+        accountTarget.user.id,
+      );
+      setUsers((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      if (selectedUser?.id === updated.id) {
+        setSelectedUser((await userApi.show(updated.id)) ?? updated);
+      }
+      const completedAction = {
+        activate: "activated",
+        disable: "disabled",
+        lock: "locked",
+        unlock: "unlocked",
+      }[accountTarget.action];
+      toast.success(
+        `${accountTarget.user.name}'s account was ${completedAction} successfully.`,
+      );
+      setAccountTarget(null);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const accountActionCopy = {
+    activate: {
+      title: "Activate this account?",
+      confirmLabel: "Activate account",
+      description:
+        "The user will be able to sign in again unless the account is locked.",
+    },
+    disable: {
+      title: "Disable this account?",
+      confirmLabel: "Disable account",
+      description:
+        "The user will be signed out and cannot sign in until the account is activated.",
+    },
+    lock: {
+      title: "Lock this account?",
+      confirmLabel: "Lock account",
+      description:
+        "The user will be signed out immediately and remain locked until an authorized administrator unlocks the account.",
+    },
+    unlock: {
+      title: "Unlock this account?",
+      confirmLabel: "Unlock account",
+      description:
+        "Manual and failed-login locks will be cleared, including failed sign-in attempts.",
+    },
+  };
+
   const columns = [
     {
       key: "name",
@@ -419,16 +544,25 @@ export default function UserRegistryPage() {
     },
     {
       key: "role",
-      label: "Access Role",
+      label: "Access Roles",
       render: (user) => (
-        <SubtleBadge
-          className={
-            roleTone[user.roleCode] ??
-            "border-slate-200 bg-slate-50 text-slate-600"
-          }
-        >
-          {user.role}
-        </SubtleBadge>
+        <div className="flex min-w-48 flex-wrap gap-1.5">
+          {(user.roles?.length
+            ? user.roles
+            : [{ code: user.roleCode, name: user.role, isPrimary: true }]
+          ).map((role) => (
+            <SubtleBadge
+              className={
+                roleTone[role.code] ??
+                "border-slate-200 bg-slate-50 text-slate-600"
+              }
+              key={role.id ?? role.code}
+            >
+              {role.name}
+              {role.isPrimary ? " · Primary" : ""}
+            </SubtleBadge>
+          ))}
+        </div>
       ),
     },
     {
@@ -462,16 +596,37 @@ export default function UserRegistryPage() {
       render: (user) => (
         <StatusBadge
           tone={
-            user.isArchived ? "inactive" : user.isActive ? "active" : "warning"
+            user.isArchived
+              ? "inactive"
+              : user.isLocked
+                ? "danger"
+                : user.isActive
+                  ? "active"
+                  : "warning"
           }
         >
-          {user.isArchived ? "Archived" : user.isActive ? "Active" : "Inactive"}
+          {user.isArchived
+            ? "Archived"
+            : user.isLocked
+              ? "Locked"
+              : user.isActive
+                ? "Active"
+                : "Disabled"}
         </StatusBadge>
       ),
     },
   ];
 
-  if (canUpdate || canDeactivate || canRestore || canResetPassword) {
+  if (
+    canUpdate ||
+    canActivate ||
+    canDisable ||
+    canArchive ||
+    canRestore ||
+    canLock ||
+    canUnlock ||
+    canResetPassword
+  ) {
     columns.push({
       key: "actions",
       label: "Actions",
@@ -507,7 +662,72 @@ export default function UserRegistryPage() {
               <KeyRound size={16} />
             </button>
           )}
-          {canDeactivate && !user.isArchived && user.id !== currentUser.id && (
+          {canUnlock && user.isLocked && !user.isArchived && (
+            <button
+              aria-label={`Unlock ${user.name}`}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-emerald-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
+              onClick={(event) => {
+                event.stopPropagation();
+                setAccountTarget({ action: "unlock", user });
+              }}
+              title="Unlock account"
+              type="button"
+            >
+              <LockOpen size={16} />
+            </button>
+          )}
+          {canLock &&
+            !user.isLocked &&
+            user.isActive &&
+            !user.isArchived &&
+            user.id !== currentUser.id && (
+              <button
+                aria-label={`Lock ${user.name}`}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-orange-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setAccountTarget({ action: "lock", user });
+                }}
+                title="Lock account"
+                type="button"
+              >
+                <LockKeyhole size={16} />
+              </button>
+            )}
+          {canDisable &&
+            user.isActive &&
+            !user.isArchived &&
+            user.id !== currentUser.id && (
+              <button
+                aria-label={`Disable ${user.name}`}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-amber-700 shadow-sm transition hover:border-amber-200 hover:bg-amber-50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setAccountTarget({ action: "disable", user });
+                }}
+                title="Disable account"
+                type="button"
+              >
+                <CircleOff size={16} />
+              </button>
+            )}
+          {canActivate &&
+            !user.isActive &&
+            !user.isArchived && (
+              <button
+                aria-label={`Activate ${user.name}`}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-emerald-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setAccountTarget({ action: "activate", user });
+                }}
+                title="Activate account"
+                type="button"
+              >
+                <CircleCheckBig size={16} />
+              </button>
+            )}
+          {canArchive && !user.isArchived && user.id !== currentUser.id && (
             <button
               aria-label={`Archive ${user.name}`}
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-red-600 shadow-sm transition hover:border-red-200 hover:bg-red-50"
@@ -560,7 +780,7 @@ export default function UserRegistryPage() {
         title="User Registry"
       />
 
-      <section className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryCard
           icon={UsersRound}
           label="Total users"
@@ -574,9 +794,15 @@ export default function UserRegistryPage() {
           value={userStats.active}
         />
         <SummaryCard
-          icon={UserX}
-          label="Inactive accounts"
+          icon={LockKeyhole}
+          label="Locked accounts"
           tone="amber"
+          value={userStats.locked}
+        />
+        <SummaryCard
+          icon={UserX}
+          label="Disabled accounts"
+          tone="slate"
           value={userStats.inactive}
         />
         <SummaryCard
@@ -617,7 +843,8 @@ export default function UserRegistryPage() {
               options={[
                 { value: "", label: "All statuses" },
                 { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
+                { value: "locked", label: "Locked" },
+                { value: "inactive", label: "Disabled" },
                 { value: "archived", label: "Archived" },
               ]}
               placeholder="Filter by status"
@@ -645,9 +872,8 @@ export default function UserRegistryPage() {
           <DataTable
             columns={columns}
             emptyMessage="No users match your search."
-            initialPageSize={8}
             loading={loading}
-            onRowClick={setSelectedUser}
+            onRowClick={showUserDetails}
             pageSizeOptions={[8, 10, 25, 50]}
             rows={filtered}
           />
@@ -678,18 +904,27 @@ export default function UserRegistryPage() {
                 tone={
                   selectedUser.isArchived
                     ? "inactive"
-                    : selectedUser.isActive
-                      ? "active"
-                      : "warning"
+                    : selectedUser.isLocked
+                      ? "danger"
+                      : selectedUser.isActive
+                        ? "active"
+                        : "warning"
                 }
               >
                 {selectedUser.isArchived
                   ? "Archived"
-                  : selectedUser.isActive
-                    ? "Active"
-                    : "Inactive"}
+                  : selectedUser.isLocked
+                    ? "Locked"
+                    : selectedUser.isActive
+                      ? "Active"
+                      : "Disabled"}
               </StatusBadge>
             </div>
+            {detailLoading && (
+              <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700">
+                Loading permissions, assignments, and account history...
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ["First name", selectedUser.firstName],
@@ -713,7 +948,19 @@ export default function UserRegistryPage() {
                 ],
                 [
                   "Last sign-in",
-                  selectedUser.lastLoginAt || "No sign-in recorded",
+                  selectedUser.lastLoginAt
+                    ? new Date(selectedUser.lastLoginAt).toLocaleString()
+                    : "No sign-in recorded",
+                ],
+                [
+                  "Failed login attempts",
+                  selectedUser.failedLoginAttempts ?? 0,
+                ],
+                [
+                  "Manual lock",
+                  selectedUser.isManuallyLocked
+                    ? `Locked by ${selectedUser.manuallyLockedBy || "an administrator"}`
+                    : "Not manually locked",
                 ],
               ].map(([label, value]) => (
                 <div
@@ -729,6 +976,109 @@ export default function UserRegistryPage() {
                 </div>
               ))}
             </div>
+            <section>
+              <h3 className="text-sm font-bold text-slate-800">
+                Assigned access roles ({selectedUser.roles?.length ?? 0})
+              </h3>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {selectedUser.roles?.map((role) => (
+                  <article
+                    className="rounded-lg border border-slate-200 bg-white p-3"
+                    key={role.id}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="text-sm text-slate-800">
+                        {role.name}
+                      </strong>
+                      {role.isPrimary && (
+                        <StatusBadge tone="active">Primary</StatusBadge>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {role.description || role.code}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section>
+              <h3 className="text-sm font-bold text-slate-800">
+                Effective permissions ({selectedUser.permissionsCount ?? 0})
+              </h3>
+              <div className="mt-2 flex max-h-44 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                {(selectedUser.permissionDetails ??
+                  selectedUser.permissions?.map((code) => ({ code })) ??
+                  []
+                ).map((permission) => (
+                  <SubtleBadge
+                    className="border-sky-200 bg-white text-sky-700"
+                    key={permission.id ?? permission.code}
+                  >
+                    {permission.code}
+                  </SubtleBadge>
+                ))}
+              </div>
+            </section>
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <BriefcaseBusiness size={16} className="text-sky-700" />
+                Active audit assignments (
+                {selectedUser.activeAssignments?.length ?? 0})
+              </h3>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {selectedUser.activeAssignments?.map((assignment) => (
+                  <article
+                    className="rounded-lg border border-slate-200 p-3"
+                    key={assignment.id}
+                  >
+                    <strong className="block text-sm text-slate-800">
+                      {assignment.engagementCode || "Planned engagement"}
+                    </strong>
+                    <span className="mt-1 block text-sm text-slate-600">
+                      {assignment.engagementTitle}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {assignment.teamRole || "Team member"} ·{" "}
+                      {assignment.plannedPersonDays} person-days
+                    </span>
+                  </article>
+                ))}
+                {!selectedUser.activeAssignments?.length && (
+                  <p className="text-sm text-slate-500">
+                    No active audit assignments are recorded.
+                  </p>
+                )}
+              </div>
+            </section>
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <History size={16} className="text-sky-700" />
+                Account activity
+              </h3>
+              <div className="mt-2 max-h-64 space-y-2 overflow-y-auto">
+                {selectedUser.activityHistory?.map((entry) => (
+                  <article
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    key={entry.id}
+                  >
+                    <strong className="block text-sm text-slate-700">
+                      {entry.description}
+                    </strong>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {entry.actor} ·{" "}
+                      {entry.createdAt
+                        ? new Date(entry.createdAt).toLocaleString()
+                        : "Date unavailable"}
+                    </span>
+                  </article>
+                ))}
+                {!selectedUser.activityHistory?.length && !detailLoading && (
+                  <p className="text-sm text-slate-500">
+                    No account activity has been recorded yet.
+                  </p>
+                )}
+              </div>
+            </section>
           </div>
         )}
       </Modal>
@@ -835,31 +1185,63 @@ export default function UserRegistryPage() {
               />
             </FormField>
             <FormField
-              error={errors.roleId?.[0]}
-              htmlFor="user-role"
-              label="Access role"
+              error={errors.roleIds?.[0]}
+              label="Assigned access roles"
+              hint="Permissions are combined across every active assigned role."
               required
             >
               <SearchableSelect
-                onChange={(roleId) =>
-                  setForm((current) => ({ ...current, roleId }))
+                multiple
+                multipleDisplay="summary"
+                onChange={(roleIds) =>
+                  setForm((current) => ({
+                    ...current,
+                    roleIds,
+                    primaryRoleId: roleIds.some(
+                      (id) => String(id) === String(current.primaryRoleId),
+                    )
+                      ? current.primaryRoleId
+                      : (roleIds[0] ?? ""),
+                  }))
                 }
                 options={roleOptions}
-                placeholder="Select an access role"
+                placeholder="Select one or more access roles"
                 searchPlaceholder="Search roles..."
-                value={form.roleId}
+                value={form.roleIds}
+              />
+            </FormField>
+            <FormField
+              error={errors.primaryRoleId?.[0]}
+              label="Primary access role"
+              hint="The primary role is used for workflow attribution and display."
+              required
+            >
+              <SearchableSelect
+                onChange={(primaryRoleId) =>
+                  setForm((current) => ({ ...current, primaryRoleId }))
+                }
+                options={roleOptions.filter((role) =>
+                  form.roleIds.some(
+                    (roleId) => String(roleId) === String(role.value),
+                  ),
+                )}
+                placeholder="Select the primary role"
+                searchPlaceholder="Search assigned roles..."
+                value={form.primaryRoleId}
               />
             </FormField>
             {!editing && (
               <FormField
                 error={errors.password?.[0]}
                 htmlFor="user-password"
+                hint={`Minimum ${runtimeConfig.passwordMinLength} characters.`}
                 label="Temporary password"
                 required
               >
                 <input
                   className={inputClass}
                   id="user-password"
+                  minLength={runtimeConfig.passwordMinLength}
                   name="password"
                   onChange={change}
                   type="text"
@@ -878,15 +1260,17 @@ export default function UserRegistryPage() {
               />
               Office head
             </label>
-            <label className="flex items-center gap-2">
-              <input
-                checked={form.isActive}
-                name="isActive"
-                onChange={change}
-                type="checkbox"
-              />
-              Active account
-            </label>
+            {!editing && (
+              <label className="flex items-center gap-2">
+                <input
+                  checked={form.isActive}
+                  name="isActive"
+                  onChange={change}
+                  type="checkbox"
+                />
+                Active account
+              </label>
+            )}
           </div>
         </form>
       </Modal>
@@ -914,6 +1298,34 @@ export default function UserRegistryPage() {
         open={Boolean(archiveTarget)}
         title="Archive this user?"
         tone="danger"
+      />
+
+      <ConfirmDialog
+        busy={saving}
+        confirmLabel={
+          accountTarget
+            ? accountActionCopy[accountTarget.action].confirmLabel
+            : "Continue"
+        }
+        description={
+          accountTarget
+            ? `${accountTarget.user.name}: ${accountActionCopy[accountTarget.action].description}`
+            : ""
+        }
+        onCancel={() => setAccountTarget(null)}
+        onConfirm={applyAccountAction}
+        open={Boolean(accountTarget)}
+        title={
+          accountTarget
+            ? accountActionCopy[accountTarget.action].title
+            : "Confirm account action"
+        }
+        tone={
+          accountTarget?.action === "disable" ||
+          accountTarget?.action === "lock"
+            ? "danger"
+            : "primary"
+        }
       />
 
       <ConfirmDialog
@@ -962,15 +1374,16 @@ export default function UserRegistryPage() {
             autoComplete="new-password"
             className={inputClass}
             id="reset-user-password"
-            minLength={4}
+            minLength={runtimeConfig.passwordMinLength}
             onChange={(event) => setResetPassword(event.target.value)}
             type="text"
             value={resetPassword}
           />
         </FormField>
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-          The demo default is <strong>lala</strong>. Share temporary passwords
-          through an approved secure channel.
+          Use at least <strong>{runtimeConfig.passwordMinLength}</strong>{" "}
+          characters. Seeded demo accounts keep their documented demo password
+          until it is reset.
         </p>
       </Modal>
     </div>

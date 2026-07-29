@@ -4,6 +4,9 @@ namespace App\Support;
 
 use Illuminate\Support\Str;
 
+/**
+ * Normalizes structured person-name parts and produces consistent display names.
+ */
 class PersonName
 {
     /** @return array{first_name: string, middle_name: ?string, last_name: string, name_extension: ?string, name: string, initials: string} */

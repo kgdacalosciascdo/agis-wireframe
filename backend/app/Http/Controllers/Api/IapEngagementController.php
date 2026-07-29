@@ -14,16 +14,21 @@ use App\Models\InternalAuditPlan;
 use App\Models\User;
 use App\Services\IapPlanGuard;
 use App\Services\IapSupport;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Manages proposed Annual Plan engagements and their team and skill requirements.
+ */
 class IapEngagementController extends Controller
 {
     public function __construct(
         private readonly IapPlanGuard $guard,
         private readonly IapSupport $support,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function store(IapEngagementRequest $request, InternalAuditPlan $plan): JsonResponse
@@ -203,6 +208,23 @@ class IapEngagementController extends Controller
                 $this->snapshot($locked),
             );
         }, 3);
+
+        $this->notifications->send(collect($members)->pluck('userId'), [
+            'actorId' => $request->user()->id,
+            'type' => 'IAP_TEAM_ASSIGNMENT',
+            'category' => 'ASSIGNMENT',
+            'priority' => 'HIGH',
+            'moduleCode' => 'IAP',
+            'title' => "Assigned to {$engagement->engagement_code}",
+            'message' => "You were assigned to {$engagement->title} in {$plan->plan_code}.",
+            'actionUrl' => "/internal-audit-planning/{$plan->id}",
+            'actionLabel' => 'Open annual plan',
+            'subjectType' => 'IAP_PLAN_ENGAGEMENT',
+            'subjectId' => $engagement->id,
+            'subjectCode' => $engagement->engagement_code,
+            'dedupeKey' => "iap-team:{$engagement->id}",
+            'renotify' => true,
+        ]);
 
         return response()->json([
             'success' => true,

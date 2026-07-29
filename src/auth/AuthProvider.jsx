@@ -1,6 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
-import { ApiError, authApi } from "../services/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ApiError,
+  authApi,
+  runtimeConfigurationApi,
+} from "../services/api";
 import { AuthContext } from "./auth-context";
+
+const DEFAULT_RUNTIME_CONFIGURATION = {
+  systemName: "Audit Governance Information System",
+  systemShortName: "AGIS",
+  organizationName: "City Government of Cagayan de Oro",
+  systemVersion: "1.0.0",
+  paginationSize: 25,
+  dateFormat: "MMMM d, yyyy",
+  timezone: "Asia/Manila",
+  sessionTimeoutMinutes: 30,
+  passwordMinLength: 8,
+  fiscalYearStartMonth: 1,
+  currentFiscalYear: new Date().getFullYear(),
+  documentUploadMaxMb: 25,
+  notificationRefreshSeconds: 60,
+  iapDefaultAnnualPersonDays: 180,
+  logoUrl: "/logo.png",
+  defaultRiskLevelCode: "MEDIUM",
+  defaultWorkflowSlaHours: 72,
+  mailEnabled: false,
+};
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -9,6 +34,24 @@ export default function AuthProvider({ children }) {
   const [demoAccounts, setDemoAccounts] = useState([]);
   const [demoLoading, setDemoLoading] = useState(true);
   const [demoError, setDemoError] = useState("");
+  const [runtimeConfig, setRuntimeConfig] = useState(
+    DEFAULT_RUNTIME_CONFIGURATION,
+  );
+  const [runtimeLoading, setRuntimeLoading] = useState(true);
+
+  const refreshRuntimeConfiguration = useCallback(async () => {
+    const configuration = await runtimeConfigurationApi.show();
+    const merged = { ...DEFAULT_RUNTIME_CONFIGURATION, ...configuration };
+    setRuntimeConfig(merged);
+    document.title = `${merged.systemShortName} | ${merged.systemName}`;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", merged.systemName);
+    document
+      .querySelector('link[rel="icon"]')
+      ?.setAttribute("href", merged.logoUrl);
+    return merged;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -50,18 +93,30 @@ export default function AuthProvider({ children }) {
       }
     }
 
+    async function loadRuntimeConfiguration() {
+      try {
+        await refreshRuntimeConfiguration();
+      } catch {
+        // Safe defaults keep the login screen usable while the API recovers.
+      } finally {
+        if (active) setRuntimeLoading(false);
+      }
+    }
+
     restoreSession();
     loadDemoAccounts();
+    loadRuntimeConfiguration();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshRuntimeConfiguration]);
 
   const value = useMemo(
     () => ({
       user,
-      loading,
+      loading: loading || runtimeLoading,
+      runtimeConfig,
       sessionError,
       demoAccounts,
       demoLoading,
@@ -97,12 +152,16 @@ export default function AuthProvider({ children }) {
         setUser(currentUser);
         return currentUser;
       },
+      refreshRuntimeConfiguration,
     }),
     [
       demoAccounts,
       demoError,
       demoLoading,
       loading,
+      refreshRuntimeConfiguration,
+      runtimeConfig,
+      runtimeLoading,
       sessionError,
       user,
     ],

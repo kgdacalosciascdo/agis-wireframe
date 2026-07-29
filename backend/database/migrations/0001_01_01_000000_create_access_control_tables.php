@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Creates the foundational roles, permissions, and user-role assignment schema. */
 return new class extends Migration
 {
     public function up(): void

@@ -11,8 +11,12 @@ import { useToast } from "../ui/toast-context";
 const inputClass =
   "h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
 
+/**
+ * Lets the signed-in user maintain normalized personal and employment details
+ * and change credentials subject to server-side security policies.
+ */
 export default function ProfilePage() {
-  const { refreshUser } = useAuth();
+  const { refreshUser, runtimeConfig } = useAuth();
   const toast = useToast();
   const [profile, setProfile] = useState(null);
   const [passwords, setPasswords] = useState({
@@ -202,7 +206,8 @@ export default function ProfilePage() {
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
             Demo accounts initially use <strong>lala</strong>. Enter your current
-            password before selecting a new one.
+            password before selecting a new one with at least{" "}
+            <strong>{runtimeConfig.passwordMinLength} characters</strong>.
           </p>
           <div className="mt-5 grid gap-4">
             {[
@@ -219,6 +224,11 @@ export default function ProfilePage() {
                 <input
                   className={inputClass}
                   id={`password-${name}`}
+                  minLength={
+                    name === "currentPassword"
+                      ? undefined
+                      : runtimeConfig.passwordMinLength
+                  }
                   onChange={(event) =>
                     setPasswords({
                       ...passwords,

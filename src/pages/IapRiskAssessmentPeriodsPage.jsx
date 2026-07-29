@@ -33,6 +33,7 @@ import {
   riskPeriodApi,
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const labels = {
   DRAFT: "Draft",
@@ -288,6 +289,10 @@ function MetricCard({ label, value }) {
   return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><strong className="block text-2xl text-slate-900">{value}</strong><span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span></div>;
 }
 
+/**
+ * Manages controlled risk-assessment cycles, scoring criteria, subject
+ * assessments, evidence, validation, and baseline locking.
+ */
 export default function IapRiskAssessmentPeriodsPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -299,10 +304,23 @@ export default function IapRiskAssessmentPeriodsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState(null);
+  useRecordView(selected, {
+    module: "IAP",
+    recordType: "RISK_PERIOD",
+    code: (record) => record.periodCode,
+    label: (record) => record.name,
+  });
+  const [assessmentViewer, setAssessmentViewer] = useState(null);
+  useRecordView(assessmentViewer, {
+    module: "IAP",
+    recordType: "IAP_RISK",
+    code: (record) => record.auditUniverseItem?.subjectCode,
+    label: (record) =>
+      record.auditUniverseItem?.name ?? "Audit universe risk assessment",
+  });
   const [comparisonId, setComparisonId] = useState("");
   const [editor, setEditor] = useState(null);
   const [assessmentEditor, setAssessmentEditor] = useState(null);
-  const [assessmentViewer, setAssessmentViewer] = useState(null);
   const [errors, setErrors] = useState({});
   const [workflow, setWorkflow] = useState("");
   const [workflowComment, setWorkflowComment] = useState("");

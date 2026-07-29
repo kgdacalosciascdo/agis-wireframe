@@ -13,6 +13,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -34,8 +35,8 @@ class CoreModuleTest extends TestCase
         $this->assertDatabaseCount('roles', 6);
         $this->assertDatabaseCount('users', 89);
         $this->assertDatabaseCount('audit_areas', 10);
-        $this->assertDatabaseCount('master_lists', 18);
-        $this->assertDatabaseCount('system_configurations', 11);
+        $this->assertDatabaseCount('master_lists', 21);
+        $this->assertDatabaseCount('system_configurations', 34);
         $this->assertGreaterThanOrEqual(50, $this->getConnection()->table('audit_focuses')->count());
         $this->assertGreaterThan(80, $this->getConnection()->table('audit_area_office')->count());
         $positionListId = $this->getConnection()
@@ -49,6 +50,10 @@ class CoreModuleTest extends TestCase
         $this->assertDatabaseHas('master_lists', ['code' => 'OFFICE_SECTOR']);
         $this->assertDatabaseHas('master_lists', ['code' => 'GOVERNMENT_EMPLOYMENT_TYPE']);
         $this->assertDatabaseHas('master_lists', ['code' => 'DOCUMENT_TYPE']);
+        $this->assertDatabaseHas('master_lists', ['code' => 'OFFICE_TYPE']);
+        $this->assertDatabaseHas('master_lists', ['code' => 'AUDIT_AREA_TYPE']);
+        $this->assertFalse(Schema::hasColumn('offices', 'parent_office_id'));
+        $this->assertTrue(Schema::hasColumn('audit_areas', 'parent_audit_area_id'));
         foreach ([
             'ENGAGEMENT_STATUS',
             'RECOMMENDATION_STATUS',
@@ -112,6 +117,8 @@ class CoreModuleTest extends TestCase
 
         $this->assertSame(42, $procurement->offices->count());
         $this->assertSame(8, $procurement->focuses->count());
+        $this->assertNotNull($procurement->audit_area_type_id);
+        $this->assertNotNull($procurement->responsible_office_id);
     }
 
     public function test_core_registry_access_is_enforced_by_role(): void
@@ -122,12 +129,12 @@ class CoreModuleTest extends TestCase
         $this->getJson('/api/audit-focuses')->assertOk();
         $this->getJson('/api/users')->assertOk()->assertJsonCount(89, 'data.users');
         $this->getJson('/api/roles')->assertOk()->assertJsonCount(6, 'data.roles');
-        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(88, 'data.permissions');
-        $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(18, 'data.masterLists');
+        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(105, 'data.permissions');
+        $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(21, 'data.masterLists');
         $this->getJson('/api/master-lists?configurableOnly=1')
             ->assertOk()
-            ->assertJsonCount(16, 'data.masterLists');
-        $this->getJson('/api/system-configurations')->assertOk()->assertJsonCount(11, 'data.configurations');
+            ->assertJsonCount(19, 'data.masterLists');
+        $this->getJson('/api/system-configurations')->assertOk()->assertJsonCount(34, 'data.configurations');
 
         Sanctum::actingAs($this->user('mayor'));
         $this->getJson('/api/audit-areas')->assertOk();
@@ -178,6 +185,73 @@ class CoreModuleTest extends TestCase
             ->assertJsonMissing(['code' => 'RISK_LEVEL'])
             ->assertJsonMissing(['code' => 'IAP_COMMENT_TYPE'])
             ->assertJsonFragment(['code' => 'DOCUMENT_TYPE']);
+    }
+
+    public function test_audit_area_hierarchy_prevents_cycles_and_preserves_responsibility_and_history(): void
+    {
+        Sanctum::actingAs($this->user('admin'));
+        $office = Office::query()->where('code', 'CFO')->firstOrFail();
+        $areaTypeId = $this->getConnection()
+            ->table('master_list_items')
+            ->join('master_lists', 'master_lists.id', '=', 'master_list_items.master_list_id')
+            ->where('master_lists.code', 'AUDIT_AREA_TYPE')
+            ->where('master_list_items.code', 'PROCESS')
+            ->value('master_list_items.id');
+
+        $parent = $this->postJson('/api/audit-areas', [
+            'code' => 'TEST-PARENT',
+            'name' => 'Test Parent Area',
+            'description' => 'Parent area used to verify hierarchy controls.',
+            'scope' => 'Citywide parent scope.',
+            'auditAreaTypeId' => $areaTypeId,
+            'responsibleOfficeId' => $office->id,
+            'officeIds' => [$office->id],
+            'isActive' => true,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.auditArea.auditAreaType.code', 'PROCESS')
+            ->assertJsonPath('data.auditArea.responsibleOffice.code', 'CFO')
+            ->assertJsonPath('data.auditArea.history.0.action', 'audit_area.created')
+            ->json('data.auditArea');
+
+        $child = $this->postJson('/api/audit-areas', [
+            'code' => 'TEST-CHILD',
+            'name' => 'Test Child Area',
+            'description' => 'Child area used to verify hierarchy controls.',
+            'scope' => 'A narrower subarea scope.',
+            'parentAuditAreaId' => $parent['id'],
+            'auditAreaTypeId' => $areaTypeId,
+            'responsibleOfficeId' => $office->id,
+            'officeIds' => [$office->id],
+            'isActive' => true,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.auditArea.parentAuditArea.id', $parent['id'])
+            ->json('data.auditArea');
+
+        $this->getJson('/api/audit-areas')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $child['id'],
+                'parentAuditAreaId' => $parent['id'],
+            ]);
+
+        $this->putJson("/api/audit-areas/{$parent['id']}", [
+            'code' => $parent['code'],
+            'name' => $parent['name'],
+            'parentAuditAreaId' => $child['id'],
+            'auditAreaTypeId' => $areaTypeId,
+            'responsibleOfficeId' => $office->id,
+            'officeIds' => [$office->id],
+            'isActive' => true,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('parentAuditAreaId');
+
+        $this->deleteJson("/api/audit-areas/{$parent['id']}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('auditArea');
+        $this->assertNotSoftDeleted('audit_areas', ['id' => $parent['id']]);
     }
 
     public function test_profile_and_password_changes_are_logged_with_old_and_new_values(): void

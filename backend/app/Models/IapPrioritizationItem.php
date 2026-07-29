@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Represents one ranked assessed subject and its selection or deferral decision.
+ */
 class IapPrioritizationItem extends Model
 {
     use HasFactory;

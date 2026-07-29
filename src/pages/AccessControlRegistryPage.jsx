@@ -3,6 +3,7 @@ import {
   Archive,
   CircleCheckBig,
   CirclePause,
+  Copy,
   KeyRound,
   Pencil,
   Plus,
@@ -23,15 +24,23 @@ import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
 import { ApiError, permissionApi, roleApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const emptyRoleForm = {
   code: "",
   name: "",
   description: "",
   isActive: true,
+  officeAccessScope: "OWN_OFFICE",
+  engagementAccessScope: "ASSIGNED",
   permissionIds: [],
 };
 
+/**
+ * Manages roles or permissions depending on the requested registry mode.
+ * Role mutations remain permission-gated and archiving is blocked while users
+ * are still assigned to the role.
+ */
 export default function AccessControlRegistryPage({ mode }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -42,6 +51,7 @@ export default function AccessControlRegistryPage({ mode }) {
   const [permissionFilter, setPermissionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [editing, setEditing] = useState(null);
+  const [cloneSource, setCloneSource] = useState(null);
   const [form, setForm] = useState(emptyRoleForm);
   const [editorOpen, setEditorOpen] = useState(false);
   const [errors, setErrors] = useState({});
@@ -50,19 +60,28 @@ export default function AccessControlRegistryPage({ mode }) {
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
+  useRecordView(selectedRole, {
+    module: "CORE",
+    recordType: "ACCESS_ROLE",
+    code: (record) => record.code,
+    label: (record) => record.name,
+  });
   const isRoles = mode === "roles";
   const canCreate = isRoles && hasPermission(user, "roles.create");
+  const canClone = isRoles && hasPermission(user, "roles.clone");
   const canUpdate = isRoles && hasPermission(user, "roles.update");
   const canDelete = isRoles && hasPermission(user, "roles.delete");
   const canRestore = isRoles && hasPermission(user, "roles.restore");
-  const canManage = canCreate || canUpdate || canDelete || canRestore;
+  const isPlatformAdministrator = (user.roles ?? []).some(
+    (role) => role.code === "platform_admin",
+  );
+  const canManage =
+    canCreate || canClone || canUpdate || canDelete || canRestore;
 
   useEffect(() => {
     let active = true;
     Promise.all([
-      isRoles
-        ? roleApi.list({ includeArchived: true })
-        : Promise.resolve([]),
+      isRoles ? roleApi.list({ includeArchived: true }) : Promise.resolve([]),
       permissionApi.list(),
     ])
       .then(([roleRecords, permissionRecords]) => {
@@ -96,6 +115,8 @@ export default function AccessControlRegistryPage({ mode }) {
           item.code,
           item.name,
           item.description,
+          item.officeAccessScope,
+          item.engagementAccessScope,
           ...item.permissions,
           ...item.users.flatMap((assignedUser) => [
             assignedUser.name,
@@ -106,8 +127,7 @@ export default function AccessControlRegistryPage({ mode }) {
       const matchesPermission =
         !permissionFilter ||
         item.permissionIds.some(
-          (permissionId) =>
-            String(permissionId) === String(permissionFilter),
+          (permissionId) => String(permissionId) === String(permissionFilter),
         );
       const matchesStatus =
         !statusFilter ||
@@ -119,14 +139,7 @@ export default function AccessControlRegistryPage({ mode }) {
 
       return matchesSearch && matchesPermission && matchesStatus;
     });
-  }, [
-    isRoles,
-    permissionFilter,
-    permissions,
-    roles,
-    search,
-    statusFilter,
-  ]);
+  }, [isRoles, permissionFilter, permissions, roles, search, statusFilter]);
 
   const roleStats = useMemo(() => {
     const active = roles.filter(
@@ -149,12 +162,11 @@ export default function AccessControlRegistryPage({ mode }) {
     [permissions],
   );
 
-  const hasActiveFilters = Boolean(
-    search || permissionFilter || statusFilter,
-  );
+  const hasActiveFilters = Boolean(search || permissionFilter || statusFilter);
 
   function showRoleEditor(role = null) {
     setEditing(role);
+    setCloneSource(null);
     setErrors({});
     setForm(
       role
@@ -163,10 +175,28 @@ export default function AccessControlRegistryPage({ mode }) {
             name: role.name,
             description: role.description ?? "",
             isActive: role.isActive,
+            officeAccessScope: role.officeAccessScope,
+            engagementAccessScope: role.engagementAccessScope,
             permissionIds: role.permissionIds,
           }
         : emptyRoleForm,
     );
+    setEditorOpen(true);
+  }
+
+  function showCloneEditor(role) {
+    setEditing(null);
+    setCloneSource(role);
+    setErrors({});
+    setForm({
+      code: `${role.code}_copy`,
+      name: `${role.name} Copy`,
+      description: role.description ?? "",
+      isActive: true,
+      officeAccessScope: role.officeAccessScope,
+      engagementAccessScope: role.engagementAccessScope,
+      permissionIds: [...role.permissionIds],
+    });
     setEditorOpen(true);
   }
 
@@ -180,15 +210,19 @@ export default function AccessControlRegistryPage({ mode }) {
     setErrors({});
     try {
       if (editing) await roleApi.update(editing.id, form);
+      else if (cloneSource) await roleApi.clone(cloneSource.id, form);
       else await roleApi.create(form);
       setRoles(await roleApi.list({ includeArchived: true }));
       setConfirmOpen(false);
       setEditorOpen(false);
       setEditing(null);
+      setCloneSource(null);
       toast.success(
         editing
           ? "Access role updated successfully."
-          : "Access role created successfully.",
+          : cloneSource
+            ? "Access role cloned successfully."
+            : "Access role created successfully.",
       );
     } catch (error) {
       if (error instanceof ApiError && error.status === 422)
@@ -226,9 +260,7 @@ export default function AccessControlRegistryPage({ mode }) {
     try {
       const restored = await roleApi.restore(restoreTarget.id);
       setRoles((current) =>
-        current.map((role) =>
-          role.id === restored.id ? restored : role,
-        ),
+        current.map((role) => (role.id === restored.id ? restored : role)),
       );
       setRestoreTarget(null);
       toast.success("Access role restored successfully.");
@@ -257,6 +289,30 @@ export default function AccessControlRegistryPage({ mode }) {
           key: "permissions",
           label: "Permissions",
           render: (role) => `${role.permissions.length} assigned`,
+        },
+        {
+          key: "accessScopes",
+          label: "Access Scopes",
+          render: (role) => (
+            <div className="grid min-w-40 gap-1 text-xs text-slate-600">
+              <span>
+                Offices:{" "}
+                <strong className="text-slate-700">
+                  {role.officeAccessScope === "ALL"
+                    ? "All offices"
+                    : "Own office"}
+                </strong>
+              </span>
+              <span>
+                Engagements:{" "}
+                <strong className="text-slate-700">
+                  {role.engagementAccessScope === "ALL"
+                    ? "All engagements"
+                    : "Assigned only"}
+                </strong>
+              </span>
+            </div>
+          ),
         },
         {
           key: "status",
@@ -288,10 +344,26 @@ export default function AccessControlRegistryPage({ mode }) {
                 headerClassName: "text-right",
                 render: (role) => (
                   <div className="flex justify-end gap-1">
+                    {canClone &&
+                      !role.isArchived &&
+                      (role.code !== "platform_admin" ||
+                        isPlatformAdministrator) && (
+                        <button
+                          className="grid h-9 w-9 place-items-center rounded-lg text-violet-700 transition hover:bg-violet-100"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            showCloneEditor(role);
+                          }}
+                          title="Clone access role"
+                          type="button"
+                        >
+                          <Copy size={17} />
+                        </button>
+                      )}
                     {canUpdate &&
                       !role.isArchived &&
                       (role.code !== "platform_admin" ||
-                        user.roleCode === "platform_admin") && (
+                        isPlatformAdministrator) && (
                         <button
                           className="grid h-9 w-9 place-items-center rounded-lg text-blue-700 transition hover:bg-blue-100"
                           onClick={(event) => {
@@ -503,11 +575,8 @@ export default function AccessControlRegistryPage({ mode }) {
                 ? "No access roles match your filters."
                 : "No permissions match your search."
             }
-            initialPageSize={8}
             key={
-              isRoles
-                ? `${search}|${permissionFilter}|${statusFilter}`
-                : search
+              isRoles ? `${search}|${permissionFilter}|${statusFilter}` : search
             }
             loading={loading}
             onRowClick={isRoles ? setSelectedRole : undefined}
@@ -555,6 +624,28 @@ export default function AccessControlRegistryPage({ mode }) {
                 {selectedRole.usersCount === 1 ? "user" : "users"} ·{" "}
                 {selectedRole.permissionIds.length} permissions
               </p>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  Office scope
+                </span>
+                <strong className="text-sm text-slate-700">
+                  {selectedRole.officeAccessScope === "ALL"
+                    ? "All offices"
+                    : "User's assigned office"}
+                </strong>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  Engagement scope
+                </span>
+                <strong className="text-sm text-slate-700">
+                  {selectedRole.engagementAccessScope === "ALL"
+                    ? "All engagements"
+                    : "Assigned engagements only"}
+                </strong>
+              </div>
             </div>
             {selectedRole.users.length > 0 && (
               <section>
@@ -642,132 +733,199 @@ export default function AccessControlRegistryPage({ mode }) {
                 ? "Saving..."
                 : editing
                   ? "Save role"
-                  : "Create role"}
+                  : cloneSource
+                    ? "Clone role"
+                    : "Create role"}
             </button>
           </>
         }
         onClose={() => !saving && setEditorOpen(false)}
         open={editorOpen}
         size="lg"
-        title={editing ? `Edit ${editing.name}` : "Add access role"}
+        title={
+          editing
+            ? `Edit ${editing.name}`
+            : cloneSource
+              ? `Clone ${cloneSource.name}`
+              : "Add access role"
+        }
       >
         <form className="grid gap-4" id="role-form" onSubmit={saveRole}>
+          <FormField
+            error={errors.code?.[0]}
+            htmlFor="role-code"
+            label="Role code"
+            required
+          >
+            <input
+              className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-100 disabled:text-slate-500"
+              disabled={Boolean(editing?.isSystem)}
+              id="role-code"
+              onChange={(event) =>
+                setForm({ ...form, code: event.target.value })
+              }
+              placeholder="e.g. regional_reviewer"
+              value={form.code}
+            />
+          </FormField>
+          <FormField
+            error={errors.name?.[0]}
+            htmlFor="role-name"
+            label="Role name"
+            required
+          >
+            <input
+              className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              id="role-name"
+              onChange={(event) =>
+                setForm({ ...form, name: event.target.value })
+              }
+              value={form.name}
+            />
+          </FormField>
+          <FormField
+            error={errors.description?.[0]}
+            htmlFor="role-description"
+            label="Description"
+          >
+            <textarea
+              className="min-h-24 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              id="role-description"
+              onChange={(event) =>
+                setForm({ ...form, description: event.target.value })
+              }
+              value={form.description}
+            />
+          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
-              error={errors.code?.[0]}
-              htmlFor="role-code"
-              label="Role code"
+              error={errors.officeAccessScope?.[0]}
+              htmlFor="role-office-scope"
+              label="Office access scope"
               required
             >
-              <input
-                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-100 disabled:text-slate-500"
-                disabled={Boolean(editing?.isSystem)}
-                id="role-code"
+              <select
+                className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                id="role-office-scope"
                 onChange={(event) =>
-                  setForm({ ...form, code: event.target.value })
+                  setForm({
+                    ...form,
+                    officeAccessScope: event.target.value,
+                  })
                 }
-                placeholder="e.g. regional_reviewer"
-                value={form.code}
-              />
+                value={form.officeAccessScope}
+              >
+                <option value="ALL">All offices</option>
+                <option value="OWN_OFFICE">User&apos;s assigned office</option>
+              </select>
             </FormField>
             <FormField
-              error={errors.name?.[0]}
-              htmlFor="role-name"
-              label="Role name"
+              error={errors.engagementAccessScope?.[0]}
+              htmlFor="role-engagement-scope"
+              label="Engagement access scope"
               required
             >
-              <input
-                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                id="role-name"
+              <select
+                className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                id="role-engagement-scope"
                 onChange={(event) =>
-                  setForm({ ...form, name: event.target.value })
+                  setForm({
+                    ...form,
+                    engagementAccessScope: event.target.value,
+                  })
                 }
-                value={form.name}
-              />
+                value={form.engagementAccessScope}
+              >
+                <option value="ALL">All engagements</option>
+                <option value="ASSIGNED">Assigned engagements only</option>
+              </select>
             </FormField>
-            <FormField
-              error={errors.description?.[0]}
-              htmlFor="role-description"
-              label="Description"
-            >
-              <textarea
-                className="min-h-24 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-                id="role-description"
-                onChange={(event) =>
-                  setForm({ ...form, description: event.target.value })
-                }
-                value={form.description}
-              />
-            </FormField>
-            {errors.permissionIds?.[0] && (
-              <p className="-mb-2 text-xs font-semibold text-red-600">
-                {errors.permissionIds[0]}
-              </p>
+          </div>
+          <p className="-mt-2 text-xs leading-5 text-slate-500">
+            Module access comes from the permissions below. These scopes limit
+            which office and engagement records the role may access.
+          </p>
+          {errors.permissionIds?.[0] && (
+            <p className="-mb-2 text-xs font-semibold text-red-600">
+              {errors.permissionIds[0]}
+            </p>
+          )}
+          <div className="max-h-80 overflow-y-auto rounded-lg border p-3">
+            {Object.entries(groupedPermissions).map(
+              ([module, modulePermissions]) => (
+                <fieldset className="mb-4" key={module}>
+                  <legend className="mb-2 text-xs font-bold uppercase text-slate-500">
+                    {module.replaceAll("_", " ")}
+                  </legend>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {modulePermissions.map((permission) => (
+                      <label
+                        className="flex gap-2 rounded-md bg-slate-50 px-2 py-2 text-xs"
+                        key={permission.id}
+                      >
+                        <input
+                          checked={form.permissionIds.includes(permission.id)}
+                          onChange={() =>
+                            setForm((current) => ({
+                              ...current,
+                              permissionIds: current.permissionIds.includes(
+                                permission.id,
+                              )
+                                ? current.permissionIds.filter(
+                                    (id) => id !== permission.id,
+                                  )
+                                : [...current.permissionIds, permission.id],
+                            }))
+                          }
+                          type="checkbox"
+                        />
+                        {permission.name}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ),
             )}
-            <div className="max-h-80 overflow-y-auto rounded-lg border p-3">
-              {Object.entries(groupedPermissions).map(
-                ([module, modulePermissions]) => (
-                  <fieldset className="mb-4" key={module}>
-                    <legend className="mb-2 text-xs font-bold uppercase text-slate-500">
-                      {module.replaceAll("_", " ")}
-                    </legend>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {modulePermissions.map((permission) => (
-                        <label
-                          className="flex gap-2 rounded-md bg-slate-50 px-2 py-2 text-xs"
-                          key={permission.id}
-                        >
-                          <input
-                            checked={form.permissionIds.includes(permission.id)}
-                            onChange={() =>
-                              setForm((current) => ({
-                                ...current,
-                                permissionIds: current.permissionIds.includes(
-                                  permission.id,
-                                )
-                                  ? current.permissionIds.filter(
-                                      (id) => id !== permission.id,
-                                    )
-                                  : [
-                                      ...current.permissionIds,
-                                      permission.id,
-                                    ],
-                              }))
-                            }
-                            type="checkbox"
-                          />
-                          {permission.name}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                ),
-              )}
-            </div>
-            <label className="flex items-center gap-2 text-sm font-semibold">
-              <input
-                checked={form.isActive}
-                onChange={(event) =>
-                  setForm({ ...form, isActive: event.target.checked })
-                }
-                type="checkbox"
-              />
-              Active role
-            </label>
-          </form>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input
+              checked={form.isActive}
+              onChange={(event) =>
+                setForm({ ...form, isActive: event.target.checked })
+              }
+              type="checkbox"
+            />
+            Active role
+          </label>
+        </form>
       </Modal>
 
       <ConfirmDialog
         busy={saving}
-        confirmLabel={editing ? "Update access role" : "Create access role"}
+        confirmLabel={
+          editing
+            ? "Update access role"
+            : cloneSource
+              ? "Clone access role"
+              : "Create access role"
+        }
         description={
           editing
             ? `Permission changes affect every user assigned to ${editing.name}.`
-            : `Create ${form.name || "this access role"} with ${form.permissionIds.length} assigned permissions?`
+            : cloneSource
+              ? `Create ${form.name || "this access role"} from ${cloneSource.name} with its selected permissions and access scopes?`
+              : `Create ${form.name || "this access role"} with ${form.permissionIds.length} assigned permissions?`
         }
         onCancel={() => setConfirmOpen(false)}
         onConfirm={persistRole}
         open={confirmOpen}
-        title={editing ? "Confirm access-role update" : "Confirm access role"}
+        title={
+          editing
+            ? "Confirm access-role update"
+            : cloneSource
+              ? "Confirm role clone"
+              : "Confirm access role"
+        }
         tone={editing ? "warning" : undefined}
       />
 

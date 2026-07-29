@@ -9,6 +9,9 @@ use App\Models\IapRiskPeriod;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds a finalized ranking linked to validated risk-assessment data.
+ */
 class IapPrioritizationSeeder extends Seeder
 {
     public function run(): void

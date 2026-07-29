@@ -21,6 +21,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Stores IAP attachments and management or reviewer comments against supported records.
+ */
 class IapSupportingRecordController extends Controller
 {
     public function __construct(
@@ -123,7 +126,7 @@ class IapSupportingRecordController extends Controller
     {
         $this->assertMayMutateAttachments($request, $plan);
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:25600', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png'],
+            'file' => ['required', 'file', 'max:'.app(\App\Services\RuntimeConfiguration::class)->documentUploadMaxKilobytes(), 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png'],
             'attachmentTypeId' => ['required', 'integer'],
             'displayName' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:3000'],
@@ -171,6 +174,35 @@ class IapSupportingRecordController extends Controller
                     'updated_by' => $request->user()->id,
                     'is_active' => true,
                 ]);
+                $version = $document->versions()->create([
+                    'version_number' => 1,
+                    'version_label' => 'Initial',
+                    'change_summary' => 'Initial IAP supporting-document version.',
+                    ...$storedFile,
+                    'uploaded_by' => $request->user()->id,
+                ]);
+                $document->forceFill([
+                    'current_version_id' => $version->id,
+                    'version' => $version->version_label,
+                ])->save();
+                $document->links()->create([
+                    'module_code' => 'IAP',
+                    'record_type' => 'ANNUAL_PLAN',
+                    'record_id' => $plan->id,
+                    'record_code' => $plan->plan_code,
+                    'record_label' => "{$plan->plan_code} — {$plan->title}",
+                    'linked_by' => $request->user()->id,
+                ]);
+                if ($engagement) {
+                    $document->links()->create([
+                        'module_code' => 'IAP',
+                        'record_type' => 'PLAN_ENGAGEMENT',
+                        'record_id' => $engagement->id,
+                        'record_code' => $engagement->engagement_code,
+                        'record_label' => "{$engagement->engagement_code} — {$engagement->title}",
+                        'linked_by' => $request->user()->id,
+                    ]);
+                }
 
                 $attachment = IapAttachment::query()->create([
                     'plan_id' => $plan->id,
@@ -219,7 +251,7 @@ class IapSupportingRecordController extends Controller
     ): StreamedResponse {
         $this->guard->assertCanView($request->user(), $plan);
         $record = IapAttachment::withTrashed()
-            ->with('document')
+            ->with('document.currentVersion')
             ->where('plan_id', $plan->id)
             ->findOrFail($attachment);
         abort_if(
@@ -229,12 +261,14 @@ class IapSupportingRecordController extends Controller
         );
 
         $document = $record->document;
-        abort_unless($document && Storage::disk('local')->exists($document->storage_path), 404, 'Stored file not found.');
+        $version = $document?->currentVersion;
+        $path = $version?->storage_path ?? $document?->storage_path;
+        abort_unless($document && $path && Storage::disk('local')->exists($path), 404, 'Stored file not found.');
 
         return Storage::disk('local')->download(
-            $document->storage_path,
-            $document->original_file_name,
-            ['Content-Type' => $document->mime_type],
+            $path,
+            $version?->original_file_name ?? $document->original_file_name,
+            ['Content-Type' => $version?->mime_type ?? $document->mime_type],
         );
     }
 
@@ -269,11 +303,15 @@ class IapSupportingRecordController extends Controller
     ): JsonResponse {
         $this->assertMayMutateAttachments($request, $plan);
         $record = IapAttachment::onlyTrashed()
-            ->with('document')
+            ->with('document.currentVersion')
             ->where('plan_id', $plan->id)
             ->findOrFail($attachment);
         abort_unless(
-            $record->document && Storage::disk('local')->exists($record->document->storage_path),
+            $record->document
+            && Storage::disk('local')->exists(
+                $record->document->currentVersion?->storage_path
+                    ?? $record->document->storage_path,
+            ),
             422,
             'The stored file is missing and this attachment cannot be restored.',
         );

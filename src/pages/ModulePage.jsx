@@ -3,6 +3,10 @@ import { Link, useLocation } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { pageForPath } from "../config/navigation";
 
+/**
+ * Provides the protected placeholder experience for AGIS operational modules
+ * whose complete workflows have not yet been implemented.
+ */
 export default function ModulePage() {
   const { user } = useAuth();
   const location = useLocation();

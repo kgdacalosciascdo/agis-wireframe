@@ -13,17 +13,22 @@ use App\Models\User;
 use App\Services\IapSupport;
 use App\Services\SiapPlanGuard;
 use App\Services\SiapWorkflowService;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Manages strategic plan revisions, objectives, priorities, and approval actions.
+ */
 class SiapPlanController extends Controller
 {
     public function __construct(
         private readonly SiapPlanGuard $guard,
         private readonly SiapWorkflowService $workflow,
         private readonly IapSupport $support,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -71,7 +76,7 @@ class SiapPlanController extends Controller
                 }
             })
             ->orderBy($validated['sortBy'] ?? 'start_year', $validated['sortDirection'] ?? 'desc')
-            ->paginate((int) ($validated['perPage'] ?? 10))
+            ->paginate((int) ($validated['perPage'] ?? app(\App\Services\RuntimeConfiguration::class)->paginationSize()))
             ->withQueryString();
 
         return response()->json([
@@ -109,10 +114,14 @@ class SiapPlanController extends Controller
             );
             $plan = StrategicInternalAuditPlan::query()->create([
                 ...$this->attributes($validated),
-                'plan_code' => $validated['planCode'] ?? sprintf(
-                    'SIAP-%d-%d-R00',
-                    $validated['startYear'],
-                    $validated['endYear'],
+                'plan_code' => $validated['planCode'] ?? $this->runtime->formatNumber(
+                    'siap_plan_number_format',
+                    1,
+                    [
+                        'YEAR' => $validated['startYear'],
+                        'START_YEAR' => $validated['startYear'],
+                        'END_YEAR' => $validated['endYear'],
+                    ],
                 ),
                 'status' => 'DRAFT',
                 'revision_number' => 0,

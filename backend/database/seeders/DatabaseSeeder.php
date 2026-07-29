@@ -4,6 +4,9 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
+/**
+ * Runs seeders in dependency order to create a coherent demonstration dataset.
+ */
 class DatabaseSeeder extends Seeder
 {
     /**
@@ -12,10 +15,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            MasterListSeeder::class,
             OfficeSeeder::class,
             RolePermissionSeeder::class,
+            WorkflowSeeder::class,
             AuditAreaSeeder::class,
-            MasterListSeeder::class,
             SystemConfigurationSeeder::class,
         ]);
 
@@ -28,6 +32,7 @@ class DatabaseSeeder extends Seeder
                 IapRiskPeriodSeeder::class,
                 IapPrioritizationSeeder::class,
                 IapSchedulingSeeder::class,
+                NotificationSeeder::class,
             ]);
         }
     }

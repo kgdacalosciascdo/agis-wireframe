@@ -1,5 +1,13 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| AGIS API Routes
+|--------------------------------------------------------------------------
+| Public endpoints are declared explicitly; all business routes are grouped
+| behind authentication and granular permission middleware below.
+*/
+
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CoreRegistryController;
 use App\Http\Controllers\Api\DemoAccountController;
@@ -11,28 +19,35 @@ use App\Http\Controllers\Api\IapEngagementController;
 use App\Http\Controllers\Api\IapPlanController;
 use App\Http\Controllers\Api\IapPlanPrioritizationController;
 use App\Http\Controllers\Api\IapPrioritizationController;
-use App\Http\Controllers\Api\IapResourceCapacityController;
 use App\Http\Controllers\Api\IapReportController;
+use App\Http\Controllers\Api\IapResourceCapacityController;
 use App\Http\Controllers\Api\IapRiskAssessmentController;
 use App\Http\Controllers\Api\IapRiskPeriodController;
 use App\Http\Controllers\Api\IapSchedulingController;
 use App\Http\Controllers\Api\IapSupportingRecordController;
 use App\Http\Controllers\Api\IapUniverseRiskAssessmentController;
 use App\Http\Controllers\Api\IapWorkflowController;
+use App\Http\Controllers\Api\LogController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OfficeController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\RecordViewController;
 use App\Http\Controllers\Api\ResetDemoDataController;
+use App\Http\Controllers\Api\RuntimeConfigurationController;
 use App\Http\Controllers\Api\SiapPlanController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WorkflowController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
+Route::get('/runtime-configuration', RuntimeConfigurationController::class);
 Route::get('/demo-accounts', DemoAccountController::class)->middleware('throttle:30,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/record-views', RecordViewController::class);
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');
@@ -76,12 +91,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/users', [UserController::class, 'index'])
         ->middleware('permission:users.view');
+    Route::get('/users/{user}', [UserController::class, 'show'])
+        ->middleware('permission:users.view');
     Route::post('/users', [UserController::class, 'store'])
         ->middleware('permission:users.create');
     Route::put('/users/{user}', [UserController::class, 'update'])
         ->middleware('permission:users.update');
-    Route::delete('/users/{user}', [UserController::class, 'deactivate'])
+    Route::delete('/users/{user}', [UserController::class, 'archive'])
+        ->middleware('permission:users.archive');
+    Route::post('/users/{user}/activate', [UserController::class, 'activate'])
+        ->middleware('permission:users.activate');
+    Route::post('/users/{user}/disable', [UserController::class, 'disable'])
         ->middleware('permission:users.deactivate');
+    Route::post('/users/{user}/lock', [UserController::class, 'lock'])
+        ->middleware('permission:users.lock');
+    Route::post('/users/{user}/unlock', [UserController::class, 'unlock'])
+        ->middleware('permission:users.unlock');
     Route::post('/users/{user}/restore', [UserController::class, 'restore'])
         ->middleware('permission:users.restore');
     Route::put('/users/{user}/password', [UserController::class, 'resetPassword'])
@@ -91,6 +116,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:roles.view');
     Route::post('/roles', [CoreRegistryController::class, 'storeRole'])
         ->middleware('permission:roles.create');
+    Route::post('/roles/{role}/clone', [CoreRegistryController::class, 'cloneRole'])
+        ->middleware('permission:roles.clone');
     Route::put('/roles/{role}', [CoreRegistryController::class, 'updateRole'])
         ->middleware('permission:roles.update');
     Route::delete('/roles/{role}', [CoreRegistryController::class, 'destroyRole'])
@@ -109,8 +136,62 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:system_configuration.view');
     Route::put('/system-configurations', [CoreRegistryController::class, 'updateConfigurations'])
         ->middleware('permission:system_configuration.manage');
-    Route::get('/activity-logs', [CoreRegistryController::class, 'activityLogs'])
+    Route::post('/system-configurations/logo', [CoreRegistryController::class, 'uploadLogo'])
+        ->middleware('permission:system_configuration.manage');
+    Route::post('/system-configurations/test-email', [CoreRegistryController::class, 'testEmail'])
+        ->middleware('permission:system_configuration.manage');
+    Route::get('/activity-logs', [LogController::class, 'activities'])
         ->middleware('permission:activity_logs.view');
+    Route::get('/activity-logs/export', [LogController::class, 'exportActivities'])
+        ->middleware('permission:activity_logs.export');
+    Route::get('/audit-logs', [LogController::class, 'audits'])
+        ->middleware('permission:audit_logs.view');
+    Route::get('/audit-logs/export', [LogController::class, 'exportAudits'])
+        ->middleware('permission:audit_logs.export');
+
+    Route::get('/notifications', [NotificationController::class, 'index'])
+        ->middleware('permission:notifications.view');
+    Route::get('/notifications/recent', [NotificationController::class, 'recent'])
+        ->middleware('permission:notifications.view');
+    Route::post('/notifications', [NotificationController::class, 'deliver'])
+        ->middleware('permission:notifications.manage');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])
+        ->middleware('permission:notifications.view');
+    Route::put('/notifications/preferences', [NotificationController::class, 'preferences'])
+        ->middleware('permission:notifications.view');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])
+        ->middleware('permission:notifications.view');
+    Route::post('/notifications/{notification}/unread', [NotificationController::class, 'unread'])
+        ->middleware('permission:notifications.view');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'archive'])
+        ->middleware('permission:notifications.view');
+    Route::post('/notifications/{notification}/restore', [NotificationController::class, 'restore'])
+        ->middleware('permission:notifications.view');
+
+    Route::get('/workflows', [WorkflowController::class, 'index'])
+        ->middleware('permission:workflows.view');
+    Route::get('/workflows/{workflow}', [WorkflowController::class, 'show'])
+        ->middleware('permission:workflows.view');
+    Route::post('/workflows', [WorkflowController::class, 'store'])
+        ->middleware('permission:workflows.create');
+    Route::put('/workflows/{workflow}', [WorkflowController::class, 'update'])
+        ->middleware('permission:workflows.update');
+    Route::post('/workflows/{workflow}/publish', [WorkflowController::class, 'publish'])
+        ->middleware('permission:workflows.publish');
+    Route::post('/workflows/{workflow}/revisions', [WorkflowController::class, 'revision'])
+        ->middleware('permission:workflows.create');
+    Route::delete('/workflows/{workflow}', [WorkflowController::class, 'destroy'])
+        ->middleware('permission:workflows.archive');
+    Route::post('/workflows/{workflow}/restore', [WorkflowController::class, 'restore'])
+        ->middleware('permission:workflows.restore');
+    Route::post('/workflow-instances', [WorkflowController::class, 'start'])
+        ->middleware('permission:workflows.start');
+    Route::get('/workflow-instances/{instance}', [WorkflowController::class, 'instance'])
+        ->middleware('permission:workflows.monitor');
+    Route::post('/workflow-instances/{instance}/transitions/{action}', [WorkflowController::class, 'transition'])
+        ->middleware('permission:workflows.act');
+    Route::post('/workflow-instances/{instance}/cancel', [WorkflowController::class, 'cancel'])
+        ->middleware('permission:workflows.act');
 
     Route::get('/iap/plans', [IapPlanController::class, 'index'])
         ->middleware('permission:iap.view');
@@ -281,11 +362,15 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:documents.upload');
     Route::put('/documents/{document}', [DocumentController::class, 'update'])
         ->middleware('permission:documents.update');
+    Route::post('/documents/{document}/versions', [DocumentController::class, 'storeVersion'])
+        ->middleware('permission:documents.update');
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])
         ->middleware('permission:documents.delete');
     Route::post('/documents/{document}/restore', [DocumentController::class, 'restore'])
         ->middleware('permission:documents.restore');
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])
+        ->middleware('permission:documents.download');
+    Route::get('/documents/{document}/versions/{version}/download', [DocumentController::class, 'downloadVersion'])
         ->middleware('permission:documents.download');
 
     Route::post('/demo/reset', ResetDemoDataController::class)

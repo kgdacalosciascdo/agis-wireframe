@@ -4,8 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds standard AGIS roles, granular permissions, and default access scopes.
+ */
 class RolePermissionSeeder extends Seeder
 {
     /**
@@ -19,8 +23,19 @@ class RolePermissionSeeder extends Seeder
         'offices' => ['view', 'create', 'update', 'delete', 'restore'],
         'audit_areas' => ['view', 'create', 'update', 'delete', 'restore'],
         'audit_focus' => ['view', 'create', 'update', 'delete', 'restore'],
-        'users' => ['view', 'create', 'update', 'deactivate', 'restore', 'reset_password'],
-        'roles' => ['view', 'create', 'update', 'delete', 'restore'],
+        'users' => [
+            'view',
+            'create',
+            'update',
+            'activate',
+            'deactivate',
+            'archive',
+            'restore',
+            'lock',
+            'unlock',
+            'reset_password',
+        ],
+        'roles' => ['view', 'create', 'clone', 'update', 'delete', 'restore'],
         'permissions' => ['view', 'update'],
         'master_lists' => ['view', 'manage'],
         'iap' => [
@@ -46,9 +61,23 @@ class RolePermissionSeeder extends Seeder
         'cms' => ['view', 'update', 'submit_evidence', 'validate', 'approve_extension', 'close'],
         'arms' => ['view', 'manage'],
         'ais' => ['view', 'export'],
-        'documents' => ['view', 'upload', 'update', 'download', 'delete', 'restore'],
+        'documents' => [
+            'view', 'view_confidential', 'view_restricted',
+            'upload', 'update', 'download', 'delete', 'restore',
+        ],
         'notifications' => ['view', 'manage'],
-        'activity_logs' => ['view'],
+        'workflows' => [
+            'view',
+            'create',
+            'update',
+            'publish',
+            'archive',
+            'restore',
+            'start',
+            'act',
+            'monitor',
+        ],
+        'activity_logs' => ['view', 'export'],
         'audit_logs' => ['view', 'export'],
         'system_configuration' => ['view', 'manage'],
         'administrative_reports' => ['view', 'export'],
@@ -81,12 +110,16 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'Platform Administrator',
                 'description' => 'Full access to AGIS configuration, registries, audit modules, and reports.',
                 'is_system' => true,
+                'office_access_scope' => 'ALL',
+                'engagement_access_scope' => 'ALL',
                 'permissions' => array_keys($permissionIds),
             ],
             'agis_admin' => [
                 'name' => 'AGIS Administrator',
                 'description' => 'Administration of registries, master lists, access, configuration, and platform monitoring.',
                 'is_system' => true,
+                'office_access_scope' => 'ALL',
+                'engagement_access_scope' => 'ALL',
                 'permissions' => [
                     'dashboard.view',
                     'offices.view', 'offices.create', 'offices.update', 'offices.delete',
@@ -96,15 +129,19 @@ class RolePermissionSeeder extends Seeder
                     'audit_focus.view', 'audit_focus.create', 'audit_focus.update', 'audit_focus.delete',
                     'audit_focus.restore',
                     'users.view', 'users.create', 'users.update', 'users.deactivate',
-                    'users.restore',
-                    'roles.view', 'roles.create', 'roles.update', 'roles.delete', 'roles.restore',
+                    'users.activate', 'users.archive', 'users.restore', 'users.lock', 'users.unlock',
+                    'roles.view', 'roles.create', 'roles.clone', 'roles.update', 'roles.delete', 'roles.restore',
                     'permissions.view', 'permissions.update',
                     'master_lists.view', 'master_lists.manage',
                     'iap.view', 'aem.view', 'afr.view', 'cms.view', 'arms.view', 'ais.view',
                     'documents.view', 'documents.upload', 'documents.update',
+                    'documents.view_confidential', 'documents.view_restricted',
                     'documents.download', 'documents.delete', 'documents.restore',
                     'notifications.view', 'notifications.manage',
-                    'activity_logs.view', 'audit_logs.view',
+                    'workflows.view', 'workflows.create', 'workflows.update',
+                    'workflows.publish', 'workflows.archive', 'workflows.restore',
+                    'workflows.start', 'workflows.act', 'workflows.monitor',
+                    'activity_logs.view', 'activity_logs.export', 'audit_logs.view', 'audit_logs.export',
                     'system_configuration.view', 'system_configuration.manage',
                     'administrative_reports.view', 'administrative_reports.export',
                     'profile.view', 'profile.update', 'profile.change_password',
@@ -114,6 +151,8 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'CIAS Management',
                 'description' => 'CIAS leadership oversight, review, approval, resource management, and reporting.',
                 'is_system' => true,
+                'office_access_scope' => 'ALL',
+                'engagement_access_scope' => 'ALL',
                 'permissions' => [
                     'dashboard.view', 'offices.view', 'audit_areas.view', 'audit_focus.view',
                     'users.view', 'master_lists.view',
@@ -127,9 +166,11 @@ class RolePermissionSeeder extends Seeder
                     'cms.view', 'cms.update', 'cms.validate', 'cms.approve_extension', 'cms.close',
                     'arms.view', 'arms.manage', 'ais.view', 'ais.export',
                     'documents.view', 'documents.upload', 'documents.update',
+                    'documents.view_confidential', 'documents.view_restricted',
                     'documents.download', 'documents.delete', 'documents.restore',
                     'notifications.view', 'notifications.manage',
-                    'activity_logs.view', 'audit_logs.view',
+                    'workflows.view', 'workflows.start', 'workflows.act', 'workflows.monitor',
+                    'activity_logs.view', 'activity_logs.export', 'audit_logs.view', 'audit_logs.export',
                     'administrative_reports.view', 'administrative_reports.export',
                     'profile.view', 'profile.update', 'profile.change_password',
                 ],
@@ -138,6 +179,8 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'AGIS User',
                 'description' => 'Operational access to assigned plans, engagements, findings, and evidence.',
                 'is_system' => true,
+                'office_access_scope' => 'ALL',
+                'engagement_access_scope' => 'ASSIGNED',
                 'permissions' => [
                     'dashboard.view',
                     'offices.view', 'audit_areas.view', 'audit_focus.view', 'master_lists.view',
@@ -148,7 +191,9 @@ class RolePermissionSeeder extends Seeder
                     'cms.view', 'cms.update', 'cms.submit_evidence',
                     'arms.view', 'ais.view',
                     'documents.view', 'documents.upload', 'documents.download',
+                    'documents.view_confidential',
                     'notifications.view',
+                    'workflows.start', 'workflows.act',
                     'administrative_reports.view',
                     'profile.view', 'profile.update', 'profile.change_password',
                 ],
@@ -157,11 +202,14 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'Auditee Representative',
                 'description' => 'Office representative access to assigned engagements, findings, requests, and evidence.',
                 'is_system' => true,
+                'office_access_scope' => 'OWN_OFFICE',
+                'engagement_access_scope' => 'ASSIGNED',
                 'permissions' => [
                     'dashboard.view',
                     'cms.view', 'cms.update', 'cms.submit_evidence',
                     'documents.view', 'documents.upload', 'documents.download',
                     'notifications.view',
+                    'workflows.act',
                     'profile.view', 'profile.update', 'profile.change_password',
                 ],
             ],
@@ -169,6 +217,8 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'Read Only User',
                 'description' => 'Inquiry-only access to authorized dashboards, registries, audit records, and reports.',
                 'is_system' => true,
+                'office_access_scope' => 'ALL',
+                'engagement_access_scope' => 'ALL',
                 'permissions' => [
                     'dashboard.view', 'offices.view', 'audit_areas.view', 'audit_focus.view',
                     'master_lists.view', 'iap.view', 'aem.view', 'afr.view', 'cms.view',
@@ -187,6 +237,8 @@ class RolePermissionSeeder extends Seeder
                     'description' => $attributes['description'],
                     'is_system' => $attributes['is_system'],
                     'is_active' => true,
+                    'office_access_scope' => $attributes['office_access_scope'],
+                    'engagement_access_scope' => $attributes['engagement_access_scope'],
                 ],
             );
 
@@ -215,6 +267,21 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
+            $legacyRole->assignedUsers()->withTrashed()->get()->each(
+                function (User $user) use ($legacyRole, $replacementRole): void {
+                    $roleIds = $user->roles()
+                        ->where('roles.id', '<>', $legacyRole->id)
+                        ->pluck('roles.id')
+                        ->push($replacementRole->id)
+                        ->unique()
+                        ->values()
+                        ->all();
+                    $primaryRoleId = (int) $user->role_id === (int) $legacyRole->id
+                        ? $replacementRole->id
+                        : $user->role_id;
+                    $user->syncRoleAssignments($roleIds, $primaryRoleId);
+                },
+            );
             $legacyRole->users()->update(['role_id' => $replacementRole->id]);
             $legacyRole->delete();
         }

@@ -2,10 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\MasterListItem;
 use App\Models\Office;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Arr;
 
+/**
+ * Seeds the independent Cagayan de Oro offices used by all AGIS modules.
+ */
 class OfficeSeeder extends Seeder
 {
     public const DEMO_OFFICES = [
@@ -228,11 +232,30 @@ class OfficeSeeder extends Seeder
 
     public function run(): void
     {
+        $officeTypes = MasterListItem::query()
+            ->whereHas('masterList', fn ($query) => $query->where('code', 'OFFICE_TYPE'))
+            ->pluck('id', 'code');
+
         foreach (self::DEMO_OFFICES as $office) {
             $attributes = Arr::except($office, ['head_name']);
+            $name = strtoupper($office['name']);
+            $typeCode = match (true) {
+                str_contains($name, 'DEPARTMENT') => 'DEPARTMENT',
+                str_contains($name, 'DIVISION') => 'DIVISION',
+                str_contains($name, 'SECTION') => 'SECTION',
+                str_contains($name, 'UNIT') => 'UNIT',
+                str_contains($name, 'HOSPITAL'),
+                str_contains($name, 'BOARD'),
+                str_contains($name, 'COUNCIL') => 'SPECIAL_BODY',
+                default => 'OFFICE',
+            };
             $model = Office::withTrashed()->updateOrCreate(
                 ['code' => $office['code']],
-                [...$attributes, 'is_active' => true],
+                [
+                    ...$attributes,
+                    'office_type_id' => $officeTypes[$typeCode] ?? null,
+                    'is_active' => true,
+                ],
             );
 
             if ($model->trashed()) {

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Stores a criterion result for the subject-centered risk assessment representation.
+ */
 class IapUniverseRiskScore extends Model
 {
     use HasFactory;

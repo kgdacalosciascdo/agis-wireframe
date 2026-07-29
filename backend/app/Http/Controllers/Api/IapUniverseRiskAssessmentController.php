@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Provides the Audit Universe-centered view of assessment scoring and validation.
+ */
 class IapUniverseRiskAssessmentController extends Controller
 {
     public function __construct(private readonly IapSupport $support) {}
@@ -126,7 +129,7 @@ class IapUniverseRiskAssessmentController extends Controller
         $this->assertEditable($period);
         $this->assertOwnerOrManagement($request, $assessment);
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:25600', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png'],
+            'file' => ['required', 'file', 'max:'.app(\App\Services\RuntimeConfiguration::class)->documentUploadMaxKilobytes(), 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png'],
         ]);
         $file = $validated['file'];
         $name = Str::uuid().'.'.strtolower($file->getClientOriginalExtension());

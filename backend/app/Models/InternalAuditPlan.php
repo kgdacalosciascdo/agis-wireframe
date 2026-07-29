@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents one versioned Annual Internal Audit Plan and its approval state.
+ */
 class InternalAuditPlan extends Model
 {
     use HasFactory, SoftDeletes;

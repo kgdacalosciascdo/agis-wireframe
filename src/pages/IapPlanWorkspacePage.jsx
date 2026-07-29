@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import useRecordView from "../hooks/useRecordView";
 import IapPlanForm from "../components/iap/IapPlanForm";
 import IapPrioritizedEngagementForm from "../components/iap/IapPrioritizedEngagementForm";
 import IapRiskAssessmentForm from "../components/iap/IapRiskAssessmentForm";
@@ -169,12 +170,22 @@ function DetailBlock({ label, children }) {
   );
 }
 
+/**
+ * Coordinates the detailed Annual Plan workspace: imported priorities,
+ * engagements, workflow actions, capacity, and supporting records.
+ */
 export default function IapPlanWorkspacePage() {
   const { planId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [plan, setPlan] = useState(null);
+  useRecordView(plan, {
+    module: "IAP",
+    recordType: "IAP_PLAN",
+    code: (record) => record.planCode,
+    label: (record) => record.title,
+  });
   const [completeness, setCompleteness] = useState({
     complete: false,
     errors: [],
@@ -195,6 +206,13 @@ export default function IapPlanWorkspacePage() {
   const [riskEditorOpen, setRiskEditorOpen] = useState(false);
   const [editingRisk, setEditingRisk] = useState(null);
   const [selectedRisk, setSelectedRisk] = useState(null);
+  useRecordView(selectedRisk, {
+    module: "IAP",
+    recordType: "IAP_RISK",
+    code: (record) => record.office?.code,
+    label: (record) =>
+      `${record.office?.name ?? "Office"} — ${record.auditArea?.name ?? "Risk assessment"}`,
+  });
   const [showArchivedRisks, setShowArchivedRisks] = useState(false);
   const [archiveRiskTarget, setArchiveRiskTarget] = useState(null);
   const [restoreRiskTarget, setRestoreRiskTarget] = useState(null);
@@ -1172,7 +1190,6 @@ export default function IapPlanWorkspacePage() {
                 <DataTable
                   columns={prioritizationColumns}
                   emptyMessage="No subjects match this planning status."
-                  initialPageSize={8}
                   rows={visiblePrioritizationItems}
                 />
               </>
@@ -1221,7 +1238,6 @@ export default function IapPlanWorkspacePage() {
             <DataTable
               columns={riskColumns}
               emptyMessage="No risk assessments have been added to this plan."
-              initialPageSize={8}
               onRowClick={setSelectedRisk}
               rows={visibleRisks}
             />
@@ -1246,7 +1262,6 @@ export default function IapPlanWorkspacePage() {
             <DataTable
               columns={engagementColumns}
               emptyMessage="No proposed audit engagements have been added."
-              initialPageSize={8}
               rows={plan.engagements ?? []}
             />
           </section>

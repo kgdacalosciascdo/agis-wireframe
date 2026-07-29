@@ -15,18 +15,23 @@ use App\Models\User;
 use App\Services\IapPlanGuard;
 use App\Services\IapScheduleConflictService;
 use App\Services\IapSupport;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Schedules plan engagements and preserves conflict, cancellation, and revision history.
+ */
 class IapSchedulingController extends Controller
 {
     public function __construct(
         private readonly IapPlanGuard $guard,
         private readonly IapScheduleConflictService $conflicts,
         private readonly IapSupport $support,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -219,6 +224,23 @@ class IapSchedulingController extends Controller
             );
         }, 3);
 
+        $this->notifications->send($members->pluck('userId'), [
+            'actorId' => $request->user()->id,
+            'type' => 'IAP_SCHEDULE_ASSIGNED',
+            'category' => 'ASSIGNMENT',
+            'priority' => 'HIGH',
+            'moduleCode' => 'IAP',
+            'title' => "Audit scheduled: {$engagement->engagement_code}",
+            'message' => "{$engagement->title} is scheduled from {$request->validated('plannedStartDate')} to {$request->validated('plannedEndDate')}.",
+            'actionUrl' => '/internal-audit-planning/scheduling',
+            'actionLabel' => 'Open schedule',
+            'subjectType' => 'IAP_PLAN_ENGAGEMENT',
+            'subjectId' => $engagement->id,
+            'subjectCode' => $engagement->engagement_code,
+            'dedupeKey' => "iap-schedule:{$engagement->id}",
+            'renotify' => true,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => $engagement->schedule_status === 'UNSCHEDULED'
@@ -279,6 +301,26 @@ class IapSchedulingController extends Controller
                 ['reason' => $request->validated('reason')],
             );
         }, 3);
+
+        $this->notifications->send(
+            $engagement->teamMembers()->pluck('user_id'),
+            [
+                'actorId' => $request->user()->id,
+                'type' => 'IAP_SCHEDULE_CANCELLED',
+                'category' => 'ASSIGNMENT',
+                'priority' => 'URGENT',
+                'moduleCode' => 'IAP',
+                'title' => "Audit schedule cancelled: {$engagement->engagement_code}",
+                'message' => $request->validated('reason'),
+                'actionUrl' => '/internal-audit-planning/scheduling',
+                'actionLabel' => 'Open schedule',
+                'subjectType' => 'IAP_PLAN_ENGAGEMENT',
+                'subjectId' => $engagement->id,
+                'subjectCode' => $engagement->engagement_code,
+                'dedupeKey' => "iap-schedule-cancelled:{$engagement->id}",
+                'renotify' => true,
+            ],
+        );
 
         return response()->json([
             'success' => true,

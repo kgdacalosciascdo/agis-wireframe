@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Defines a skill and proficiency requirement for a proposed audit engagement.
+ */
 class IapEngagementSkillRequirement extends Model
 {
     use HasFactory;

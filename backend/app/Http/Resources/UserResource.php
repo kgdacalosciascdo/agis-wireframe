@@ -7,12 +7,23 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin User */
+/**
+ * Serializes user identity, employment, office, role, scope, and account state.
+ */
 class UserResource extends JsonResource
 {
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
-        $this->resource->loadMissing(['office', 'role.permissions']);
+        $this->resource->loadMissing(['office', 'role.permissions', 'roles.permissions']);
+        $roles = $this->effectiveRoles();
+        $permissions = $roles
+            ->flatMap(fn ($role) => $role->permissions)
+            ->pluck('code')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         return [
             'id' => $this->id,
@@ -26,6 +37,19 @@ class UserResource extends JsonResource
             'initials' => $this->initials,
             'role' => $this->role?->name,
             'roleCode' => $this->role?->code,
+            'roleId' => $this->role_id,
+            'roles' => $roles->map(fn ($role): array => [
+                'id' => $role->id,
+                'code' => $role->code,
+                'name' => $role->name,
+                'isPrimary' => (int) $role->id === (int) $this->role_id,
+                'officeAccessScope' => $role->office_access_scope,
+                'engagementAccessScope' => $role->engagement_access_scope,
+            ])->values(),
+            'accessScopes' => [
+                'office' => $this->hasGlobalOfficeAccess() ? 'ALL' : 'OWN_OFFICE',
+                'engagement' => $this->hasGlobalEngagementAccess() ? 'ALL' : 'ASSIGNED',
+            ],
             'office' => $this->office?->name,
             'officeCode' => $this->office?->code,
             'position' => $this->position,
@@ -33,7 +57,8 @@ class UserResource extends JsonResource
             'contactNumber' => $this->contact_number,
             'birthDate' => $this->birth_date?->toDateString(),
             'isOfficeHead' => $this->is_office_head,
-            'permissions' => $this->role?->permissions->pluck('code')->sort()->values()->all() ?? [],
+            'isLocked' => $this->isLocked(),
+            'permissions' => $permissions,
         ];
     }
 }

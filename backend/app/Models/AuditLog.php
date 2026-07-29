@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+/**
+ * Preserves detailed old and new values for significant record changes.
+ */
 class AuditLog extends Model
 {
     use HasFactory;

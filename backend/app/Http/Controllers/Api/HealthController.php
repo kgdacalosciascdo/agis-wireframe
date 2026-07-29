@@ -7,6 +7,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
+/**
+ * Reports application and database readiness for operational health checks.
+ */
 class HealthController extends Controller
 {
     public function __invoke(): JsonResponse

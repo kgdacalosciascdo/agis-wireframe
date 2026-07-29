@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Records every risk-period workflow action, actor, comment, and state change.
+ */
 class IapRiskPeriodEvent extends Model
 {
     use HasFactory;

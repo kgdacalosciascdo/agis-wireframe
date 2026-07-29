@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Defines a strategic audit theme or priority within a SIAP revision.
+ */
 class SiapPriority extends Model
 {
     use HasFactory;

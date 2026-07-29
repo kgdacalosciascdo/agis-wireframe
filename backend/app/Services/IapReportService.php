@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Builds normalized datasets and export output for every supported IAP report.
+ */
 class IapReportService
 {
     public const REPORTS = [
@@ -565,7 +568,7 @@ class IapReportService
             ?? InternalAuditPlan::query()
                 ->whereIn('id', $visiblePlanIds)
                 ->max('fiscal_year')
-            ?? now()->year);
+            ?? app(RuntimeConfiguration::class)->currentFiscalYear());
         $auditors = User::query()
             ->where('is_active', true)
             ->whereHas('role', fn ($role) => $role
@@ -636,7 +639,7 @@ class IapReportService
     {
         $query = InternalAuditPlan::query();
         $this->planGuard->scopeVisible($query, $user);
-        $year = (int) ($filters['fiscalYear'] ?? (clone $query)->max('fiscal_year') ?? now()->year);
+        $year = (int) ($filters['fiscalYear'] ?? (clone $query)->max('fiscal_year') ?? app(RuntimeConfiguration::class)->currentFiscalYear());
         $plans = $query
             ->where('fiscal_year', $year)
             ->with([

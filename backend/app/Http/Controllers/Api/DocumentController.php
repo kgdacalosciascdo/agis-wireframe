@@ -4,10 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DocumentRequest;
+use App\Http\Requests\DocumentVersionRequest;
 use App\Models\AuditLog;
 use App\Models\Document;
+use App\Models\DocumentVersion;
 use App\Models\MasterList;
 use App\Models\MasterListItem;
+use App\Services\DocumentLinkRegistry;
+use App\Services\DocumentAccessService;
+use App\Services\RuntimeConfiguration;
+use App\Support\ActivityRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -17,14 +23,23 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Operates the governed document repository and immutable document versions.
+ */
 class DocumentController extends Controller
 {
+    public function __construct(
+        private readonly DocumentLinkRegistry $linkRegistry,
+        private readonly DocumentAccessService $access,
+        private readonly RuntimeConfiguration $runtime,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
-        $documents = Document::query()
+        $documents = $this->access->visibleTo(Document::query(), $request->user())
             ->when($request->boolean('include_archived'), fn ($query) => $query->withTrashed())
             ->where('library_visible', true)
-            ->with(['documentType', 'uploader:id,name', 'updater:id,name'])
+            ->with($this->relations())
             ->latest('updated_at')
             ->get()
             ->map(fn (Document $document): array => $this->data($document));
@@ -34,25 +49,61 @@ class DocumentController extends Controller
             'data' => [
                 'documents' => $documents,
                 'documentTypes' => $this->documentTypes(),
+                'confidentialityLevels' => $this->confidentialityLevels($request),
+                'linkOptions' => $this->linkRegistry->options($request->user()),
+                'linkModules' => DocumentLinkRegistry::MODULES,
             ],
         ]);
     }
 
     public function store(DocumentRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+        $confidentiality = MasterListItem::query()->findOrFail($validated['confidentialityLevelId']);
+        $this->access->authorizeClassification($request->user(), $confidentiality);
+        $links = $this->linkRegistry->resolve($request->user(), $validated['links'] ?? []);
         $storedFile = $this->storeFile($request->file('file'));
 
         try {
-            $document = DB::transaction(function () use ($request, $storedFile): Document {
+            $document = DB::transaction(function () use (
+                $request,
+                $validated,
+                $links,
+                $storedFile,
+            ): Document {
                 $document = Document::query()->create([
-                    ...$this->attributes($request),
-                    ...$storedFile,
+                    ...$this->attributes($validated),
+                    'version' => $validated['version'] ?? null,
                     'owner_module' => null,
                     'library_visible' => true,
+                    ...$storedFile,
                     'uploaded_by' => $request->user()->id,
                     'updated_by' => $request->user()->id,
                 ]);
-                $this->record($request, 'document.created', $document, null, $this->auditValues($document));
+                // The database ID provides a collision-free sequence while the
+                // administrator controls the human-readable format.
+                $document->forceFill([
+                    'document_code' => $this->runtime->formatNumber(
+                        'document_number_format',
+                        $document->id,
+                    ),
+                ])->save();
+                $version = $document->versions()->create([
+                    'version_number' => 1,
+                    'version_label' => $validated['version'] ?? null,
+                    'change_summary' => 'Initial document version.',
+                    ...$storedFile,
+                    'uploaded_by' => $request->user()->id,
+                ]);
+                $document->forceFill(['current_version_id' => $version->id])->save();
+                $this->syncLinks($document, $links);
+                $this->record(
+                    $request,
+                    'document.created',
+                    $document,
+                    null,
+                    $this->auditValues($document),
+                );
 
                 return $document;
             }, 3);
@@ -64,53 +115,124 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Document uploaded successfully.',
-            'data' => ['document' => $this->data($document->load(['documentType', 'uploader', 'updater']))],
+            'data' => ['document' => $this->data($this->loadDocument($document))],
         ], 201);
     }
 
     public function update(DocumentRequest $request, Document $document): JsonResponse
     {
+        $this->access->authorizeView($request->user(), $document);
+        $validated = $request->validated();
+        $confidentiality = MasterListItem::query()->findOrFail($validated['confidentialityLevelId']);
+        $this->access->authorizeClassification($request->user(), $confidentiality);
+        $links = array_key_exists('links', $validated)
+            ? $this->linkRegistry->resolve($request->user(), $validated['links'])
+            : null;
+        $document = $this->loadDocument($document);
         $oldValues = $this->auditValues($document);
-        $oldPath = $document->storage_path;
-        $storedFile = $request->hasFile('file')
-            ? $this->storeFile($request->file('file'))
-            : [];
+
+        DB::transaction(function () use (
+            $request,
+            $document,
+            $validated,
+            $links,
+            $oldValues,
+        ): void {
+            $document->update([
+                ...$this->attributes($validated, $document),
+                'updated_by' => $request->user()->id,
+            ]);
+            if ($links !== null) {
+                $this->syncLinks($document, $links);
+                $document->unsetRelation('links');
+            }
+            $this->record(
+                $request,
+                'document.updated',
+                $document,
+                $oldValues,
+                $this->auditValues($document),
+            );
+        }, 3);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Document metadata and module links updated successfully.',
+            'data' => ['document' => $this->data($this->loadDocument($document->fresh()))],
+        ]);
+    }
+
+    public function storeVersion(
+        DocumentVersionRequest $request,
+        Document $document,
+    ): JsonResponse {
+        $this->access->authorizeView($request->user(), $document);
+        $validated = $request->validated();
+        $storedFile = $this->storeFile($request->file('file'));
 
         try {
-            DB::transaction(function () use ($request, $document, $storedFile, $oldValues): void {
-                $document->update([
-                    ...$this->attributes($request, $document),
+            $version = DB::transaction(function () use (
+                $request,
+                $document,
+                $validated,
+                $storedFile,
+            ): DocumentVersion {
+                $locked = Document::query()->whereKey($document->id)->lockForUpdate()->firstOrFail();
+
+                if ($locked->versions()->where('checksum_sha256', $storedFile['checksum_sha256'])->exists()) {
+                    throw ValidationException::withMessages([
+                        'file' => ['This exact file already exists in the document version history.'],
+                    ]);
+                }
+
+                $version = $locked->versions()->create([
+                    'version_number' => ((int) $locked->versions()->max('version_number')) + 1,
+                    'version_label' => $validated['versionLabel'],
+                    'change_summary' => $validated['changeSummary'],
                     ...$storedFile,
-                    'updated_by' => $request->user()->id,
+                    'uploaded_by' => $request->user()->id,
                 ]);
+                $oldVersionId = $locked->current_version_id;
+                $locked->forceFill([
+                    'current_version_id' => $version->id,
+                    'version' => $version->version_label,
+                    'updated_by' => $request->user()->id,
+                ])->save();
+
                 $this->record(
                     $request,
-                    'document.updated',
-                    $document,
-                    $oldValues,
-                    $this->auditValues($document),
+                    'document.version_created',
+                    $locked,
+                    ['currentVersionId' => $oldVersionId],
+                    [
+                        'currentVersionId' => $version->id,
+                        'versionNumber' => $version->version_number,
+                        'versionLabel' => $version->version_label,
+                        'changeSummary' => $version->change_summary,
+                        'checksumSha256' => $version->checksum_sha256,
+                    ],
                 );
+
+                return $version;
             }, 3);
         } catch (\Throwable $error) {
-            if (isset($storedFile['storage_path'])) {
-                Storage::disk('local')->delete($storedFile['storage_path']);
-            }
+            Storage::disk('local')->delete($storedFile['storage_path']);
             throw $error;
-        }
-
-        if (isset($storedFile['storage_path']) && $oldPath !== $storedFile['storage_path']) {
-            Storage::disk('local')->delete($oldPath);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Document updated successfully.',
-            'data' => ['document' => $this->data($document->fresh(['documentType', 'uploader', 'updater']))],
-        ]);
+            'message' => "Document version {$version->version_number} created successfully.",
+            'data' => [
+                'document' => $this->data($this->loadDocument($document->fresh())),
+            ],
+        ], 201);
     }
 
     public function destroy(Request $request, Document $document): JsonResponse
     {
+        $this->access->authorizeView($request->user(), $document);
+        $document = $this->loadDocument($document);
         $oldValues = $this->auditValues($document);
         $document->forceFill([
             'is_active' => false,
@@ -127,17 +249,20 @@ class DocumentController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Document archived successfully.',
+            'message' => 'Document archived successfully. Its complete version history was retained.',
         ]);
     }
 
     public function restore(Request $request, int $document): JsonResponse
     {
-        $record = Document::onlyTrashed()->findOrFail($document);
+        $record = $this->loadDocument(Document::onlyTrashed()->findOrFail($document));
+        $this->access->authorizeView($request->user(), $record);
+        $current = $record->currentVersion;
+        $path = $current?->storage_path ?? $record->storage_path;
 
-        if (! Storage::disk('local')->exists($record->storage_path)) {
+        if (! Storage::disk('local')->exists($path)) {
             throw ValidationException::withMessages([
-                'document' => ['The stored file is missing and this document cannot be restored.'],
+                'document' => ['The current version file is missing and this document cannot be restored.'],
             ]);
         }
 
@@ -157,33 +282,64 @@ class DocumentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Document restored successfully.',
-            'data' => ['document' => $this->data($record->load(['documentType', 'uploader', 'updater']))],
+            'data' => ['document' => $this->data($this->loadDocument($record->fresh()))],
         ]);
     }
 
-    public function download(Document $document): StreamedResponse
+    public function download(Request $request, Document $document): StreamedResponse
     {
-        abort_unless(Storage::disk('local')->exists($document->storage_path), 404, 'Stored file not found.');
+        $this->access->authorizeView($request->user(), $document);
+        $document->loadMissing('currentVersion');
+        $version = $document->currentVersion;
 
-        return Storage::disk('local')->download(
-            $document->storage_path,
-            $document->original_file_name,
-            ['Content-Type' => $document->mime_type],
+        ActivityRecorder::record(
+            $request,
+            'document.downloaded',
+            "Downloaded {$document->document_code} — {$document->title}.",
+            metadata: ['module' => 'CORE', 'recordType' => Document::class, 'recordId' => $document->id],
+        );
+
+        return $this->downloadFile(
+            $version?->storage_path ?? $document->storage_path,
+            $version?->original_file_name ?? $document->original_file_name,
+            $version?->mime_type ?? $document->mime_type,
         );
     }
 
-    /** @return array<string, mixed> */
-    private function attributes(DocumentRequest $request, ?Document $document = null): array
-    {
-        $validated = $request->validated();
+    public function downloadVersion(
+        Request $request,
+        Document $document,
+        DocumentVersion $version,
+    ): StreamedResponse {
+        $this->access->authorizeView($request->user(), $document);
+        abort_unless((int) $version->document_id === (int) $document->id, 404);
 
+        ActivityRecorder::record(
+            $request,
+            'document.version_downloaded',
+            "Downloaded {$document->document_code} version {$version->version_number}.",
+            metadata: ['module' => 'CORE', 'recordType' => Document::class, 'recordId' => $document->id, 'versionId' => $version->id],
+        );
+
+        return $this->downloadFile(
+            $version->storage_path,
+            $version->original_file_name,
+            $version->mime_type,
+        );
+    }
+
+    /** @param array<string, mixed> $validated
+     * @return array<string, mixed>
+     */
+    private function attributes(array $validated, ?Document $document = null): array
+    {
         return [
             'document_type_id' => $validated['documentTypeId'],
+            'confidentiality_level_id' => $validated['confidentialityLevelId'],
             'title' => $validated['title'],
             'reference_number' => $validated['referenceNumber'] ?? null,
             'issuing_authority' => $validated['issuingAuthority'] ?? null,
             'publication_date' => $validated['publicationDate'] ?? null,
-            'version' => $validated['version'] ?? null,
             'description' => $validated['description'] ?? null,
             'is_active' => $validated['isActive'] ?? $document?->is_active ?? true,
         ];
@@ -215,45 +371,105 @@ class DocumentController extends Controller
     /** @return array<string, mixed> */
     private function data(Document $document): array
     {
+        $document = $this->loadDocument($document);
+        $current = $document->currentVersion;
+
         return [
             'id' => $document->id,
+            'documentCode' => $document->document_code,
             'documentTypeId' => $document->document_type_id,
             'documentType' => $document->documentType?->label ?? 'Unclassified',
             'documentTypeCode' => $document->documentType?->code,
+            'confidentialityLevelId' => $document->confidentiality_level_id,
+            'confidentialityLevel' => $document->confidentialityLevel?->label ?? 'Internal',
+            'confidentialityCode' => $document->confidentialityLevel?->code ?? 'INTERNAL',
             'title' => $document->title,
             'referenceNumber' => $document->reference_number,
             'issuingAuthority' => $document->issuing_authority,
             'publicationDate' => $document->publication_date?->toDateString(),
-            'version' => $document->version,
+            'version' => $current?->version_label ?? $document->version,
+            'currentVersionId' => $current?->id,
+            'currentVersionNumber' => $current?->version_number ?? 1,
+            'versionCount' => $document->versions->count(),
             'description' => $document->description,
-            'fileName' => $document->original_file_name,
-            'fileExtension' => $document->file_extension,
-            'fileSize' => $document->file_size,
-            'mimeType' => $document->mime_type,
+            'fileName' => $current?->original_file_name ?? $document->original_file_name,
+            'fileExtension' => $current?->file_extension ?? $document->file_extension,
+            'fileSize' => $current?->file_size ?? $document->file_size,
+            'mimeType' => $current?->mime_type ?? $document->mime_type,
+            'checksumSha256' => $current?->checksum_sha256 ?? $document->checksum_sha256,
             'uploadedBy' => $document->uploader?->name ?? 'System',
             'updatedBy' => $document->updater?->name ?? 'System',
             'createdAt' => $document->created_at?->toIso8601String(),
             'updatedAt' => $document->updated_at?->toIso8601String(),
             'isActive' => $document->is_active,
             'isArchived' => $document->trashed(),
+            'links' => $document->links->map(fn ($link): array => [
+                'id' => $link->id,
+                'key' => "{$link->module_code}:{$link->record_type}:{$link->record_id}",
+                'module' => $link->module_code,
+                'moduleLabel' => DocumentLinkRegistry::MODULES[$link->module_code] ?? $link->module_code,
+                'recordType' => $link->record_type,
+                'recordId' => $link->record_id,
+                'recordCode' => $link->record_code,
+                'label' => $link->record_label,
+                'linkedBy' => $link->linkedBy?->name ?? 'System',
+                'linkedAt' => $link->created_at?->toIso8601String(),
+            ])->values(),
+            'linkKeys' => $document->links->map(
+                fn ($link): string => "{$link->module_code}:{$link->record_type}:{$link->record_id}",
+            )->values(),
+            'versions' => $document->versions->map(fn (DocumentVersion $version): array => [
+                'id' => $version->id,
+                'versionNumber' => $version->version_number,
+                'versionLabel' => $version->version_label,
+                'changeSummary' => $version->change_summary,
+                'fileName' => $version->original_file_name,
+                'fileExtension' => $version->file_extension,
+                'fileSize' => $version->file_size,
+                'mimeType' => $version->mime_type,
+                'checksumSha256' => $version->checksum_sha256,
+                'uploadedBy' => $version->uploader?->name ?? 'System',
+                'createdAt' => $version->created_at?->toIso8601String(),
+                'isCurrent' => (int) $version->id === (int) $document->current_version_id,
+            ])->values(),
         ];
     }
 
     /** @return array<string, mixed> */
     private function auditValues(Document $document): array
     {
+        $document = $this->loadDocument($document);
+        $current = $document->currentVersion;
+
         return [
             'documentTypeId' => $document->document_type_id,
+            'confidentialityLevelId' => $document->confidentiality_level_id,
+            'confidentialityCode' => $document->confidentialityLevel?->code,
             'title' => $document->title,
             'referenceNumber' => $document->reference_number,
             'issuingAuthority' => $document->issuing_authority,
             'publicationDate' => $document->publication_date?->toDateString(),
-            'version' => $document->version,
-            'fileName' => $document->original_file_name,
-            'fileSize' => $document->file_size,
+            'currentVersionId' => $current?->id,
+            'currentVersionNumber' => $current?->version_number,
+            'versionLabel' => $current?->version_label,
+            'checksumSha256' => $current?->checksum_sha256,
+            'links' => $document->links
+                ->map(fn ($link): string => "{$link->module_code}:{$link->record_type}:{$link->record_id}")
+                ->sort()
+                ->values()
+                ->all(),
             'isActive' => $document->is_active,
             'isArchived' => $document->trashed(),
         ];
+    }
+
+    /** @param list<array<string, mixed>> $links */
+    private function syncLinks(Document $document, array $links): void
+    {
+        $document->links()->delete();
+        if ($links !== []) {
+            $document->links()->createMany($links);
+        }
     }
 
     private function record(
@@ -273,6 +489,47 @@ class DocumentController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => mb_substr((string) $request->userAgent(), 0, 1000),
         ]);
+        ActivityRecorder::record(
+            $request,
+            $action,
+            str_replace('.', ' ', ucfirst($action)).": {$document->document_code} — {$document->title}.",
+            oldValues: $oldValues,
+            newValues: $newValues,
+            metadata: ['module' => 'CORE', 'recordType' => Document::class, 'recordId' => $document->id],
+        );
+    }
+
+    private function downloadFile(
+        string $path,
+        string $fileName,
+        string $mimeType,
+    ): StreamedResponse {
+        abort_unless(Storage::disk('local')->exists($path), 404, 'Stored file not found.');
+
+        return Storage::disk('local')->download(
+            $path,
+            $fileName,
+            ['Content-Type' => $mimeType],
+        );
+    }
+
+    /** @return list<string> */
+    private function relations(): array
+    {
+        return [
+            'documentType',
+            'confidentialityLevel',
+            'uploader:id,name',
+            'updater:id,name',
+            'currentVersion.uploader:id,name',
+            'versions.uploader:id,name',
+            'links.linkedBy:id,name',
+        ];
+    }
+
+    private function loadDocument(Document $document): Document
+    {
+        return $document->load($this->relations());
     }
 
     private function documentTypes()
@@ -281,6 +538,25 @@ class DocumentController extends Controller
 
         return MasterListItem::query()
             ->where('master_list_id', $listId)
+            ->where('is_active', true)
+            ->orderBy('display_order')
+            ->get(['id', 'code', 'label', 'description']);
+    }
+
+    private function confidentialityLevels(Request $request)
+    {
+        $listId = MasterList::query()->where('code', 'DOCUMENT_CONFIDENTIALITY')->value('id');
+        $codes = DocumentAccessService::PUBLIC_CODES;
+        if ($request->user()->hasPermission('documents.view_confidential')) {
+            $codes[] = 'CONFIDENTIAL';
+        }
+        if ($request->user()->hasPermission('documents.view_restricted')) {
+            $codes[] = 'RESTRICTED';
+        }
+
+        return MasterListItem::query()
+            ->where('master_list_id', $listId)
+            ->whereIn('code', $codes)
             ->where('is_active', true)
             ->orderBy('display_order')
             ->get(['id', 'code', 'label', 'description']);

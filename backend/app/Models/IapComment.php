@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Stores management, reviewer, return, or revision comments on an IAP record.
+ */
 class IapComment extends Model
 {
     use HasFactory, SoftDeletes;

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserHasPermission;
+use App\Http\Middleware\ApplyRuntimeConfiguration;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prepend(ApplyRuntimeConfiguration::class);
         $middleware->statefulApi();
         $middleware->alias([
             'permission' => EnsureUserHasPermission::class,

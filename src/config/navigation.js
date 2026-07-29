@@ -241,6 +241,12 @@ export const navigationSections = [
         icon: Bell,
       },
       {
+        label: "Workflow Management",
+        path: "/workflow-management",
+        permission: "workflows.view",
+        icon: Workflow,
+      },
+      {
         label: "Activity Log",
         path: "/activity-log",
         permission: "activity_logs.view",

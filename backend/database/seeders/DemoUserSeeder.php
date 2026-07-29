@@ -10,6 +10,9 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use LogicException;
 
+/**
+ * Seeds the primary role-based accounts displayed on the login page.
+ */
 class DemoUserSeeder extends Seeder
 {
     public function run(): void
@@ -48,6 +51,9 @@ class DemoUserSeeder extends Seeder
                     'is_active' => true,
                     'failed_login_attempts' => 0,
                     'locked_until' => null,
+                    'is_manually_locked' => false,
+                    'manually_locked_at' => null,
+                    'manually_locked_by' => null,
                     'lock_version' => 0,
                 ],
             );
@@ -55,6 +61,8 @@ class DemoUserSeeder extends Seeder
             if ($user->trashed()) {
                 $user->restore();
             }
+
+            $user->syncRoleAssignments([$role->id], $role->id);
         }
     }
 }

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Represents a human-readable operational event such as login, view, or export.
+ */
 class ActivityLog extends Model
 {
     use HasFactory;

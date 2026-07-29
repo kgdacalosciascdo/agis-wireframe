@@ -7,6 +7,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Rejects protected requests unless at least one active role grants the permission.
+ */
 class EnsureUserHasPermission
 {
     public function handle(Request $request, Closure $next, string $permission): Response|JsonResponse

@@ -5,15 +5,23 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Services\IapReportService;
+use App\Services\RuntimeConfiguration;
+use App\Support\ActivityRecorder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Generates role-scoped IAP reports and supported export representations.
+ */
 class IapReportController extends Controller
 {
-    public function __construct(private readonly IapReportService $reports) {}
+    public function __construct(
+        private readonly IapReportService $reports,
+        private readonly RuntimeConfiguration $configuration,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -47,7 +55,7 @@ class IapReportController extends Controller
         $format = $validated['format'];
 
         $response = match ($format) {
-            'pdf' => Pdf::loadView('reports.iap', ['report' => $data, 'print' => false])
+            'pdf' => Pdf::loadView('reports.iap', ['report' => $data, 'print' => false, 'configuration' => $this->configuration->publicValues()])
                 ->setPaper('a4', count($data['columns']) > 7 ? 'landscape' : 'portrait')
                 ->download($data['fileName'].'.pdf'),
             'excel' => response(
@@ -60,7 +68,7 @@ class IapReportController extends Controller
             ),
             'csv' => $this->csv($data),
             'print' => response()
-                ->view('reports.iap', ['report' => $data, 'print' => true]),
+                ->view('reports.iap', ['report' => $data, 'print' => true, 'configuration' => $this->configuration->publicValues()]),
         };
         AuditLog::query()->create([
             'user_id' => $request->user()->id,
@@ -74,6 +82,12 @@ class IapReportController extends Controller
                 'file_name' => $data['fileName'],
             ],
         ]);
+        ActivityRecorder::record(
+            $request,
+            'iap.report.exported',
+            "Exported {$data['title']} as {$format}.",
+            metadata: ['module' => 'IAP', 'report' => $report, 'format' => $format, 'filters' => $filters],
+        );
 
         return $response;
     }

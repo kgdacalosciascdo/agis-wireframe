@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\IapPlanGuard;
 use App\Services\IapScheduleConflictService;
 use App\Services\IapSupport;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -21,12 +22,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Maintains interim auditor availability, skills, and annual person-day capacity.
+ */
 class IapResourceCapacityController extends Controller
 {
     public function __construct(
         private readonly IapPlanGuard $guard,
         private readonly IapScheduleConflictService $conflicts,
         private readonly IapSupport $support,
+        private readonly RuntimeConfiguration $configuration,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -43,7 +48,7 @@ class IapResourceCapacityController extends Controller
             ->orderByDesc('fiscal_year')
             ->pluck('fiscal_year')
             ->map(fn ($year) => (int) $year);
-        $fiscalYear = (int) ($validated['fiscalYear'] ?? $years->first() ?? now()->year);
+        $fiscalYear = (int) ($validated['fiscalYear'] ?? $years->first() ?? $this->configuration->currentFiscalYear());
         $auditors = $this->auditors();
 
         $allocated = $this->allocatedPersonDays($fiscalYear);

@@ -33,6 +33,7 @@ import {
   riskPeriodApi,
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const statusLabels = {
   DRAFT: "Draft",
@@ -378,6 +379,10 @@ function ItemDecisionForm({
   );
 }
 
+/**
+ * Converts validated risk assessments into ranked, reviewable selection
+ * decisions that can be imported by an Annual Internal Audit Plan.
+ */
 export default function IapPrioritizationPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -388,6 +393,12 @@ export default function IapPrioritizationPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState(null);
+  useRecordView(selected, {
+    module: "IAP",
+    recordType: "PRIORITIZATION",
+    code: (record) => record.runCode,
+    label: (record) => record.name,
+  });
   const [editor, setEditor] = useState(null);
   const [itemEditor, setItemEditor] = useState(null);
   const [itemSearch, setItemSearch] = useState("");

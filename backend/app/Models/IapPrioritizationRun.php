@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Groups a repeatable ranking exercise sourced from a validated risk period.
+ */
 class IapPrioritizationRun extends Model
 {
     use HasFactory, SoftDeletes;

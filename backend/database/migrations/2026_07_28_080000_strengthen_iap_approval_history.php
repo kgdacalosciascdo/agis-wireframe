@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Strengthens actor, comment, and before/after values in IAP workflow histories. */
 return new class extends Migration
 {
     public function up(): void

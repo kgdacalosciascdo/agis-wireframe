@@ -85,7 +85,7 @@ function emptyUpload() {
 }
 
 export default function IapSupportingRecordsPanel({ planId }) {
-  const { user } = useAuth();
+  const { user, runtimeConfig } = useAuth();
   const toast = useToast();
   const [records, setRecords] = useState({
     attachments: [],
@@ -735,7 +735,8 @@ export default function IapSupportingRecordsPanel({ planId }) {
               type="file"
             />
             <p className="mt-1 text-xs text-slate-500">
-              PDF, Office document, text, CSV, or image. Maximum 25 MB.
+              PDF, Office document, text, CSV, or image. Maximum{" "}
+              {runtimeConfig.documentUploadMaxMb} MB.
             </p>
             {uploadErrors.file?.[0] && (
               <p className="mt-1 text-xs font-semibold text-red-600">

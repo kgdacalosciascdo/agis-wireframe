@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Exposes the non-sensitive seeded accounts shown on the demonstration login page.
+ */
 class DemoAccountController extends Controller
 {
     public function __invoke(): JsonResponse

@@ -50,7 +50,7 @@
     @endif
 
     <header class="header">
-        <div class="agency">City Internal Audit Service · Audit Governance Information System</div>
+        <div class="agency">{{ $configuration['organizationName'] }} · {{ $configuration['systemName'] }}</div>
         <h1>{{ $report['title'] }}</h1>
         <p class="description">{{ $report['description'] }}</p>
     </header>

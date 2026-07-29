@@ -245,6 +245,10 @@ function DonutPanel({ title, total, segments }) {
   );
 }
 
+/**
+ * Renders the role-aware AGIS landing dashboard and its operational summaries.
+ * Module cards route only to features exposed by the authenticated user's role.
+ */
 export default function DashboardPage() {
   const { user } = useAuth();
   const { dateLabel } = useOutletContext();

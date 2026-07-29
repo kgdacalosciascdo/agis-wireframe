@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents a proposed audit imported or added to an Annual Internal Audit Plan.
+ */
 class IapPlanEngagement extends Model
 {
     use HasFactory, SoftDeletes;

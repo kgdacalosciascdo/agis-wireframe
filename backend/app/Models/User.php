@@ -5,13 +5,19 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * Represents an employee identity, account state, office assignment, and active roles.
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -43,6 +49,9 @@ class User extends Authenticatable
         'is_active',
         'failed_login_attempts',
         'locked_until',
+        'is_manually_locked',
+        'manually_locked_at',
+        'manually_locked_by',
         'last_login_at',
         'lock_version',
     ];
@@ -70,6 +79,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'failed_login_attempts' => 'integer',
             'locked_until' => 'datetime',
+            'is_manually_locked' => 'boolean',
+            'manually_locked_at' => 'datetime',
             'last_login_at' => 'datetime',
             'birth_date' => 'date',
             'is_office_head' => 'boolean',
@@ -80,6 +91,18 @@ class User extends Authenticatable
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_role_assignments')
+            ->withPivot(['is_primary', 'assigned_by', 'assigned_at'])
+            ->withTimestamps();
+    }
+
+    public function manualLocker(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'manually_locked_by')->withTrashed();
     }
 
     public function office(): BelongsTo
@@ -95,6 +118,26 @@ class User extends Authenticatable
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class);
+    }
+
+    public function systemNotifications(): HasMany
+    {
+        return $this->hasMany(SystemNotification::class, 'recipient_id')->latest();
+    }
+
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    public function subjectActivityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class, 'subject_user_id')->latest('created_at');
+    }
+
+    public function iapTeamAssignments(): HasMany
+    {
+        return $this->hasMany(IapEngagementTeamMember::class);
     }
 
     public function iapCapacities(): HasMany
@@ -121,17 +164,40 @@ class User extends Authenticatable
     {
         $roles = (array) $roles;
 
-        return $this->role !== null
-            && (in_array($this->role->code, $roles, true) || in_array($this->role->name, $roles, true));
+        return $this->effectiveRoles()->contains(
+            fn (Role $role): bool => in_array($role->code, $roles, true)
+                || in_array($role->name, $roles, true),
+        );
     }
 
     public function hasPermission(string $permission): bool
     {
-        if (! $this->is_active || ! $this->role?->is_active) {
+        if (! $this->is_active || $this->trashed()) {
             return false;
         }
 
-        return $this->role->permissions->contains('code', $permission);
+        return $this->effectiveRoles()
+            ->contains(fn (Role $role): bool => $role->permissions->contains('code', $permission));
+    }
+
+    public function hasGlobalOfficeAccess(): bool
+    {
+        return $this->effectiveRoles()
+            ->contains(fn (Role $role): bool => $role->office_access_scope === 'ALL');
+    }
+
+    public function hasGlobalEngagementAccess(): bool
+    {
+        return $this->effectiveRoles()
+            ->contains(fn (Role $role): bool => $role->engagement_access_scope === 'ALL');
+    }
+
+    public function isReadOnlyOnly(): bool
+    {
+        $roles = $this->effectiveRoles();
+
+        return $roles->isNotEmpty()
+            && $roles->every(fn (Role $role): bool => $role->code === 'read_only');
     }
 
     /**
@@ -152,6 +218,46 @@ class User extends Authenticatable
 
     public function isLocked(): bool
     {
-        return $this->locked_until !== null && $this->locked_until->isFuture();
+        return $this->is_manually_locked
+            || ($this->locked_until !== null && $this->locked_until->isFuture());
+    }
+
+    /** @return Collection<int, Role> */
+    public function effectiveRoles()
+    {
+        $assigned = $this->relationLoaded('roles')
+            ? $this->roles
+            : $this->roles()->with('permissions')->get();
+
+        if ($this->role && ! $assigned->contains('id', $this->role->id)) {
+            $assigned = $assigned->push($this->role);
+        }
+
+        return $assigned
+            ->filter(fn (Role $role): bool => $role->is_active && ! $role->trashed())
+            ->unique('id')
+            ->values();
+    }
+
+    /** @param list<int> $roleIds */
+    public function syncRoleAssignments(array $roleIds, int $primaryRoleId, ?int $assignedBy = null): void
+    {
+        $now = now();
+        $assignments = collect($roleIds)
+            ->mapWithKeys(fn (int $roleId): array => [
+                $roleId => [
+                    'is_primary' => $roleId === $primaryRoleId,
+                    'assigned_by' => $assignedBy,
+                    'assigned_at' => $now,
+                ],
+            ])
+            ->all();
+
+        $this->roles()->sync($assignments);
+        if ((int) $this->role_id !== $primaryRoleId) {
+            $this->forceFill(['role_id' => $primaryRoleId])->save();
+        }
+        $this->unsetRelation('role');
+        $this->unsetRelation('roles');
     }
 }

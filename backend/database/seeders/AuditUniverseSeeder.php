@@ -10,6 +10,9 @@ use App\Models\Office;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds representative auditable subjects linked to Core registry data.
+ */
 class AuditUniverseSeeder extends Seeder
 {
     /** @var list<array<string, mixed>> */

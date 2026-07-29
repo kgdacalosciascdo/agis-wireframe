@@ -30,8 +30,15 @@ const SystemConfigurationPage = lazy(
   () => import("./pages/SystemConfigurationPage"),
 );
 const ActivityLogPage = lazy(() => import("./pages/ActivityLogPage"));
+const AuditTrailPage = lazy(() => import("./pages/AuditTrailPage"));
 const DocumentManagementPage = lazy(
   () => import("./pages/DocumentManagementPage"),
+);
+const WorkflowManagementPage = lazy(
+  () => import("./pages/WorkflowManagementPage"),
+);
+const NotificationCenterPage = lazy(
+  () => import("./pages/NotificationCenterPage"),
 );
 const IapPlanRegistryPage = lazy(
   () => import("./pages/IapPlanRegistryPage"),
@@ -68,7 +75,10 @@ const implementedCorePaths = new Set([
   "/permission-registry",
   "/master-lists",
   "/activity-log",
+  "/audit-trail",
   "/document-management",
+  "/workflow-management",
+  "/notifications",
   "/system-configuration",
   "/internal-audit-planning",
   "/internal-audit-planning/dashboard",
@@ -213,11 +223,41 @@ export default function App() {
             }
           />
           <Route
+            path="audit-trail"
+            element={
+              <ProtectedPage permission="audit_logs.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AuditTrailPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
             path="document-management"
             element={
               <ProtectedPage permission="documents.view">
                 <Suspense fallback={<RouteLoading />}>
                   <DocumentManagementPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="workflow-management"
+            element={
+              <ProtectedPage permission="workflows.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <WorkflowManagementPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="notifications"
+            element={
+              <ProtectedPage permission="notifications.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <NotificationCenterPage />
                 </Suspense>
               </ProtectedPage>
             }

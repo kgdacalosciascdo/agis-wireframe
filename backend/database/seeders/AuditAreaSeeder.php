@@ -4,9 +4,13 @@ namespace Database\Seeders;
 
 use App\Models\AuditArea;
 use App\Models\AuditFocus;
+use App\Models\MasterListItem;
 use App\Models\Office;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds realistic audit areas, subareas, focuses, and office coverage.
+ */
 class AuditAreaSeeder extends Seeder
 {
     public const AREAS = [
@@ -14,6 +18,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'PROCUREMENT',
             'name' => 'Procurement and Supply Management',
             'description' => 'How city offices plan purchases, select suppliers, receive, record, store, and distribute goods, equipment, and services.',
+            'responsible_office' => 'CGSO',
             'offices' => ['*'],
             'focuses' => [
                 ['PROC-PLAN', 'Procurement Planning', 'Preparation of the Annual Procurement Plan, budget alignment, and identification of procurement requirements.'],
@@ -30,6 +35,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'FINANCIAL',
             'name' => 'Financial Management and Disbursement',
             'description' => 'Budget execution, accounting, cash handling, payroll, collections, disbursements, and financial reporting.',
+            'responsible_office' => 'CFO',
             'offices' => ['CAD', 'CBO', 'CFO', 'CGSO', 'CEEBDA', 'EWBT', 'BPLD', 'CAO', 'CSWDD'],
             'focuses' => [
                 ['FIN-BUD', 'Budget Authorization and Utilization', 'Approved appropriations, allotments, obligations, and budget utilization.'],
@@ -44,6 +50,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'HR',
             'name' => 'Human Resource and Payroll Administration',
             'description' => 'Recruitment, appointments, attendance, compensation, performance, training, and employee-record controls.',
+            'responsible_office' => 'HRMO',
             'offices' => ['HRMO', 'CAD', 'CFO', 'OCA', 'CIAS'],
             'focuses' => [
                 ['HR-RECR', 'Recruitment and Appointment', 'Merit-based selection, qualification verification, and appointment documentation.'],
@@ -57,6 +64,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'REVENUE',
             'name' => 'Revenue, Tax, Permit and Fee Administration',
             'description' => 'Assessment, billing, collection, recording, reconciliation, and enforcement for city taxes, permits, and fees.',
+            'responsible_office' => 'CFO',
             'offices' => ['BPLD', 'CFO', 'CASS', 'OCBO', 'CEEBDA', 'EWBT', 'CTCAO', 'CVO'],
             'focuses' => [
                 ['REV-ASS', 'Assessment and Billing', 'Complete taxpayer records and accurate tax, permit, and fee assessments.'],
@@ -70,6 +78,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'ICT',
             'name' => 'Information Systems and Data Protection',
             'description' => 'IT governance, access control, cybersecurity, change management, backup, recovery, privacy, and system availability.',
+            'responsible_office' => 'CMISID',
             'offices' => ['CMISID', 'CINFO', 'CCRO', 'CAD', 'CFO', 'HRMO', 'BPLD', 'CIAS'],
             'focuses' => [
                 ['ICT-GOV', 'IT Governance and Planning', 'Technology strategy, project governance, ownership, policies, and investment alignment.'],
@@ -84,6 +93,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'ASSET',
             'name' => 'Property, Equipment and Fleet Management',
             'description' => 'Acquisition, recording, custody, maintenance, utilization, inventory, transfer, and disposal of city assets.',
+            'responsible_office' => 'CGSO',
             'offices' => ['CGSO', 'CED', 'CENG', 'CPSO', 'RTA', 'CDRRMD', 'CHD', 'JRBGH'],
             'focuses' => [
                 ['AST-REC', 'Asset Recording and Tagging', 'Complete property cards, asset tags, classification, valuation, and custodianship.'],
@@ -98,6 +108,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'PROGRAM',
             'name' => 'Program and Service Delivery',
             'description' => 'Eligibility, delivery, performance, beneficiary records, outcomes, and reporting for public programs and frontline services.',
+            'responsible_office' => 'CSWDD',
             'offices' => ['CHD', 'CHIO', 'JRBGH', 'CCCDO', 'CSO', 'CSWDD', 'CID', 'OYDO', 'CAO', 'PESO', 'CHUDD'],
             'focuses' => [
                 ['PRG-PLAN', 'Program Planning and Targeting', 'Evidence-based design, target beneficiaries, resources, indicators, and timelines.'],
@@ -111,6 +122,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'COMPLIANCE',
             'name' => 'Legal, Regulatory and Governance Compliance',
             'description' => 'Compliance with laws, ordinances, policies, delegations, contracts, records requirements, and governance standards.',
+            'responsible_office' => 'CLO',
             'offices' => ['CLO', 'PLEB', 'CCRO', 'BPLD', 'OCBO', 'CLENRO', 'RTA', 'CVO', 'CIAS'],
             'focuses' => [
                 ['CMP-LAW', 'Legal and Regulatory Compliance', 'Identification, implementation, monitoring, and evidence of applicable requirements.'],
@@ -124,6 +136,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'DRRM',
             'name' => 'Disaster Preparedness, Public Safety and Continuity',
             'description' => 'Hazard planning, emergency readiness, command, response, relief, recovery, safety, and continuity of city operations.',
+            'responsible_office' => 'CDRRMD',
             'offices' => ['CDRRMD', 'CSU', 'CPSO', 'CHD', 'JRBGH', 'RTA', 'CENG', 'CLENRO'],
             'focuses' => [
                 ['DRR-RISK', 'Risk Assessment and Preparedness', 'Hazard maps, risk registers, plans, drills, training, supplies, and public awareness.'],
@@ -137,6 +150,7 @@ class AuditAreaSeeder extends Seeder
             'code' => 'GOVERNANCE',
             'name' => 'Governance, Planning and Performance Management',
             'description' => 'Strategic alignment, risk management, internal controls, performance reporting, transparency, and corrective action.',
+            'responsible_office' => 'CPDO',
             'offices' => ['*'],
             'focuses' => [
                 ['GOV-PLAN', 'Strategic and Operational Planning', 'Mandate alignment, objectives, performance measures, targets, initiatives, and resources.'],
@@ -150,6 +164,10 @@ class AuditAreaSeeder extends Seeder
 
     public function run(): void
     {
+        $processTypeId = MasterListItem::query()
+            ->where('code', 'PROCESS')
+            ->whereHas('masterList', fn ($query) => $query->where('code', 'AUDIT_AREA_TYPE'))
+            ->value('id');
         $allOfficeIds = Office::query()
             ->where('code', '!=', 'AGIS-SYS')
             ->pluck('id')
@@ -159,8 +177,11 @@ class AuditAreaSeeder extends Seeder
             $area = AuditArea::withTrashed()->updateOrCreate(
                 ['code' => $areaData['code']],
                 [
+                    'parent_audit_area_id' => null,
+                    'audit_area_type_id' => $processTypeId,
                     'name' => $areaData['name'],
                     'description' => $areaData['description'],
+                    'scope' => $areaData['description'],
                     'is_active' => true,
                 ],
             );
@@ -173,6 +194,11 @@ class AuditAreaSeeder extends Seeder
                 ? $allOfficeIds
                 : Office::query()->whereIn('code', $areaData['offices'])->pluck('id')->all();
             $area->offices()->sync($officeIds);
+            $area->forceFill([
+                'responsible_office_id' => Office::query()
+                    ->where('code', $areaData['responsible_office'])
+                    ->value('id') ?? collect($officeIds)->first(),
+            ])->save();
 
             foreach ($areaData['focuses'] as $index => [$code, $name, $description]) {
                 $focus = AuditFocus::withTrashed()->updateOrCreate(

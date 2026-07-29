@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Stores an auditor's temporary annual person-day capacity for IAP allocation.
+ */
 class IapAuditorCapacity extends Model
 {
     use HasFactory;

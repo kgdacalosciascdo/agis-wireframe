@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\RuntimeConfiguration;
 use App\Support\ActivityRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,13 +15,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Handles employee-ID authentication, session lifecycle, and security events.
+ */
 class AuthController extends Controller
 {
-    private const MAX_FAILED_ATTEMPTS = 5;
-
-    private const LOCK_MINUTES = 15;
-
     private const DUMMY_PASSWORD_HASH = '$2y$12$/kL5pqfp1TVj3gQg9KQz/OFCMsDTf.AftokEb/KldEWQhfSep2HjO';
+
+    public function __construct(private readonly RuntimeConfiguration $configuration) {}
 
     public function login(LoginRequest $request): JsonResponse
     {
@@ -28,7 +30,7 @@ class AuthController extends Controller
 
         $authentication = DB::transaction(function () use ($credentials): array {
             $user = User::query()
-                ->with(['office', 'role.permissions'])
+                ->with(['office', 'role.permissions', 'roles.permissions'])
                 ->where('employee_id', $credentials['employeeId'])
                 ->lockForUpdate()
                 ->first();
@@ -37,13 +39,13 @@ class AuthController extends Controller
                 return ['status' => 'invalid', 'user' => null];
             }
 
-            if ($user->locked_until?->isFuture()) {
+            if ($user->isLocked()) {
                 return ['status' => 'locked', 'user' => $user];
             }
 
             $previousLockExpired = $user->locked_until !== null;
             $passwordIsValid = $user->is_active
-                && $user->role?->is_active
+                && $user->effectiveRoles()->isNotEmpty()
                 && Hash::check($credentials['password'], $user->password);
 
             if (! $passwordIsValid) {
@@ -51,8 +53,8 @@ class AuthController extends Controller
 
                 $user->forceFill([
                     'failed_login_attempts' => $attempts,
-                    'locked_until' => $attempts >= self::MAX_FAILED_ATTEMPTS
-                        ? now()->addMinutes(self::LOCK_MINUTES)
+                    'locked_until' => $attempts >= $this->configuration->failedLoginLimit()
+                        ? now()->addMinutes($this->configuration->accountLockMinutes())
                         : null,
                 ])->save();
 
@@ -73,7 +75,8 @@ class AuthController extends Controller
 
         if ($authentication['status'] === 'locked') {
             $this->recordAuthenticationEvent($request, 'auth.login_blocked', $user, [
-                'locked_until' => $user->locked_until->toIso8601String(),
+                'locked_until' => $user->locked_until?->toIso8601String(),
+                'manual_lock' => $user->is_manually_locked,
             ]);
 
             return response()->json([
@@ -105,7 +108,11 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Signed in successfully.',
-            'data' => ['user' => new UserResource($user->fresh(['office', 'role.permissions']))],
+            'data' => [
+                'user' => new UserResource(
+                    $user->fresh(['office', 'role.permissions', 'roles.permissions']),
+                ),
+            ],
         ]);
     }
 

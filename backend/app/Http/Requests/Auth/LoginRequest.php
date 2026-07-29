@@ -4,6 +4,9 @@ namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates employee-ID login credentials before authentication is attempted.
+ */
 class LoginRequest extends FormRequest
 {
     public function authorize(): bool

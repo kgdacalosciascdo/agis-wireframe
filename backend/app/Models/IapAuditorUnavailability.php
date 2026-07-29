@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Records leave, training, and other dates unavailable for audit scheduling.
+ */
 class IapAuditorUnavailability extends Model
 {
     use HasFactory, SoftDeletes;

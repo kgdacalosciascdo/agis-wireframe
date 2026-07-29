@@ -7,6 +7,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
+/**
+ * Validates strategic-plan periods, themes, objectives, priorities, and outcomes.
+ */
 class SiapPlanRequest extends FormRequest
 {
     public function authorize(): bool

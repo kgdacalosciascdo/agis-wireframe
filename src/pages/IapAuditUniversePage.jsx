@@ -31,6 +31,7 @@ import {
   officeApi,
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 function formatDate(value) {
   if (!value) return "Never audited";
@@ -47,6 +48,10 @@ function materialityTone(code) {
   return "success";
 }
 
+/**
+ * Maintains the inventory of auditable subjects that feeds risk assessment,
+ * prioritization, and ultimately the Annual Internal Audit Plan.
+ */
 export default function IapAuditUniversePage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -65,6 +70,12 @@ export default function IapAuditUniversePage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
+  useRecordView(selected, {
+    module: "IAP",
+    recordType: "AUDIT_UNIVERSE",
+    code: (record) => record.subjectCode,
+    label: (record) => record.name ?? record.title,
+  });
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
 
@@ -519,7 +530,6 @@ export default function IapAuditUniversePage() {
         <DataTable
           columns={columns}
           emptyMessage="No auditable subjects match the current filters."
-          initialPageSize={10}
           loading={loading}
           onRowClick={setSelected}
           pageSizeOptions={[10, 25, 50, 100]}

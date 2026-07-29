@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Stores calculated inherent and residual risk for a subject in an assessment cycle.
+ */
 class IapRiskAssessment extends Model
 {
     use HasFactory, SoftDeletes;

@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Links an uploaded planning support file to a supported IAP record.
+ */
 class IapAttachment extends Model
 {
     use HasFactory, SoftDeletes;

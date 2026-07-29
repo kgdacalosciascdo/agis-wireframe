@@ -3,9 +3,15 @@
 namespace Database\Seeders;
 
 use App\Models\MasterList;
+use App\Models\Document;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
+/**
+ * Seeds administrator-managed reference categories and their initial values.
+ */
 class MasterListSeeder extends Seeder
 {
     public const REMOVED_SYSTEM_LISTS = [
@@ -59,7 +65,10 @@ class MasterListSeeder extends Seeder
         foreach ([
             ...self::LISTS,
             $this->documentTypeList(),
+            $this->documentConfidentialityList(),
             ...$this->iapLists(),
+            $this->officeTypeList(),
+            $this->auditAreaTypeList(),
             $this->sectorList(),
             $this->employmentTypeList(),
             $this->positionList(),
@@ -88,6 +97,33 @@ class MasterListSeeder extends Seeder
                 }
             }
         }
+
+        if (Schema::hasColumn('documents', 'confidentiality_level_id')) {
+            $internalId = MasterList::query()
+                ->where('code', 'DOCUMENT_CONFIDENTIALITY')
+                ->first()
+                ?->items()
+                ->where('code', 'INTERNAL')
+                ->value('id');
+
+            if ($internalId) {
+                Document::query()
+                    ->withTrashed()
+                    ->whereNull('confidentiality_level_id')
+                    ->update(['confidentiality_level_id' => $internalId]);
+            }
+
+            Document::query()
+                ->withTrashed()
+                ->whereNull('document_code')
+                ->orderBy('id')
+                ->each(function (Document $document): void {
+                    $document->forceFill([
+                        'document_code' => app(RuntimeConfiguration::class)
+                            ->formatNumber('document_number_format', $document->id),
+                    ])->save();
+                });
+        }
     }
 
     /** @return array<string, mixed> */
@@ -108,6 +144,22 @@ class MasterListSeeder extends Seeder
                 ['REFERENCE_BOOK', 'Reference Book / Publication', 'Books, research papers, articles, and professional reference publications.'],
                 ['TEMPLATE_FORM', 'Template / Form', 'Reusable audit programs, checklists, forms, and working-paper templates.'],
                 ['OTHER', 'Other Reference', 'Other authorized material relevant to audit work.'],
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function documentConfidentialityList(): array
+    {
+        return [
+            'code' => 'DOCUMENT_CONFIDENTIALITY',
+            'name' => 'Document Confidentiality',
+            'description' => 'Access classifications that control who may discover, view, and download documents.',
+            'items' => [
+                ['PUBLIC', 'Public', 'Material approved for broad public access.'],
+                ['INTERNAL', 'Internal', 'Routine working material available to authenticated AGIS users.'],
+                ['CONFIDENTIAL', 'Confidential', 'Sensitive material limited to authorized audit personnel and administrators.'],
+                ['RESTRICTED', 'Restricted', 'Highly sensitive material limited to explicitly privileged users and its uploader.'],
             ],
         ];
     }
@@ -285,6 +337,41 @@ class MasterListSeeder extends Seeder
                 ['HEALTH_EDUCATION_SOCIAL', 'Health, Education and Social Services', 'Health, education, housing, social welfare, and community support services.'],
                 ['AGRI_BUSINESS_EMPLOYMENT', 'Agriculture, Business and Employment', 'Agriculture, enterprise, market, tourism, licensing, and employment services.'],
                 ['PUBLIC_SAFETY_OTHER', 'Public Safety, Community and Other Services', 'Public safety, emergency response, community affairs, and other frontline services.'],
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function officeTypeList(): array
+    {
+        return [
+            'code' => 'OFFICE_TYPE',
+            'name' => 'Office Type',
+            'description' => 'Independent organizational classifications used by the Office Registry. Office records do not inherit from or report to another office in AGIS.',
+            'items' => [
+                ['DEPARTMENT', 'Department', 'A city department established to perform a broad functional mandate.'],
+                ['OFFICE', 'Office', 'An independent city office with a defined service or administrative mandate.'],
+                ['DIVISION', 'Division', 'An independently registered division for AGIS assignment and reporting.'],
+                ['SECTION', 'Section', 'An independently registered section for AGIS assignment and reporting.'],
+                ['UNIT', 'Unit', 'An independently registered operational or support unit.'],
+                ['SPECIAL_BODY', 'Special Office / Body', 'An independent special office, board, council, hospital, or other city entity.'],
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function auditAreaTypeList(): array
+    {
+        return [
+            'code' => 'AUDIT_AREA_TYPE',
+            'name' => 'Audit Area Type',
+            'description' => 'Reusable classifications for parent and sub-audit areas.',
+            'items' => [
+                ['PROCESS', 'Process', 'An end-to-end operational, financial, administrative, or control process.'],
+                ['SYSTEM', 'System', 'An information system, control system, platform, or supporting technology environment.'],
+                ['PROGRAM', 'Program', 'A coordinated public program or group of activities intended to deliver outcomes.'],
+                ['FUNCTION', 'Function', 'A recurring organizational mandate or management function.'],
+                ['THEME', 'Theme', 'A cross-cutting governance, compliance, integrity, or performance theme.'],
             ],
         ];
     }

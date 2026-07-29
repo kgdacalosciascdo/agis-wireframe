@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents the subject-centered assessment record used by prioritization.
+ */
 class IapUniverseRiskAssessment extends Model
 {
     use HasFactory, SoftDeletes;

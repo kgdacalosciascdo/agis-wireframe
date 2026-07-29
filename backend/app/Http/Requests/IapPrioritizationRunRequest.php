@@ -6,6 +6,9 @@ use App\Models\IapPrioritizationRun;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates prioritization-run metadata and its validated assessment source.
+ */
 class IapPrioritizationRunRequest extends FormRequest
 {
     public function authorize(): bool

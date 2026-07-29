@@ -61,6 +61,10 @@ function formatDate(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+/**
+ * Lists Annual Internal Audit Plan revisions and provides lifecycle entry
+ * points while keeping approved revisions immutable.
+ */
 export default function IapPlanRegistryPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -451,7 +455,6 @@ export default function IapPlanRegistryPage() {
         <DataTable
           columns={columns}
           emptyMessage="No annual internal audit plans match the current filters."
-          initialPageSize={10}
           loading={loading}
           onRowClick={(plan) =>
             !plan.isArchived &&

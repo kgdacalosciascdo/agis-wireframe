@@ -6,14 +6,18 @@ use App\Models\IapAuditorCapacity;
 use App\Models\IapAuditorSkill;
 use App\Models\IapAuditorUnavailability;
 use App\Models\IapPlanEngagement;
-use App\Models\SystemConfiguration;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Detects date, office, auditor, skill, availability, and capacity conflicts.
+ */
 class IapScheduleConflictService
 {
+    public function __construct(private readonly RuntimeConfiguration $configuration) {}
+
     /**
      * @param  Collection<int, array<string, mixed>>  $members
      * @return list<array<string, mixed>>
@@ -208,8 +212,6 @@ class IapScheduleConflictService
             return (float) $configured;
         }
 
-        return (float) (SystemConfiguration::query()
-            ->where('key', 'iap_default_annual_person_days')
-            ->value('value') ?? 180);
+        return (float) $this->configuration->integer('iap_default_annual_person_days');
     }
 }

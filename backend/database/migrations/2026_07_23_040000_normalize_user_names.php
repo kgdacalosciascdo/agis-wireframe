@@ -6,6 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/** Replaces free-form names with normalized first, middle, last, and extension fields. */
 return new class extends Migration
 {
     public function up(): void

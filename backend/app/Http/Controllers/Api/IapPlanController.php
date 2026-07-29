@@ -10,16 +10,21 @@ use App\Models\InternalAuditPlan;
 use App\Models\User;
 use App\Services\IapPlanGuard;
 use App\Services\IapSupport;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Manages Annual Internal Audit Plan revisions and guarded lifecycle operations.
+ */
 class IapPlanController extends Controller
 {
     public function __construct(
         private readonly IapPlanGuard $guard,
         private readonly IapSupport $support,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -56,7 +61,7 @@ class IapPlanController extends Controller
             ->when(isset($validated['status']), fn ($query) => $query->where('status', $validated['status']))
             ->when(isset($validated['fiscalYear']), fn ($query) => $query->where('fiscal_year', $validated['fiscalYear']))
             ->orderBy($validated['sortBy'] ?? 'fiscal_year', $validated['sortDirection'] ?? 'desc')
-            ->paginate((int) ($validated['perPage'] ?? 10))
+            ->paginate((int) ($validated['perPage'] ?? app(\App\Services\RuntimeConfiguration::class)->paginationSize()))
             ->withQueryString();
 
         return response()->json([
@@ -104,7 +109,11 @@ class IapPlanController extends Controller
             $plan = InternalAuditPlan::query()->create([
                 ...$this->attributes($validated),
                 'plan_code' => $validated['planCode']
-                    ?? sprintf('IAP-%d', $validated['fiscalYear']),
+                    ?? $this->runtime->formatNumber(
+                        'iap_plan_number_format',
+                        1,
+                        ['YEAR' => $validated['fiscalYear']],
+                    ),
                 'status' => 'DRAFT',
                 'revision_number' => 0,
                 'is_current_revision' => true,

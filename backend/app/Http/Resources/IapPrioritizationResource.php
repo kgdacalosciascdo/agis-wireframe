@@ -5,6 +5,9 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Serializes prioritization runs, ranked items, decisions, and source assessments.
+ */
 class IapPrioritizationResource extends JsonResource
 {
     /** @return array<string, mixed> */

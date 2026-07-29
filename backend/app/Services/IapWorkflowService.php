@@ -18,6 +18,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Executes Annual Plan lifecycle transitions and records their immutable history.
+ */
 class IapWorkflowService
 {
     public function __construct(

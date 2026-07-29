@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Preserves Annual Plan workflow transitions and their old and new values.
+ */
 class IapWorkflowEvent extends Model
 {
     use HasFactory;

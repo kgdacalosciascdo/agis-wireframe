@@ -98,6 +98,16 @@ self-service Profile/Password pages. Demo seeding creates the 42 referenced city
 offices plus the AGIS system office, an office head and employee account per city
 office, realistic audit areas/focuses, and shared workflow reference lists.
 
+## Documentation
+
+- `docs/README.md` — documentation index
+- `docs/SYSTEM_FLOW.md` — complete end-to-end system flow
+- `docs/CORE_WORKFLOW_DESIGN.md` — as-built AGIS Core workflow
+- `docs/IAP_WORKFLOW_DESIGN.md` — as-built IAP workflow
+- `docs/API_AND_DATA_REFERENCE.md` — API and entity reference
+- `docs/OPERATIONS_GUIDE.md` — setup, deployment, backup, and troubleshooting
+- `docs/DEVELOPMENT_STANDARDS.md` — required security, privacy, quality, and operations rules
+
 ## Architecture
 
 - `src/` — React Router interface styled with Tailwind CSS

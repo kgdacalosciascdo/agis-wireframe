@@ -5,6 +5,9 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates assessment scores, control effectiveness, justification, and evidence.
+ */
 class IapRiskAssessmentRequest extends FormRequest
 {
     public function authorize(): bool

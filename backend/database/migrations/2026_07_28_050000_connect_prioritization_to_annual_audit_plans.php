@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/** Links Annual Plan engagements to their source universe, assessment, and ranking. */
 return new class extends Migration
 {
     public function up(): void

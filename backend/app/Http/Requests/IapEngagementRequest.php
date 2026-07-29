@@ -3,9 +3,14 @@
 namespace App\Http\Requests;
 
 use App\Models\IapPlanEngagement;
+use App\Models\MasterListItem;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates Annual Plan engagement scope, timing, effort, and source relationships.
+ */
 class IapEngagementRequest extends FormRequest
 {
     public function authorize(): bool
@@ -25,6 +30,17 @@ class IapEngagementRequest extends FormRequest
                 $engagement?->prioritization_item_id,
             ),
         ]);
+
+        if (! $this->filled('riskLevelId') && ! $this->filled('prioritizationItemId')) {
+            $defaultRiskId = $engagement?->risk_level_id ?? MasterListItem::query()
+                ->where('code', app(RuntimeConfiguration::class)->string('default_risk_level_code'))
+                ->whereHas('masterList', fn ($query) => $query->where('code', 'RISK_LEVEL'))
+                ->where('is_active', true)
+                ->value('id');
+            if ($defaultRiskId) {
+                $this->merge(['riskLevelId' => $defaultRiskId]);
+            }
+        }
     }
 
     /** @return array<string, mixed> */

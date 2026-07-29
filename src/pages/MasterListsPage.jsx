@@ -10,7 +10,12 @@ import StatusBadge from "../components/ui/StatusBadge";
 import { hasPermission } from "../config/navigation";
 import { ApiError, masterListApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
+/**
+ * Maintains administrator-configurable reference data used by forms and
+ * filters while protecting workflow-owned state machines from ad hoc changes.
+ */
 export default function MasterListsPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -19,6 +24,12 @@ export default function MasterListsPage() {
   const [editing, setEditing] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [selectedList, setSelectedList] = useState(null);
+  useRecordView(selectedList, {
+    module: "CORE",
+    recordType: "MASTER_LIST",
+    code: (record) => record.code,
+    label: (record) => record.name,
+  });
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -272,7 +283,6 @@ export default function MasterListsPage() {
                   ),
                 },
               ]}
-              initialPageSize={10}
               rows={selectedList.items}
             />
           </div>

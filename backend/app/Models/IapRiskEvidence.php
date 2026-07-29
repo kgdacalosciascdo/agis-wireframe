@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Associates supporting evidence with a risk assessment without overwriting history.
+ */
 class IapRiskEvidence extends Model
 {
     use HasFactory, SoftDeletes;

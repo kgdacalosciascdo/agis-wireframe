@@ -6,6 +6,9 @@ use App\Models\IapAuditUniverseItem;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+/**
+ * Validates auditable-subject ownership, classification, exposure, and status data.
+ */
 class IapAuditUniverseRequest extends FormRequest
 {
     public function authorize(): bool

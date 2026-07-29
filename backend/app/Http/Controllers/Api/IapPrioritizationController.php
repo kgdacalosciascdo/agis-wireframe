@@ -12,14 +12,21 @@ use App\Models\IapPrioritizationRun;
 use App\Models\IapRiskPeriod;
 use App\Models\User;
 use App\Services\IapSupport;
+use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Ranks validated risk assessments and records selection or deferral decisions.
+ */
 class IapPrioritizationController extends Controller
 {
-    public function __construct(private readonly IapSupport $support) {}
+    public function __construct(
+        private readonly IapSupport $support,
+        private readonly RuntimeConfiguration $runtime,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -66,7 +73,7 @@ class IapPrioritizationController extends Controller
 
         $runs = $query
             ->orderBy($validated['sortBy'] ?? 'created_at', $validated['sortDirection'] ?? 'desc')
-            ->paginate((int) ($validated['perPage'] ?? 10))
+            ->paginate((int) ($validated['perPage'] ?? app(\App\Services\RuntimeConfiguration::class)->paginationSize()))
             ->withQueryString();
 
         return response()->json([
@@ -108,7 +115,11 @@ class IapPrioritizationController extends Controller
         $run = DB::transaction(function () use ($request, $validated, $period): IapPrioritizationRun {
             $run = IapPrioritizationRun::query()->create([
                 'run_code' => $validated['runCode']
-                    ?: 'PRIO-'.$period->assessment_year.'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)),
+                    ?: $this->runtime->formatNumber(
+                        'prioritization_number_format',
+                        ((int) IapPrioritizationRun::withTrashed()->max('id')) + 1,
+                        ['YEAR' => $period->assessment_year],
+                    ),
                 'name' => $validated['name'],
                 'risk_period_id' => $period->id,
                 'methodology' => $validated['methodology'],

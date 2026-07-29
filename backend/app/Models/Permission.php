@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
+/**
+ * Represents one granular capability assignable to an access role.
+ */
 class Permission extends Model
 {
     use HasFactory;

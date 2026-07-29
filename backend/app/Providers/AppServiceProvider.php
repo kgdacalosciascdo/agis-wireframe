@@ -2,12 +2,16 @@
 
 namespace App\Providers;
 
+use App\Services\RuntimeConfiguration;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
+/**
+ * Registers application-wide framework customizations and boot-time behavior.
+ */
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -24,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('login', function (Request $request) {
+            $configuration = app(RuntimeConfiguration::class);
             $employeeId = Str::upper(trim((string) $request->input('employeeId')));
             $ipAddress = $request->ip();
             $blockedResponse = fn () => response()->json([
@@ -32,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
             ], 429);
 
             return [
-                Limit::perMinute(5)
+                Limit::perMinute($configuration->failedLoginLimit())
                     ->by('login-user:'.$employeeId.'|'.$ipAddress)
                     ->response($blockedResponse),
                 Limit::perMinute(30)

@@ -5,7 +5,11 @@ import {
   CircleCheckBig,
   CirclePause,
   Download,
+  FileClock,
   Files,
+  GitBranch,
+  Link2,
+  LockKeyhole,
   Pencil,
   RotateCcw,
   Search,
@@ -24,9 +28,11 @@ import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
 import { ApiError, documentApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const emptyForm = {
   documentTypeId: "",
+  confidentialityLevelId: "",
   title: "",
   referenceNumber: "",
   issuingAuthority: "",
@@ -34,6 +40,13 @@ const emptyForm = {
   version: "",
   description: "",
   isActive: true,
+  file: null,
+  linkKeys: [],
+};
+
+const emptyVersionForm = {
+  versionLabel: "",
+  changeSummary: "",
   file: null,
 };
 
@@ -60,16 +73,29 @@ function formatDate(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+/**
+ * Provides the governed document repository, including confidentiality,
+ * immutable versions, module links, permission-aware actions, and archiving.
+ */
 export default function DocumentManagementPage() {
-  const { user } = useAuth();
+  const { user, runtimeConfig } = useAuth();
   const toast = useToast();
   const [documents, setDocuments] = useState([]);
   const [documentTypes, setDocumentTypes] = useState([]);
+  const [confidentialityLevels, setConfidentialityLevels] = useState([]);
+  const [linkOptions, setLinkOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [confidentialityFilter, setConfidentialityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedDocument, setSelectedDocument] = useState(null);
+  useRecordView(selectedDocument, {
+    module: "CORE",
+    recordType: "DOCUMENT",
+    code: (record) => record.documentCode ?? record.referenceNumber,
+    label: (record) => record.title,
+  });
   const [editing, setEditing] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -78,6 +104,10 @@ export default function DocumentManagementPage() {
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
+  const [versionTarget, setVersionTarget] = useState(null);
+  const [versionForm, setVersionForm] = useState(emptyVersionForm);
+  const [versionErrors, setVersionErrors] = useState({});
+  const [versionConfirmOpen, setVersionConfirmOpen] = useState(false);
 
   const canUpload = hasPermission(user, "documents.upload");
   const canUpdate = hasPermission(user, "documents.update");
@@ -94,6 +124,8 @@ export default function DocumentManagementPage() {
         if (!active) return;
         setDocuments(result.documents);
         setDocumentTypes(result.documentTypes);
+        setConfidentialityLevels(result.confidentialityLevels);
+        setLinkOptions(result.linkOptions);
       })
       .catch((error) => active && toast.error(error.message))
       .finally(() => active && setLoading(false));
@@ -114,13 +146,23 @@ export default function DocumentManagementPage() {
             document.referenceNumber,
             document.issuingAuthority,
             document.documentType,
+            document.confidentialityLevel,
+            document.documentCode,
             document.description,
             document.fileName,
             document.version,
             document.uploadedBy,
+            ...(document.links ?? []).flatMap((link) => [
+              link.module,
+              link.moduleLabel,
+              link.label,
+            ]),
           ].some((value) => value?.toLowerCase().includes(query))) &&
         (!typeFilter ||
           String(document.documentTypeId) === String(typeFilter)) &&
+        (!confidentialityFilter ||
+          String(document.confidentialityLevelId) ===
+            String(confidentialityFilter)) &&
         (!statusFilter ||
           (statusFilter === "archived"
             ? document.isArchived
@@ -128,7 +170,7 @@ export default function DocumentManagementPage() {
               ? document.isActive && !document.isArchived
               : !document.isActive && !document.isArchived)),
     );
-  }, [documents, search, statusFilter, typeFilter]);
+  }, [confidentialityFilter, documents, search, statusFilter, typeFilter]);
 
   const stats = useMemo(() => {
     const active = documents.filter(
@@ -156,7 +198,29 @@ export default function DocumentManagementPage() {
       })),
     [documentTypes],
   );
-  const hasActiveFilters = Boolean(search || typeFilter || statusFilter);
+  const moduleLinkOptions = useMemo(
+    () =>
+      linkOptions.map((option) => ({
+        value: option.key,
+        label: option.label,
+        description: `${option.moduleLabel} · ${option.recordType.replaceAll("_", " ").toLowerCase()}`,
+        keywords: `${option.module} ${option.moduleLabel} ${option.recordCode ?? ""} ${option.recordType}`,
+      })),
+    [linkOptions],
+  );
+  const confidentialityOptions = useMemo(
+    () =>
+      confidentialityLevels.map((level) => ({
+        value: level.id,
+        label: level.label,
+        description: level.description,
+        keywords: level.code,
+      })),
+    [confidentialityLevels],
+  );
+  const hasActiveFilters = Boolean(
+    search || typeFilter || confidentialityFilter || statusFilter,
+  );
 
   function showEditor(document = null) {
     setEditing(document);
@@ -165,6 +229,7 @@ export default function DocumentManagementPage() {
       document
         ? {
             documentTypeId: document.documentTypeId,
+            confidentialityLevelId: document.confidentialityLevelId,
             title: document.title,
             referenceNumber: document.referenceNumber ?? "",
             issuingAuthority: document.issuingAuthority ?? "",
@@ -173,10 +238,16 @@ export default function DocumentManagementPage() {
             description: document.description ?? "",
             isActive: document.isActive,
             file: null,
+            linkKeys: document.linkKeys ?? [],
           }
         : {
             ...emptyForm,
             documentTypeId: documentTypes[0]?.id ?? "",
+            confidentialityLevelId:
+              confidentialityLevels.find((level) => level.code === "INTERNAL")
+                ?.id ??
+              confidentialityLevels[0]?.id ??
+              "",
           },
     );
     setEditorOpen(true);
@@ -190,13 +261,27 @@ export default function DocumentManagementPage() {
   function buildFormData() {
     const payload = new FormData();
     payload.set("documentTypeId", form.documentTypeId);
+    payload.set("confidentialityLevelId", form.confidentialityLevelId);
     payload.set("title", form.title);
     payload.set("referenceNumber", form.referenceNumber);
     payload.set("issuingAuthority", form.issuingAuthority);
     payload.set("publicationDate", form.publicationDate);
-    payload.set("version", form.version);
     payload.set("description", form.description);
     payload.set("isActive", form.isActive ? "1" : "0");
+    payload.set(
+      "links",
+      JSON.stringify(
+        form.linkKeys
+          .map((key) => linkOptions.find((option) => option.key === key))
+          .filter(Boolean)
+          .map((option) => ({
+            module: option.module,
+            recordType: option.recordType,
+            recordId: option.recordId,
+          })),
+      ),
+    );
+    if (!editing) payload.set("version", form.version);
     if (form.file) payload.set("file", form.file);
     return payload;
   }
@@ -211,11 +296,13 @@ export default function DocumentManagementPage() {
       const result = await documentApi.list({ includeArchived: true });
       setDocuments(result.documents);
       setDocumentTypes(result.documentTypes);
+      setConfidentialityLevels(result.confidentialityLevels);
+      setLinkOptions(result.linkOptions);
       setSaveConfirmOpen(false);
       setEditorOpen(false);
       toast.success(
         editing
-          ? "Document updated successfully."
+          ? "Document metadata and module links updated successfully."
           : "Document uploaded successfully.",
       );
     } catch (error) {
@@ -276,6 +363,57 @@ export default function DocumentManagementPage() {
     }
   }
 
+  function showVersionEditor(document) {
+    setSelectedDocument(null);
+    setVersionTarget(document);
+    setVersionForm({
+      ...emptyVersionForm,
+      versionLabel: `Revision ${document.versionCount + 1}`,
+    });
+    setVersionErrors({});
+  }
+
+  async function createVersion() {
+    if (!versionTarget) return;
+    setSaving(true);
+    setVersionErrors({});
+    const payload = new FormData();
+    payload.set("versionLabel", versionForm.versionLabel);
+    payload.set("changeSummary", versionForm.changeSummary);
+    if (versionForm.file) payload.set("file", versionForm.file);
+
+    try {
+      const updated = await documentApi.createVersion(
+        versionTarget.id,
+        payload,
+      );
+      setDocuments((current) =>
+        current.map((document) =>
+          document.id === updated.id ? updated : document,
+        ),
+      );
+      if (selectedDocument?.id === updated.id) setSelectedDocument(updated);
+      setVersionConfirmOpen(false);
+      setVersionTarget(null);
+      toast.success("A new immutable document version was created.");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 422) {
+        setVersionErrors(error.errors);
+      }
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function downloadVersion(document, version) {
+    try {
+      await documentApi.downloadVersion(document, version);
+    } catch (error) {
+      toast.error(error.message);
+    }
+  }
+
   const columns = [
     {
       key: "title",
@@ -295,6 +433,56 @@ export default function DocumentManagementPage() {
       render: (document) => (
         <StatusBadge>{document.documentType}</StatusBadge>
       ),
+    },
+    {
+      key: "confidentialityLevel",
+      label: "Confidentiality",
+      render: (document) => (
+        <StatusBadge
+          tone={
+            document.confidentialityCode === "RESTRICTED"
+              ? "inactive"
+              : document.confidentialityCode === "CONFIDENTIAL"
+                ? "warning"
+                : document.confidentialityCode === "PUBLIC"
+                  ? "active"
+                  : undefined
+          }
+        >
+          {document.confidentialityLevel}
+        </StatusBadge>
+      ),
+    },
+    {
+      key: "versionCount",
+      label: "Versions",
+      render: (document) => (
+        <div className="whitespace-nowrap">
+          <strong className="block text-slate-700">
+            v{document.currentVersionNumber}
+          </strong>
+          <span className="text-xs text-slate-500">
+            {document.versionCount} immutable{" "}
+            {document.versionCount === 1 ? "version" : "versions"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "links",
+      label: "Module Links",
+      render: (document) =>
+        document.links?.length ? (
+          <div className="flex max-w-52 flex-wrap gap-1">
+            {[...new Set(document.links.map((link) => link.module))].map(
+              (module) => (
+                <StatusBadge key={module}>{module}</StatusBadge>
+              ),
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">Repository only</span>
+        ),
     },
     {
       key: "issuingAuthority",
@@ -360,6 +548,19 @@ export default function DocumentManagementPage() {
               type="button"
             >
               <Download size={17} />
+            </button>
+          )}
+          {canUpdate && !document.isArchived && (
+            <button
+              className="grid h-9 w-9 place-items-center rounded-lg text-violet-700 transition hover:bg-violet-100"
+              onClick={(event) => {
+                event.stopPropagation();
+                showVersionEditor(document);
+              }}
+              title="Create new immutable version"
+              type="button"
+            >
+              <FileClock size={17} />
             </button>
           )}
           {canUpdate && !document.isArchived && (
@@ -455,7 +656,7 @@ export default function DocumentManagementPage() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <header className="border-b border-slate-200 bg-white p-4">
-          <div className="grid w-full gap-2 md:grid-cols-[minmax(16rem,1fr)_17rem_11rem_auto]">
+          <div className="grid w-full gap-2 lg:grid-cols-[minmax(16rem,1fr)_15rem_14rem_11rem_auto]">
             <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
               <Search className="shrink-0" size={17} />
               <input
@@ -472,6 +673,16 @@ export default function DocumentManagementPage() {
               placeholder="Filter by document type"
               searchPlaceholder="Search document types..."
               value={typeFilter}
+            />
+            <SearchableSelect
+              onChange={setConfidentialityFilter}
+              options={[
+                { value: "", label: "All confidentiality levels" },
+                ...confidentialityOptions,
+              ]}
+              placeholder="Filter by confidentiality"
+              searchPlaceholder="Search levels..."
+              value={confidentialityFilter}
             />
             <SearchableSelect
               onChange={setStatusFilter}
@@ -491,6 +702,7 @@ export default function DocumentManagementPage() {
               onClick={() => {
                 setSearch("");
                 setTypeFilter("");
+                setConfidentialityFilter("");
                 setStatusFilter("");
               }}
               type="button"
@@ -505,8 +717,7 @@ export default function DocumentManagementPage() {
           <DataTable
             columns={columns}
             emptyMessage="No documents match your filters. Upload a reference such as the PGIAM, a law, circular, policy, or audit guide."
-            initialPageSize={8}
-            key={`${search}|${typeFilter}|${statusFilter}`}
+            key={`${search}|${typeFilter}|${confidentialityFilter}|${statusFilter}`}
             loading={loading}
             onRowClick={setSelectedDocument}
             pageSizeOptions={[8, 10, 25, 50]}
@@ -518,7 +729,7 @@ export default function DocumentManagementPage() {
       <Modal
         onClose={() => setSelectedDocument(null)}
         open={Boolean(selectedDocument)}
-        size="lg"
+        size="xl"
         title={selectedDocument?.title ?? "Document details"}
       >
         {selectedDocument && (
@@ -526,6 +737,20 @@ export default function DocumentManagementPage() {
             <div className="rounded-xl bg-slate-50 p-4">
               <div className="flex flex-wrap gap-2">
                 <StatusBadge>{selectedDocument.documentType}</StatusBadge>
+                <StatusBadge
+                  tone={
+                    selectedDocument.confidentialityCode === "RESTRICTED"
+                      ? "inactive"
+                      : selectedDocument.confidentialityCode === "CONFIDENTIAL"
+                        ? "warning"
+                        : selectedDocument.confidentialityCode === "PUBLIC"
+                          ? "active"
+                          : undefined
+                  }
+                >
+                  <LockKeyhole className="mr-1 inline" size={12} />
+                  {selectedDocument.confidentialityLevel}
+                </StatusBadge>
                 <StatusBadge
                   tone={
                     selectedDocument.isArchived
@@ -540,6 +765,10 @@ export default function DocumentManagementPage() {
                     : selectedDocument.isActive
                       ? "Active"
                       : "Inactive"}
+                </StatusBadge>
+                <StatusBadge tone="warning">
+                  v{selectedDocument.currentVersionNumber} ·{" "}
+                  {selectedDocument.versionCount} stored
                 </StatusBadge>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -570,6 +799,103 @@ export default function DocumentManagementPage() {
                 </div>
               ))}
             </div>
+            <section>
+              <div className="flex items-center gap-2">
+                <Link2 className="text-sky-700" size={17} />
+                <h3 className="text-sm font-bold text-slate-800">
+                  Module links ({selectedDocument.links?.length ?? 0})
+                </h3>
+              </div>
+              {selectedDocument.links?.length ? (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {selectedDocument.links.map((link) => (
+                    <div
+                      className="rounded-lg border border-slate-200 px-3 py-2.5"
+                      key={link.id}
+                    >
+                      <StatusBadge>{link.module}</StatusBadge>
+                      <strong className="mt-2 block text-sm text-slate-700">
+                        {link.label}
+                      </strong>
+                      <span className="text-xs text-slate-500">
+                        {link.recordType.replaceAll("_", " ").toLowerCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
+                  This document currently belongs only to the shared repository.
+                </p>
+              )}
+            </section>
+            <section>
+              <div className="flex items-center gap-2">
+                <GitBranch className="text-violet-700" size={17} />
+                <h3 className="text-sm font-bold text-slate-800">
+                  Immutable version history
+                </h3>
+              </div>
+              <div className="mt-2 grid gap-2">
+                {selectedDocument.versions?.map((version) => (
+                  <article
+                    className={`rounded-xl border p-3 ${
+                      version.isCurrent
+                        ? "border-violet-300 bg-violet-50/60"
+                        : "border-slate-200"
+                    }`}
+                    key={version.id}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <strong className="text-sm text-slate-800">
+                            Version {version.versionNumber}
+                            {version.versionLabel
+                              ? ` — ${version.versionLabel}`
+                              : ""}
+                          </strong>
+                          {version.isCurrent && (
+                            <StatusBadge tone="active">Current</StatusBadge>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                            <LockKeyhole size={12} /> Immutable
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                          {version.changeSummary}
+                        </p>
+                        <p className="mt-1 break-all text-[11px] text-slate-400">
+                          {version.fileName} · {formatBytes(version.fileSize)} ·{" "}
+                          {version.uploadedBy}
+                        </p>
+                      </div>
+                      {canDownload && !selectedDocument.isArchived && (
+                        <button
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sky-700 hover:bg-sky-100"
+                          onClick={() =>
+                            downloadVersion(selectedDocument, version)
+                          }
+                          title={`Download version ${version.versionNumber}`}
+                          type="button"
+                        >
+                          <Download size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+            {canUpdate && !selectedDocument.isArchived && (
+              <button
+                className="flex h-11 items-center justify-center gap-2 rounded-lg bg-violet-700 px-4 text-sm font-bold text-white hover:bg-violet-800"
+                onClick={() => showVersionEditor(selectedDocument)}
+                type="button"
+              >
+                <FileClock size={17} /> Create new immutable version
+              </button>
+            )}
             {canDownload && !selectedDocument.isArchived && (
               <button
                 className="flex h-11 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800"
@@ -627,6 +953,21 @@ export default function DocumentManagementPage() {
               placeholder="Select a document type"
               searchPlaceholder="Search document types..."
               value={form.documentTypeId}
+            />
+          </FormField>
+          <FormField
+            error={errors.confidentialityLevelId?.[0]}
+            label="Confidentiality level"
+            required
+          >
+            <SearchableSelect
+              onChange={(confidentialityLevelId) =>
+                setForm({ ...form, confidentialityLevelId })
+              }
+              options={confidentialityOptions}
+              placeholder="Select a confidentiality level"
+              searchPlaceholder="Search confidentiality levels..."
+              value={form.confidentialityLevelId}
             />
           </FormField>
           <FormField
@@ -691,21 +1032,23 @@ export default function DocumentManagementPage() {
                 value={form.publicationDate}
               />
             </FormField>
-            <FormField
-              error={errors.version?.[0]}
-              htmlFor="document-version"
-              label="Version or edition"
-            >
-              <input
-                className={inputClass}
-                id="document-version"
-                onChange={(event) =>
-                  setForm({ ...form, version: event.target.value })
-                }
-                placeholder="e.g. Volume I, 2024 Edition"
-                value={form.version}
-              />
-            </FormField>
+            {!editing && (
+              <FormField
+                error={errors.version?.[0]}
+                htmlFor="document-version"
+                label="Initial version or edition"
+              >
+                <input
+                  className={inputClass}
+                  id="document-version"
+                  onChange={(event) =>
+                    setForm({ ...form, version: event.target.value })
+                  }
+                  placeholder="e.g. Volume I, 2024 Edition"
+                  value={form.version}
+                />
+              </FormField>
+            )}
           </div>
           <FormField
             error={errors.description?.[0]}
@@ -723,15 +1066,27 @@ export default function DocumentManagementPage() {
             />
           </FormField>
           <FormField
+            error={errors.links?.[0]}
+            label="Linked AGIS modules and records"
+            hint="A document may be linked to multiple Core or IAP records, or to an entire AGIS module."
+          >
+            <SearchableSelect
+              multiple
+              multipleDisplay="summary"
+              onChange={(linkKeys) => setForm({ ...form, linkKeys })}
+              options={moduleLinkOptions}
+              placeholder="Select module links"
+              searchPlaceholder="Search modules, plans, engagements, offices..."
+              value={form.linkKeys}
+            />
+          </FormField>
+          {!editing && (
+            <FormField
             error={errors.file?.[0]}
             htmlFor="document-file"
-            label={editing ? "Replace file (optional)" : "Document file"}
-            required={!editing}
-            hint={
-              editing
-                ? `Current file: ${editing.fileName}. Leave blank to retain it.`
-                : "PDF, Word, Excel, PowerPoint, text, or CSV; maximum 25 MB."
-            }
+            label="Document file"
+            required
+            hint={`PDF, Word, Excel, PowerPoint, text, or CSV; maximum ${runtimeConfig.documentUploadMaxMb} MB.`}
           >
             <input
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
@@ -740,10 +1095,24 @@ export default function DocumentManagementPage() {
               onChange={(event) =>
                 setForm({ ...form, file: event.target.files?.[0] ?? null })
               }
-              required={!editing}
+              required
               type="file"
             />
-          </FormField>
+            </FormField>
+          )}
+          {editing && (
+            <div className="flex gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4">
+              <LockKeyhole
+                className="mt-0.5 shrink-0 text-violet-700"
+                size={18}
+              />
+              <p className="text-sm leading-6 text-violet-900">
+                File versions are immutable. Use{" "}
+                <strong>Create new version</strong> from the table or document
+                details to publish a replacement file.
+              </p>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               checked={form.isActive}
@@ -756,6 +1125,129 @@ export default function DocumentManagementPage() {
           </label>
         </form>
       </Modal>
+
+      <Modal
+        footer={
+          <>
+            <button
+              className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold"
+              disabled={saving}
+              onClick={() => setVersionTarget(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-10 rounded-lg bg-violet-700 px-5 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              form="document-version-form"
+              type="submit"
+            >
+              Continue
+            </button>
+          </>
+        }
+        onClose={() => !saving && setVersionTarget(null)}
+        open={Boolean(versionTarget)}
+        size="lg"
+        title={`New version${versionTarget ? ` — ${versionTarget.title}` : ""}`}
+      >
+        <form
+          className="grid gap-4"
+          id="document-version-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setVersionConfirmOpen(true);
+          }}
+        >
+          <div className="flex gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <LockKeyhole
+              className="mt-0.5 shrink-0 text-violet-700"
+              size={19}
+            />
+            <p className="text-sm leading-6 text-violet-900">
+              The existing {versionTarget?.versionCount ?? 0}{" "}
+              {(versionTarget?.versionCount ?? 0) === 1
+                ? "version remains"
+                : "versions remain"}{" "}
+              unchanged. This upload becomes the current version and cannot be
+              edited or deleted.
+            </p>
+          </div>
+          <FormField
+            error={versionErrors.versionLabel?.[0]}
+            htmlFor="new-version-label"
+            label="Version label"
+            required
+          >
+            <input
+              className={inputClass}
+              id="new-version-label"
+              onChange={(event) =>
+                setVersionForm({
+                  ...versionForm,
+                  versionLabel: event.target.value,
+                })
+              }
+              placeholder="e.g. 2026 Revised Edition"
+              required
+              value={versionForm.versionLabel}
+            />
+          </FormField>
+          <FormField
+            error={versionErrors.changeSummary?.[0]}
+            htmlFor="new-version-summary"
+            label="Change explanation"
+            required
+            hint="Explain why this version is being created and what changed."
+          >
+            <textarea
+              className={`${inputClass} min-h-28 py-3`}
+              id="new-version-summary"
+              onChange={(event) =>
+                setVersionForm({
+                  ...versionForm,
+                  changeSummary: event.target.value,
+                })
+              }
+              required
+              value={versionForm.changeSummary}
+            />
+          </FormField>
+          <FormField
+            error={versionErrors.file?.[0]}
+            htmlFor="new-version-file"
+            label="New version file"
+            required
+            hint="The server rejects files already present in this document's version history."
+          >
+            <input
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-violet-50 file:px-3 file:py-1.5 file:font-semibold file:text-violet-700"
+              id="new-version-file"
+              onChange={(event) =>
+                setVersionForm({
+                  ...versionForm,
+                  file: event.target.files?.[0] ?? null,
+                })
+              }
+              required
+              type="file"
+            />
+          </FormField>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        busy={saving}
+        confirmLabel="Create immutable version"
+        description={`Version ${versionForm.versionLabel || "without a label"} will become current. Existing versions remain unchanged and recoverable.`}
+        onCancel={() => setVersionConfirmOpen(false)}
+        onConfirm={createVersion}
+        open={versionConfirmOpen}
+        title="Publish new document version?"
+        tone="warning"
+      />
 
       <ConfirmDialog
         busy={saving}

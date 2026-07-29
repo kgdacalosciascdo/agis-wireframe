@@ -15,6 +15,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Scores Audit Universe subjects and manages evidence-backed assessment records.
+ */
 class IapRiskAssessmentController extends Controller
 {
     public function __construct(

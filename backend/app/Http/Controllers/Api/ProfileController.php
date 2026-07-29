@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\MasterList;
 use App\Models\User;
+use App\Services\RuntimeConfiguration;
 use App\Support\ActivityRecorder;
 use App\Support\PersonName;
 use Illuminate\Http\JsonResponse;
@@ -16,8 +17,13 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Allows the current user to maintain profile data and change their password.
+ */
 class ProfileController extends Controller
 {
+    public function __construct(private readonly RuntimeConfiguration $configuration) {}
+
     public function show(Request $request): JsonResponse
     {
         return response()->json([
@@ -87,7 +93,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $validated = $request->validate([
             'currentPassword' => ['required', 'string'],
-            'password' => ['required', 'confirmed', Password::min(4)],
+            'password' => ['required', 'confirmed', Password::min($this->configuration->passwordMinLength())],
         ]);
 
         if (! Hash::check($validated['currentPassword'], $user->password)) {
@@ -106,6 +112,8 @@ class ProfileController extends Controller
             'profile.password_changed',
             "{$user->name} changed their password.",
             $user,
+            ['passwordChanged' => false],
+            ['passwordChanged' => true],
         );
 
         return response()->json([

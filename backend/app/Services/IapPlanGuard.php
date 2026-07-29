@@ -8,35 +8,30 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Enforces Annual Plan completeness, immutability, and transition prerequisites.
+ */
 class IapPlanGuard
 {
     /** @param Builder<InternalAuditPlan> $query */
     public function scopeVisible(Builder $query, User $user): Builder
     {
-        if ($user->hasRole(['platform_admin', 'cias_management', 'agis_admin'])) {
-            return $query;
-        }
+        if ($user->hasGlobalEngagementAccess()) {
+            if (! $user->isReadOnlyOnly()) {
+                return $query;
+            }
 
-        if ($user->hasRole('read_only')) {
             return $query->whereIn('status', ['APPROVED', 'ACTIVE', 'COMPLETED']);
-        }
-
-        if ($user->hasRole('agis_user')) {
-            return $query->where(function (Builder $query) use ($user): void {
-                $query
-                    ->where('prepared_by', $user->id)
-                    ->orWhereHas(
-                        'engagements.teamMembers',
-                        fn (Builder $team) => $team->where('user_id', $user->id),
-                    );
-            });
         }
 
         return $query->where(function (Builder $query) use ($user): void {
             $query
-                ->whereIn('status', ['APPROVED', 'ACTIVE', 'COMPLETED'])
-                ->orWhere('prepared_by', $user->id)
-                ->orWhereHas('engagements.teamMembers', fn (Builder $team) => $team->where('user_id', $user->id));
+                ->where('prepared_by', $user->id)
+                ->orWhere('coordinator_id', $user->id)
+                ->orWhereHas(
+                    'engagements.teamMembers',
+                    fn (Builder $team) => $team->where('user_id', $user->id),
+                );
         });
     }
 
@@ -56,8 +51,7 @@ class IapPlanGuard
     {
         $this->assertCanView($user, $plan);
 
-        $mayEdit = $user->hasRole(['platform_admin', 'cias_management'])
-            || $plan->prepared_by === $user->id;
+        $mayEdit = $user->hasPermission('iap.update');
 
         if (! $mayEdit) {
             throw new AuthorizationException;

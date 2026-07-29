@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Adds employment classification and soft-archive support to reference values. */
 return new class extends Migration
 {
     public function up(): void

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
+import { useAuth } from "../auth/auth-context";
 import {
   BarChart3,
   CalendarRange,
@@ -324,7 +326,13 @@ function ReportTable({
   );
 }
 
+/**
+ * Generates role-scoped IAP reports and visualizations and coordinates PDF,
+ * spreadsheet, CSV, and print export actions.
+ */
 export default function IapReportsPage() {
+  const { runtimeConfig } = useAuth();
+  const [searchParams] = useSearchParams();
   const toast = useToast();
   const [catalog, setCatalog] = useState({
     reports: [],
@@ -341,7 +349,7 @@ export default function IapReportsPage() {
   const [report, setReport] = useState(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(runtimeConfig.paginationSize);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingReport, setLoadingReport] = useState(true);
   const [exporting, setExporting] = useState("");
@@ -371,13 +379,22 @@ export default function IapReportsPage() {
         if (!active) return;
         const nextCatalog = data ?? {};
         setCatalog((current) => ({ ...current, ...nextCatalog }));
+        const requestedCode = searchParams.get("report");
         const defaultReport =
+          (nextCatalog.reports ?? []).find(
+            (item) => item.code === requestedCode,
+          ) ??
           (nextCatalog.reports ?? []).find(
             (item) => item.code === "audit-universe",
           ) ?? nextCatalog.reports?.[0];
         if (defaultReport) {
           setSelectedCode(defaultReport.code);
-          setFilterValue(defaultFilterValue(defaultReport, nextCatalog));
+          const requestedPlan = searchParams.get("plan");
+          setFilterValue(
+            defaultReport.filter === "planId" && requestedPlan
+              ? Number(requestedPlan)
+              : defaultFilterValue(defaultReport, nextCatalog),
+          );
         }
         setError("");
       })
@@ -395,7 +412,7 @@ export default function IapReportsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     if (loadingCatalog || !selectedCode) return undefined;

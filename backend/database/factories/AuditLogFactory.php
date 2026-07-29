@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends Factory<AuditLog>
  */
+/**
+ * Produces realistic audit-trail records for automated tests.
+ */
 class AuditLogFactory extends Factory
 {
     public function definition(): array

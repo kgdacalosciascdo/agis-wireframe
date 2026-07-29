@@ -5,6 +5,9 @@ namespace App\Http\Requests;
 use App\Models\IapUniverseRiskAssessment;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates subject-centered risk scores and their assessment-period linkage.
+ */
 class IapUniverseRiskAssessmentRequest extends FormRequest
 {
     public function authorize(): bool

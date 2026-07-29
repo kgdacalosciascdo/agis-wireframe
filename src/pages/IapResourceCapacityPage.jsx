@@ -47,6 +47,10 @@ function inputClass() {
   return "min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
 }
 
+/**
+ * Maintains temporary IAP auditor capacity, unavailability, and skill data
+ * until the dedicated ARMIS module becomes the authoritative source.
+ */
 export default function IapResourceCapacityPage() {
   const { user } = useAuth();
   const toast = useToast();

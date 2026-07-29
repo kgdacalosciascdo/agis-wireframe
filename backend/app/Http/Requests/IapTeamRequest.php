@@ -4,6 +4,9 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates engagement team members, leadership, allocations, and skill assignments.
+ */
 class IapTeamRequest extends FormRequest
 {
     public function authorize(): bool

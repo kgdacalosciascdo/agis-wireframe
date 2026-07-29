@@ -12,6 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Maintains auditable subjects and their history for downstream IAP processes.
+ */
 class IapAuditUniverseController extends Controller
 {
     public function __construct(private readonly IapSupport $support) {}
@@ -84,7 +87,7 @@ class IapAuditUniverseController extends Controller
 
         $items = $query
             ->orderBy($validated['sortBy'] ?? 'name', $validated['sortDirection'] ?? 'asc')
-            ->paginate((int) ($validated['perPage'] ?? 10))
+            ->paginate((int) ($validated['perPage'] ?? app(\App\Services\RuntimeConfiguration::class)->paginationSize()))
             ->withQueryString();
 
         return response()->json([

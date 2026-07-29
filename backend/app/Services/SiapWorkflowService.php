@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Applies strategic-plan state transitions, revision rules, and workflow history.
+ */
 class SiapWorkflowService
 {
     public function __construct(

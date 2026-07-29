@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents an ordered, activatable value within a master-list category.
+ */
 class MasterListItem extends Model
 {
     use HasFactory, SoftDeletes;

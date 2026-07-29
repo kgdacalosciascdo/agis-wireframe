@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * @extends Factory<Permission>
  */
+/**
+ * Produces granular permission records for authorization tests.
+ */
 class PermissionFactory extends Factory
 {
     public function definition(): array

@@ -11,6 +11,9 @@ use App\Services\IapWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Executes audited Annual Plan workflow transitions through the IAP workflow service.
+ */
 class IapWorkflowController extends Controller
 {
     public function __construct(

@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Creates temporary auditor capacity, skill, and unavailability records for IAP. */
 return new class extends Migration
 {
     public function up(): void

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Defines a weighted risk factor used consistently across an assessment period.
+ */
 class IapRiskPeriodCriterion extends Model
 {
     use HasFactory;

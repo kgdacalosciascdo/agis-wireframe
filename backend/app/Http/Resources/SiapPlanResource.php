@@ -5,6 +5,9 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Serializes SIAP revisions, objectives, priorities, and approval history.
+ */
 class SiapPlanResource extends JsonResource
 {
     /** @return array<string, mixed> */

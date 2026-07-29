@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -12,16 +12,19 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { NavLink, Outlet, useLocation } from "react-router";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import Brand from "../components/Brand";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import {
+  hasPermission,
   navigationSections,
   pageForPath,
   visibleFor,
 } from "../config/navigation";
+import { notificationApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import { formatConfiguredDate } from "../utils/date-format";
 
 function NavigationSection({ section, user, collapsed, onNavigate }) {
   const [expanded, setExpanded] = useState(true);
@@ -149,24 +152,29 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
 }
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, runtimeConfig } = useAuth();
   const toast = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const canViewNotifications = hasPermission(user, "notifications.view");
   const currentPage = pageForPath(location.pathname);
   const dateLabel = useMemo(
     () =>
-      new Intl.DateTimeFormat("en-PH", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }).format(new Date()),
-    [],
+      formatConfiguredDate(new Date(), {
+        format: runtimeConfig.dateFormat,
+        timezone: runtimeConfig.timezone,
+        weekday: true,
+      }),
+    [runtimeConfig.dateFormat, runtimeConfig.timezone],
   );
 
   async function handleLogout() {
@@ -183,6 +191,60 @@ export default function AppLayout() {
       setLoggingOut(false);
       setLogoutOpen(false);
     }
+  }
+
+  const loadNotifications = useCallback(async () => {
+    if (!canViewNotifications) return;
+    setNotificationLoading(true);
+    try {
+      const data = await notificationApi.recent();
+      setRecentNotifications(data.notifications ?? []);
+      setUnreadCount(data.unreadCount ?? 0);
+    } catch {
+      // The rest of AGIS remains usable if the notification refresh fails.
+    } finally {
+      setNotificationLoading(false);
+    }
+  }, [canViewNotifications]);
+
+  useEffect(() => {
+    if (!canViewNotifications) return undefined;
+    const initial = window.setTimeout(loadNotifications, 0);
+    const interval = window.setInterval(
+      loadNotifications,
+      runtimeConfig.notificationRefreshSeconds * 1000,
+    );
+    window.addEventListener("agis:notifications-changed", loadNotifications);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+      window.removeEventListener(
+        "agis:notifications-changed",
+        loadNotifications,
+      );
+    };
+  }, [
+    canViewNotifications,
+    loadNotifications,
+    runtimeConfig.notificationRefreshSeconds,
+  ]);
+
+  async function openNotification(notification) {
+    if (!notification.isRead) {
+      try {
+        await notificationApi.markRead(notification.id);
+        setUnreadCount((current) => Math.max(0, current - 1));
+        setRecentNotifications((current) =>
+          current.map((item) =>
+            item.id === notification.id ? { ...item, isRead: true } : item,
+          ),
+        );
+      } catch {
+        // Navigation is still useful even if read state could not be saved.
+      }
+    }
+    setNotificationOpen(false);
+    navigate(notification.actionUrl || "/notifications");
   }
 
   const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";
@@ -301,17 +363,115 @@ export default function AppLayout() {
               />
               <kbd className="text-[10px]">Ctrl + K</kbd>
             </label>
-            <button
-              className="relative grid h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100"
-              type="button"
-              onClick={() => toast.info("You have 6 unread notifications.")}
-              aria-label="Notifications"
-            >
-              <Bell size={20} />
-              <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                6
-              </span>
-            </button>
+            {canViewNotifications && (
+              <div className="relative">
+                <button
+                  aria-expanded={notificationOpen}
+                  aria-label="Notifications"
+                  className="relative grid h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => {
+                    setNotificationOpen((current) => !current);
+                    loadNotifications();
+                  }}
+                  type="button"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+                {notificationOpen && (
+                  <div className="absolute right-0 top-12 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+                    <div className="flex items-center border-b border-slate-200 px-4 py-3">
+                      <div>
+                        <strong className="block text-sm text-slate-800">
+                          Notifications
+                        </strong>
+                        <small className="text-xs text-slate-500">
+                          {unreadCount} unread
+                        </small>
+                      </div>
+                      {unreadCount > 0 && (
+                        <button
+                          className="ml-auto text-xs font-bold text-sky-700 hover:text-sky-900"
+                          onClick={async () => {
+                            await notificationApi.markAllRead();
+                            await loadNotifications();
+                          }}
+                          type="button"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-[26rem] overflow-y-auto">
+                      {notificationLoading &&
+                        recentNotifications.length === 0 && (
+                          <div className="space-y-2 p-3">
+                            {[1, 2, 3].map((item) => (
+                              <div
+                                className="h-16 animate-pulse rounded-lg bg-slate-100"
+                                key={item}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      {!notificationLoading &&
+                        recentNotifications.length === 0 && (
+                          <div className="p-8 text-center">
+                            <Bell
+                              className="mx-auto text-slate-300"
+                              size={34}
+                            />
+                            <p className="mt-2 text-sm font-bold text-slate-700">
+                              Your inbox is clear
+                            </p>
+                          </div>
+                        )}
+                      {recentNotifications.map((notification) => (
+                        <button
+                          className={`flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-sky-50 ${
+                            notification.isRead ? "bg-white" : "bg-sky-50/50"
+                          }`}
+                          key={notification.id}
+                          onClick={() => openNotification(notification)}
+                          type="button"
+                        >
+                          <span
+                            className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                              notification.isRead
+                                ? "bg-slate-300"
+                                : "bg-sky-600"
+                            }`}
+                          />
+                          <span className="min-w-0">
+                            <strong className="block truncate text-xs text-slate-800">
+                              {notification.title}
+                            </strong>
+                            <span className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                              {notification.message}
+                            </span>
+                            <small className="mt-1 block text-[10px] font-bold text-sky-700">
+                              {notification.moduleCode} ·{" "}
+                              {notification.category.replaceAll("_", " ")}
+                            </small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <NavLink
+                      className="flex h-11 items-center justify-center bg-slate-50 text-sm font-bold text-sky-700 hover:bg-sky-50"
+                      onClick={() => setNotificationOpen(false)}
+                      to="/notifications"
+                    >
+                      View all notifications
+                    </NavLink>
+                  </div>
+                )}
+              </div>
+            )}
             <button
               className="hidden h-10 w-10 place-items-center rounded-lg text-slate-700 transition hover:bg-slate-100 sm:grid"
               type="button"
@@ -382,10 +542,13 @@ export default function AppLayout() {
         </div>
 
         <footer className="flex min-h-8 flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-200 bg-white px-4 py-2 text-[10px] text-slate-500">
-          <span>AGIS v1.0.0</span>
+          <span>
+            {runtimeConfig.systemShortName} v{runtimeConfig.systemVersion}
+          </span>
           <span>City Internal Audit Service (CIAS)</span>
           <span className="sm:ml-auto">
-            © 2026 City Government of Cagayan de Oro. All rights reserved.
+            © {new Date().getFullYear()} {runtimeConfig.organizationName}. All
+            rights reserved.
           </span>
         </footer>
       </div>
@@ -397,7 +560,7 @@ export default function AppLayout() {
         onCancel={() => setLogoutOpen(false)}
         onConfirm={handleLogout}
         open={logoutOpen}
-        title="Sign out of AGIS?"
+        title={`Sign out of ${runtimeConfig.systemShortName}?`}
         tone="logout"
       />
     </div>

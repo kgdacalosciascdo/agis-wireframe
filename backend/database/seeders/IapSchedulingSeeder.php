@@ -15,6 +15,9 @@ use App\Models\MasterListItem;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds plan engagements, teams, capacity, skills, and representative schedules.
+ */
 class IapSchedulingSeeder extends Seeder
 {
     public const DEMO_PLAN_CODE = 'IAP-2026-DEMO';

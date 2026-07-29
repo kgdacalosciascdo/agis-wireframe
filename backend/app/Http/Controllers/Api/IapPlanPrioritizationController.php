@@ -13,6 +13,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Imports finalized prioritization decisions into an Annual Plan without duplicates.
+ */
 class IapPlanPrioritizationController extends Controller
 {
     public function __construct(

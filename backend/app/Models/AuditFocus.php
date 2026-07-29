@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents a focused audit subject that belongs to exactly one audit area.
+ */
 class AuditFocus extends Model
 {
     use HasFactory, SoftDeletes;

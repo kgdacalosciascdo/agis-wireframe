@@ -9,9 +9,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Groups permissions and configurable data scopes for assignment to many users.
+ */
 class Role extends Model
 {
     use HasFactory, SoftDeletes;
+
+    public const OFFICE_SCOPES = ['ALL', 'OWN_OFFICE'];
+
+    public const ENGAGEMENT_SCOPES = ['ALL', 'ASSIGNED'];
 
     protected $fillable = [
         'code',
@@ -19,6 +26,8 @@ class Role extends Model
         'description',
         'is_system',
         'is_active',
+        'office_access_scope',
+        'engagement_access_scope',
     ];
 
     protected function casts(): array
@@ -37,6 +46,13 @@ class Role extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function assignedUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_role_assignments')
+            ->withPivot(['is_primary', 'assigned_by', 'assigned_at'])
+            ->withTimestamps();
     }
 
     public function auditLogs(): MorphMany

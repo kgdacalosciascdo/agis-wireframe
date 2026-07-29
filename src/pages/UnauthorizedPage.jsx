@@ -1,6 +1,10 @@
 import { ShieldX } from "lucide-react";
 import { Link } from "react-router";
 
+/**
+ * Provides a safe destination when an authenticated user reaches a route that
+ * is outside the permissions granted by their active roles and scopes.
+ */
 export default function UnauthorizedPage() {
   return (
     <div className="grid min-h-[calc(100vh-6rem)] place-items-center p-5">

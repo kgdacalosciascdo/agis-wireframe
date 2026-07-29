@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/** Creates Audit Universe subjects, stakeholders, and subject-history records. */
 return new class extends Migration
 {
     public function up(): void

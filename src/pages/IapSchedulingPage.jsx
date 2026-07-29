@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import IapScheduleForm from "../components/iap/IapScheduleForm";
 import DataTable from "../components/ui/DataTable";
@@ -24,6 +25,7 @@ import SummaryCard from "../components/ui/SummaryCard";
 import { hasPermission } from "../config/navigation";
 import { ApiError, schedulingApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
+import useRecordView from "../hooks/useRecordView";
 
 const statusTone = {
   UNSCHEDULED: "inactive",
@@ -65,7 +67,12 @@ function monthCells(monthDate) {
   });
 }
 
+/**
+ * Schedules approved plan engagements while surfacing auditor, office, date,
+ * skill, and person-day conflicts in table and calendar views.
+ */
 export default function IapSchedulingPage() {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
   const [data, setData] = useState({
@@ -85,6 +92,12 @@ export default function IapSchedulingPage() {
   const [status, setStatus] = useState("");
   const [editing, setEditing] = useState(null);
   const [selected, setSelected] = useState(null);
+  useRecordView(selected, {
+    module: "IAP",
+    recordType: "SCHEDULE",
+    code: (record) => record.engagementCode,
+    label: (record) => record.title,
+  });
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
   const [capacityTarget, setCapacityTarget] = useState(null);
@@ -107,6 +120,14 @@ export default function IapSchedulingPage() {
     try {
       const result = await schedulingApi.list();
       setData(result);
+      const requestedEngagement = Number(searchParams.get("engagement"));
+      if (requestedEngagement) {
+        setSelected(
+          result.schedules.find(
+            (item) => Number(item.id) === requestedEngagement,
+          ) ?? null,
+        );
+      }
       if (result.plans.length > 0) {
         setCalendarMonth((current) =>
           current.getFullYear() === result.plans[0].fiscalYear
@@ -123,7 +144,7 @@ export default function IapSchedulingPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = window.setTimeout(load, 0);
@@ -512,7 +533,6 @@ export default function IapSchedulingPage() {
           <DataTable
             columns={columns}
             emptyMessage="No audit engagements match the scheduling filters."
-            initialPageSize={10}
             onRowClick={setSelected}
             rows={visibleSchedules}
           />

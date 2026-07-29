@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Represents one auditable subject, its owner, stakeholders, and audit classification.
+ */
 class IapAuditUniverseItem extends Model
 {
     use HasFactory, SoftDeletes;

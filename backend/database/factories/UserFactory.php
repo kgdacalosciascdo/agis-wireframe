@@ -12,6 +12,9 @@ use Illuminate\Support\Str;
 /**
  * @extends Factory<User>
  */
+/**
+ * Produces normalized employee accounts with safe test credentials.
+ */
 class UserFactory extends Factory
 {
     /**

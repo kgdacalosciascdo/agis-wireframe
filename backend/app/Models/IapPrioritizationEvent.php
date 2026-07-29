@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Preserves prioritization lifecycle and decision changes for accountability.
+ */
 class IapPrioritizationEvent extends Model
 {
     use HasFactory;

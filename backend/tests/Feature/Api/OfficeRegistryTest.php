@@ -4,11 +4,13 @@ namespace Tests\Feature\Api;
 
 use App\Models\AuditArea;
 use App\Models\AuditLog;
+use App\Models\MasterListItem;
 use App\Models\Office;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -112,6 +114,70 @@ class OfficeRegistryTest extends TestCase
             $this->deleteJson("/api/offices/{$office->id}")
                 ->assertForbidden();
         }
+    }
+
+    public function test_offices_remain_independent_and_support_type_head_users_and_history(): void
+    {
+        Sanctum::actingAs($this->user('admin'));
+        $office = Office::query()->where('code', 'CIAS')->firstOrFail();
+        $newHead = User::query()
+            ->where('office_id', $office->id)
+            ->where('is_office_head', false)
+            ->firstOrFail();
+        $officeTypeId = MasterListItem::query()
+            ->where('code', 'DEPARTMENT')
+            ->whereHas('masterList', fn ($query) => $query->where('code', 'OFFICE_TYPE'))
+            ->value('id');
+
+        $this->assertFalse(Schema::hasColumn('offices', 'parent_office_id'));
+
+        $this->putJson("/api/offices/{$office->id}", [
+            'code' => $office->code,
+            'name' => $office->name,
+            'acronym' => $office->acronym,
+            'officeTypeId' => $officeTypeId,
+            'headUserId' => $newHead->id,
+            'sector' => $office->sector,
+            'contactNumber' => $office->contact_number,
+            'description' => $office->description,
+            'auditAreaIds' => $office->auditAreas()->pluck('audit_areas.id')->all(),
+            'isActive' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.office.officeType.code', 'DEPARTMENT')
+            ->assertJsonPath('data.office.headId', $newHead->id)
+            ->assertJsonPath('data.office.headName', $newHead->name)
+            ->assertJsonPath('data.office.history.0.action', 'office.updated')
+            ->assertJsonStructure([
+                'data' => [
+                    'office' => [
+                        'users' => [['id', 'employeeId', 'name', 'position', 'role', 'isOfficeHead']],
+                    ],
+                ],
+            ]);
+
+        $this->assertSame(
+            1,
+            User::query()
+                ->where('office_id', $office->id)
+                ->where('is_office_head', true)
+                ->count(),
+        );
+        $this->assertTrue($newHead->fresh()->is_office_head);
+
+        $otherOfficeUser = User::query()
+            ->where('office_id', '<>', $office->id)
+            ->firstOrFail();
+        $this->putJson("/api/offices/{$office->id}", [
+            'code' => $office->code,
+            'name' => $office->name,
+            'officeTypeId' => $officeTypeId,
+            'headUserId' => $otherOfficeUser->id,
+            'auditAreaIds' => [],
+            'isActive' => true,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('headUserId');
     }
 
     public function test_administrator_can_reset_demo_data(): void

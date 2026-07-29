@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use LogicException;
 
+/**
+ * Seeds city offices, office heads, employees, auditors, and administration users.
+ */
 class CoreUserSeeder extends Seeder
 {
     public function run(): void
@@ -117,5 +120,7 @@ class CoreUserSeeder extends Seeder
         if ($user->trashed()) {
             $user->restore();
         }
+
+        $user->syncRoleAssignments([$role->id], $role->id);
     }
 }

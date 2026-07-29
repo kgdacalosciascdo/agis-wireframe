@@ -13,6 +13,9 @@ use App\Models\MasterListItem;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds risk criteria, assessment periods, scores, and validation history.
+ */
 class IapRiskPeriodSeeder extends Seeder
 {
     private const WEIGHTS = [

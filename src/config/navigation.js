@@ -168,6 +168,21 @@ export const aemsPages = [
   },
 ];
 
+export const cmsPages = [
+  {
+    label: "CMS Dashboard",
+    path: "/compliance-management/dashboard",
+    permission: "cms.dashboard.view",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Recommendation Registry",
+    path: "/compliance-management/recommendations",
+    permission: "cms.recommendation.view",
+    icon: ClipboardCheck,
+  },
+];
+
 export const modules = [
   {
     key: "core",
@@ -219,12 +234,11 @@ export const modules = [
     key: "cms",
     code: "CMS",
     label: "Compliance Management",
-    path: "/compliance-management",
-    permission: "cms.view",
+    path: "/compliance-management/dashboard",
+    permission: ["cms.dashboard.view", "cms.recommendation.view"],
     icon: SquareCheckBig,
-    value: 21,
-    note: "Open Recommendations",
     tone: "purple",
+    children: cmsPages,
   },
   {
     key: "arms",
@@ -401,6 +415,14 @@ export function pageForPath(pathname) {
       label: "Engagement Details",
       icon: ShieldCheck,
       permission: "aems.engagement.view",
+    };
+  }
+
+  if (/^\/compliance-management\/recommendations\/\d+$/.test(pathname)) {
+    return {
+      label: "Recommendation Details",
+      icon: ClipboardCheck,
+      permission: "cms.recommendation.view",
     };
   }
 

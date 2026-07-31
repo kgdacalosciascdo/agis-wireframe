@@ -450,7 +450,7 @@ Important database constraints:
   case and prevent a duplicate current user/case/role assignment;
 - assignment rows are ended, never deleted or overwritten.
 
-### 8.0 CMS-2A backend registry
+### 8.0 CMS-2A backend and CMS-2B React workspace
 
 CMS routes use the **operational `cms_recommendation_cases.id`** as the
 `{recommendation}` identifier. Cases are created only by the AEMS transfer
@@ -530,8 +530,23 @@ rows, append one of `COMPLIANCE_MONITOR_ASSIGNED`,
 records, and notify affected monitors after commit. Assignment does not change
 case status and grants no validation or closure authority.
 
-The CMS-2A backend is implemented. Dedicated React dashboard, registry, detail,
-filters, assignment controls, and responsive navigation remain CMS-2B.
+The CMS-2B React workspace consumes these APIs without recreating backend
+scope, overdue, eligibility, or workflow rules:
+
+| Frontend route | Permission | Behavior |
+| --- | --- | --- |
+| `/compliance-management` | `cms.dashboard.view` | Redirects to the CMS dashboard |
+| `/compliance-management/dashboard` | `cms.dashboard.view` | Live scoped dashboard with attention links and supported summaries |
+| `/compliance-management/recommendations` | `cms.recommendation.view` | URL-backed, server-searched/filtered/sorted/paginated registry |
+| `/compliance-management/recommendations/{caseId}` | `cms.recommendation.view` | Safe overview, source lineage, assignment history, and event timeline |
+
+Users with `cms.recommendation.assign` see assign, replace, and end controls.
+Eligible monitor options come only from the assignment endpoint. Mutations
+include `lockVersion`, retain backend validation messages, disable repeat
+submission, refresh after success, and reload after a stale-lock response.
+The sidebar contains live CMS destinations but no static operational counts.
+Due-soon remains explicitly unavailable pending an approved runtime threshold.
+
 Corrective action plans, progress/evidence submission, validation, extensions,
 escalation, closure, accepted risk, reopening, and CMS reports are not
 implemented.

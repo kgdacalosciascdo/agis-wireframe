@@ -32,6 +32,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
   const [expandedItems, setExpandedItems] = useState(() => ({
     iap: location.pathname.startsWith("/internal-audit-planning"),
     aem: location.pathname.startsWith("/audit-engagement-management"),
+    cms: location.pathname.startsWith("/compliance-management"),
   }));
   const items = visibleFor(user, section.items);
 

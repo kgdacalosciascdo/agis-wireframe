@@ -399,7 +399,7 @@ domain-specific transition guards even though the
 generic Core workflow engine remains available, preventing configurable steps
 from introducing unsupported audit states.
 
-### 11.6 CMS-2A registry and assignment flow
+### 11.6 CMS-2A/2B registry and assignment flow
 
 An issued AEMS recommendation creates the immutable CMS intake and its
 `TRANSFERRED` operational case; users cannot manually create cases. CMS-2A
@@ -424,6 +424,23 @@ filter options, grouped dashboard counts, or detail-view logs. `OVERDUE` is
 derived from the effective target date and evaluation date; it is not stored as
 a workflow status. Assignment changes increment the case lock but do not change
 its workflow state or grant validation or closure authority.
+
+CMS-2B exposes the scoped backend through dedicated authenticated React routes:
+
+- `/compliance-management` redirects to the CMS dashboard;
+- `/compliance-management/dashboard` renders live cards, grouped summaries,
+  attention links, recent transfers, aging records, scope, and evaluation time;
+- `/compliance-management/recommendations` uses server-side search, filter,
+  sort, and pagination with URL-backed filter state;
+- `/compliance-management/recommendations/{caseId}` renders the safe overview,
+  immutable AEMS lineage, assignments, and event history.
+
+The React shell uses granular permissions for visibility only. Laravel remains
+authoritative for record scope and returns inaccessible cases as unavailable.
+Monitor assignment, replacement, and ending submit the current `lockVersion`;
+stale-state responses explain the conflict and reload the current case. The
+due-soon dashboard metric remains visibly unavailable because no approved
+runtime threshold exists.
 
 ### 11.7 Runtime logo
 

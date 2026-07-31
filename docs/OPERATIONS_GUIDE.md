@@ -225,7 +225,10 @@ Smoke-test:
 4. a document upload/download;
 5. notification deep link;
 6. System Configuration public branding refresh;
-7. an IAP detail page and report export.
+7. an IAP detail page and report export;
+8. `/compliance-management/dashboard`, the server-driven Recommendation
+   Registry, one authorized detail record, and one denied/out-of-scope detail
+   request.
 
 ## 11. Production checklist
 

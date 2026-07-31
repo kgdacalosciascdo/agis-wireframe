@@ -2357,6 +2357,45 @@ export const aemsReportApi = {
   },
 };
 
+export const cmsApi = {
+  async getDashboard(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/cms/dashboard${query ? `?${query}` : ""}`);
+  },
+  async getRecommendations(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/cms/recommendations${query ? `?${query}` : ""}`);
+  },
+  async getRecommendation(recommendationId) {
+    const data = await request(
+      `/api/cms/recommendations/${recommendationId}`,
+    );
+    return data?.recommendation ?? null;
+  },
+  async getAssignments(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/assignments`,
+    );
+  },
+  async assignMonitor(recommendationId, payload) {
+    return request(`/api/cms/recommendations/${recommendationId}/assignments`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async endMonitorAssignment(recommendationId, assignmentId, payload) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/assignments/${assignmentId}/end`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+  },
+};
+
 export const profileApi = {
   async show() {
     const data = await request("/api/profile");

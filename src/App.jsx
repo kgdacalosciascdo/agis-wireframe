@@ -90,6 +90,13 @@ const AemsEngagementDetailPage = lazy(
 const AemsEntryConferencePage = lazy(
   () => import("./pages/AemsEntryConferencePage"),
 );
+const CmsDashboardPage = lazy(() => import("./pages/CmsDashboardPage"));
+const CmsRecommendationRegistryPage = lazy(
+  () => import("./pages/CmsRecommendationRegistryPage"),
+);
+const CmsRecommendationDetailPage = lazy(
+  () => import("./pages/CmsRecommendationDetailPage"),
+);
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -128,6 +135,9 @@ const implementedCorePaths = new Set([
   "/audit-engagement-management/auditee-responses",
   "/audit-engagement-management/exit-conferences",
   "/audit-engagement-management/reports",
+  "/compliance-management",
+  "/compliance-management/dashboard",
+  "/compliance-management/recommendations",
 ]);
 
 function RouteLoading() {
@@ -549,6 +559,44 @@ export default function App() {
               <ProtectedPage permission="aems.engagement.view">
                 <Suspense fallback={<RouteLoading />}>
                   <AemsEngagementDetailPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management"
+            element={
+              <ProtectedPage permission="cms.dashboard.view">
+                <Navigate to="/compliance-management/dashboard" replace />
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/dashboard"
+            element={
+              <ProtectedPage permission="cms.dashboard.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsDashboardPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations"
+            element={
+              <ProtectedPage permission="cms.recommendation.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsRecommendationRegistryPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId"
+            element={
+              <ProtectedPage permission="cms.recommendation.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsRecommendationDetailPage />
                 </Suspense>
               </ProtectedPage>
             }

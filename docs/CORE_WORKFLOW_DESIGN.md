@@ -312,6 +312,15 @@ summary, and timestamp. Duplicate content checks use SHA-256.
 
 Archiving a document preserves every version and link.
 
+CMS-4A supporting evidence reuses this repository. Each upload creates a
+private Core `Document` and immutable `DocumentVersion`; the CMS evidence link
+pins the exact version ID and SHA-256 checksum. The shared link registry can
+resolve authorized draft Progress Update Versions and milestone-progress
+records without exposing out-of-scope recommendations. CMS downloads apply
+both recommendation scope and Core document confidentiality, using the stricter
+effective classification. Removing a draft CMS evidence link never removes or
+redirects the Core document or its version.
+
 ### 9.3 Confidentiality
 
 | Level | Default visibility |

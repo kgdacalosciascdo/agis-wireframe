@@ -87,6 +87,10 @@ class RolePermissionSeeder extends Seeder
         'cms.action-plan' => [
             'view', 'create', 'update', 'submit', 'review', 'accept', 'return', 'revise',
         ],
+        'cms.progress' => [
+            'view', 'create', 'update', 'submit', 'review', 'return', 'record', 'revise',
+        ],
+        'cms.evidence' => ['view', 'upload', 'download', 'remove_draft'],
         'arms' => ['view', 'manage'],
         'ais' => ['view', 'export'],
         'documents' => [
@@ -142,8 +146,10 @@ class RolePermissionSeeder extends Seeder
                 'engagement_access_scope' => 'ALL',
                 'permissions' => collect(array_keys($permissionIds))
                     ->reject(fn (string $code): bool => str_starts_with($code, 'aems.')
-                        || str_starts_with($code, 'aem.')
-                        || str_starts_with($code, 'cms.action-plan.')
+                         || str_starts_with($code, 'aem.')
+                         || str_starts_with($code, 'cms.action-plan.')
+                         || str_starts_with($code, 'cms.progress.')
+                         || str_starts_with($code, 'cms.evidence.')
                         || in_array($code, [
                             'cms.dashboard.view',
                             'cms.recommendation.view',
@@ -227,6 +233,9 @@ class RolePermissionSeeder extends Seeder
                     'cms.action-plan.view', 'cms.action-plan.review',
                     'cms.action-plan.accept', 'cms.action-plan.return',
                     'cms.action-plan.revise',
+                    'cms.progress.view', 'cms.progress.review',
+                    'cms.progress.return', 'cms.progress.record',
+                    'cms.evidence.view', 'cms.evidence.download',
                     'arms.view', 'arms.manage', 'ais.view', 'ais.export',
                     'documents.view', 'documents.upload', 'documents.update',
                     'documents.view_confidential', 'documents.view_restricted',
@@ -284,6 +293,9 @@ class RolePermissionSeeder extends Seeder
                     'cms.recommendation.monitor',
                     'cms.action-plan.view', 'cms.action-plan.review',
                     'cms.action-plan.accept', 'cms.action-plan.return',
+                    'cms.progress.view', 'cms.progress.review',
+                    'cms.progress.return', 'cms.progress.record',
+                    'cms.evidence.view', 'cms.evidence.download',
                     'arms.view', 'ais.view',
                     'documents.view', 'documents.upload', 'documents.download',
                     'documents.view_confidential',
@@ -312,6 +324,11 @@ class RolePermissionSeeder extends Seeder
                     'cms.action-plan.view', 'cms.action-plan.create',
                     'cms.action-plan.update', 'cms.action-plan.submit',
                     'cms.action-plan.revise',
+                    'cms.progress.view', 'cms.progress.create',
+                    'cms.progress.update', 'cms.progress.submit',
+                    'cms.progress.revise',
+                    'cms.evidence.view', 'cms.evidence.upload',
+                    'cms.evidence.download', 'cms.evidence.remove_draft',
                     'documents.view', 'documents.upload', 'documents.download',
                     'notifications.view',
                     'workflows.act',
@@ -329,6 +346,8 @@ class RolePermissionSeeder extends Seeder
                     'master_lists.view', 'iap.view', 'aem.view', 'afr.view', 'cms.view',
                     'cms.dashboard.view', 'cms.recommendation.view',
                     'cms.action-plan.view',
+                    'cms.progress.view',
+                    'cms.evidence.view', 'cms.evidence.download',
                     'aems.report.view_issued',
                     'arms.view', 'ais.view', 'documents.view', 'notifications.view',
                     'administrative_reports.view',

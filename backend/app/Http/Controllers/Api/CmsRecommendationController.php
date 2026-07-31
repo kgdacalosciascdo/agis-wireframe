@@ -8,6 +8,7 @@ use App\Http\Resources\CmsRecommendationDetailResource;
 use App\Http\Resources\CmsRecommendationResource;
 use App\Models\CmsRecommendationCase;
 use App\Services\Cms\CmsActionPlanService;
+use App\Services\Cms\CmsProgressUpdateService;
 use App\Services\Cms\CmsRecommendationRegistryService;
 use App\Services\Cms\CmsRecommendationScopeService;
 use App\Support\ActivityRecorder;
@@ -22,6 +23,7 @@ class CmsRecommendationController extends Controller
         private readonly CmsRecommendationRegistryService $registry,
         private readonly CmsRecommendationScopeService $scope,
         private readonly CmsActionPlanService $actionPlans,
+        private readonly CmsProgressUpdateService $progressUpdates,
     ) {}
 
     public function index(CmsRecommendationIndexRequest $request): JsonResponse
@@ -62,6 +64,19 @@ class CmsRecommendationController extends Controller
                 ),
             );
         }
+        foreach ($case->progressUpdates as $progressUpdate) {
+            if (! $progressUpdate->currentVersion) {
+                continue;
+            }
+            $progressUpdate->currentVersion->setAttribute(
+                'available_actions',
+                $this->progressUpdates->permittedActions(
+                    $request->user(),
+                    $progressUpdate,
+                    $progressUpdate->currentVersion,
+                ),
+            );
+        }
         $this->recordView($request, $case);
 
         return response()->json([
@@ -86,6 +101,8 @@ class CmsRecommendationController extends Controller
             'events.actor',
             'actionPlan.currentVersion.milestones',
             'actionPlan.acceptedVersion',
+            'progressUpdates.currentVersion.activeEvidenceLinks',
+            'progressUpdates.recordedVersion.activeEvidenceLinks',
         ];
     }
 

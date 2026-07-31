@@ -2,6 +2,8 @@
 
 namespace App\Services\Cms;
 
+use App\Models\CmsProgressUpdate;
+use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -22,6 +24,7 @@ class CmsDashboardService
         $today = $now->startOfDay();
         $base = $this->registry->baseQuery($user, 'cms.dashboard.view');
         $overdue = $this->registry->applyOverdue(clone $base, $today);
+        $visibleCaseIds = (clone $base)->reorder()->pluck('cms_recommendation_cases.id');
 
         $cards = [
             'totalVisibleCases' => (clone $base)->count(),
@@ -48,6 +51,35 @@ class CmsDashboardService
                 ->count(),
             'highRiskOverdueCases' => (clone $overdue)
                 ->whereIn('cms_intakes.risk_code_snapshot', $this->highRiskCodes())
+                ->count(),
+            'monitoringCasesWithoutRecordedProgress' => (clone $base)
+                ->where('cms_recommendation_cases.status_code', 'MONITORING')
+                ->whereDoesntHave(
+                    'progressUpdates',
+                    fn (Builder $updates) => $updates->whereNotNull('recorded_version_id'),
+                )
+                ->count(),
+            'progressUpdatesAwaitingReview' => CmsProgressUpdateVersion::query()
+                ->whereIn('status_code', ['SUBMITTED', 'UNDER_REVIEW'])
+                ->whereHas(
+                    'progressUpdate',
+                    fn (Builder $updates) => $updates->whereIn(
+                        'cms_recommendation_case_id',
+                        $visibleCaseIds,
+                    ),
+                )
+                ->count(),
+            'recordedProgressUpdates' => CmsProgressUpdate::query()
+                ->whereIn('cms_recommendation_case_id', $visibleCaseIds)
+                ->whereNotNull('recorded_version_id')
+                ->count(),
+            'managementReportedCompleteAwaitingValidation' => CmsProgressUpdate::query()
+                ->whereIn('cms_recommendation_case_id', $visibleCaseIds)
+                ->whereHas(
+                    'recordedVersion',
+                    fn (Builder $version) => $version
+                        ->where('management_reported_overall_percentage', '>=', 100),
+                )
                 ->count(),
         ];
 
@@ -114,7 +146,8 @@ class CmsDashboardService
             ],
             'dataLimitations' => [
                 'Due-soon metrics require an approved runtime threshold.',
-                'Progress, evidence, validation, extension, and closure workflows are not implemented.',
+                'Progress metrics are management-reported and have not been independently validated.',
+                'Independent validation, extension, and closure workflows are not implemented.',
             ],
         ];
     }

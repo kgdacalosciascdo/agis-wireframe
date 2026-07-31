@@ -265,6 +265,32 @@ npm.cmd run test:e2e -- cms-responsive.spec.js cms-action-plan.spec.js
 The CMS-3B workspace uses the existing CMS-3A routes and schema; it requires no
 additional migration or permission seeding.
 
+After CMS-4A, run the additive migration
+`2026_07_31_040000_create_cms_progress_update_tables`, then rerun
+`RolePermissionSeeder`. CMS now has 31 permissions: the existing 19 plus eight
+`cms.progress.*` and four `cms.evidence.*` codes.
+
+Verify management-reported progress and private evidence:
+
+```powershell
+php artisan migrate:status
+php artisan route:list --path=cms
+php artisan test --filter=CmsProgress
+php artisan test --filter=CmsActionPlanTest
+php artisan test --filter=CmsRecommendationApiTest
+php artisan tinker --execute="dump([
+    'progressFamilies' => App\Models\CmsProgressUpdate::count(),
+    'progressVersions' => App\Models\CmsProgressUpdateVersion::count(),
+    'milestoneProgress' => App\Models\CmsMilestoneProgress::count(),
+    'evidenceLinks' => App\Models\CmsProgressEvidenceLink::count(),
+    'recordedVersions' => App\Models\CmsProgressUpdate::whereNotNull('recorded_version_id')->count(),
+]);"
+```
+
+CMS progress evidence remains on the private `local` disk under the normal
+Laravel storage backup boundary. Back up the database and private file storage
+together. CMS-4A has no React deployment change.
+
 ## 11. Production checklist
 
 - `APP_ENV=production`;

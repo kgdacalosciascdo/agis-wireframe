@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\AemsWorkingPaperController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CmsActionPlanController;
 use App\Http\Controllers\Api\CmsDashboardController;
+use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
 use App\Http\Controllers\Api\CoreRegistryController;
@@ -101,6 +102,30 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.action-plan.accept');
     Route::post('/cms/action-plans/{actionPlan}/versions/{version}/revisions', [CmsActionPlanController::class, 'revise'])
         ->middleware('permission:cms.action-plan.revise');
+    Route::get('/cms/recommendations/{recommendation}/progress-updates', [CmsProgressUpdateController::class, 'forRecommendation'])
+        ->middleware('permission:cms.progress.view');
+    Route::post('/cms/recommendations/{recommendation}/progress-updates', [CmsProgressUpdateController::class, 'store'])
+        ->middleware('permission:cms.progress.create');
+    Route::get('/cms/progress-updates/{progressUpdate}', [CmsProgressUpdateController::class, 'show'])
+        ->middleware('permission:cms.progress.view');
+    Route::put('/cms/progress-updates/{progressUpdate}/versions/{version}', [CmsProgressUpdateController::class, 'update'])
+        ->middleware('permission:cms.progress.update');
+    Route::post('/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/submit', [CmsProgressUpdateController::class, 'submit'])
+        ->middleware('permission:cms.progress.submit');
+    Route::post('/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/start-review', [CmsProgressUpdateController::class, 'startReview'])
+        ->middleware('permission:cms.progress.review');
+    Route::post('/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/return', [CmsProgressUpdateController::class, 'return'])
+        ->middleware('permission:cms.progress.return');
+    Route::post('/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/record', [CmsProgressUpdateController::class, 'record'])
+        ->middleware('permission:cms.progress.record');
+    Route::post('/cms/progress-updates/{progressUpdate}/versions/{version}/revisions', [CmsProgressUpdateController::class, 'revise'])
+        ->middleware('permission:cms.progress.revise');
+    Route::post('/cms/progress-updates/{progressUpdate}/versions/{version}/evidence', [CmsProgressUpdateController::class, 'uploadEvidence'])
+        ->middleware('permission:cms.evidence.upload');
+    Route::get('/cms/progress-evidence/{evidence}/download', [CmsProgressUpdateController::class, 'downloadEvidence'])
+        ->middleware('permission:cms.evidence.download');
+    Route::delete('/cms/progress-evidence/{evidence}', [CmsProgressUpdateController::class, 'removeEvidence'])
+        ->middleware('permission:cms.evidence.remove_draft');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

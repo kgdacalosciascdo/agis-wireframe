@@ -63,6 +63,18 @@ class CmsRecommendationApiTest extends TestCase
             'cms.action-plan.accept',
             'cms.action-plan.return',
             'cms.action-plan.revise',
+            'cms.progress.view',
+            'cms.progress.create',
+            'cms.progress.update',
+            'cms.progress.submit',
+            'cms.progress.review',
+            'cms.progress.return',
+            'cms.progress.record',
+            'cms.progress.revise',
+            'cms.evidence.view',
+            'cms.evidence.upload',
+            'cms.evidence.download',
+            'cms.evidence.remove_draft',
         ], Permission::query()->where('code', 'like', 'cms.%')->pluck('code')->all());
 
         $management = $this->user('departmenthead');

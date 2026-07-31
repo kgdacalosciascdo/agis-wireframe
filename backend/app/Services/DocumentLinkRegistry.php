@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\AuditArea;
+use App\Models\CmsProgressUpdateVersion;
+use App\Models\CmsRecommendationCase;
 use App\Models\IapAuditUniverseItem;
 use App\Models\IapPlanEngagement;
 use App\Models\InternalAuditPlan;
 use App\Models\Office;
 use App\Models\StrategicInternalAuditPlan;
 use App\Models\User;
+use App\Services\Cms\CmsRecommendationScopeService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -31,6 +34,7 @@ class DocumentLinkRegistry
     public function __construct(
         private readonly IapPlanGuard $iapGuard,
         private readonly SiapPlanGuard $siapGuard,
+        private readonly CmsRecommendationScopeService $cmsScope,
     ) {}
 
     /** @return Collection<int, array<string, mixed>> */
@@ -138,6 +142,54 @@ class DocumentLinkRegistry
             $item->subject_code,
             "{$item->subject_code} — {$item->name}",
         )));
+
+        if ($user->hasPermission('cms.evidence.upload')) {
+            $visibleCaseIds = $this->cmsScope
+                ->visibleCases(
+                    CmsRecommendationCase::query(),
+                    $user,
+                    'cms.progress.view',
+                )
+                ->pluck('id');
+            $progressVersions = CmsProgressUpdateVersion::query()
+                ->where('status_code', 'DRAFT')
+                ->whereHas(
+                    'progressUpdate',
+                    fn ($query) => $query->whereIn(
+                        'cms_recommendation_case_id',
+                        $visibleCaseIds,
+                    ),
+                )
+                ->with(['progressUpdate', 'milestoneProgress'])
+                ->orderByDesc('id')
+                ->limit(250)
+                ->get();
+            foreach ($progressVersions as $version) {
+                $family = $version->progressUpdate;
+                $code = sprintf(
+                    'CMS-UPD-%06d-%03d-V%d',
+                    $family->cms_recommendation_case_id,
+                    $family->reporting_sequence,
+                    $version->version_number,
+                );
+                $options->push($this->option(
+                    'CMS',
+                    'PROGRESS_UPDATE_VERSION',
+                    $version->id,
+                    $code,
+                    "{$code} â€” Management-reported Progress Update",
+                ));
+                $options->push(...$version->milestoneProgress->map(
+                    fn ($progress): array => $this->option(
+                        'CMS',
+                        'MILESTONE_PROGRESS',
+                        $progress->id,
+                        "CMS-MPR-{$progress->id}",
+                        "{$code} â€” Milestone {$progress->milestone_sequence}",
+                    ),
+                ));
+            }
+        }
 
         return $options
             ->sortBy(fn (array $option): string => "{$option['module']}|{$option['recordType']}|{$option['label']}")

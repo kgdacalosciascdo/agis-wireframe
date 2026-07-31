@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
 /** Measurable implementation commitment copied with each controlled revision. */
@@ -72,5 +73,13 @@ class CmsActionPlanMilestone extends Model
     public function responsibleUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_user_id')->withTrashed();
+    }
+
+    public function progressReports(): HasMany
+    {
+        return $this->hasMany(
+            CmsMilestoneProgress::class,
+            'cms_action_plan_milestone_id',
+        );
     }
 }

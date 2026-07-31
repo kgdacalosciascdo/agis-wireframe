@@ -414,6 +414,13 @@ and one append-only intake event.
 | `CmsRecommendationCase` | one-to-one operational root initialized in `TRANSFERRED`, with effective target date, lead office, creator/opened date, and optimistic lock |
 | `CmsRecommendationAssignment` | non-deletable Compliance Monitor history; only one effective current monitor is supported per case in CMS-2A |
 | `CmsRecommendationEvent` | append-only case history for intake and assignment changes |
+| `CmsCorrectiveActionPlan` | stable Action Plan family with current and accepted immutable-version pointers |
+| `CmsActionPlanVersion` | controlled management plan content and immutable accepted baseline |
+| `CmsActionPlanMilestone` | measurable accepted-baseline commitment owned by one plan version |
+| `CmsProgressUpdate` | stable case/reporting-period family pinned to one exact accepted Action Plan Version |
+| `CmsProgressUpdateVersion` | immutable-after-submission management-reported content and current/recorded lineage |
+| `CmsMilestoneProgress` | management-reported state, percentage, narrative, and immutable accepted-milestone snapshot |
+| `CmsProgressEvidenceLink` | exact Core DocumentVersion/checksum/confidentiality link, optionally tied to milestone progress |
 | `EngagementEvent` | append-only action, actor, state, lock version, and old/new snapshots |
 | `CompletionAssessment` | current/revision family evaluating 25 required completion criteria |
 | `CompletionAssessmentItem` | criterion result, source, blocker, and elevated acceptance |
@@ -596,9 +603,54 @@ read-only version history. It sends `lockVersion` on each mutation and treats
 resource `availableActions` and Laravel authorization as authoritative. No new
 CMS-3B endpoint or payload shape was introduced.
 
-Progress/evidence submission, independent validation, extensions, due-soon
-configuration, reminders, escalation, closure, accepted risk,
-no-longer-applicable decisions, reopening, and CMS reports/exports remain
+### 8.0.2 CMS-4A management-reported Progress Updates
+
+CMS-4A adds reporting-period families, immutable versions, accepted-baseline
+milestone reports, and exact Core Document Version evidence links. `RECORDED`
+means completeness-reviewed management information and never independent
+validation.
+
+| Method | Endpoint | Permission | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/cms/recommendations/{recommendation}/progress-updates` | `cms.progress.view` | Scoped families, versions, case/baseline context, and create availability |
+| `POST` | `/api/cms/recommendations/{recommendation}/progress-updates` | `cms.progress.create` | Create one reporting-period family and version 1 draft |
+| `GET` | `/api/cms/progress-updates/{progressUpdate}` | `cms.progress.view` | Safe family, version history, reported progress, evidence, completeness, and actions |
+| `PUT` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}` | `cms.progress.update` | Update current draft narratives and milestone reports |
+| `POST` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/submit` | `cms.progress.submit` | Validate, calculate, and snapshot a complete management submission |
+| `POST` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/start-review` | `cms.progress.review` | Start independent completeness review |
+| `POST` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/return` | `cms.progress.return` | Return an immutable version with required instructions |
+| `POST` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/record` | `cms.progress.record` | Record completeness-reviewed management information without validation |
+| `POST` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}/revisions` | `cms.progress.revise` | Copy a returned or recorded current version to a new draft |
+| `POST` | `/api/cms/progress-updates/{progressUpdate}/versions/{version}/evidence` | `cms.evidence.upload` | Create private Core document/version and pin the exact evidence version |
+| `GET` | `/api/cms/progress-evidence/{evidence}/download` | `cms.evidence.download` | Stream exact authorized private evidence |
+| `DELETE` | `/api/cms/progress-evidence/{evidence}` | `cms.evidence.remove_draft` | Mark a draft link removed while retaining the Core document/version |
+
+Create/update payloads use `reportingPeriodStart`, `reportingPeriodEnd`,
+management narratives, optional `managementReportedOverallPercentage`,
+`milestoneProgress[]`, and `lockVersion`. Milestone entries use the accepted
+`actionPlanMilestoneId`, a management-reported status and percentage,
+accomplishment/constraint/next-step narratives, optional forecast and
+no-evidence explanation, and display order.
+
+Weighted baselines expose a server-calculated result using
+`sum(percentage × weight) / 100`, rounded half-up to two decimals. Unweighted
+baselines require management's overall percentage and are not averaged.
+Resources expose `managementReportsComplete`,
+`reportedCompleteAwaitingValidation`, and `notIndependentlyValidated`; they do
+not expose an implementation result.
+
+Evidence responses include exact document and version IDs, checksum, safe file
+metadata, and effective confidentiality, but never a storage path. The stricter
+recommendation/document confidentiality controls access. Later document
+versions do not redirect a historical evidence link.
+
+The recommendation detail adds `progressUpdateSummary`, and dashboard cards add
+management-reported no-update, awaiting-review, recorded, and reported-complete
+counts without changing existing fields.
+
+CMS-4B React pages, independent validation, implementation conclusions,
+extensions, due-soon configuration, reminders, escalation, closure, accepted
+risk, no-longer-applicable decisions, reopening, and CMS reports/exports remain
 unimplemented.
 
 ### 8.1 AEMS authorization contract
@@ -611,7 +663,7 @@ The lifecycle and Entry Conference additions are
 `aems.entry-conference.waive`.
 Formal closure adds 21 granular Completion Assessment, Closure, document-index,
 retention, and exceptional-reopening operations. The verified runtime
-catalogue contains 206 permissions in total, including 19 `cms.*` permissions.
+catalogue contains 218 permissions in total, including 31 `cms.*` permissions.
 Administrators receive monitoring access but do not receive audit approval or
 issuance permissions. CIAS Management has global audit authority. AGIS Users
 require an active `engagement_teams` assignment, and the assignment role limits

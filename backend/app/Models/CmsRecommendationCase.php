@@ -97,4 +97,12 @@ class CmsRecommendationCase extends Model
             'cms_recommendation_case_id',
         );
     }
+
+    public function progressUpdates(): HasMany
+    {
+        return $this->hasMany(
+            CmsProgressUpdate::class,
+            'cms_recommendation_case_id',
+        )->orderByDesc('reporting_sequence');
+    }
 }

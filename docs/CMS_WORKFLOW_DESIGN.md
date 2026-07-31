@@ -17,12 +17,15 @@ Implemented as-built scope:
   and controlled revision;
 - CMS-3B responsive React Action Plan workspace for management preparation,
   milestone editing, submission, reviewer decisions, accepted-baseline
-  visibility, immutable history, and controlled revision.
+  visibility, immutable history, and controlled revision;
+- CMS-4A management-reported Progress Update families, immutable versions,
+  accepted-baseline milestone reports, exact Core Document Version evidence,
+  completeness review, recording, and controlled correction.
 
-Progress updates, evidence, independent validation, target-date extensions,
-due-soon configuration, reminders, escalation, closure, accepted risk,
-no-longer-applicable decisions, reopening, and CMS reports/exports remain
-future scope.
+The CMS-4B React progress workspace, independent validation, implementation
+conclusions, target-date extensions, due-soon configuration, reminders,
+escalation, closure, accepted risk, no-longer-applicable decisions, reopening,
+and CMS reports/exports remain future scope.
 
 ## 2. Record lineage
 
@@ -33,6 +36,10 @@ Issued AEMS Report Version
   → zero or one CmsCorrectiveActionPlan family
   → one or more immutable CmsActionPlanVersion records
   → one or more version-owned CmsActionPlanMilestone records
+  → zero or more CmsProgressUpdate reporting-period families
+  → one or more immutable CmsProgressUpdateVersion records
+  → accepted-baseline CmsMilestoneProgress records
+  → exact CmsProgressEvidenceLink → Core DocumentVersion records
 ```
 
 The `{recommendation}` CMS route identifier is always
@@ -244,3 +251,127 @@ milestone weighting and ordering, reviewer return and acceptance, immutable
 history, revision, accepted-baseline continuity, authorization failure,
 optimistic-lock recovery, duplicate-click prevention, and scope-safe
 unavailability on desktop and mobile.
+
+## 11. CMS-4A management-reported progress
+
+### 11.1 Boundary and baseline
+
+CMS-4A records what management reports and the evidence management supplies.
+`RECORDED` means the submission passed completeness review and was recorded for
+follow-up; it is not an independent validation or an implementation
+conclusion. A reported 100% is exposed as
+`reportedCompleteAwaitingValidation`, never as `implemented`.
+
+Progress creation requires a `MONITORING` case and the current accepted Action
+Plan Version. Every family stores that exact accepted version. Historical
+updates remain pinned when a later plan revision is accepted; a new update must
+use the new accepted baseline. Submission rejects a draft if its baseline is no
+longer current.
+
+### 11.2 Family, versions, and reporting periods
+
+`cms_progress_updates` is the stable family for one case/reporting period.
+Reporting periods require start and end dates, cannot predate baseline
+acceptance, cannot overlap another family for the case, and are fixed after
+creation. No monthly or quarterly frequency is assumed.
+
+`cms_progress_update_versions` follows:
+
+```text
+DRAFT → SUBMITTED → UNDER_REVIEW → RECORDED
+                              └→ RETURNED → new DRAFT revision
+RECORDED → new DRAFT correction revision
+```
+
+Only `DRAFT` is editable. Current and recorded pointers are distinct; a
+previously recorded version remains authoritative until its correction is
+recorded. Older recorded versions derive supersession without changing their
+stored `RECORDED` status. The recommendation case remains `MONITORING`
+throughout.
+
+### 11.3 Milestone progress and calculations
+
+Each version reports against milestone IDs and immutable milestone snapshots
+from its exact accepted Action Plan Version. Submission requires exactly one
+entry for every accepted milestone. Allowed management-reported states are
+`NOT_STARTED`, `IN_PROGRESS`, `REPORTED_COMPLETED`, `DELAYED`, and `ON_HOLD`.
+
+For weighted baselines, the server calculates:
+
+```text
+sum(reported milestone percentage × accepted milestone weight) / 100
+```
+
+The result uses half-up rounding to two decimal places and cannot be overridden
+by the client. Unweighted baselines require an overall management-reported
+percentage and are not automatically averaged.
+
+### 11.4 Evidence
+
+Evidence uploads create a private Core `Document` and immutable
+`DocumentVersion`; CMS stores the exact document-version ID, checksum, and
+effective confidentiality snapshot. The stricter of recommendation and
+requested document confidentiality applies. CMS never copies files to a
+separate evidence repository or follows a document's later current-version
+pointer.
+
+Progress above 0% requires milestone evidence or a no-evidence explanation.
+`REPORTED_COMPLETED` requires evidence. The whole update requires evidence or a
+general explanation. These checks assess completeness only, not sufficiency,
+reliability, or effectiveness. A draft link may be marked removed without
+deleting the Core document; submitted and historical links are immutable.
+
+### 11.5 Authority, permissions, and controls
+
+Responsible-office actions require matching office, case visibility, usable
+account, and the matching `cms.progress.*` or `cms.evidence.*` permission.
+Review, return, and recording require the active Compliance Monitor or CIAS
+Management, independent from the responsible office, preparer, submitter, and
+accepted-plan focal user. Technical administrator roles receive no
+professional recording authority.
+
+Permissions are:
+
+```text
+cms.progress.view
+cms.progress.create
+cms.progress.update
+cms.progress.submit
+cms.progress.review
+cms.progress.return
+cms.progress.record
+cms.progress.revise
+cms.evidence.view
+cms.evidence.upload
+cms.evidence.download
+cms.evidence.remove_draft
+```
+
+Legacy `cms.*` compatibility permissions remain unchanged and do not bypass
+the new granular permissions or scope.
+
+Transactions, row locks, `lockVersion`, unique period/version/active-slot
+constraints, immutable submission snapshots, append-only events, Activity Log,
+Audit Trail, and after-commit notifications protect every transition.
+Notifications explicitly describe recorded progress as management-reported
+and not independently validated.
+
+### 11.6 API
+
+```text
+GET    /api/cms/recommendations/{recommendation}/progress-updates
+POST   /api/cms/recommendations/{recommendation}/progress-updates
+GET    /api/cms/progress-updates/{progressUpdate}
+PUT    /api/cms/progress-updates/{progressUpdate}/versions/{version}
+POST   /api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/submit
+POST   /api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/start-review
+POST   /api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/return
+POST   /api/cms/progress-updates/{progressUpdate}/versions/{version}/transitions/record
+POST   /api/cms/progress-updates/{progressUpdate}/versions/{version}/revisions
+POST   /api/cms/progress-updates/{progressUpdate}/versions/{version}/evidence
+GET    /api/cms/progress-evidence/{evidence}/download
+DELETE /api/cms/progress-evidence/{evidence}
+```
+
+Recommendation detail and dashboard responses add backward-compatible
+management-reported summaries. No CMS-4B React page is implemented.

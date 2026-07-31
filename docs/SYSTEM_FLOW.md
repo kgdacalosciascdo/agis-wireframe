@@ -479,10 +479,43 @@ with instructions, or accept. Historical versions are read-only, and the
 accepted baseline remains distinct from a later current revision. The client
 uses backend `availableActions`, granular presentation permissions, and the
 latest `lockVersion`, while Laravel remains authoritative for scope, workflow,
-separation of duties, and stale-state rejection. Progress, evidence,
-independent validation, extension, and closure workflows are not implemented.
+separation of duties, and stale-state rejection.
 
-### 11.8 Runtime logo
+### 11.8 CMS-4A management Progress Update flow
+
+An authorized responsible office reports progress only against the current
+accepted Action Plan baseline:
+
+```mermaid
+flowchart LR
+    A[Accepted Action Plan Version] --> D[DRAFT Progress Update]
+    D --> S[SUBMITTED immutable snapshot]
+    S --> R[UNDER_REVIEW completeness review]
+    R -->|return| X[RETURNED immutable]
+    X --> ND[new DRAFT correction]
+    R -->|record| C[RECORDED management report]
+    C -->|correct| RD[new DRAFT correction]
+    C --> M[Case remains MONITORING]
+```
+
+Each reporting-period family pins the exact accepted plan version. Milestone
+reports preserve accepted milestone snapshots. Weighted management-reported
+progress is calculated server-side with half-up, two-decimal rounding;
+unweighted plans retain management's explicit overall percentage.
+
+Supporting files use private Core `Document` and immutable `DocumentVersion`
+records. CMS links the exact version and checksum, applies the stricter
+recommendation/document confidentiality, and never follows a later document
+version. Draft evidence links may be removed without deleting the file;
+submitted links are immutable. Scope-safe resolution protects records and
+downloads.
+
+`RECORDED` means completeness-reviewed management information, not independent
+validation. Reported 100% does not change the case, establish implementation,
+or start closure. CMS-4B presentation, independent validation, extensions,
+escalation, closure, reopening, and reporting are not implemented.
+
+### 11.9 Runtime logo
 
 Branding images are the exception: validated logo files are stored in managed
 public storage because the login page must display them before authentication.

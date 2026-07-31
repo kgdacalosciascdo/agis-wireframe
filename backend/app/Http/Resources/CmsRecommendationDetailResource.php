@@ -115,6 +115,60 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     'permittedActions' => $current?->getAttribute('available_actions') ?? [],
                 ];
             }),
+            'progressUpdateSummary' => $this->whenLoaded(
+                'progressUpdates',
+                function () use ($request): array {
+                    $visibleStatuses = $request->user()->hasRole('read_only')
+                        ? ['SUBMITTED', 'UNDER_REVIEW', 'RECORDED']
+                        : ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'RETURNED', 'RECORDED'];
+                    $updates = $this->progressUpdates->filter(
+                        fn ($update): bool => $update->currentVersion
+                            && in_array(
+                                $update->currentVersion->status_code,
+                                $visibleStatuses,
+                                true,
+                            ),
+                    )->values();
+                    $latest = $updates->first();
+                    $latestRecorded = $updates->first(
+                        fn ($update): bool => $update->recordedVersion !== null,
+                    );
+                    $percentage = $latest?->currentVersion
+                        ?->management_reported_overall_percentage;
+
+                    return [
+                        'hasProgressUpdates' => $updates->isNotEmpty(),
+                        'latestProgressUpdateId' => $latest?->id,
+                        'latestReportingPeriodEnd' => $latest
+                            ?->reporting_period_end
+                            ?->toDateString(),
+                        'latestCurrentVersionStatus' => $latest
+                            ?->currentVersion
+                            ?->status_code,
+                        'latestRecordedVersionId' => $latestRecorded?->recorded_version_id,
+                        'latestManagementReportedPercentage' => $percentage,
+                        'managementReportsComplete' => $percentage !== null
+                            && (float) $percentage >= 100,
+                        'reportedCompleteAwaitingValidation' => $percentage !== null
+                            && (float) $percentage >= 100,
+                        'evidenceLinkCount' => $latest
+                            ?->currentVersion
+                            ?->activeEvidenceLinks
+                            ?->count() ?? 0,
+                        'updatesAwaitingReview' => $updates->filter(
+                            fn ($update): bool => in_array(
+                                $update->currentVersion?->status_code,
+                                ['SUBMITTED', 'UNDER_REVIEW'],
+                                true,
+                            ),
+                        )->count(),
+                        'permittedActions' => $latest
+                            ?->currentVersion
+                            ?->getAttribute('available_actions') ?? [],
+                        'notIndependentlyValidated' => true,
+                    ];
+                },
+            ),
         ];
     }
 

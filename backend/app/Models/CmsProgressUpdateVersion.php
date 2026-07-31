@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
-/** Immutable-after-submission content revision for one Action Plan family. */
-class CmsActionPlanVersion extends Model
+/** Immutable-after-submission management-reported Progress Update version. */
+class CmsProgressUpdateVersion extends Model
 {
     use HasFactory;
 
@@ -21,7 +21,7 @@ class CmsActionPlanVersion extends Model
 
     public const STATUS_RETURNED = 'RETURNED';
 
-    public const STATUS_ACCEPTED = 'ACCEPTED';
+    public const STATUS_RECORDED = 'RECORDED';
 
     public const ACTIVE_STATUSES = [
         self::STATUS_DRAFT,
@@ -30,33 +30,33 @@ class CmsActionPlanVersion extends Model
     ];
 
     protected $fillable = [
-        'cms_corrective_action_plan_id',
+        'cms_progress_update_id',
         'version_number',
         'previous_version_id',
         'status_code',
         'active_slot',
-        'plan_summary',
-        'implementation_strategy',
-        'expected_outcome',
-        'root_cause_response',
-        'resources_required',
-        'dependencies',
-        'risks_and_constraints',
-        'planned_start_date',
-        'planned_target_date',
-        'owner_office_id',
-        'focal_user_id',
+        'accomplishment_summary',
+        'management_reported_overall_percentage',
+        'system_calculated_weighted_percentage',
+        'baseline_weighted',
+        'issues_and_constraints',
+        'corrective_actions_for_delays',
+        'next_steps',
+        'forecast_completion_date',
+        'management_declaration',
+        'general_evidence_explanation',
         'prepared_by',
         'submitted_by',
         'submitted_at',
         'review_started_by',
         'review_started_at',
-        'accepted_by',
-        'accepted_at',
-        'acceptance_comment',
+        'review_comment',
         'returned_by',
         'returned_at',
         'return_reason',
+        'recorded_by',
+        'recorded_at',
+        'recording_comment',
         'revision_reason',
         'submission_snapshot',
         'lock_version',
@@ -66,12 +66,14 @@ class CmsActionPlanVersion extends Model
     {
         return [
             'version_number' => 'integer',
-            'planned_start_date' => 'date',
-            'planned_target_date' => 'date',
+            'management_reported_overall_percentage' => 'decimal:2',
+            'system_calculated_weighted_percentage' => 'decimal:2',
+            'baseline_weighted' => 'boolean',
+            'forecast_completion_date' => 'date',
             'submitted_at' => 'datetime',
             'review_started_at' => 'datetime',
-            'accepted_at' => 'datetime',
             'returned_at' => 'datetime',
+            'recorded_at' => 'datetime',
             'submission_snapshot' => 'array',
             'lock_version' => 'integer',
         ];
@@ -89,34 +91,32 @@ class CmsActionPlanVersion extends Model
                 'active_slot',
                 'review_started_by',
                 'review_started_at',
-                'accepted_by',
-                'accepted_at',
-                'acceptance_comment',
+                'review_comment',
                 'returned_by',
                 'returned_at',
                 'return_reason',
+                'recorded_by',
+                'recorded_at',
+                'recording_comment',
                 'lock_version',
                 'updated_at',
             ];
             if (array_diff(array_keys($version->getDirty()), $allowed) !== []) {
                 throw new LogicException(
-                    'Submitted Action Plan versions are immutable.',
+                    'Submitted Progress Update versions are immutable.',
                 );
             }
         });
         static::deleting(
             fn (): never => throw new LogicException(
-                'Action Plan version history cannot be deleted.',
+                'Progress Update version history cannot be deleted.',
             ),
         );
     }
 
-    public function plan(): BelongsTo
+    public function progressUpdate(): BelongsTo
     {
-        return $this->belongsTo(
-            CmsCorrectiveActionPlan::class,
-            'cms_corrective_action_plan_id',
-        );
+        return $this->belongsTo(CmsProgressUpdate::class, 'cms_progress_update_id');
     }
 
     public function previousVersion(): BelongsTo
@@ -124,29 +124,21 @@ class CmsActionPlanVersion extends Model
         return $this->belongsTo(self::class, 'previous_version_id');
     }
 
-    public function milestones(): HasMany
+    public function milestoneProgress(): HasMany
     {
-        return $this->hasMany(CmsActionPlanMilestone::class)
-            ->orderBy('display_order')
-            ->orderBy('sequence_number');
+        return $this->hasMany(CmsMilestoneProgress::class, 'cms_progress_update_version_id')
+            ->orderBy('display_order');
     }
 
-    public function progressUpdates(): HasMany
+    public function evidenceLinks(): HasMany
     {
-        return $this->hasMany(
-            CmsProgressUpdate::class,
-            'accepted_action_plan_version_id',
-        );
+        return $this->hasMany(CmsProgressEvidenceLink::class, 'cms_progress_update_version_id')
+            ->orderBy('linked_at');
     }
 
-    public function ownerOffice(): BelongsTo
+    public function activeEvidenceLinks(): HasMany
     {
-        return $this->belongsTo(Office::class, 'owner_office_id')->withTrashed();
-    }
-
-    public function focalUser(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'focal_user_id')->withTrashed();
+        return $this->evidenceLinks()->whereNull('removed_at');
     }
 
     public function preparer(): BelongsTo
@@ -164,13 +156,13 @@ class CmsActionPlanVersion extends Model
         return $this->belongsTo(User::class, 'review_started_by')->withTrashed();
     }
 
-    public function accepter(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'accepted_by')->withTrashed();
-    }
-
     public function returner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'returned_by')->withTrashed();
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by')->withTrashed();
     }
 }

@@ -67,6 +67,136 @@ class CmsValidationService
         ];
     }
 
+    /**
+     * Return only the records and users that can safely participate in a
+     * Validation Review for this recommendation. Eligibility is evaluated by
+     * the same aggregate guards used by create() and assign().
+     *
+     * @return array{case: CmsRecommendationCase, eligibleRecordedProgressUpdates: list<array<string, mixed>>, eligibleValidators: list<array<string, mixed>>, unavailableReasons: list<string>}
+     */
+    public function validationOptions(User $actor, int $caseId): array
+    {
+        $this->scope->authorizeValidationAssignmentAuthority($actor);
+        $case = $this->scope->resolveVisibleCase($actor, $caseId, 'cms.validation.view');
+        $case->load([
+            'recommendation',
+            'leadResponsibleOffice',
+            'currentAssignment.user',
+            'activeValidationReview.recordedProgressUpdateVersion.progressUpdate.recordedVersion',
+            'activeValidationReview.recordedProgressUpdateVersion.activeEvidenceLinks',
+        ]);
+
+        $updates = CmsProgressUpdate::query()
+            ->where('cms_recommendation_case_id', $case->id)
+            ->whereNotNull('recorded_version_id')
+            ->with([
+                'acceptedActionPlanVersion',
+                'recordedVersion.progressUpdate',
+                'recordedVersion.activeEvidenceLinks',
+            ])
+            ->orderByDesc('reporting_period_end')
+            ->orderByDesc('reporting_sequence')
+            ->get();
+
+        $eligibleUpdates = $updates
+            ->filter(function (CmsProgressUpdate $update) use ($case): bool {
+                $recorded = $update->recordedVersion;
+                if (! $recorded || CmsValidationReview::query()
+                    ->where('recorded_progress_update_version_id', $recorded->id)
+                    ->exists()) {
+                    return false;
+                }
+
+                try {
+                    $this->assertRecordedVersionEligible($case, $update, $recorded);
+                } catch (ValidationException) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->map(fn (CmsProgressUpdate $update): array => [
+                'id' => $update->id,
+                'displayCode' => sprintf(
+                    'CMS-UPD-%06d-%03d',
+                    $case->id,
+                    $update->reporting_sequence,
+                ),
+                'reportingSequence' => $update->reporting_sequence,
+                'reportingPeriodStart' => $update->reporting_period_start?->toDateString(),
+                'reportingPeriodEnd' => $update->reporting_period_end?->toDateString(),
+                'recordedVersionId' => $update->recorded_version_id,
+                'recordedVersionNumber' => $update->recordedVersion?->version_number,
+                'managementReportedPercentage' => $update->recordedVersion
+                    ?->management_reported_overall_percentage,
+                'systemCalculatedWeightedReportedPercentage' => $update->recordedVersion
+                    ?->system_calculated_weighted_percentage,
+                'evidenceCount' => $update->recordedVersion?->activeEvidenceLinks?->count() ?? 0,
+                'acceptedActionPlanVersion' => $update->acceptedActionPlanVersion?->only([
+                    'id', 'version_number', 'status_code', 'accepted_at',
+                ]),
+            ])
+            ->values()
+            ->all();
+
+        $eligibleUpdateIds = collect($eligibleUpdates)->pluck('id')->all();
+        $sourceUpdate = $case->activeValidationReview?->recordedProgressUpdateVersion?->progressUpdate
+            ?? $updates->first(fn (CmsProgressUpdate $update): bool => in_array($update->id, $eligibleUpdateIds, true));
+        $sourceRecorded = $sourceUpdate?->recordedVersion;
+        $validatorSource = $sourceRecorded && $sourceUpdate
+            ? [$sourceUpdate, $sourceRecorded]
+            : null;
+
+        $validators = collect();
+        if ($validatorSource) {
+            [$sourceUpdate, $sourceRecorded] = $validatorSource;
+            $validators = User::withTrashed()
+                ->with(['role.permissions', 'roles.permissions'])
+                ->get()
+                ->filter(function (User $target) use ($case, $sourceUpdate, $sourceRecorded): bool {
+                    try {
+                        $this->assertValidatorEligible($case, $sourceUpdate, $sourceRecorded, $target);
+                    } catch (ValidationException) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                ->map(fn (User $target): array => [
+                    'id' => $target->id,
+                    'employeeId' => $target->employee_id,
+                    'name' => $target->name,
+                    'initials' => $target->initials,
+                ])
+                ->values();
+        }
+
+        $reasons = [];
+        if (! in_array($case->status_code, [
+            CmsRecommendationCase::STATUS_MONITORING,
+            CmsRecommendationCase::STATUS_PARTIALLY_IMPLEMENTED,
+            CmsRecommendationCase::STATUS_FOR_VALIDATION,
+        ], true)) {
+            $reasons[] = 'Validation creation is not available from the current recommendation status.';
+        }
+        if ($case->activeValidationReview) {
+            $reasons[] = 'An active Validation Review already exists for this recommendation.';
+        }
+        if ($eligibleUpdates === []) {
+            $reasons[] = 'No latest current recorded Progress Update Version is eligible for validation.';
+        }
+        if ($validators->isEmpty()) {
+            $reasons[] = 'No active, unlocked, independently eligible professional validator is available.';
+        }
+
+        return [
+            'case' => $case,
+            'eligibleRecordedProgressUpdates' => $eligibleUpdates,
+            'eligibleValidators' => $validators->all(),
+            'unavailableReasons' => array_values(array_unique($reasons)),
+        ];
+    }
+
     /** @return array{case: CmsRecommendationCase, review: CmsValidationReview} */
     public function show(User $actor, int $reviewId): array
     {

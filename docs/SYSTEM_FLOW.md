@@ -548,9 +548,9 @@ updates the version/review pointers and case state, event, Activity Log, Audit
 Trail, and after-commit notifications. `IMPLEMENTED` never means `CLOSED`.
 
 Recommendation detail and dashboard payloads add backward-compatible,
-visibility-scoped validation summaries. CMS-5B has not added a React validation
-workspace. Extensions, escalation, closure, reopening, reports, AIS, and ARMIS
-remain deferred.
+visibility-scoped validation summaries. CMS-5B adds the protected React
+validation workspace described below. Extensions, escalation, closure,
+reopening, reports, AIS, and ARMIS remain deferred.
 
 ### 11.10 Runtime logo
 
@@ -781,3 +781,18 @@ flowchart LR
 
 The React layer presents management-reported progress and completeness review;
 it does not create an implementation conclusion or closure state.
+
+## CMS independent validation workspace
+
+CMS-5B extends the recommendation flow with a protected, recommendation-specific
+Validation Review list and detail workspace. The browser uses the existing
+Sanctum-aware `cmsApi` wrapper for draft updates, supervisory transitions,
+assignment history, protected evidence download, and lock-conflict recovery.
+The backend `availableActions` field controls mutation visibility; a 403 or
+scope-safe 404 is rendered without revealing hidden reviews or documents.
+
+Management-reported progress and evidence remain immutable source records. The
+validator records procedures, professional evidence assessments, and a proposed
+conclusion; an independent supervisor starts review, returns work, or finalizes
+the conclusion. `IMPLEMENTED` is an independent professional conclusion only and
+does not mean the recommendation is closed.

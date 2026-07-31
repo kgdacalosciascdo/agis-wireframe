@@ -176,6 +176,51 @@ class CmsValidationTest extends TestCase
         }
     }
 
+    public function test_validation_options_are_scoped_and_reuse_independence_filters(): void
+    {
+        $fixture = $this->fixture('OPTIONS');
+        $inactive = User::factory()->inactive()->create([
+            'role_id' => $fixture['validator']->role_id,
+            'office_id' => $fixture['validator']->office_id,
+        ]);
+        $locked = User::factory()->locked()->create([
+            'role_id' => $fixture['validator']->role_id,
+            'office_id' => $fixture['validator']->office_id,
+        ]);
+        $archived = User::factory()->create([
+            'role_id' => $fixture['validator']->role_id,
+            'office_id' => $fixture['validator']->office_id,
+        ]);
+        $archived->delete();
+        Sanctum::actingAs($fixture['supervisor']);
+
+        $response = $this->getJson(
+            "/api/cms/recommendations/{$fixture['case']->id}/validation-options",
+        )->assertOk()
+            ->assertJsonPath('data.caseContext.lockVersion', 1)
+            ->assertJsonPath('data.eligibleRecordedProgressUpdates.0.recordedVersionId', $fixture['recorded']->id)
+            ->assertJsonPath('data.eligibleRecordedProgressUpdates.0.acceptedActionPlanVersion.id', $fixture['accepted']->id);
+
+        $validators = collect($response->json('data.eligibleValidators'));
+        $this->assertTrue($validators->contains('id', $fixture['validator']->id));
+        $this->assertFalse($validators->contains('id', $fixture['auditee']->id));
+        $this->assertFalse($validators->contains('id', $fixture['recorder']->id));
+        $this->assertFalse($validators->contains('id', $fixture['supervisor']->id));
+        $this->assertFalse($validators->contains('id', $this->user('admin')->id));
+        $this->assertFalse($validators->contains('id', $inactive->id));
+        $this->assertFalse($validators->contains('id', $locked->id));
+        $this->assertFalse($validators->contains('id', $archived->id));
+
+        Sanctum::actingAs($fixture['auditee']);
+        $this->getJson(
+            "/api/cms/recommendations/{$fixture['case']->id}/validation-options",
+        )->assertForbidden();
+
+        Sanctum::actingAs($fixture['supervisor']);
+        $this->getJson('/api/cms/recommendations/999999/validation-options')
+            ->assertNotFound();
+    }
+
     public function test_complete_validation_submission_review_and_implemented_finalization_are_atomic_and_immutable(): void
     {
         $fixture = $this->fixture('IMPLEMENTED', 100);

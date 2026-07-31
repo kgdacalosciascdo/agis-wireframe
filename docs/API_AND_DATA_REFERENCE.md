@@ -1148,3 +1148,24 @@ handling, Core document confidentiality options, and protected download helper.
 No direct storage URL or PostgreSQL access is permitted. The UI treats
 `availableActions`, server status, scope-safe 404 responses, and lock-version
 conflicts as authoritative.
+
+## CMS-5B validation frontend
+
+The React routes are:
+
+```text
+/compliance-management/recommendations/{recommendationId}/validations
+/compliance-management/recommendations/{recommendationId}/validations/{validationId}
+```
+
+They call the CMS-5A validation routes using camelCase payloads and the shared
+request wrapper. The creation and replacement selectors call:
+
+```text
+GET /api/cms/recommendations/{recommendation}/validation-options
+```
+
+The response contains only eligible recorded Progress Update Versions, safe
+Primary Validator display fields, case lock/context, and unavailable reasons.
+The endpoint reuses the CMS-5A aggregate independence and confidentiality
+guards; the frontend never loads the unrestricted User Registry.

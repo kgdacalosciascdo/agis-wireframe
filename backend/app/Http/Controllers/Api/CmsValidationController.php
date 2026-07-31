@@ -54,6 +54,21 @@ class CmsValidationController extends Controller
         ]);
     }
 
+    public function validationOptions(Request $request, int $recommendation): JsonResponse
+    {
+        $result = $this->validations->validationOptions($request->user(), $recommendation);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'caseContext' => $this->caseContext($result['case']),
+                'eligibleRecordedProgressUpdates' => $result['eligibleRecordedProgressUpdates'],
+                'eligibleValidators' => $result['eligibleValidators'],
+                'unavailableReasons' => $result['unavailableReasons'],
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $validation): JsonResponse
     {
         $result = $this->validations->show($request->user(), $validation);
@@ -331,6 +346,15 @@ class CmsValidationController extends Controller
             'effectiveTargetDate' => $case
                 ->effective_target_implementation_date
                 ?->toDateString(),
+            'lockVersion' => $case->lock_version,
+            'currentComplianceMonitor' => $case->currentAssignment?->user
+                ? [
+                    'id' => $case->currentAssignment->user->id,
+                    'employeeId' => $case->currentAssignment->user->employee_id,
+                    'name' => $case->currentAssignment->user->name,
+                    'initials' => $case->currentAssignment->user->initials,
+                ]
+                : null,
         ];
     }
 }

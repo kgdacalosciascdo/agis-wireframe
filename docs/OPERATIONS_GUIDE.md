@@ -318,8 +318,9 @@ At most one review may have `active_slot = ACTIVE` per case; at most one
 version may have `active_slot = ACTIVE` per review; and at most one assignment
 may have `current_slot = CURRENT` per review. Validator evidence is private
 Core storage and must be backed up with its matching database snapshot.
-CMS-5A has no React deployment change. CMS-5B, extensions, escalation, closure,
-reopening, reports, AIS, and ARMIS remain undeployed.
+CMS-5B is a frontend deployment change only; it adds no migration or seed step.
+Extensions, escalation, closure, reopening, reports, AIS, and ARMIS remain
+undeployed.
 
 ## 11. Production checklist
 
@@ -436,3 +437,29 @@ The focused suite `tests/e2e/cms-progress-updates.spec.js` uses mocked CMS-4A
 responses for route, list, create, milestone, evidence, and management-reporting
 boundary coverage. Full frontend regression should be run before release. The
 browser workspace does not change database schema or migration requirements.
+
+CMS-5B frontend verification additionally covers the independent-validation
+routes, scoped validation-options selector data, read-only rendering of immutable versions, protected validator-evidence
+downloads, lock-conflict reload messaging, and the explicit
+implemented-versus-closed distinction. The frontend does not require a new
+migration or seed step. Run the normal lint, production build, focused CMS
+Playwright tests, and backend CMS validation regression tests before release.
+
+The current CMS-5B regression verification completed successfully on 2026-07-31:
+
+- `npm.cmd run lint` — passed.
+- `npm.cmd run build` — passed.
+- `npx playwright test tests/e2e/cms-validations.spec.js` — 10 passed across
+  desktop and mobile projects, including the scoped-options permission denial.
+- `npm.cmd run test:e2e` — 33 of 34 tests passed across all six configured
+  specs and both browser projects (10.6 minutes). The final mobile validation
+  test was blocked only by the existing demo-account sign-in throttle before
+  the page loaded; rerunning that exact test after the throttle window passed
+  (1 test, 18.1 seconds).
+- `php artisan route:list --path=cms` — 45 CMS routes, including the scoped
+  `validation-options` endpoint.
+- `php artisan test --filter=CmsValidationTest` — 9 tests, 156 assertions.
+- `php artisan test --filter=CmsRecommendationApiTest` — 7 tests, 74
+  assertions.
+- `php artisan test --testsuite=Feature` — 163 tests, 2,795 assertions.
+- `git diff --check` — passed.

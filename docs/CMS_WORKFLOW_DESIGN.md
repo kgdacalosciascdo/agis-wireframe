@@ -28,10 +28,11 @@ Implemented as-built scope:
   four controlled conclusions, and authoritative implementation-state
   transitions.
 
-The CMS-5B React validation workspace, target-date extensions, due-soon
-configuration, reminders, escalation, closure, accepted risk,
+Target-date extensions, due-soon configuration, reminders, escalation, closure, accepted risk,
 no-longer-applicable decisions, reopening, and CMS reports/exports remain
-future scope.
+future scope. The CMS-5B React validation workspace is operational against the
+CMS-5A contracts and the scoped `validation-options` endpoint described in
+section 13.6.
 
 ## 2. Record lineage
 
@@ -568,7 +569,9 @@ All mutations use camelCase payloads and the latest `lockVersion`. Clients
 cannot select case/version status, sequence/version number, baseline pointers,
 actors, timestamps, or final pointers. Recommendation detail adds a
 backward-compatible `validationSummary`; the dashboard adds scoped active,
-awaiting-review, returned, and conclusion metrics. CMS-5B is not operational.
+awaiting-review, returned, and conclusion metrics. The CMS-5B React workspace is
+operational against these contracts; its safe eligible-validator catalog gap is
+documented below.
 
 Append-only events, matching `cms.validation.*` Activity/Audit actions, and
 after-commit notifications cover creation, assignment/replacement, updates,
@@ -578,3 +581,33 @@ finalization.
 Explicitly deferred: target-date extension, automated reminders, escalation,
 closure request/approval, accepted risk, no-longer-applicable decisions,
 reopening, recurrence analysis, reports, exports, AIS, and ARMIS integration.
+
+### 13.6 CMS-5B React validation workspace
+
+The recommendation-scoped React workspace is available at:
+
+```text
+/compliance-management/recommendations/{recommendationId}/validations
+/compliance-management/recommendations/{recommendationId}/validations/{validationId}
+```
+
+Recommendation Detail is the primary entry point; there is no global Validation
+Registry. The workspace consumes the CMS-5A routes through the existing `cmsApi`
+client and presents Overview, Procedures & Conclusions, Evidence Assessment,
+Validator Evidence, Assignments, and Versions & History tabs. Draft narratives,
+validation items, and evidence assessments are editable only when the server
+returns the corresponding `availableActions`; all submitted, returned, and
+finalized versions are read-only.
+
+The UI uses only recorded Progress Update versions and Primary Validators
+returned by the authorized `validation-options` endpoint. It never loads an
+unrestricted User Registry. Laravel applies active/unlocked/non-archived,
+professional-permission, office, source-participant, Compliance Monitor, and
+confidentiality filters through the existing aggregate eligibility logic.
+
+Submission, supervisory review, return, revision, and finalization use current
+lock versions and reload after conflicts. Protected validator-evidence downloads
+use authenticated Core document routes. A finalized `IMPLEMENTED` conclusion is
+displayed as independently validated while closure remains pending; the React
+workspace does not create closure, extensions, reminders, escalation, reopening,
+reports, exports, or CMS/AIS/ARMIS integrations.

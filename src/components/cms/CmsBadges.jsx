@@ -95,3 +95,39 @@ export function CmsProgressStatusBadge({ status }) {
     </StatusBadge>
   );
 }
+
+export function CmsValidationStatusBadge({ status }) {
+  const appearances = {
+    DRAFT: { icon: FilePenLine, tone: "info", label: "Draft" },
+    SUBMITTED: { icon: Clock3, tone: "warning", label: "Submitted" },
+    UNDER_REVIEW: { icon: CircleDot, tone: "warning", label: "Under review" },
+    RETURNED: { icon: RotateCcw, tone: "danger", label: "Returned" },
+    FINALIZED: { icon: CheckCircle2, tone: "success", label: "Finalized" },
+  };
+  const appearance = appearances[status] ?? { icon: CircleDot, tone: "info", label: labelFor(status, "Unknown") };
+  const Icon = appearance.icon;
+  return <StatusBadge tone={appearance.tone}><Icon aria-hidden="true" className="mr-1" size={13} />{appearance.label}</StatusBadge>;
+}
+
+export function CmsValidationConclusionBadge({ conclusion }) {
+  const appearances = {
+    NOT_IMPLEMENTED: ["warning", "Not Implemented"],
+    PARTIALLY_IMPLEMENTED: ["info", "Partially Implemented"],
+    IMPLEMENTED: ["success", "Implemented"],
+    INADEQUATE_BASIS: ["danger", "Inadequate Basis"],
+  };
+  const [tone, label] = appearances[conclusion] ?? ["inactive", labelFor(conclusion, "Not concluded")];
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
+}
+
+export function CmsValidationItemConclusionBadge({ conclusion }) {
+  const appearances = {
+    SATISFIED: ["success", "Satisfied"],
+    PARTIALLY_SATISFIED: ["info", "Partially Satisfied"],
+    NOT_SATISFIED: ["danger", "Not Satisfied"],
+    INADEQUATE_BASIS: ["warning", "Inadequate Basis"],
+    NOT_APPLICABLE: ["inactive", "Not Applicable"],
+  };
+  const [tone, label] = appearances[conclusion] ?? ["inactive", labelFor(conclusion, "Not concluded")];
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
+}

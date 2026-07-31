@@ -37,7 +37,7 @@ class CmsProgressUpdateController extends Controller
             'success' => true,
             'data' => [
                 'progressUpdates' => $result['updates']->map(
-                    fn (CmsProgressUpdate $update) => $this->resource(
+                    fn(CmsProgressUpdate $update) => $this->resource(
                         $request,
                         $result['case'],
                         $update,
@@ -282,7 +282,10 @@ class CmsProgressUpdateController extends Controller
             'cmsRecommendationCode' => sprintf('CMS-REC-%06d', $case->id),
             'status' => $case->status_code,
             'responsibleOffice' => $case->leadResponsibleOffice?->only([
-                'id', 'code', 'name', 'acronym',
+                'id',
+                'code',
+                'name',
+                'acronym',
             ]),
             'effectiveTargetDate' => $case
                 ->effective_target_implementation_date

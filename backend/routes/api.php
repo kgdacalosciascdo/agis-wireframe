@@ -129,6 +129,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.evidence.remove_draft');
     Route::get('/cms/recommendations/{recommendation}/validations', [CmsValidationController::class, 'forRecommendation'])
         ->middleware('permission:cms.validation.view');
+    Route::get('/cms/recommendations/{recommendation}/validation-options', [CmsValidationController::class, 'validationOptions'])
+        ->middleware('permission:cms.validation.create');
     Route::post('/cms/recommendations/{recommendation}/validations', [CmsValidationController::class, 'store'])
         ->middleware('permission:cms.validation.create');
     Route::get('/cms/validations/{validation}', [CmsValidationController::class, 'show'])

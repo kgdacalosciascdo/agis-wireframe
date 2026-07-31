@@ -18,6 +18,7 @@ import { Link } from "react-router";
 import { CmsOverdueBadge, CmsRiskBadge } from "../components/cms/CmsBadges";
 import RegistryHeader from "../components/ui/RegistryHeader";
 import SummaryCard from "../components/ui/SummaryCard";
+import StatusBadge from "../components/ui/StatusBadge";
 import { cmsApi } from "../services/api";
 
 const metrics = [
@@ -49,6 +50,10 @@ const metrics = [
     FileCheck2,
     "amber",
   ],
+  ["casesAwaitingValidationAssignment", "Cases awaiting validator assignment", UserRoundX, "amber"],
+  ["activeValidations", "Active validations", ClipboardCheck, "sky"],
+  ["validationsAwaitingSupervisoryReview", "Validations awaiting supervisory review", FileCheck2, "warning"],
+  ["returnedValidations", "Returned validations", FileWarning, "red"],
 ];
 
 const attention = [
@@ -340,6 +345,26 @@ export default function CmsDashboardPage() {
               })}
             </div>
           </section>
+
+          {data?.cards?.finalizedValidationConclusions && (
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-slate-800">Finalized validation conclusions</h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Professional conclusions are shown separately from recommendation closure. Implemented does not mean closed.</p>
+                </div>
+                <StatusBadge tone="warning">Closure workflow pending</StatusBadge>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[["NOT_IMPLEMENTED", "Not Implemented"], ["PARTIALLY_IMPLEMENTED", "Partially Implemented"], ["IMPLEMENTED", "Implemented"], ["INADEQUATE_BASIS", "Inadequate Basis"]].map(([code, label]) => (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3" key={code}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-800">{data.cards.finalizedValidationConclusions[code] ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {data?.dueSoon?.available === false && (
             <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">

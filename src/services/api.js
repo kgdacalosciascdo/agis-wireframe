@@ -2451,6 +2451,107 @@ export const cmsApi = {
     });
     return data?.progressUpdate ?? null;
   },
+  async getValidations(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/validations`,
+    );
+  },
+  async getValidationOptions(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/validation-options`,
+    );
+  },
+  async createValidation(recommendationId, payload) {
+    const data = await request(
+      `/api/cms/recommendations/${recommendationId}/validations`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async getValidation(validationId) {
+    const data = await request(`/api/cms/validations/${validationId}`);
+    return data?.validation ?? null;
+  },
+  async getValidationAssignments(validationId) {
+    return request(`/api/cms/validations/${validationId}/assignments`);
+  },
+  async assignValidator(validationId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/assignments`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async endValidatorAssignment(validationId, assignmentId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/assignments/${assignmentId}/end`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async updateValidation(validationId, versionId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async submitValidation(validationId, versionId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}/transitions/submit`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async startValidationReview(validationId, versionId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}/transitions/start-review`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async returnValidation(validationId, versionId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}/transitions/return`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async finalizeValidation(validationId, versionId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}/transitions/finalize`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async createValidationRevision(validationId, versionId, payload) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}/revisions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.validation ?? null;
+  },
+  async uploadValidationEvidence(validationId, versionId, formData) {
+    const data = await request(
+      `/api/cms/validations/${validationId}/versions/${versionId}/evidence`,
+      { method: "POST", body: formData, csrf: true },
+    );
+    return data?.evidence ?? null;
+  },
+  async downloadValidationEvidence(evidenceId, fileName = "validation-evidence") {
+    return documentApi.downloadFile(
+      `/api/cms/validation-evidence/${evidenceId}/download`,
+      fileName,
+    );
+  },
+  async removeValidationEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/validation-evidence/${evidenceId}`, {
+      method: "DELETE",
+      body: payload,
+      csrf: true,
+    });
+    return data?.validation ?? null;
+  },
   async getAssignments(recommendationId) {
     return request(
       `/api/cms/recommendations/${recommendationId}/assignments`,

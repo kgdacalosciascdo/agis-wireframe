@@ -442,6 +442,18 @@ export function pageForPath(pathname) {
     };
   }
 
+  if (
+    /^\/compliance-management\/recommendations\/\d+\/validations(?:\/\d+)?$/.test(
+      pathname,
+    )
+  ) {
+    return {
+      label: "Independent Validation",
+      icon: ClipboardCheck,
+      permission: "cms.validation.view",
+    };
+  }
+
   if (/^\/compliance-management\/recommendations\/\d+$/.test(pathname)) {
     return {
       label: "Recommendation Details",

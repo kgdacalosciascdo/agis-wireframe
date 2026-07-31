@@ -156,6 +156,7 @@ export default function CmsRecommendationDetailPage() {
   const canAssign = hasPermission(user, "cms.recommendation.assign");
   const canViewActionPlan = hasPermission(user, "cms.action-plan.view");
   const canViewProgress = hasPermission(user, "cms.progress.view");
+  const canViewValidation = hasPermission(user, "cms.validation.view");
   const activeTab = tabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -359,6 +360,14 @@ export default function CmsRecommendationDetailPage() {
                 <FileCheck2 size={16} /> Progress Updates
               </Link>
             )}
+            {canViewValidation && (
+              <Link
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
+                to={`/compliance-management/recommendations/${recommendationId}/validations`}
+              >
+                <ClipboardCheck size={16} /> Validations
+              </Link>
+            )}
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
               to="/compliance-management/recommendations"
@@ -447,10 +456,11 @@ export default function CmsRecommendationDetailPage() {
         role="tabpanel"
       >
         {activeTab === "overview" && (
-          <Overview
-            canViewActionPlan={canViewActionPlan}
-            currentMonitor={currentMonitor}
-            record={record}
+            <Overview
+              canViewActionPlan={canViewActionPlan}
+              canViewValidation={canViewValidation}
+              currentMonitor={currentMonitor}
+              record={record}
           />
         )}
         {activeTab === "source" && <SourceLineage record={record} />}
@@ -574,7 +584,7 @@ function HeaderDatum({ label, value }) {
   );
 }
 
-function Overview({ record, currentMonitor, canViewActionPlan }) {
+function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation }) {
   const actionPlan = record.actionPlanSummary;
 
   return (
@@ -650,6 +660,33 @@ function Overview({ record, currentMonitor, canViewActionPlan }) {
             >
               <ListChecks size={16} />
               {actionPlan?.hasActionPlan ? "Open workspace" : "Prepare plan"}
+            </Link>
+          </div>
+        </div>
+      )}
+      {canViewValidation && (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                Independent validation
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {record.validationSummary?.hasValidationReviews
+                  ? `${record.validationSummary.latestValidationReviewId ? "Validation Review available" : "Validation Review"} · ${labelFor(record.validationSummary.latestValidationVersionStatus)}`
+                  : "No Validation Review has been created."}
+              </p>
+              {record.validationSummary?.latestFinalizedConclusion === "IMPLEMENTED" && (
+                <p className="mt-1 text-xs font-semibold text-emerald-800">
+                  Independently validated as implemented — closure not yet completed.
+                </p>
+              )}
+            </div>
+            <Link
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-50"
+              to={`/compliance-management/recommendations/${record.id}/validations`}
+            >
+              <ClipboardCheck size={16} /> Open workspace
             </Link>
           </div>
         </div>

@@ -726,3 +726,21 @@ Every implemented record flow should be traceable through:
 10. documentation.
 
 If one element is absent, the feature is not fully complete.
+
+## 22. CMS progress workspace flow
+
+```mermaid
+flowchart LR
+    D[Recommendation Detail] --> L[Progress Update list]
+    L --> C[Create draft against accepted baseline]
+    L --> V[Progress Update detail]
+    V --> M[Milestone Progress]
+    V --> E[Core-backed evidence]
+    V --> H[Immutable version history]
+    V --> W[Submit/review/return/record/revise]
+    W --> R[Recorded management information]
+    R --> N[Awaiting CMS-5 independent validation]
+```
+
+The React layer presents management-reported progress and completeness review;
+it does not create an implementation conclusion or closure state.

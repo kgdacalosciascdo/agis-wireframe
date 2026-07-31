@@ -155,6 +155,7 @@ export default function CmsRecommendationDetailPage() {
   const toast = useToast();
   const canAssign = hasPermission(user, "cms.recommendation.assign");
   const canViewActionPlan = hasPermission(user, "cms.action-plan.view");
+  const canViewProgress = hasPermission(user, "cms.progress.view");
   const activeTab = tabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -348,6 +349,14 @@ export default function CmsRecommendationDetailPage() {
                 {record?.actionPlanSummary?.hasActionPlan
                   ? "Open Action Plan"
                   : "Prepare Action Plan"}
+              </Link>
+            )}
+            {canViewProgress && (
+              <Link
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-4 text-sm font-bold text-sky-800 hover:bg-sky-100"
+                to={`/compliance-management/recommendations/${recommendationId}/progress-updates`}
+              >
+                <FileCheck2 size={16} /> Progress Updates
               </Link>
             )}
             <Link

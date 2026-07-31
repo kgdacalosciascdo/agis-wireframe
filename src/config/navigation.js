@@ -430,6 +430,18 @@ export function pageForPath(pathname) {
     };
   }
 
+  if (
+    /^\/compliance-management\/recommendations\/\d+\/progress-updates(?:\/\d+)?$/.test(
+      pathname,
+    )
+  ) {
+    return {
+      label: "Progress Updates",
+      icon: ClipboardCheck,
+      permission: "cms.progress.view",
+    };
+  }
+
   if (/^\/compliance-management\/recommendations\/\d+$/.test(pathname)) {
     return {
       label: "Recommendation Details",

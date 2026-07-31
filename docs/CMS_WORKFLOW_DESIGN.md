@@ -374,4 +374,44 @@ DELETE /api/cms/progress-evidence/{evidence}
 ```
 
 Recommendation detail and dashboard responses add backward-compatible
-management-reported summaries. No CMS-4B React page is implemented.
+management-reported summaries.
+
+## 12. CMS-4B React workspace
+
+The frontend exposes Progress Updates from the recommendation-specific Detail
+Workspace and does not create a global Progress Update registry. The protected
+routes are:
+
+```text
+/compliance-management/recommendations/{recommendationId}/progress-updates
+/compliance-management/recommendations/{recommendationId}/progress-updates/{progressUpdateId}
+```
+
+The list displays reporting period, current version/status, accepted baseline,
+reported percentage, evidence count, recorded-version indicators, and the
+server-authorized create action. The detail workspace provides Overview,
+Milestone Progress, Evidence, and Versions & History regions. Historical
+versions are read-only; only a current `DRAFT` version exposes the editor.
+
+The editor preserves accepted-baseline milestone wording, owners, dates, and
+weights. Weighted progress is presented as the server-calculated
+management-reported result; unweighted progress remains management-entered and
+is not averaged. A reported 100% is shown as “awaiting independent validation,”
+never as “Implemented.”
+
+Evidence uploads use the existing Core-backed multipart contract and protected
+CMS download route. Confidentiality options come from the Core Document API.
+Draft evidence links may be removed with a reason; submitted and historical
+links have no removal control. Internal storage paths and generated filenames
+are never shown.
+
+Submit, start-review, return, record, and revision dialogs use the version's
+server-provided `availableActions`, current `lockVersion`, and existing
+permission helpers. Stale locks, changed baselines, 403/404/409/422 responses,
+validation errors, uncertain network results, loading, empty, and retry states
+are presented without silently resending a mutation.
+
+CMS-4B remains a presentation layer for management-reported information. It
+does not add independent validation, implementation conclusions, extensions,
+escalation, closure, accepted-risk decisions, reopening, reports, exports, AIS,
+or ARMIS integration.

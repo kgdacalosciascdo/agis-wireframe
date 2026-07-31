@@ -1090,3 +1090,19 @@ Use the seeded `MasterListSeeder` as the source of exact current values.
 This reference describes the current implementation. When behavior and this file
 disagree, verify `backend/routes/api.php`, Form Requests, services, migrations,
 and feature tests, then update the documentation in the same change.
+
+## 12. CMS-4B frontend integration
+
+The CMS Progress Update React workspace is recommendation-specific:
+
+```text
+/compliance-management/recommendations/{recommendationId}/progress-updates
+/compliance-management/recommendations/{recommendationId}/progress-updates/{progressUpdateId}
+```
+
+It consumes the CMS-4A Progress Update routes listed in the CMS workflow
+design. The client uses the existing `cmsApi` request wrapper, Sanctum/CSRF
+handling, Core document confidentiality options, and protected download helper.
+No direct storage URL or PostgreSQL access is permitted. The UI treats
+`availableActions`, server status, scope-safe 404 responses, and lock-version
+conflicts as authoritative.

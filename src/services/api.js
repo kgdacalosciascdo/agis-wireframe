@@ -2372,6 +2372,85 @@ export const cmsApi = {
     );
     return data?.recommendation ?? null;
   },
+  async getProgressUpdates(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/progress-updates`,
+    );
+  },
+  async createProgressUpdate(recommendationId, payload) {
+    const data = await request(
+      `/api/cms/recommendations/${recommendationId}/progress-updates`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async getProgressUpdate(progressUpdateId) {
+    const data = await request(`/api/cms/progress-updates/${progressUpdateId}`);
+    return data?.progressUpdate ?? null;
+  },
+  async updateProgressUpdate(progressUpdateId, versionId, payload) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async submitProgressUpdate(progressUpdateId, versionId, payload) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}/transitions/submit`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async startProgressReview(progressUpdateId, versionId, payload) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}/transitions/start-review`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async returnProgressUpdate(progressUpdateId, versionId, payload) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}/transitions/return`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async recordProgressUpdate(progressUpdateId, versionId, payload) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}/transitions/record`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async createProgressRevision(progressUpdateId, versionId, payload) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}/revisions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.progressUpdate ?? null;
+  },
+  async uploadProgressEvidence(progressUpdateId, versionId, formData) {
+    const data = await request(
+      `/api/cms/progress-updates/${progressUpdateId}/versions/${versionId}/evidence`,
+      { method: "POST", body: formData, csrf: true },
+    );
+    return data?.evidence ?? null;
+  },
+  async downloadProgressEvidence(evidenceId, fileName = "supporting-evidence") {
+    return documentApi.downloadFile(
+      `/api/cms/progress-evidence/${evidenceId}/download`,
+      fileName,
+    );
+  },
+  async removeProgressEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/progress-evidence/${evidenceId}`, {
+      method: "DELETE",
+      body: payload,
+      csrf: true,
+    });
+    return data?.progressUpdate ?? null;
+  },
   async getAssignments(recommendationId) {
     return request(
       `/api/cms/recommendations/${recommendationId}/assignments`,

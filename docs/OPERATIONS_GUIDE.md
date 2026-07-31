@@ -393,3 +393,16 @@ Every production change should include:
 - deployment steps;
 - smoke-test result;
 - named rollback/restore decision owner.
+
+Frontend CMS-4B verification also includes:
+
+```powershell
+npm.cmd run lint
+npm.cmd run build
+npm.cmd run test:e2e
+```
+
+The focused suite `tests/e2e/cms-progress-updates.spec.js` uses mocked CMS-4A
+responses for route, list, create, milestone, evidence, and management-reporting
+boundary coverage. Full frontend regression should be run before release. The
+browser workspace does not change database schema or migration requirements.

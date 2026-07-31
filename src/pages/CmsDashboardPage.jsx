@@ -4,6 +4,8 @@ import {
   CalendarClock,
   ClipboardCheck,
   Clock3,
+  FileCheck2,
+  Hourglass,
   Eye,
   FileWarning,
   RefreshCw,
@@ -28,6 +30,25 @@ const metrics = [
   ["transferredThisMonth", "Transferred this month", Clock3, "sky"],
   ["highRiskCases", "High-risk cases", ShieldAlert, "amber"],
   ["highRiskOverdueCases", "High-risk overdue", FileWarning, "red"],
+  [
+    "monitoringCasesWithoutRecordedProgress",
+    "Monitoring without recorded progress",
+    Hourglass,
+    "amber",
+  ],
+  [
+    "progressUpdatesAwaitingReview",
+    "Progress updates awaiting review",
+    FileCheck2,
+    "sky",
+  ],
+  ["recordedProgressUpdates", "Recorded management updates", ClipboardCheck, "emerald"],
+  [
+    "managementReportedCompleteAwaitingValidation",
+    "Reported complete awaiting validation",
+    FileCheck2,
+    "amber",
+  ],
 ];
 
 const attention = [

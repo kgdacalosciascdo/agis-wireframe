@@ -68,3 +68,30 @@ export function CmsActionPlanStatusBadge({ status }) {
     </StatusBadge>
   );
 }
+
+export function CmsProgressStatusBadge({ status }) {
+  const appearances = {
+    DRAFT: { icon: FilePenLine, tone: "info", label: "Draft" },
+    SUBMITTED: { icon: Clock3, tone: "warning", label: "Submitted" },
+    UNDER_REVIEW: { icon: CircleDot, tone: "warning", label: "Under review" },
+    RETURNED: { icon: RotateCcw, tone: "danger", label: "Returned" },
+    RECORDED: {
+      icon: CheckCircle2,
+      tone: "success",
+      label: "Recorded for monitoring",
+    },
+  };
+  const appearance = appearances[status] ?? {
+    icon: CircleDot,
+    tone: "info",
+    label: labelFor(status, "Unknown"),
+  };
+  const Icon = appearance.icon;
+
+  return (
+    <StatusBadge tone={appearance.tone}>
+      <Icon aria-hidden="true" className="mr-1" size={13} />
+      {appearance.label}
+    </StatusBadge>
+  );
+}

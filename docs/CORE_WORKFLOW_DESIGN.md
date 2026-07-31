@@ -413,6 +413,12 @@ Examples:
 Detail-view logging is permission-checked and deduplicated for five minutes per
 user/record to prevent React rerenders from creating noise.
 
+CMS recommendation detail reads apply `CmsRecommendationScopeService` before
+writing `cms.recommendation.viewed`. The log contains the operational case ID
+and generated display code, not recommendation wording, confidential source
+values, file paths, or unrestricted AEMS records. An inaccessible CMS record
+therefore creates no Activity Log entry.
+
 ### 12.2 Audit Trail
 
 Audit Trail answers: **What data changed?**

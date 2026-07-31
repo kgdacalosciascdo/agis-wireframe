@@ -411,8 +411,9 @@ and one append-only intake event.
 | `ReportRecipient` | internal/external delivery and acknowledgement for an exact report version |
 | `AuditReportReviewComment` | immutable reviewer action and comment pinned to one exact report version |
 | `CmsRecommendation` | immutable AEMS source envelope created once from an eligible recommendation in the exact issued report version; preserves report checksum, confidentiality, risk, office, original target, actor/date, and complete JSON snapshot |
-| `CmsRecommendationCase` | one-to-one future operational root initialized in `TRANSFERRED`, with effective target date, lead office, creator/opened date, and optimistic lock |
-| `CmsRecommendationEvent` | append-only case history; CMS-1 creates exactly one idempotent `INTAKE_CREATED` event |
+| `CmsRecommendationCase` | one-to-one operational root initialized in `TRANSFERRED`, with effective target date, lead office, creator/opened date, and optimistic lock |
+| `CmsRecommendationAssignment` | non-deletable Compliance Monitor history; only one effective current monitor is supported per case in CMS-2A |
+| `CmsRecommendationEvent` | append-only case history for intake and assignment changes |
 | `EngagementEvent` | append-only action, actor, state, lock version, and old/new snapshots |
 | `CompletionAssessment` | current/revision family evaluating 25 required completion criteria |
 | `CompletionAssessmentItem` | criterion result, source, blocker, and elevated acceptance |
@@ -444,7 +445,96 @@ Important database constraints:
 - each initial event uses a unique idempotency key, so retry cannot duplicate
   `INTAKE_CREATED`;
 - immutable intake status is constrained to `TRANSFERRED`; operational CMS
-  states belong to the separate case and are not implemented in CMS-1.
+  states belong to the separate case;
+- PostgreSQL partial unique indexes enforce one current Compliance Monitor per
+  case and prevent a duplicate current user/case/role assignment;
+- assignment rows are ended, never deleted or overwritten.
+
+### 8.0 CMS-2A backend registry
+
+CMS routes use the **operational `cms_recommendation_cases.id`** as the
+`{recommendation}` identifier. Cases are created only by the AEMS transfer
+boundary; there is no generic CMS create, update, or delete endpoint.
+
+| Method | Endpoint | Permission | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/cms/dashboard` | `cms.dashboard.view` | Live aggregates for the actor's visible case population |
+| `GET` | `/api/cms/recommendations` | `cms.recommendation.view` | Scoped search/filter/sort/paginated registry |
+| `GET` | `/api/cms/recommendations/{recommendation}` | `cms.recommendation.view` | Safe case, intake, source-lineage, assignment, and event detail |
+| `GET` | `/api/cms/recommendations/{recommendation}/assignments` | `cms.recommendation.view` | Assignment history and, for authorized CIAS Management, eligible monitor options |
+| `POST` | `/api/cms/recommendations/{recommendation}/assignments` | `cms.recommendation.assign` | Assign or replace the Compliance Monitor |
+| `POST` | `/api/cms/recommendations/{recommendation}/assignments/{assignment}/end` | `cms.recommendation.assign` | End the current assignment without deleting history |
+
+Registry query parameters are `search`, `status`, `officeId`, `risk`,
+`confidentiality`, `monitorId`, `assigned`, `hasTargetDate`, `overdue`,
+`transferredFrom`, `transferredTo`, `targetFrom`, `targetTo`, `sortBy`,
+`sortDirection`, `perPage`, and `page`. Sort fields are limited to
+`recommendationCode`, `transferredAt`, `targetDate`, `responsibleOffice`,
+`risk`, `status`, and `assignedMonitor`. Pagination totals and filter options
+are computed after visibility and confidentiality scope.
+
+Assignment payload:
+
+```json
+{
+  "userId": 42,
+  "reason": "Required when replacing the current monitor.",
+  "effectiveFrom": "2026-08-01T08:00:00+08:00",
+  "effectiveUntil": null,
+  "lockVersion": 1
+}
+```
+
+Ending requires `reason` and the latest case `lockVersion`. A stale lock,
+invalid monitor, duplicate assignment, or current-state conflict returns the
+standard `422` validation envelope. A scoped nonexistent/inaccessible case
+returns `404`. Assignment creation returns `201`; reads and ending return
+`200`.
+
+List items contain the generated display code (`CMS-REC-` plus the zero-padded
+case ID), current state and monitor, effective target, derived overdue flag,
+source summary, risk, confidentiality, and responsible office. Detail adds the
+immutable transfer envelope, exact AEMS engagement/finding/recommendation/report
+lineage, checksum, original office/target snapshots, assignment history, and
+visible event timeline. It never returns document storage paths or unrestricted
+AEMS Working Papers/evidence.
+
+Dashboard cards include total, transferred/open, assigned, unassigned,
+overdue, no-target, current-month transfer, high-risk, and high-risk-overdue
+counts, plus visible office/risk/confidentiality/monitor groups, recent
+transfers, and oldest unresolved targets. `OVERDUE` is derived, not persisted.
+Due-soon is reported unavailable until an approved runtime threshold exists.
+
+CMS-2A adds:
+
+- `cms.dashboard.view`;
+- `cms.recommendation.view`;
+- `cms.recommendation.assign`;
+- `cms.recommendation.monitor`;
+- `cms.administration.monitor`.
+
+The six legacy `cms.*` compatibility permissions remain unchanged.
+`cms.view` is only a temporary basic-inquiry alias inside the authoritative
+scope and never bypasses office, assignment, role, confidentiality, account, or
+record-state restrictions. Seeded CIAS Management receives portfolio view,
+assignment, and monitoring. AGIS Users may monitor only assigned cases.
+Auditee Representatives see their responsible-office cases subject to
+confidentiality. Read Only Users remain office/assignment scoped. Platform and
+AGIS administration do not receive professional assignment authority;
+`cms.administration.monitor` alone cannot open operational records.
+
+Compliance Monitor changes use case row locking and `lockVersion`, retain ended
+rows, append one of `COMPLIANCE_MONITOR_ASSIGNED`,
+`COMPLIANCE_MONITOR_REPLACED`, or
+`COMPLIANCE_MONITOR_ASSIGNMENT_ENDED`, write Activity Log and Audit Trail
+records, and notify affected monitors after commit. Assignment does not change
+case status and grants no validation or closure authority.
+
+The CMS-2A backend is implemented. Dedicated React dashboard, registry, detail,
+filters, assignment controls, and responsive navigation remain CMS-2B.
+Corrective action plans, progress/evidence submission, validation, extensions,
+escalation, closure, accepted risk, reopening, and CMS reports are not
+implemented.
 
 ### 8.1 AEMS authorization contract
 
@@ -456,7 +546,7 @@ The lifecycle and Entry Conference additions are
 `aems.entry-conference.waive`.
 Formal closure adds 21 granular Completion Assessment, Closure, document-index,
 retention, and exceptional-reopening operations. The verified runtime
-catalogue contains 193 permissions in total.
+catalogue contains 198 permissions in total, including 11 `cms.*` permissions.
 Administrators receive monitoring access but do not receive audit approval or
 issuance permissions. CIAS Management has global audit authority. AGIS Users
 require an active `engagement_teams` assignment, and the assignment role limits

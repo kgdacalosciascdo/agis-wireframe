@@ -73,6 +73,12 @@ intake rows are deterministically changed to `TRANSFERRED`; recoverable source
 attributes are backfilled without fabricating unavailable historical values,
 and each intake receives one case and one initial event.
 
+The additive CMS-2A migration creates `cms_recommendation_assignments` and
+PostgreSQL partial unique indexes for one current Compliance Monitor per case.
+It does not rewrite intake, case, event, AEMS workflow, or retained assignment
+data. After migration, run `RolePermissionSeeder` idempotently to register the
+five granular CMS-2A permissions while preserving the six legacy CMS codes.
+
 Run only safe idempotent reference seeders when required:
 
 ```powershell
@@ -196,6 +202,20 @@ php artisan tinker --execute="dump([
 
 Each valid intake must have one case and one `INTAKE_CREATED` event. Formally
 excluded AEMS recommendations are intentionally absent from all three counts.
+
+After CMS-2A deployment, verify the routes and assignment integrity:
+
+```powershell
+php artisan route:list --path=cms
+php artisan tinker --execute="dump([
+    'assignments' => App\Models\CmsRecommendationAssignment::count(),
+    'currentAssignments' => App\Models\CmsRecommendationAssignment::current()->count(),
+    'cmsPermissions' => App\Models\Permission::where('code', 'like', 'cms.%')->count(),
+]);"
+```
+
+The CMS permission count is 11 (six legacy plus five CMS-2A granular codes).
+No case may have more than one current `COMPLIANCE_MONITOR`.
 
 Smoke-test:
 

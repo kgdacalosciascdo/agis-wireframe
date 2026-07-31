@@ -27,6 +27,9 @@ use App\Http\Controllers\Api\AemsReportController;
 use App\Http\Controllers\Api\AemsTeamController;
 use App\Http\Controllers\Api\AemsWorkingPaperController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CmsDashboardController;
+use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
+use App\Http\Controllers\Api\CmsRecommendationController;
 use App\Http\Controllers\Api\CoreRegistryController;
 use App\Http\Controllers\Api\DemoAccountController;
 use App\Http\Controllers\Api\DocumentController;
@@ -66,6 +69,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/record-views', RecordViewController::class);
+
+    Route::get('/cms/dashboard', CmsDashboardController::class)
+        ->middleware('permission:cms.dashboard.view');
+    Route::get('/cms/recommendations', [CmsRecommendationController::class, 'index'])
+        ->middleware('permission:cms.recommendation.view');
+    Route::get('/cms/recommendations/{recommendation}', [CmsRecommendationController::class, 'show'])
+        ->middleware('permission:cms.recommendation.view');
+    Route::get('/cms/recommendations/{recommendation}/assignments', [CmsRecommendationAssignmentController::class, 'index'])
+        ->middleware('permission:cms.recommendation.view');
+    Route::post('/cms/recommendations/{recommendation}/assignments', [CmsRecommendationAssignmentController::class, 'store'])
+        ->middleware('permission:cms.recommendation.assign');
+    Route::post('/cms/recommendations/{recommendation}/assignments/{assignment}/end', [CmsRecommendationAssignmentController::class, 'end'])
+        ->middleware('permission:cms.recommendation.assign');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

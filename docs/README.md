@@ -23,7 +23,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | IAP — Internal Audit Planning | As-built documentation complete | Implemented |
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
-| CMS — Compliance Management | CMS-1 immutable intake foundation documented; operational pages remain placeholders | Hardened AEMS-to-CMS intake, one initialized operational case, and append-only intake event per valid transfer; dashboard, registry, action plans, monitoring, validation, and closure are not implemented |
+| CMS — Compliance Management | CMS-1 intake and CMS-2A backend registry documented; React pages remain pending CMS-2B | Immutable AEMS intake, operational case, scoped registry/detail/dashboard APIs, Compliance Monitor assignment history, events, logs, and notifications are implemented; action plans and later monitoring workflows are not implemented |
 | ARMIS — Audit Resource Management | Temporary capacity exists in IAP | Full module not implemented |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 

@@ -155,6 +155,11 @@ class User extends Authenticatable
         return $this->hasMany(IapAuditorSkill::class);
     }
 
+    public function cmsRecommendationAssignments(): HasMany
+    {
+        return $this->hasMany(CmsRecommendationAssignment::class);
+    }
+
     public function changes(): MorphMany
     {
         return $this->morphMany(AuditLog::class, 'auditable');

@@ -399,7 +399,33 @@ domain-specific transition guards even though the
 generic Core workflow engine remains available, preventing configurable steps
 from introducing unsupported audit states.
 
-### 11.6 Runtime logo
+### 11.6 CMS-2A registry and assignment flow
+
+An issued AEMS recommendation creates the immutable CMS intake and its
+`TRANSFERRED` operational case; users cannot manually create cases. CMS-2A
+reads that case through one database-level visibility scope combining active
+account, granular permission (or temporary `cms.view` inquiry compatibility),
+role authority, responsible office, active Compliance Monitor assignment,
+confidentiality snapshot, and record state.
+
+```mermaid
+flowchart LR
+    C[Visible CMS cases] --> D[Scoped dashboard aggregates]
+    C --> R[Search/filter/sort/paginate registry]
+    C --> W[Safe detail workspace]
+    M[CIAS Management] -->|assign/replace/end with lockVersion| A[Assignment history]
+    A --> E[Append-only CMS event]
+    A --> L[Activity Log + Audit Trail]
+    A --> N[After-commit assignment notification]
+```
+
+Out-of-scope records resolve as unavailable and do not contribute to totals,
+filter options, grouped dashboard counts, or detail-view logs. `OVERDUE` is
+derived from the effective target date and evaluation date; it is not stored as
+a workflow status. Assignment changes increment the case lock but do not change
+its workflow state or grant validation or closure authority.
+
+### 11.7 Runtime logo
 
 Branding images are the exception: validated logo files are stored in managed
 public storage because the login page must display them before authentication.

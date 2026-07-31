@@ -97,6 +97,7 @@ class AemsFoundationTest extends TestCase
             'audit_report_review_comments',
             'cms_recommendations',
             'cms_recommendation_cases',
+            'cms_recommendation_assignments',
             'cms_recommendation_events',
             'report_recipients',
             'engagement_events',

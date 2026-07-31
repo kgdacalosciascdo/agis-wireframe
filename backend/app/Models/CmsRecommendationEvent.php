@@ -16,6 +16,12 @@ class CmsRecommendationEvent extends Model
 
     public const EVENT_INTAKE_CREATED = 'INTAKE_CREATED';
 
+    public const EVENT_COMPLIANCE_MONITOR_ASSIGNED = 'COMPLIANCE_MONITOR_ASSIGNED';
+
+    public const EVENT_COMPLIANCE_MONITOR_REPLACED = 'COMPLIANCE_MONITOR_REPLACED';
+
+    public const EVENT_COMPLIANCE_MONITOR_ASSIGNMENT_ENDED = 'COMPLIANCE_MONITOR_ASSIGNMENT_ENDED';
+
     protected $fillable = [
         'cms_recommendation_case_id',
         'cms_recommendation_id',

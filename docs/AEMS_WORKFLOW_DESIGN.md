@@ -26,34 +26,26 @@ flowchart LR
     CMS --> CLOSE[Engagement Closure]
 ```
 
-Design status: **the database foundation and operational AEMS workflows are
-implemented through formal Completion Assessment and Engagement Closure. This
-includes the Engagement Registry, Audit Team, AEO, AEP, Audit Program, Entry
-Conference, fieldwork, Working Papers, Evidence, Issues, Findings,
-Management Response dialogue, Exit Conference, reports, idempotent CMS intake,
-the Engagement Tracker, a final document index, interim retention/custody
-metadata, lessons learned, atomic `CLOSED`, and exceptional reopening**.
+Design status: **workflow design, database foundation, permissions, Engagement
+Registry, Audit Team, AEO, AEP, Audit Program, Working Paper, Audit Evidence,
+Issue, Finding, Management Response, Auditor Rejoinder, and Recommendation
+API/screens implemented; Exit Conference management implemented; downstream
+reporting workflows pending**.
 
 The sidebar exposes AEMS as a collapsible module, consistent with IAP:
 
-- `/audit-engagement-management/dashboard` — live access-scoped Engagement Tracker;
+- `/audit-engagement-management/dashboard` — live AEMS module dashboard;
 - `/audit-engagement-management` — Engagement Registry;
 - `/audit-engagement-management/team` — Audit Team assignments and warnings;
 - `/audit-engagement-management/aeo` — versioned AEO workflow and PDF;
 - `/audit-engagement-management/aep` — immutable Audit Engagement Plan;
 - `/audit-engagement-management/audit-program` — fieldwork procedure baseline;
 - `/audit-engagement-management/working-papers` — Working Papers and Evidence;
-- `/audit-engagement-management/issues` — issue capture, review, dismissal, and conversion;
+- `/audit-engagement-management/issues` — issue capture, review, di smissal, and conversion;
 - `/audit-engagement-management/findings` — Findings and Recommendations;
 - `/audit-engagement-management/auditee-responses` — management responses and auditor dialogue;
 - `/audit-engagement-management/exit-conferences` — schedule, attendance, finding discussions, minutes, files, and acknowledgement;
-- `/audit-engagement-management/reports` — immutable Draft and Final Reports, review, issuance, recipients, and CMS intake;
 - `/audit-engagement-management/{engagement}` — complete engagement details.
-
-The sidebar also exposes
-`/audit-engagement-management/entry-conferences` as the official PGIAM Entry
-Conference workspace with engagement selection. Each engagement detail retains
-its separate Overview, Lifecycle, and Entry Conference tabs.
 
 Legacy placeholder navigation used module code `AEM`. Functional engagement
 features use the granular `aems.*` permission namespace and `AEMS`
@@ -89,17 +81,17 @@ remains responsible for all cross-record business guards.
 
 ## 3. Actors and approval boundaries
 
-| Actor | Typical workflow responsibility |
-| --- | --- |
-| CIAS Management | Authorize engagements, approve/issue controlled documents, finalize reports, approve closure |
-| Engagement Supervisor | Supervise scope, team, quality, findings, and reporting |
-| Team Leader | Prepare engagement records, coordinate fieldwork, review team output |
-| Reviewer | Independently review AEO, AEP, programs, working papers, findings, and reports |
-| Assigned Auditor | Perform procedures, prepare working papers, upload evidence, draft issues |
-| Auditee Representative | View formally communicated matters, submit management responses, acknowledge conferences |
-| AGIS Administrator | Maintain configuration and monitor activity; no automatic audit approval authority |
-| Platform Administrator | Technical administration; no automatic audit approval authority |
-| Read-Only User | View only specifically authorized final or issued records |
+| Actor                  | Typical workflow responsibility                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| CIAS Management        | Authorize engagements, approve/issue controlled documents, finalize reports, approve closure |
+| Engagement Supervisor  | Supervise scope, team, quality, findings, and reporting                                      |
+| Team Leader            | Prepare engagement records, coordinate fieldwork, review team output                         |
+| Reviewer               | Independently review AEO, AEP, programs, working papers, findings, and reports               |
+| Assigned Auditor       | Perform procedures, prepare working papers, upload evidence, draft issues                    |
+| Auditee Representative | View formally communicated matters, submit management responses, acknowledge conferences     |
+| AGIS Administrator     | Maintain configuration and monitor activity; no automatic audit approval authority           |
+| Platform Administrator | Technical administration; no automatic audit approval authority                              |
+| Read-Only User         | View only specifically authorized final or issued records                                    |
 
 Supervisor, Team Leader, Reviewer, and Auditor are engagement assignments. They
 do not require separate platform roles if the user has the required `AGIS User`
@@ -118,32 +110,23 @@ approval:
 The engagement aggregate represents the complete audit and summarizes the
 progress of its controlled child workflows.
 
-`AemsEngagementTransitionService` is the authoritative executor for parent
-status changes. The browser submits an action and `lockVersion`, never a target
-status. The service authorizes the actor, locks the engagement row, re-checks
-child-record gates, writes an immutable Engagement Event plus Activity Log and
-Audit Trail, and schedules notifications after commit. Aggregate lifecycle
-actions reach `CLOSURE_REVIEW`; the formal Closure service then invokes the
-same transition service for the guarded, atomic move to `CLOSED`.
-
 ### 4.1 Controlled states
 
-| Code | Meaning |
-| --- | --- |
-| `DRAFT` | Engagement identity and source are being prepared |
-| `AUTHORIZATION_PREPARATION` | Team and AEO are being prepared |
-| `RETURNED_FOR_REVISION` | The current stage was returned; return context identifies the resume state |
-| `AUTHORIZED` | AEO is approved and issued |
-| `ENGAGEMENT_PLANNING` | AEP and Audit Program are being prepared |
-| `ENTRY_CONFERENCE` | Official Entry Conference is prepared, held, acknowledged, completed, or waived |
-| `FIELDWORK` | Approved procedures are being performed |
-| `FINDINGS_COMMUNICATION` | Issues, findings, responses, rejoinders, and exit-conference work are active |
-| `REPORTING` | Draft and final reports are being prepared and reviewed |
-| `ISSUED` | The final report has been issued |
-| `CLOSURE_REVIEW` | Closure requirements are being checked and approved |
-| `CLOSED` | Engagement is complete and locked |
-| `SUSPENDED` | Work is temporarily stopped; the prior state is retained |
-| `CANCELLED` | Work ended by authorized cancellation before report issuance |
+| Code                        | Meaning                                                                      |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `DRAFT`                     | Engagement identity and source are being prepared                            |
+| `AUTHORIZATION_PREPARATION` | Team and AEO are being prepared                                              |
+| `RETURNED_FOR_REVISION`     | The current stage was returned; return context identifies the resume state   |
+| `AUTHORIZED`                | AEO is approved and issued                                                   |
+| `ENGAGEMENT_PLANNING`       | AEP and Audit Program are being prepared                                     |
+| `FIELDWORK`                 | Approved procedures are being performed                                      |
+| `FINDINGS_COMMUNICATION`    | Issues, findings, responses, rejoinders, and exit-conference work are active |
+| `REPORTING`                 | Draft and final reports are being prepared and reviewed                      |
+| `ISSUED`                    | The final report has been issued                                             |
+| `CLOSURE_REVIEW`            | Closure requirements are being checked and approved                          |
+| `CLOSED`                    | Engagement is complete and locked                                            |
+| `SUSPENDED`                 | Work is temporarily stopped; the prior state is retained                     |
+| `CANCELLED`                 | Work ended by authorized cancellation before report issuance                 |
 
 `ARCHIVED` is not an engagement workflow state. Archiving sets `deleted_at` and
 retains the current workflow status. Restoring an archived record does not
@@ -161,8 +144,7 @@ stateDiagram-v2
     AUTHORIZED --> ENGAGEMENT_PLANNING: START_PLANNING
     ENGAGEMENT_PLANNING --> RETURNED_FOR_REVISION: RETURN
     RETURNED_FOR_REVISION --> ENGAGEMENT_PLANNING: RESUBMIT_PLANNING
-    ENGAGEMENT_PLANNING --> ENTRY_CONFERENCE: START_ENTRY_CONFERENCE
-    ENTRY_CONFERENCE --> FIELDWORK: START_FIELDWORK
+    ENGAGEMENT_PLANNING --> FIELDWORK: START_FIELDWORK
     FIELDWORK --> FINDINGS_COMMUNICATION: END_FIELDWORK
     FINDINGS_COMMUNICATION --> REPORTING: START_REPORTING
     REPORTING --> RETURNED_FOR_REVISION: RETURN
@@ -171,19 +153,17 @@ stateDiagram-v2
     ISSUED --> CLOSURE_REVIEW: SUBMIT_FOR_CLOSURE
     CLOSURE_REVIEW --> RETURNED_FOR_REVISION: RETURN_CLOSURE
     RETURNED_FOR_REVISION --> CLOSURE_REVIEW: RESUBMIT_CLOSURE
-    CLOSURE_REVIEW --> CLOSED: CLOSE_ENGAGEMENT after approved closure
+    CLOSURE_REVIEW --> CLOSED: APPROVE_CLOSURE
 
     AUTHORIZATION_PREPARATION --> SUSPENDED: SUSPEND
     AUTHORIZED --> SUSPENDED: SUSPEND
     ENGAGEMENT_PLANNING --> SUSPENDED: SUSPEND
-    ENTRY_CONFERENCE --> SUSPENDED: SUSPEND
     FIELDWORK --> SUSPENDED: SUSPEND
     FINDINGS_COMMUNICATION --> SUSPENDED: SUSPEND
     REPORTING --> SUSPENDED: SUSPEND
     SUSPENDED --> AUTHORIZATION_PREPARATION: RESUME
     SUSPENDED --> AUTHORIZED: RESUME
     SUSPENDED --> ENGAGEMENT_PLANNING: RESUME
-    SUSPENDED --> ENTRY_CONFERENCE: RESUME
     SUSPENDED --> FIELDWORK: RESUME
     SUSPENDED --> FINDINGS_COMMUNICATION: RESUME
     SUSPENDED --> REPORTING: RESUME
@@ -192,7 +172,6 @@ stateDiagram-v2
     AUTHORIZATION_PREPARATION --> CANCELLED: CANCEL
     AUTHORIZED --> CANCELLED: CANCEL
     ENGAGEMENT_PLANNING --> CANCELLED: CANCEL
-    ENTRY_CONFERENCE --> CANCELLED: CANCEL
     FIELDWORK --> CANCELLED: CANCEL
     FINDINGS_COMMUNICATION --> CANCELLED: CANCEL
     REPORTING --> CANCELLED: CANCEL
@@ -206,21 +185,20 @@ to the recorded valid state; the client cannot choose an arbitrary destination.
 
 ### 4.3 Engagement transition guards
 
-| Action | Required guard |
-| --- | --- |
-| `PREPARE_AUTHORIZATION` | Valid source, auditee office, audit area, dates, type, and preliminary team |
-| `ISSUE_AUTHORIZATION` | Current AEO is issued; required team roles and AEO separation are valid |
-| `START_PLANNING` | Issued AEO exists and engagement is not suspended/cancelled |
-| `START_ENTRY_CONFERENCE` | Current AEP and Audit Program are approved and participants can be identified |
-| `START_FIELDWORK` | Entry Conference is completed/waived and planning/team approvals remain valid |
-| `END_FIELDWORK` / `START_FINDINGS_COMMUNICATION` | Required procedures are completed/waived and Working Papers are terminal |
-| `START_REPORTING` | Issues are dismissed/converted and current Findings are finalized |
-| `ISSUE_FINAL_REPORT` | Issued Final Report, recipients, confidentiality, finalized Findings, and transferred/excluded Recommendations exist |
-| `SUBMIT_FOR_CLOSURE` | Issuance/CMS, terminal fieldwork, conference, and person-day gates pass |
-| `CLOSE_ENGAGEMENT` | Current Completion Assessment and Closure are approved; authoritative checklist passes; final index is locked; retention is approved; CMS disposition and child workflows are complete |
-| `SUSPEND` | CIAS authority, reason, effective date, and resume conditions are recorded |
-| `RESUME` | Original state is valid and resume authority and comment are recorded |
-| `CANCEL` | CIAS authority, reason, disposition of work/evidence, and notification recipients are recorded |
+| Action                  | Required guard                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `PREPARE_AUTHORIZATION` | Valid source, auditee office, audit area, dates, type, and preliminary team                                   |
+| `ISSUE_AEO`             | Current AEO version is approved and issued                                                                    |
+| `START_PLANNING`        | Issued AEO exists and engagement is not suspended/cancelled                                                   |
+| `START_FIELDWORK`       | Approved AEP and approved Audit Program exist; required team roles are filled                                 |
+| `END_FIELDWORK`         | All required procedures are completed or formally waived; working papers are submitted                        |
+| `START_REPORTING`       | Issues are dismissed or converted; communicated findings have response disposition or documented non-response |
+| `ISSUE_FINAL_REPORT`    | Final report version is approved, required recipients exist, and confidentiality is assigned                  |
+| `SUBMIT_FOR_CLOSURE`    | Final report is issued and recommendation transfer requirements are satisfied                                 |
+| `APPROVE_CLOSURE`       | Closure checklist is complete and no blocking workflow remains                                                |
+| `SUSPEND`               | CIAS authority, reason, effective date, and resume conditions are recorded                                    |
+| `RESUME`                | Original state is valid and resume authority and comment are recorded                                         |
+| `CANCEL`                | CIAS authority, reason, disposition of work/evidence, and notification recipients are recorded                |
 
 ## 5. Engagement source authorization
 
@@ -387,12 +365,12 @@ Rules:
 Evidence does not use an approval workflow separate from its working paper, but
 it has controlled record states:
 
-| State | Meaning |
-| --- | --- |
-| `DRAFT` | Uploaded but not yet relied upon by a submitted working paper |
+| State      | Meaning                                                                       |
+| ---------- | ----------------------------------------------------------------------------- |
+| `DRAFT`    | Uploaded but not yet relied upon by a submitted working paper                 |
 | `VERIFIED` | Checksum, source, custodian, date, category, and confidentiality are complete |
-| `LOCKED` | Referenced by an approved working paper, validated finding, or issued report |
-| `VOIDED` | Retained but explicitly excluded with a documented reason |
+| `LOCKED`   | Referenced by an approved working paper, validated finding, or issued report  |
+| `VOIDED`   | Retained but explicitly excluded with a documented reason                     |
 
 Evidence files are immutable. A replacement creates a new version with a new
 checksum. Locking a working paper stores the exact evidence version IDs it used.
@@ -533,13 +511,13 @@ ready for long-term retention.
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT
-    DRAFT --> PENDING_REVIEW: SUBMIT_CLOSURE
-    PENDING_REVIEW --> RETURNED_FOR_REVISION: RETURN_CLOSURE
-    RETURNED_FOR_REVISION --> RESUBMITTED: RESUBMIT_CLOSURE
-    RESUBMITTED --> RETURNED_FOR_REVISION: RETURN_CLOSURE
-    PENDING_REVIEW --> APPROVED: APPROVE_CLOSURE
-    RESUBMITTED --> APPROVED: APPROVE_CLOSURE
-    APPROVED --> CLOSED: CLOSE_ENGAGEMENT
+    DRAFT --> PENDING_REVIEW: SUBMIT
+    PENDING_REVIEW --> RETURNED_FOR_REVISION: RETURN
+    RETURNED_FOR_REVISION --> RESUBMITTED: RESUBMIT
+    RESUBMITTED --> RETURNED_FOR_REVISION: RETURN
+    PENDING_REVIEW --> APPROVED: APPROVE
+    RESUBMITTED --> APPROVED: APPROVE
+    APPROVED --> CLOSED: CLOSE
     CLOSED --> [*]
 ```
 
@@ -595,18 +573,18 @@ Archive is recoverable soft deletion and:
 
 ## 17. Cross-workflow gates
 
-| Engagement milestone | Required child workflow state |
-| --- | --- |
-| Authorization complete | Current AEO is `ISSUED` |
-| Fieldwork start | Current AEP and Audit Program are `APPROVED` |
-| Procedure completion | Working paper submitted/approved or waiver approved |
-| Issue validation | Working papers `APPROVED`; evidence `VERIFIED` or `LOCKED` |
-| Finding communication | Finding `VALIDATED`; recipients and due date complete |
-| Reporting start | Issues terminal; dialogue finalized or non-response documented |
-| Final report approval | Included findings `FINALIZED`; exit conference complete/waived |
-| Final report issue | Report `APPROVED`; number, recipients, confidentiality, and PDF exist |
-| Closure submission | Report `ISSUED`; CMS transfer/exclusions complete; child work terminal |
-| Engagement close | Closure workflow `APPROVED` |
+| Engagement milestone   | Required child workflow state                                          |
+| ---------------------- | ---------------------------------------------------------------------- |
+| Authorization complete | Current AEO is `ISSUED`                                                |
+| Fieldwork start        | Current AEP and Audit Program are `APPROVED`                           |
+| Procedure completion   | Working paper submitted/approved or waiver approved                    |
+| Issue validation       | Working papers `APPROVED`; evidence `VERIFIED` or `LOCKED`             |
+| Finding communication  | Finding `VALIDATED`; recipients and due date complete                  |
+| Reporting start        | Issues terminal; dialogue finalized or non-response documented         |
+| Final report approval  | Included findings `FINALIZED`; exit conference complete/waived         |
+| Final report issue     | Report `APPROVED`; number, recipients, confidentiality, and PDF exist  |
+| Closure submission     | Report `ISSUED`; CMS transfer/exclusions complete; child work terminal |
+| Engagement close       | Closure workflow `APPROVED`                                            |
 
 The backend repeats every gate at transition time. A stale frontend completeness
 indicator cannot authorize a transition.
@@ -646,19 +624,19 @@ Adding a Master List value must never create a backend transition.
 Versioned aggregates use a stable family ID and increasing version number. At
 most one current non-archived version exists per family.
 
-| Record | Lock point |
-| --- | --- |
-| AEO | `ISSUED` |
-| AEP | `APPROVED` |
-| Audit Program | `APPROVED` and activation |
-| Working Paper | `APPROVED` |
-| Evidence file | Every upload; selected versions lock when referenced |
-| Issue | `DISMISSED` or `CONVERTED_TO_FINDING` |
-| Finding | Communicated version and final `FINALIZED` version |
-| Management Response | `SUBMITTED`; clarification creates a version |
-| Auditor Rejoinder | `DIALOGUE_FINALIZED` |
-| Audit Report | Every generated version; final lock at `ISSUED` |
-| Closure record | `CLOSED` |
+| Record              | Lock point                                           |
+| ------------------- | ---------------------------------------------------- |
+| AEO                 | `ISSUED`                                             |
+| AEP                 | `APPROVED`                                           |
+| Audit Program       | `APPROVED` and activation                            |
+| Working Paper       | `APPROVED`                                           |
+| Evidence file       | Every upload; selected versions lock when referenced |
+| Issue               | `DISMISSED` or `CONVERTED_TO_FINDING`                |
+| Finding             | Communicated version and final `FINALIZED` version   |
+| Management Response | `SUBMITTED`; clarification creates a version         |
+| Auditor Rejoinder   | `DIALOGUE_FINALIZED`                                 |
+| Audit Report        | Every generated version; final lock at `ISSUED`      |
+| Closure record      | `CLOSED`                                             |
 
 Revision copies only the data needed for editing and never changes prior files,
 references, or history.
@@ -740,6 +718,13 @@ Only recommendations from finalized findings in an issued report transfer to
 CMS. Transfer preserves all source identifiers, responsible office, risk, and
 target date.
 
+The downstream CMS-2A backend now exposes permission-scoped dashboard,
+registry, detail, and Compliance Monitor assignment APIs over the separate
+operational case. It never edits the immutable AEMS intake or source snapshots.
+Only AEMS creates recommendation cases; CMS assignment changes do not alter the
+AEMS recommendation, report, engagement lifecycle, or closure disposition.
+The dedicated React CMS workspace remains pending CMS-2B.
+
 ## 25. Workflow-design acceptance criteria
 
 Step 1 is complete when:
@@ -759,9 +744,7 @@ Step 1 is complete when:
 
 The database foundation implements:
 
-- the original 23 AEMS entities plus the formal Completion Assessment,
-  Closure, checklist/event, final document index, retention, lessons-learned,
-  and reopening records;
+- all 23 requested AEMS entities;
 - coverage and evidence/finding/report junction tables;
 - a single active AEMS engagement per non-cancelled IAP source;
 - PostgreSQL enforcement of planned versus special source authority;
@@ -782,22 +765,19 @@ lineage, and duplicate active-source prevention.
 
 The permission catalogue now contains 88 controlled AEMS operations grouped
 under engagement, team, AEO, AEP, program, working paper, evidence, issue,
-finding, management response, rejoinder, Entry Conference, Exit Conference,
-report, Completion Assessment, Closure, document-index, retention, and
-exceptional-reopening resources. The complete runtime catalogue contains 193
-permissions.
+finding, management response, rejoinder, conference, and report resources.
 Permission codes use the stable `aems.<resource>.<action>` convention.
 
 The standard role baseline is:
 
-| Role | AEMS access |
-| --- | --- |
-| CIAS Management | Global engagement oversight; authorization, assignment, review, approval, issuance, suspension/cancellation, reporting, and closure |
-| AGIS User | Only current team assignments; permitted preparation, fieldwork, evidence, issue/finding, response-dialogue, and report-drafting work according to assignment role |
-| Auditee Representative | Communicated findings for their office, management responses, covered exit conferences, and issued reports addressed to their user or office |
-| Read-Only User | Issued reports only when their user is an explicit report recipient |
-| Platform Administrator | Global engagement monitoring and issued-report monitoring; no AEMS audit approval or issuance authority |
-| AGIS Administrator | Global engagement monitoring and issued-report monitoring; no AEMS audit approval or issuance authority |
+| Role                   | AEMS access                                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CIAS Management        | Global engagement oversight; authorization, assignment, review, approval, issuance, suspension/cancellation, reporting, and closure                                |
+| AGIS User              | Only current team assignments; permitted preparation, fieldwork, evidence, issue/finding, response-dialogue, and report-drafting work according to assignment role |
+| Auditee Representative | Communicated findings for their office, management responses, covered exit conferences, and issued reports addressed to their user or office                       |
+| Read-Only User         | Issued reports only when their user is an explicit report recipient                                                                                                |
+| Platform Administrator | Global engagement monitoring and issued-report monitoring; no AEMS audit approval or issuance authority                                                            |
+| AGIS Administrator     | Global engagement monitoring and issued-report monitoring; no AEMS audit approval or issuance authority                                                            |
 
 The application enforces access twice:
 
@@ -1130,392 +1110,3 @@ office, date, comment, status, and version and cannot be overwritten.
 and rescheduling, participants, attendance, finding discussions, revised target
 dates, immutable files, completion locking, office access, downloads, audit
 events, and auditee acknowledgement.
-
-## 35. Implemented Audit Report generation and versioning
-
-Audit Reports have a dedicated workspace:
-
-```text
-/audit-engagement-management/reports
-```
-
-The active report family begins as a Draft Report. Preparers select current
-validated or later Findings, write the executive summary, and arrange named
-sections. Each generation renders a private PDF and creates both an immutable
-Core `DocumentVersion` and an immutable `AuditReportVersion` containing the
-exact Finding and recommendation snapshots.
-
-The review lifecycle is:
-
-```text
-Draft → Pending Review → Returned for Revision → Resubmitted → Approved
-```
-
-Returns and approvals create immutable reviewer comments against the exact
-version reviewed. A return never unlocks or overwrites the prior PDF; the
-preparer supplies a change reason and generates the next version.
-
-An approved Draft Report can be promoted to a Final Report draft. Final
-generation accepts only current finalized Findings and requires an approving
-authority, confidentiality level, and controlled recipients. Final approval
-also requires a completed or formally waived Exit Conference. The Final Report
-then follows:
-
-```text
-Draft → Pending Review → Returned for Revision → Resubmitted → Approved → Issued
-```
-
-Issuance records the date and actor, marks exact-version recipients sent, locks
-the generated PDF version, preserves file name, size, SHA-256 checksum, and
-document-version ID, and advances the engagement to `ISSUED`. Internal draft
-access remains engagement-scoped. Issued-recipient access is limited to the
-current issued version and is evaluated with the report confidentiality level.
-
-The full CMS case-management workflow remains a later module. CMS-1 hardens its
-operational AEMS intake boundary: issuance creates one immutable
-`CmsRecommendation` per included finalized recommendation, one separate
-`CmsRecommendationCase` initialized in `TRANSFERRED`, and one append-only
-`INTAKE_CREATED` event. The intake snapshot preserves stable engagement,
-Finding, Recommendation, report/version, checksum, confidentiality, risk,
-responsible-office, original-target, actor, timestamp, and transfer-key
-lineage. The case is only the initialized future operational root; no CMS
-dashboard, registry, action-plan, progress, validation, extension, escalation,
-or closure workflow is operational.
-
-`CmsIntakeService` is the authoritative trust boundary. It locks and
-independently revalidates the issued Final Report, exact current locked version,
-included current finalized Finding, eligible non-archived Recommendation,
-finalized source attributes, and AEMS issuance authority. PostgreSQL-safe
-insert-ignore/re-query behavior and source-identity comparison make sequential
-and simultaneous retry create-once. Formally excluded recommendations create no
-CMS records.
-
-`AemsReportTest` and `CmsIntakeTest` verify validated-Finding Draft generation, reviewer return,
-immutable revision history, finalized-Finding enforcement, Exit Conference
-approval gating, authority and recipient preservation, confidential recipient
-download, PDF locking and checksums, issuance metadata, intake contents,
-eligibility, atomic rollback, immutable case/event initialization,
-recommendation-specific logs, referential integrity, exclusion, and
-duplicate-safe CMS intake.
-
-## 36. Implemented Engagement Tracker dashboard
-
-The AEMS dashboard is an operational, read-only portfolio tracker:
-
-```text
-/audit-engagement-management/dashboard
-```
-
-It derives all values from the current controlled records rather than storing
-parallel dashboard state. The portfolio cards show active engagements,
-planning, fieldwork, overdue procedures, Working Papers awaiting review,
-Findings awaiting Management Response, upcoming Exit Conferences within 30
-days, reports pending approval, and engagements ready for closure.
-
-Each visible engagement has 14 drill-down stages:
-
-```text
-AEO → AEP → Audit Program → Entry Conference → Fieldwork Procedures
-→ Working Papers → Evidence → Findings → Management Responses
-→ Exit Conference → Draft Report → Final Report
-→ CMS Transfer → Engagement Closure
-```
-
-Each stage exposes a normalized state, percentage, record totals, completed
-totals, overdue/review counts where applicable, and a link to its dedicated
-workspace. The engagement-level percentage is the rounded mean of the 13
-derived stage percentages. Overdue health is driven by procedure targets,
-Management Response due dates, Exit Conference schedules, and the planned
-engagement end date.
-
-Visibility uses the central Engagement scope before either portfolio
-aggregation or list loading. CIAS management and authorized administrators can
-monitor their permitted portfolio; AGIS users see only active assignments.
-Auditee-specific Findings and issued-report access does not grant access to the
-internal Engagement Tracker.
-
-The dashboard reports pre-closure readiness when the issued Final Report and
-recipient records exist, Findings are finalized, Recommendations are
-transferred or excluded, Working Papers and procedures are terminal, the Exit
-Conference is completed or waived, actual person-days are positive, and no
-child review or unresolved current report return remains. This advisory value
-does not authorize `CLOSED`. The dashboard separately reports the formal
-Completion Assessment and Closure status; only the backend Closure workflow can
-approve and atomically close the engagement after re-evaluating every gate.
-
-`AemsDashboardTest` verifies portfolio metrics, overdue derivation, all-stage
-progress, closure blockers/readiness, assignment scoping, search, and
-pagination response behavior.
-
-## 37. Implemented Core, IAP, CMS, and ARMIS-ready integration
-
-AEMS now uses explicit container-bound contracts for module ownership:
-
-```text
-IapEngagementGateway
-  → DatabaseIapEngagementGateway
-
-CmsRecommendationGateway
-  → DatabaseCmsRecommendationGateway
-
-ResourcePlanningGateway
-  → InterimIapResourcePlanningGateway
-  → future ARMIS provider
-```
-
-The IAP gateway exposes only active engagement items belonging to an approved
-or active Annual Plan. Import locks the source, validates coverage, creates the
-AEMS aggregate and immutable risk/planning snapshot, and records the source
-link. AEMS updates only that integration link; approved objectives, scope,
-risk, prioritization, schedule, and resource values remain IAP-owned.
-
-The CMS gateway is a thin adapter over `CmsIntakeService`. The service accepts
-only eligible non-excluded recommendations from current finalized Findings
-selected into the exact locked version of an issued Final Report. It preserves
-engagement, report family/version/checksum, Finding, Recommendation wording,
-confidentiality, responsible-office set, risk, original target date, actor,
-timestamp, and transfer-key snapshots without relying only on live joins.
-
-The unique source recommendation remains the primary idempotency key and the
-transfer UUID remains independently unique. Conflict-safe
-insert-ignore/re-query replaces `firstOrCreate`; a retry returns the existing
-intake only after its immutable source identity matches. Manual retry takes its
-row locks inside the transaction. Initial issuance and intake/case/event/AEMS
-lineage/log writes share one transaction, while report notifications remain
-after-commit.
-
-The resource gateway supplies:
-
-- annual availability and capacity;
-- current AEMS workload allocation;
-- unavailable date ranges;
-- competencies and minimum proficiency;
-- planned and actual person-days.
-
-The current provider reads temporary IAP resource records and the AEMS
-assignment aggregate. Its status is `IAP_INTERIM_FALLBACK`, with
-`authoritative: false`. ARMIS will replace only the provider binding and become
-authoritative for availability, workload, competencies, and actual
-person-days; Audit Team, warnings, AEO snapshots, and Engagement Tracker
-consumers remain unchanged.
-
-Core remains the source of Users, Offices, Roles, Permissions, Scopes, Audit
-Areas, Audit Focuses, Master Lists, private Documents, immutable
-`DocumentVersion`s, reusable workflow infrastructure, Notifications, Activity
-Logs, Audit Trails, runtime limits, timezone, pagination, and document
-numbering. AEMS continues to use domain-specific state guards on top of that
-infrastructure. Assignment and issued-report notifications use Core
-`NotificationService` after commit and carry authorized deep links without
-exposing document contents.
-
-The Engagement Tracker exposes read-only provider status for deployment
-verification. `AemsIntegrationBoundaryTest` verifies contract bindings and
-ownership metadata; existing Registry, Team, Report, access, document, and
-tracker tests continue to verify the end-to-end integration behavior.
-
-## 38. Implemented notifications, operational reporting, logs, and final regression coverage
-
-AEMS workflow notifications use Core `NotificationService`, user delivery
-preferences, and recipient authorization. Event notifications are created only
-after their surrounding database transaction commits and use a stable dedupe
-key. They now cover:
-
-- Engagement assignment and reassignment;
-- AEO and AEP submission, resubmission, return, and approval;
-- returned Working Papers;
-- formally communicated Findings;
-- scheduled and rescheduled Exit Conferences;
-- Draft and Final Report submission, return, and approval;
-- issued Final Reports.
-
-The daily `notifications:dispatch-reminders` command additionally detects
-overdue fieldwork procedures, upcoming or overdue Management Response
-deadlines, and Exit Conferences occurring within seven days. Recipients remain
-engagement- and office-scoped, and repeat command execution does not create
-duplicate notifications.
-
-The Engagement Tracker provides a permission-scoped **Engagement Progress
-Report** CSV. It applies the same search, status, office, role, and engagement
-visibility rules as the tracker and exports health, overall progress, current
-stage, dates, alerts, and closure readiness. Every export creates both an
-Activity Log and an Audit Log with actor, filters, file name, format, and row
-count.
-
-Working Papers and Evidence remain one page because they are a single review
-and immutable-version boundary. Audit Issues, Findings and Recommendations,
-and Auditee Responses share UI infrastructure but remain separate routes
-because they have different permissions and actors. Findings and
-Recommendations remains a dedicated page. The four workspaces now use the same
-responsive page padding, bounded filters, and role-aware empty state.
-
-Final regression coverage maps to the required controls:
-
-| Control | Primary automated coverage |
-| --- | --- |
-| Role and engagement access, separation of duties | `AemsAccessControlTest`, AEO/AEP, Finding, and Report feature tests |
-| Duplicate IAP import prevention | `AemsEngagementRegistryTest` |
-| Immutable approved/issued versions | `AemsWorkingPaperEvidenceTest`, `AemsReportTest` |
-| Soft deletion and restoration | `AemsFoundationTest`, `AemsEngagementRegistryTest` |
-| Evidence checksum validation | `AemsWorkingPaperEvidenceTest` |
-| Concurrent-update protection | AEMS registry, team, AEO/AEP, program, fieldwork, finding, conference, and report tests |
-| CMS transfer idempotency | `AemsReportTest`, `AemsIntegrationBoundaryTest` |
-| Activity, audit, and engagement-event logging | All AEMS mutation tests plus dashboard export coverage |
-| Event and deadline notification idempotency | `AemsNotificationTest` |
-| Desktop and mobile responsiveness | `tests/e2e/aems-responsive.spec.js` on both Playwright projects |
-
-## 39. Aggregate lifecycle and official Entry Conference implementation
-
-The engagement workspace now separates Overview, Lifecycle, and Entry
-Conference concerns. Lifecycle shows the ordered status timeline, only the
-actions authorized for the current actor, every satisfied or blocking
-requirement, related child-record links, immutable transition history, and
-stale-state recovery. Auditee Representatives use the office-scoped
-`/audit-engagement-management/entry-conference/{engagement}` surface for the
-same controlled Entry Conference record without receiving internal engagement
-registry access.
-
-The controlled parent actions are:
-
-```text
-PREPARE_AUTHORIZATION → ISSUE_AUTHORIZATION → START_PLANNING
-→ START_ENTRY_CONFERENCE → START_FIELDWORK
-→ END_FIELDWORK / START_FINDINGS_COMMUNICATION
-→ START_REPORTING → ISSUE_FINAL_REPORT → SUBMIT_FOR_CLOSURE
-```
-
-`RETURN`, `RESUBMIT`, `SUSPEND`, `RESUME`, and `CANCEL` are available only in
-their code-defined states. Suspension persists the prior state, authority,
-reason, effective/review dates, and resume requirements; resume can return only
-to that recorded prior state. Cancellation persists authority, reason, IAP
-effect, and the disposition of Working Papers, Evidence, Findings, and
-documents. It marks the engagement terminal without deleting child records.
-
-The official Entry Conference is one record per engagement and follows:
-
-```text
-DRAFT → SCHEDULED / RESCHEDULED → HELD
-→ NOTES_FOR_ACKNOWLEDGEMENT → ACKNOWLEDGED → COMPLETED
-```
-
-Authorized alternatives are `WAIVED` and `CANCELLED`. The record includes
-schedule and online details, agenda, the structured briefing paper, internal,
-auditee, and external participants, attendance, auditee views and expectations,
-material matters and dispositions, agreements/commitments, responsibility and
-due dates, Entry Conference Notes, exact Core DocumentVersions, and immutable
-version-specific acknowledgements with or without reservation. `COMPLETED` and
-`WAIVED` lock the conference and its child records.
-
-Aggregate and Entry Conference events notify current team members, invited
-participants, and covered Auditee Representatives after commit. Suspend and
-cancel notifications are urgent; schedule/reschedule notifications are
-deadline-classified; every event carries a permission-checked deep link.
-
-`AemsEngagementLifecycleTest` covers child gates, Entry Conference attendance
-and planning requirements, waiver authority/separation/reason, stale
-`lock_version`, suspend/resume, terminal cancellation with child preservation,
-direct-status rejection, administrator non-approval, and all three event/log
-layers. Existing Registry tests cover imported IAP `DRAFT` and authorized
-special-engagement entry states. The Playwright AEMS regression opens both new
-workspace tabs and verifies the timeline, gate list, formal closure link, Entry
-Conference form/actions, and responsive layout.
-
-`SUBMIT_FOR_CLOSURE` places a pre-closure-ready engagement in
-`CLOSURE_REVIEW`. Completion Assessment and Closure are independent controlled
-records: approval of either does not close the engagement.
-`CLOSE_ENGAGEMENT` is available only from an approved current Closure and calls
-the aggregate transition service, which locks and re-evaluates the engagement,
-Closure, checklist, final document index, retention, CMS, and child workflows
-inside one transaction.
-
-## 40. Formal Completion Assessment and Engagement Closure implementation
-
-### 40.1 Completion Assessment
-
-Each engagement may have a revision history and exactly one current Completion
-Assessment. Its 25 required criteria cover objectives, scope, program and
-procedure completion, Working Papers and Evidence, Findings/dialogue,
-conferences, reporting and CMS, schedule/resources/KPIs/milestones,
-limitations, delays, lessons, improvements, and overall closure readiness.
-
-```text
-DRAFT -> PENDING_REVIEW -> RETURNED_FOR_REVISION
-      -> RESUBMITTED -> APPROVED
-```
-
-Submission requires the assessment narrative and a result for every criterion.
-The preparer cannot approve. Blocking failures must be resolved or formally
-accepted by elevated authority. Every transition creates an immutable snapshot
-and an exact private Core `DocumentVersion`; approved assessments are locked.
-A correction starts a controlled current revision and preserves all previous
-versions. Only the current approved assessment satisfies Closure.
-
-### 40.2 Authoritative Closure
-
-The current Closure follows:
-
-```text
-DRAFT -> PENDING_REVIEW -> RETURNED_FOR_REVISION
-      -> RESUBMITTED -> APPROVED -> CLOSED
-```
-
-Its checklist is generated from source records and stores the evaluated result,
-source type, source ID, and source path. It covers authorization/planning,
-fieldwork, Findings and communication, reports and recipients, CMS disposition,
-resources, records/retention, and active workflow tasks. A client cannot submit
-a manual checkbox or target status to override a failed source record.
-
-Approval stores an immutable private Closure `DocumentVersion` and approval
-snapshot. `CLOSE_ENGAGEMENT` row-locks the engagement and current Closure,
-re-evaluates all guards, locks the final index, preserves final snapshots,
-increments both optimistic locks, writes Closure Event, Engagement Event,
-Activity Log, and Audit Trail records, and queues notifications only after the
-transaction commits.
-
-### 40.3 Final document index and retention
-
-The index discovers eligible authority, planning, conference, Working Paper,
-Evidence, dialogue, report, Completion Assessment, and Closure records without
-copying their private files. Each item retains the exact `document_id`,
-`document_version_id`, checksum/file status, classification, and source record.
-Authorized supporting records may be added; exclusion requires a reason and
-authority. CSV export is available. Closing locks the index.
-
-`EngagementRetentionProvider` is the replaceable records-management boundary.
-The interim AEMS provider stores classification, trigger/start, period or
-permanent status, calculated disposition date, custodian, storage description,
-and legal hold metadata. CIAS Management approval makes it immutable.
-Permanent records cannot carry a disposition date, and AEMS never physically
-destroys or publicly exposes a record.
-
-### 40.4 Lessons and exceptional reopening
-
-Confidential lessons learned are separate from Findings and the issued Final
-Report and may later feed QAIP, ARMIS, and analytics. They become immutable when
-the engagement closes.
-
-Exceptional reopening requires `aems.engagement.reopen_request`, an allowed
-reason, and an exact written-authority `DocumentVersion`. CIAS Management with
-`aems.engagement.reopen_approve` independently approves or rejects the request.
-Implementation preserves the original closed Closure and report snapshots,
-marks that Closure historical, increments the engagement reopening revision,
-and creates controlled work in `CLOSURE_REVIEW`; it never silently edits the
-closed record.
-
-### 40.5 Closure API and automated coverage
-
-The implemented endpoint families are:
-
-- `/api/aems/engagements/{engagement}/completion-assessments`;
-- `/api/aems/engagements/{engagement}/closure` and
-  `/closures/{closure}/transitions/{action}`;
-- `/api/aems/engagements/{engagement}/document-index`;
-- `/api/aems/engagements/{engagement}/retention`;
-- `/api/aems/engagements/{engagement}/lessons-learned`;
-- `/api/aems/engagements/{engagement}/reopen-requests`.
-
-`AemsCompletionClosureTest` protects assessment separation and versions,
-authoritative blockers, retention validation, atomic close, immutable closed
-records, technical-administrator restrictions, written reopening authority,
-and preservation of the original closed snapshot. The responsive Playwright
-suite covers the separate Completion Assessment, Closure, Final Document Index,
-Retention, and Lessons Learned workspaces.

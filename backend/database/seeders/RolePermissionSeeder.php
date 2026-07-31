@@ -79,7 +79,11 @@ class RolePermissionSeeder extends Seeder
         'aems.document-index' => ['view', 'manage', 'finalize'],
         'aems.retention' => ['view', 'manage', 'approve'],
         'afr' => ['view', 'create', 'update', 'submit', 'review', 'approve'],
-        'cms' => ['view', 'update', 'submit_evidence', 'validate', 'approve_extension', 'close'],
+        'cms' => [
+            'view', 'update', 'submit_evidence', 'validate', 'approve_extension', 'close',
+            'dashboard.view', 'recommendation.view', 'recommendation.assign',
+            'recommendation.monitor', 'administration.monitor',
+        ],
         'arms' => ['view', 'manage'],
         'ais' => ['view', 'export'],
         'documents' => [
@@ -135,9 +139,17 @@ class RolePermissionSeeder extends Seeder
                 'engagement_access_scope' => 'ALL',
                 'permissions' => collect(array_keys($permissionIds))
                     ->reject(fn (string $code): bool => str_starts_with($code, 'aems.')
-                        || str_starts_with($code, 'aem.'))
+                        || str_starts_with($code, 'aem.')
+                        || in_array($code, [
+                            'cms.dashboard.view',
+                            'cms.recommendation.view',
+                            'cms.recommendation.assign',
+                            'cms.recommendation.monitor',
+                            'cms.administration.monitor',
+                        ], true))
                     ->merge([
                         'aem.view',
+                        'cms.administration.monitor',
                         'aems.engagement.view',
                         'aems.team.view',
                         'aems.entry-conference.view',
@@ -169,6 +181,7 @@ class RolePermissionSeeder extends Seeder
                     'permissions.view', 'permissions.update',
                     'master_lists.view', 'master_lists.manage',
                     'iap.view', 'aem.view', 'afr.view', 'cms.view', 'arms.view', 'ais.view',
+                    'cms.administration.monitor',
                     'aems.engagement.view', 'aems.team.view', 'aems.report.view_issued',
                     'aems.completion-assessment.view', 'aems.closure.view',
                     'aems.document-index.view', 'aems.retention.view',
@@ -205,6 +218,8 @@ class RolePermissionSeeder extends Seeder
                         ->all(),
                     'afr.view', 'afr.create', 'afr.update', 'afr.review', 'afr.approve',
                     'cms.view', 'cms.update', 'cms.validate', 'cms.approve_extension', 'cms.close',
+                    'cms.dashboard.view', 'cms.recommendation.view',
+                    'cms.recommendation.assign', 'cms.recommendation.monitor',
                     'arms.view', 'arms.manage', 'ais.view', 'ais.export',
                     'documents.view', 'documents.upload', 'documents.update',
                     'documents.view_confidential', 'documents.view_restricted',
@@ -258,6 +273,8 @@ class RolePermissionSeeder extends Seeder
                     'aems.engagement.reopen_request',
                     'afr.view', 'afr.create', 'afr.update', 'afr.submit',
                     'cms.view', 'cms.update', 'cms.submit_evidence',
+                    'cms.dashboard.view', 'cms.recommendation.view',
+                    'cms.recommendation.monitor',
                     'arms.view', 'ais.view',
                     'documents.view', 'documents.upload', 'documents.download',
                     'documents.view_confidential',
@@ -282,6 +299,7 @@ class RolePermissionSeeder extends Seeder
                     'aems.entry-conference.view', 'aems.entry-conference.acknowledge',
                     'aems.report.view_issued',
                     'cms.view', 'cms.update', 'cms.submit_evidence',
+                    'cms.dashboard.view', 'cms.recommendation.view',
                     'documents.view', 'documents.upload', 'documents.download',
                     'notifications.view',
                     'workflows.act',
@@ -297,6 +315,7 @@ class RolePermissionSeeder extends Seeder
                 'permissions' => [
                     'dashboard.view', 'offices.view', 'audit_areas.view', 'audit_focus.view',
                     'master_lists.view', 'iap.view', 'aem.view', 'afr.view', 'cms.view',
+                    'cms.dashboard.view', 'cms.recommendation.view',
                     'aems.report.view_issued',
                     'arms.view', 'ais.view', 'documents.view', 'notifications.view',
                     'administrative_reports.view',

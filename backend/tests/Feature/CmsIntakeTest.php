@@ -420,18 +420,21 @@ class CmsIntakeTest extends TestCase
 
     public function test_cms_one_preserves_the_six_legacy_compatibility_permissions(): void
     {
-        $this->assertSame([
+        $legacy = [
             'cms.approve_extension',
             'cms.close',
             'cms.submit_evidence',
             'cms.update',
             'cms.validate',
             'cms.view',
-        ], Permission::query()
-            ->where('code', 'like', 'cms.%')
+        ];
+        $actual = Permission::query()
+            ->whereIn('code', $legacy)
             ->orderBy('code')
             ->pluck('code')
-            ->all());
+            ->all();
+
+        $this->assertSame($legacy, $actual);
     }
 
     /**

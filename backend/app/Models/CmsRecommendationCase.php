@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 /**
@@ -65,5 +66,23 @@ class CmsRecommendationCase extends Model
     {
         return $this->hasMany(CmsRecommendationEvent::class)
             ->orderBy('created_at');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(CmsRecommendationAssignment::class)
+            ->orderByDesc('assigned_at');
+    }
+
+    public function currentAssignment(): HasOne
+    {
+        return $this->hasOne(CmsRecommendationAssignment::class)
+            ->where('is_current', true)
+            ->where(function ($query): void {
+                $query->whereNull('effective_from')->orWhere('effective_from', '<=', now());
+            })
+            ->where(function ($query): void {
+                $query->whereNull('effective_until')->orWhere('effective_until', '>', now());
+            });
     }
 }

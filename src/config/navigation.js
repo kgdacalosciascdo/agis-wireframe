@@ -88,7 +88,7 @@ export const iapPages = [
 
 export const aemsPages = [
   {
-    label: "Engagement Tracker",
+    label: "AEMS Dashboard",
     path: "/audit-engagement-management/dashboard",
     permission: "aems.engagement.view",
     icon: LayoutDashboard,

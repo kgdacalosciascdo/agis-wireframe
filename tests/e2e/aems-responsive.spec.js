@@ -73,7 +73,7 @@ test("AEMS workflow pages preserve spacing and usability at the active viewport"
       "/audit-engagement-management/entry-conferences",
       "Entry Conferences",
     ],
-    ["/audit-engagement-management/dashboard", "Engagement Tracker"],
+    ["/audit-engagement-management/dashboard", "AEMS Dashboard"],
   ];
 
   for (const [path, heading] of pages) {
@@ -85,6 +85,21 @@ test("AEMS workflow pages preserve spacing and usability at the active viewport"
   await expect(
     page.getByRole("button", { name: /Export Progress CSV/i }),
   ).toBeVisible();
+
+  if (!isMobile) {
+    const activeEngagementsCard = page
+      .locator("article")
+      .filter({ hasText: "Active engagements" })
+      .first();
+    await activeEngagementsCard.hover();
+    await expect
+      .poll(() =>
+        activeEngagementsCard.evaluate(
+          (card) => getComputedStyle(card).translate,
+        ),
+      )
+      .not.toBe("none");
+  }
 
   if (isMobile) {
     await page.getByRole("button", { name: "Open navigation" }).click();

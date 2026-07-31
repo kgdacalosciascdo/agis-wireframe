@@ -10,6 +10,7 @@ use App\Models\CmsValidationVersion;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /** Produces live aggregates from the actor's database-scoped CMS population. */
 class CmsDashboardService
@@ -214,10 +215,12 @@ class CmsDashboardService
     ): array {
         return $query
             ->reorder()
-            ->selectRaw("{$idColumn} as group_id")
-            ->selectRaw("{$codeExpression} as group_code")
-            ->selectRaw("{$labelExpression} as group_label")
-            ->selectRaw('COUNT(*) as aggregate_count')
+            ->select([
+                DB::raw("{$idColumn} as group_id"),
+                DB::raw("{$codeExpression} as group_code"),
+                DB::raw("{$labelExpression} as group_label"),
+                DB::raw('COUNT(*) as aggregate_count'),
+            ])
             ->groupByRaw("{$idColumn}, {$codeExpression}, {$labelExpression}")
             ->orderByDesc('aggregate_count')
             ->orderBy('group_label')

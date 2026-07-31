@@ -152,7 +152,7 @@ function MetricCard({ definition, value, loading }) {
   const Icon = definition.icon;
   return (
     <article
-      className={`flex min-h-28 min-w-0 items-start gap-3 rounded-xl border p-4 shadow-sm ${toneClasses[definition.tone]}`}
+      className={`flex min-h-28 min-w-0 items-start gap-3 rounded-xl border p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${toneClasses[definition.tone]}`}
     >
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/90 shadow-sm ring-1 ring-black/5">
         <Icon size={19} />
@@ -578,7 +578,7 @@ export default function AemsDashboardPage() {
     <main className="min-w-0 p-4 sm:p-5 lg:p-6">
       <RegistryHeader
         icon={ShieldCheck}
-        title="Engagement Tracker"
+        title="AEMS Dashboard"
         description="Monitor every AEMS engagement from authorization through CMS transfer and closure readiness."
         actions={
           <>

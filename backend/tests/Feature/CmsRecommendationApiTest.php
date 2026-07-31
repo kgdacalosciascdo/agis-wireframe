@@ -127,7 +127,11 @@ class CmsRecommendationApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.cards.totalVisibleCases', 1)
             ->assertJsonPath('data.cards.overdueCases', 1)
-            ->assertJsonPath('data.cards.highRiskOverdueCases', 1);
+            ->assertJsonPath('data.cards.highRiskOverdueCases', 1)
+            ->assertJsonPath('data.groups.byResponsibleOffice.0.id', $auditee->office_id)
+            ->assertJsonPath('data.groups.byResponsibleOffice.0.count', 1)
+            ->assertJsonPath('data.groups.byRiskLevel.0.code', 'HIGH')
+            ->assertJsonPath('data.groups.byRiskLevel.0.count', 1);
 
         Sanctum::actingAs($this->user('departmenthead'));
         $this->getJson('/api/cms/recommendations')
@@ -137,7 +141,9 @@ class CmsRecommendationApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.cards.totalVisibleCases', 3)
             ->assertJsonPath('data.cards.assignedCases', 0)
-            ->assertJsonPath('data.cards.unassignedCases', 3);
+            ->assertJsonPath('data.cards.unassignedCases', 3)
+            ->assertJsonPath('data.groups.byAssignedMonitor.0.code', 'UNASSIGNED')
+            ->assertJsonPath('data.groups.byAssignedMonitor.0.count', 3);
 
         $readOnly = $this->user('mayor');
         $readOnlyCase = $this->case(

@@ -313,6 +313,13 @@ test("CMS dashboard, registry, and detail workspace remain responsive", async ({
       exact: true,
     }),
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator("main").evaluate((workspace) =>
+        Number.parseFloat(getComputedStyle(workspace).paddingInlineStart),
+      ),
+    )
+    .toBeGreaterThanOrEqual(16);
   await expect(page.getByText("Total visible cases")).toBeVisible();
   await expect(page.getByText("Due-soon metric unavailable.")).toBeVisible();
   await page.getByRole("link", { name: /Overdue recommendations/ }).click();

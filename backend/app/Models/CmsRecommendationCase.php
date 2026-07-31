@@ -22,6 +22,12 @@ class CmsRecommendationCase extends Model
 
     public const STATUS_MONITORING = 'MONITORING';
 
+    public const STATUS_FOR_VALIDATION = 'FOR_VALIDATION';
+
+    public const STATUS_PARTIALLY_IMPLEMENTED = 'PARTIALLY_IMPLEMENTED';
+
+    public const STATUS_IMPLEMENTED = 'IMPLEMENTED';
+
     protected $fillable = [
         'cms_recommendation_id',
         'status_code',
@@ -104,5 +110,21 @@ class CmsRecommendationCase extends Model
             CmsProgressUpdate::class,
             'cms_recommendation_case_id',
         )->orderByDesc('reporting_sequence');
+    }
+
+    public function validationReviews(): HasMany
+    {
+        return $this->hasMany(
+            CmsValidationReview::class,
+            'cms_recommendation_case_id',
+        )->orderByDesc('validation_sequence');
+    }
+
+    public function activeValidationReview(): HasOne
+    {
+        return $this->hasOne(
+            CmsValidationReview::class,
+            'cms_recommendation_case_id',
+        )->where('active_slot', 'ACTIVE');
     }
 }

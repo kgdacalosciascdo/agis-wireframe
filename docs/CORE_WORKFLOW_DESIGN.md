@@ -321,6 +321,15 @@ both recommendation scope and Core document confidentiality, using the stricter
 effective classification. Removing a draft CMS evidence link never removes or
 redirects the Core document or its version.
 
+CMS-5A validator-obtained evidence uses the same boundary. Each validation
+upload creates a private Core `Document` and immutable `DocumentVersion`, then
+pins its exact ID, SHA-256 checksum, and effective classification to a
+Validation Version or Validation Item. The shared link registry exposes only
+assigned-validator draft targets. The stricter recommendation/document
+classification controls download. Draft link removal retains the Core
+document; submitted and historical validation links cannot be redirected or
+removed.
+
 ### 9.3 Confidentiality
 
 | Level | Default visibility |

@@ -25,7 +25,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Owns management-reported progress. Recording means completeness review only;
- * it never validates implementation or changes the MONITORING case state.
+ * it never validates implementation or establishes an implementation state.
  */
 class CmsProgressUpdateService
 {
@@ -872,7 +872,10 @@ class CmsProgressUpdateService
 
     private function hasCurrentAcceptedBaseline(CmsRecommendationCase $case): bool
     {
-        return $case->status_code === CmsRecommendationCase::STATUS_MONITORING
+        return in_array($case->status_code, [
+            CmsRecommendationCase::STATUS_MONITORING,
+            CmsRecommendationCase::STATUS_PARTIALLY_IMPLEMENTED,
+        ], true)
             && $case->actionPlan
             && $case->actionPlan->accepted_version_id
             && $case->actionPlan->acceptedVersion?->status_code === CmsActionPlanVersion::STATUS_ACCEPTED;
@@ -918,10 +921,13 @@ class CmsProgressUpdateService
 
     private function assertMonitoringCase(CmsRecommendationCase $case): void
     {
-        if ($case->status_code !== CmsRecommendationCase::STATUS_MONITORING) {
+        if (! in_array($case->status_code, [
+            CmsRecommendationCase::STATUS_MONITORING,
+            CmsRecommendationCase::STATUS_PARTIALLY_IMPLEMENTED,
+        ], true)) {
             throw ValidationException::withMessages([
                 'recommendation' => [
-                    'Progress Updates require a recommendation in MONITORING status.',
+                    'Progress Updates require MONITORING or PARTIALLY_IMPLEMENTED status.',
                 ],
             ]);
         }

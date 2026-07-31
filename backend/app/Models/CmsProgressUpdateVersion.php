@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 /** Immutable-after-submission management-reported Progress Update version. */
@@ -164,5 +165,13 @@ class CmsProgressUpdateVersion extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by')->withTrashed();
+    }
+
+    public function validationReview(): HasOne
+    {
+        return $this->hasOne(
+            CmsValidationReview::class,
+            'recorded_progress_update_version_id',
+        );
     }
 }

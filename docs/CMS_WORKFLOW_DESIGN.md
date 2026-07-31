@@ -21,11 +21,17 @@ Implemented as-built scope:
 - CMS-4A management-reported Progress Update families, immutable versions,
   accepted-baseline milestone reports, exact Core Document Version evidence,
   completeness review, recording, and controlled correction.
+- CMS-4B responsive React Progress Update workspace; and
+- CMS-5A independent Validation Review families, historical Primary Validator
+  assignments, professional Validation Versions and Items, evidence
+  assessments, validator-obtained Core Document Versions, supervisory review,
+  four controlled conclusions, and authoritative implementation-state
+  transitions.
 
-The CMS-4B React progress workspace, independent validation, implementation
-conclusions, target-date extensions, due-soon configuration, reminders,
-escalation, closure, accepted risk, no-longer-applicable decisions, reopening,
-and CMS reports/exports remain future scope.
+The CMS-5B React validation workspace, target-date extensions, due-soon
+configuration, reminders, escalation, closure, accepted risk,
+no-longer-applicable decisions, reopening, and CMS reports/exports remain
+future scope.
 
 ## 2. Record lineage
 
@@ -40,6 +46,9 @@ Issued AEMS Report Version
   → one or more immutable CmsProgressUpdateVersion records
   → accepted-baseline CmsMilestoneProgress records
   → exact CmsProgressEvidenceLink → Core DocumentVersion records
+  → one CmsValidationReview per exact recorded Progress Update Version
+  → immutable CmsValidationVersion revisions and CmsValidationItem procedures
+  → CmsValidationEvidenceAssessment and exact validator DocumentVersion links
 ```
 
 The `{recommendation}` CMS route identifier is always
@@ -262,8 +271,9 @@ follow-up; it is not an independent validation or an implementation
 conclusion. A reported 100% is exposed as
 `reportedCompleteAwaitingValidation`, never as `implemented`.
 
-Progress creation requires a `MONITORING` case and the current accepted Action
-Plan Version. Every family stores that exact accepted version. Historical
+Progress creation requires a `MONITORING` or `PARTIALLY_IMPLEMENTED` case and
+the current accepted Action Plan Version. Every family stores that exact
+accepted version. Historical
 updates remain pinned when a later plan revision is accepted; a new update must
 use the new accepted baseline. Submission rejects a draft if its baseline is no
 longer current.
@@ -415,3 +425,156 @@ CMS-4B remains a presentation layer for management-reported information. It
 does not add independent validation, implementation conclusions, extensions,
 escalation, closure, accepted-risk decisions, reopening, reports, exports, AIS,
 or ARMIS integration.
+
+## 13. CMS-5A independent validation
+
+### 13.1 Professional boundary and lineage
+
+Management prepares the Action Plan, reports progress, and supplies evidence.
+A Compliance reviewer records completeness only. A separately assigned
+Primary Validator performs procedures and proposes a conclusion; an eligible
+CIAS supervisory reviewer independently returns or finalizes it. Neither a
+recorded update nor management-reported 100% establishes implementation.
+
+One `cms_validation_reviews` family pins the exact recommendation case,
+accepted Action Plan Version, Progress Update family, and current recorded
+Progress Update Version. A recorded version may be used by only one review.
+Only one review is active per case. Historical records are never remapped to a
+new plan, progress report, evidence file, validator, or conclusion.
+
+The review owns:
+
+- immutable `cms_validation_versions`;
+- milestone/recommendation `cms_validation_items`;
+- management/validator `cms_validation_evidence_assessments`;
+- exact Core-backed `cms_validation_evidence_links`; and
+- ended, never overwritten, `cms_validation_assignments`.
+
+Derived display codes use
+`VAL-CMS-REC-{zero-padded case ID}-{sequence}-V{version}`.
+
+### 13.2 Statuses and case transitions
+
+Validation Version lifecycle:
+
+```text
+DRAFT → SUBMITTED → UNDER_REVIEW → FINALIZED
+                              └→ RETURNED → new DRAFT revision
+```
+
+Only `DRAFT` is editable. Submission snapshots the source recommendation,
+accepted milestones, recorded management progress, exact evidence checksums,
+Validation Items, assessments, professional narratives, validator, and
+proposed conclusion. Submitted, under-review, returned, and finalized versions
+are immutable. Only a returned current version may create a revision.
+
+Starting a review changes `MONITORING` or `PARTIALLY_IMPLEMENTED` to
+`FOR_VALIDATION`. Finalization applies only:
+
+| Final conclusion | Case state |
+| --- | --- |
+| `NOT_IMPLEMENTED` | `MONITORING` |
+| `INADEQUATE_BASIS` | `MONITORING` |
+| `PARTIALLY_IMPLEMENTED` | `PARTIALLY_IMPLEMENTED` |
+| `IMPLEMENTED` | `IMPLEMENTED` |
+
+`IMPLEMENTED` is independently validated implementation, not closure.
+Progress reporting resumes after `NOT_IMPLEMENTED`, `INADEQUATE_BASIS`, or
+`PARTIALLY_IMPLEMENTED`; it is blocked during `FOR_VALIDATION` and while
+`IMPLEMENTED`.
+
+### 13.3 Validation Items and evidence assessment
+
+The server initializes one milestone Validation Item for every milestone in
+the pinned accepted baseline and associates the exact milestone-progress row
+when available. Submission requires complete criterion, procedure,
+population/source, result, and item conclusion for every accepted milestone.
+Cross-baseline and duplicate milestone items are rejected.
+
+Item conclusions are `SATISFIED`, `PARTIALLY_SATISFIED`, `NOT_SATISFIED`,
+`INADEQUATE_BASIS`, and `NOT_APPLICABLE`.
+
+Every exact management evidence link is assessed without modifying it.
+Validator-obtained evidence creates a private Core `Document` and immutable
+`DocumentVersion`, pins its version/checksum/classification, and receives its
+own assessment. Assessment controls are relevance, reliability, sufficiency,
+relied-upon state, summary, and limitation. Relied-upon evidence cannot remain
+`NOT_ASSESSED`; evidence not relied upon requires an explanation. Draft
+validator links may be marked removed without deleting the Core document.
+
+### 13.4 Conclusions and supervisory control
+
+Professional conclusions are only `NOT_IMPLEMENTED`,
+`PARTIALLY_IMPLEMENTED`, `IMPLEMENTED`, and `INADEQUATE_BASIS`. The service
+rejects obvious contradictions: implemented work cannot contain a partial,
+unsatisfied, inadequate-basis, or materially insufficient relied-upon result;
+partial implementation requires both established progress and remaining work;
+not implemented cannot contradict all-satisfied milestones; inadequate basis
+requires a documented limitation and inadequate item or evidence basis.
+
+Finalization requires an `UNDER_REVIEW` immutable submission, confirmation,
+comment, current locks, complete evidence assessment, valid source lineage,
+and an independent supervisor. Changing the validator's proposal requires an
+explicit override reason. Version finalization, review pointer, case state,
+event, Activity Log, Audit Trail, and notifications commit atomically.
+
+### 13.5 Independence, scope, permissions, and API
+
+The Primary Validator must be active, unlocked, professionally permitted,
+outside the responsible office, and not the plan preparer/focal
+user/submitter, progress preparer/submitter/recorder, or current Compliance
+Monitor. The supervisor must be CIAS Management with the exact professional
+permission and cannot be the validator, responsible-office user, or source
+participant. Technical administration and the legacy `cms.validate` code do
+not bypass these rules.
+
+Permissions:
+
+```text
+cms.validation.view
+cms.validation.create
+cms.validation.assign
+cms.validation.update
+cms.validation.submit
+cms.validation.review
+cms.validation.return
+cms.validation.finalize
+cms.validation.revise
+cms.validation-evidence.view
+cms.validation-evidence.upload
+cms.validation-evidence.download
+cms.validation-evidence.remove_draft
+```
+
+Routes:
+
+```text
+GET|POST /api/cms/recommendations/{recommendation}/validations
+GET      /api/cms/validations/{validation}
+GET|POST /api/cms/validations/{validation}/assignments
+POST     /api/cms/validations/{validation}/assignments/{assignment}/end
+PUT      /api/cms/validations/{validation}/versions/{version}
+POST     /api/cms/validations/{validation}/versions/{version}/transitions/submit
+POST     /api/cms/validations/{validation}/versions/{version}/transitions/start-review
+POST     /api/cms/validations/{validation}/versions/{version}/transitions/return
+POST     /api/cms/validations/{validation}/versions/{version}/transitions/finalize
+POST     /api/cms/validations/{validation}/versions/{version}/revisions
+POST     /api/cms/validations/{validation}/versions/{version}/evidence
+GET      /api/cms/validation-evidence/{evidence}/download
+DELETE   /api/cms/validation-evidence/{evidence}
+```
+
+All mutations use camelCase payloads and the latest `lockVersion`. Clients
+cannot select case/version status, sequence/version number, baseline pointers,
+actors, timestamps, or final pointers. Recommendation detail adds a
+backward-compatible `validationSummary`; the dashboard adds scoped active,
+awaiting-review, returned, and conclusion metrics. CMS-5B is not operational.
+
+Append-only events, matching `cms.validation.*` Activity/Audit actions, and
+after-commit notifications cover creation, assignment/replacement, updates,
+evidence links/removal, submission, supervisory review, return, revision, and
+finalization.
+
+Explicitly deferred: target-date extension, automated reminders, escalation,
+closure request/approval, accepted risk, no-longer-applicable decisions,
+reopening, recurrence analysis, reports, exports, AIS, and ARMIS integration.

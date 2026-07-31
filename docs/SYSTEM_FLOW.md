@@ -512,10 +512,47 @@ downloads.
 
 `RECORDED` means completeness-reviewed management information, not independent
 validation. Reported 100% does not change the case, establish implementation,
-or start closure. CMS-4B presentation, independent validation, extensions,
-escalation, closure, reopening, and reporting are not implemented.
+or start closure. CMS-4B presents this boundary; CMS-5A performs the separate
+professional validation below.
 
-### 11.9 Runtime logo
+### 11.9 CMS-5A independent Validation Review flow
+
+```mermaid
+flowchart LR
+    R[Exact RECORDED Progress Update Version] --> C[Create Validation Review]
+    C --> A[Assign independent Primary Validator]
+    A --> D[DRAFT procedures/items/assessments]
+    D --> S[SUBMITTED immutable snapshot]
+    S --> U[UNDER_REVIEW]
+    U -->|return| X[RETURNED immutable]
+    X --> D2[new DRAFT revision]
+    U -->|finalize| F[FINALIZED conclusion]
+    F --> M[MONITORING]
+    F --> P[PARTIALLY_IMPLEMENTED]
+    F --> I[IMPLEMENTED, not closed]
+```
+
+Review creation pins the accepted Action Plan Version, latest eligible current
+recorded Progress Update Version, milestone progress, and exact management
+evidence. It atomically assigns one eligible validator and changes
+`MONITORING`/`PARTIALLY_IMPLEMENTED` to `FOR_VALIDATION`. The validator cannot
+belong to the responsible office, prepare/submit the source management records,
+record the Progress Update, or be the current Compliance Monitor.
+
+Milestone Validation Items, management Evidence Assessments, and
+validator-obtained private Core `DocumentVersion`s remain draft-editable until
+submission. Submission snapshots all source and professional records. A
+separate eligible CIAS supervisor starts review, returns immutable work for a
+new revision, or finalizes one of four conclusions. Finalization atomically
+updates the version/review pointers and case state, event, Activity Log, Audit
+Trail, and after-commit notifications. `IMPLEMENTED` never means `CLOSED`.
+
+Recommendation detail and dashboard payloads add backward-compatible,
+visibility-scoped validation summaries. CMS-5B has not added a React validation
+workspace. Extensions, escalation, closure, reopening, reports, AIS, and ARMIS
+remain deferred.
+
+### 11.10 Runtime logo
 
 Branding images are the exception: validated logo files are stored in managed
 public storage because the login page must display them before authentication.
@@ -739,7 +776,7 @@ flowchart LR
     V --> H[Immutable version history]
     V --> W[Submit/review/return/record/revise]
     W --> R[Recorded management information]
-    R --> N[Awaiting CMS-5 independent validation]
+    R --> N[CMS-5A independent validation API]
 ```
 
 The React layer presents management-reported progress and completeness review;

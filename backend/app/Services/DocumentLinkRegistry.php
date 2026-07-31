@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditArea;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
+use App\Models\CmsValidationVersion;
 use App\Models\IapAuditUniverseItem;
 use App\Models\IapPlanEngagement;
 use App\Models\InternalAuditPlan;
@@ -186,6 +187,46 @@ class DocumentLinkRegistry
                         $progress->id,
                         "CMS-MPR-{$progress->id}",
                         "{$code} â€” Milestone {$progress->milestone_sequence}",
+                    ),
+                ));
+            }
+        }
+
+        if ($user->hasPermission('cms.validation-evidence.upload')) {
+            $validationVersions = CmsValidationVersion::query()
+                ->where('status_code', 'DRAFT')
+                ->whereHas(
+                    'review.currentAssignment',
+                    fn ($assignment) => $assignment
+                        ->where('user_id', $user->id)
+                        ->where('is_current', true),
+                )
+                ->with(['review', 'items'])
+                ->orderByDesc('id')
+                ->limit(250)
+                ->get();
+            foreach ($validationVersions as $version) {
+                $review = $version->review;
+                $code = sprintf(
+                    'VAL-CMS-REC-%06d-%03d-V%d',
+                    $review->cms_recommendation_case_id,
+                    $review->validation_sequence,
+                    $version->version_number,
+                );
+                $options->push($this->option(
+                    'CMS',
+                    'VALIDATION_VERSION',
+                    $version->id,
+                    $code,
+                    "{$code} — Independent Validation Version",
+                ));
+                $options->push(...$version->items->map(
+                    fn ($item): array => $this->option(
+                        'CMS',
+                        'VALIDATION_ITEM',
+                        $item->id,
+                        "CMS-VAL-ITEM-{$item->id}",
+                        "{$code} — Validation Item {$item->sequence_number}",
                     ),
                 ));
             }

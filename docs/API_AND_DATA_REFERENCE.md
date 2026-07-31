@@ -648,10 +648,52 @@ The recommendation detail adds `progressUpdateSummary`, and dashboard cards add
 management-reported no-update, awaiting-review, recorded, and reported-complete
 counts without changing existing fields.
 
-CMS-4B React pages, independent validation, implementation conclusions,
-extensions, due-soon configuration, reminders, escalation, closure, accepted
+CMS-4B provides the recommendation-specific React workspace. Independent
+validation and implementation conclusions are implemented by CMS-5A below.
+Extensions, due-soon configuration, reminders, escalation, closure, accepted
 risk, no-longer-applicable decisions, reopening, and CMS reports/exports remain
 unimplemented.
+
+### 8.0.3 CMS-5A independent validation backend
+
+CMS-5A adds `cms_validation_reviews`, `cms_validation_versions`,
+`cms_validation_items`, `cms_validation_evidence_assessments`,
+`cms_validation_assignments`, and `cms_validation_evidence_links`. Restrictive
+foreign keys and portable active-slot uniqueness enforce one review per exact
+recorded Progress Update Version, one active review per case, one active
+version per review, and one current Primary Validator.
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET` / `POST` | `/api/cms/recommendations/{recommendation}/validations` | `cms.validation.view` / `cms.validation.create` |
+| `GET` | `/api/cms/validations/{validation}` | `cms.validation.view` |
+| `GET` / `POST` | `/api/cms/validations/{validation}/assignments` | `cms.validation.view` / `cms.validation.assign` |
+| `POST` | `/api/cms/validations/{validation}/assignments/{assignment}/end` | `cms.validation.assign` |
+| `PUT` | `/api/cms/validations/{validation}/versions/{version}` | `cms.validation.update` |
+| `POST` | `/api/cms/validations/{validation}/versions/{version}/transitions/submit` | `cms.validation.submit` |
+| `POST` | `/api/cms/validations/{validation}/versions/{version}/transitions/start-review` | `cms.validation.review` |
+| `POST` | `/api/cms/validations/{validation}/versions/{version}/transitions/return` | `cms.validation.return` |
+| `POST` | `/api/cms/validations/{validation}/versions/{version}/transitions/finalize` | `cms.validation.finalize` |
+| `POST` | `/api/cms/validations/{validation}/versions/{version}/revisions` | `cms.validation.revise` |
+| `POST` | `/api/cms/validations/{validation}/versions/{version}/evidence` | `cms.validation-evidence.upload` |
+| `GET` | `/api/cms/validation-evidence/{evidence}/download` | `cms.validation-evidence.download` |
+| `DELETE` | `/api/cms/validation-evidence/{evidence}` | `cms.validation-evidence.remove_draft` |
+
+Create requires `recordedProgressUpdateVersionId`, `validatorUserId`,
+`assignmentReason`, and the case `lockVersion`. Draft updates accept the
+professional narrative fields, optional validated percentage,
+`validationItems[]`, `evidenceAssessments[]`, and version `lockVersion`.
+Submit requires confirmation; return and revision require reasons. Finalize
+requires confirmation, `finalConclusionCode`, `finalizationComment`, and
+`overrideReason` when changing the proposed conclusion.
+
+Version statuses are `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `RETURNED`, and
+`FINALIZED`. Conclusions are `NOT_IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`,
+`IMPLEMENTED`, and `INADEQUATE_BASIS`. Case statuses now also include
+`FOR_VALIDATION`, `PARTIALLY_IMPLEMENTED`, and `IMPLEMENTED`; no closure status
+is added. Resources expose exact source IDs, safe source context, assignment
+history, versions/items/assessments/evidence, completeness, derived history,
+and actor-specific actions without storage paths.
 
 ### 8.1 AEMS authorization contract
 
@@ -663,7 +705,7 @@ The lifecycle and Entry Conference additions are
 `aems.entry-conference.waive`.
 Formal closure adds 21 granular Completion Assessment, Closure, document-index,
 retention, and exceptional-reopening operations. The verified runtime
-catalogue contains 218 permissions in total, including 31 `cms.*` permissions.
+catalogue contains 231 permissions in total, including 44 `cms.*` permissions.
 Administrators receive monitoring access but do not receive audit approval or
 issuance permissions. CIAS Management has global audit authority. AGIS Users
 require an active `engagement_teams` assignment, and the assignment role limits

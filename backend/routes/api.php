@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\CmsDashboardController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
+use App\Http\Controllers\Api\CmsValidationController;
 use App\Http\Controllers\Api\CoreRegistryController;
 use App\Http\Controllers\Api\DemoAccountController;
 use App\Http\Controllers\Api\DocumentController;
@@ -126,6 +127,36 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.evidence.download');
     Route::delete('/cms/progress-evidence/{evidence}', [CmsProgressUpdateController::class, 'removeEvidence'])
         ->middleware('permission:cms.evidence.remove_draft');
+    Route::get('/cms/recommendations/{recommendation}/validations', [CmsValidationController::class, 'forRecommendation'])
+        ->middleware('permission:cms.validation.view');
+    Route::post('/cms/recommendations/{recommendation}/validations', [CmsValidationController::class, 'store'])
+        ->middleware('permission:cms.validation.create');
+    Route::get('/cms/validations/{validation}', [CmsValidationController::class, 'show'])
+        ->middleware('permission:cms.validation.view');
+    Route::get('/cms/validations/{validation}/assignments', [CmsValidationController::class, 'assignments'])
+        ->middleware('permission:cms.validation.view');
+    Route::post('/cms/validations/{validation}/assignments', [CmsValidationController::class, 'assign'])
+        ->middleware('permission:cms.validation.assign');
+    Route::post('/cms/validations/{validation}/assignments/{assignment}/end', [CmsValidationController::class, 'endAssignment'])
+        ->middleware('permission:cms.validation.assign');
+    Route::put('/cms/validations/{validation}/versions/{version}', [CmsValidationController::class, 'update'])
+        ->middleware('permission:cms.validation.update');
+    Route::post('/cms/validations/{validation}/versions/{version}/transitions/submit', [CmsValidationController::class, 'submit'])
+        ->middleware('permission:cms.validation.submit');
+    Route::post('/cms/validations/{validation}/versions/{version}/transitions/start-review', [CmsValidationController::class, 'startReview'])
+        ->middleware('permission:cms.validation.review');
+    Route::post('/cms/validations/{validation}/versions/{version}/transitions/return', [CmsValidationController::class, 'return'])
+        ->middleware('permission:cms.validation.return');
+    Route::post('/cms/validations/{validation}/versions/{version}/transitions/finalize', [CmsValidationController::class, 'finalize'])
+        ->middleware('permission:cms.validation.finalize');
+    Route::post('/cms/validations/{validation}/versions/{version}/revisions', [CmsValidationController::class, 'revise'])
+        ->middleware('permission:cms.validation.revise');
+    Route::post('/cms/validations/{validation}/versions/{version}/evidence', [CmsValidationController::class, 'uploadEvidence'])
+        ->middleware('permission:cms.validation-evidence.upload');
+    Route::get('/cms/validation-evidence/{evidence}/download', [CmsValidationController::class, 'downloadEvidence'])
+        ->middleware('permission:cms.validation-evidence.download');
+    Route::delete('/cms/validation-evidence/{evidence}', [CmsValidationController::class, 'removeEvidence'])
+        ->middleware('permission:cms.validation-evidence.remove_draft');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

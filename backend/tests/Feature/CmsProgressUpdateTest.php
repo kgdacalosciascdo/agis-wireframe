@@ -462,7 +462,7 @@ class CmsProgressUpdateTest extends TestCase
             )
             ->assertJsonPath(
                 'data.dataLimitations.2',
-                'Independent validation, extension, and closure workflows are not implemented.',
+                'Target-date extension, escalation, and recommendation closure workflows are not implemented.',
             );
     }
 

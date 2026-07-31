@@ -11,7 +11,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md) | Core administrators, analysts, developers | Authentication, registries, roles/scopes, master lists, documents, workflows, notifications, logs, configuration |
 | [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) | CIAS management, auditors, analysts, developers | SIAP, Audit Universe, risk, prioritization, annual plan, schedules, resources, approval, reports |
 | [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md) | CIAS management, auditors, auditee representatives, developers | Engagement authorization, planning, fieldwork, findings, responses, reporting, and closure state machines |
-| [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md) | Responsible offices, Compliance Monitors, CIAS management, developers | Immutable intake, registry/scope, monitor assignment, Action Plan versions, milestones, review, acceptance, and future boundaries |
+| [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md) | Responsible offices, Compliance Monitors, validators, CIAS management, developers | Immutable intake, Action Plans, progress reporting, independent validation, professional conclusions, and future boundaries |
 | [API and Data Reference](API_AND_DATA_REFERENCE.md) | Frontend/backend developers and integrators | Endpoint families, request conventions, entities, relationships, lists, configuration keys |
 | [Operations Guide](OPERATIONS_GUIDE.md) | Developers, deployers, administrators | Setup, migrations, seeders, storage, SMTP, verification, production, backup, monitoring, troubleshooting |
 | [Development Standards](DEVELOPMENT_STANDARDS.md) | Everyone changing the system | Security, integrity, UX, reliability, testing, and definition of done |
@@ -24,7 +24,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | IAP — Internal Audit Planning | As-built documentation complete | Implemented |
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
-| CMS — Compliance Management | CMS-1 through CMS-4B documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plan backend/workspace, and versioned management-reported progress with exact Core Document Version evidence are operational; independent validation, extension, and closure remain unimplemented |
+| CMS — Compliance Management | CMS-1 through CMS-5A documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plans, versioned management-reported progress, and independent backend validation with controlled conclusions are operational; the CMS-5B validation UI, extension, escalation, and closure remain unimplemented |
 | ARMIS — Audit Resource Management | Temporary capacity exists in IAP | Full module not implemented |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 

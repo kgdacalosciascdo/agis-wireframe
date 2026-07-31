@@ -291,6 +291,36 @@ CMS progress evidence remains on the private `local` disk under the normal
 Laravel storage backup boundary. Back up the database and private file storage
 together. CMS-4A has no React deployment change.
 
+After CMS-5A, run the additive migration
+`2026_07_31_050000_create_cms_validation_tables`, then rerun
+`RolePermissionSeeder`. CMS has 44 permissions: the prior 31 plus nine
+`cms.validation.*` and four `cms.validation-evidence.*` codes. The migration
+adds six validation tables and expands only the recommendation-case status
+constraint; it does not rewrite intake, Action Plan, Progress Update, evidence,
+extension, escalation, or closure data.
+
+Verify the independent-validation backend:
+
+```powershell
+php artisan migrate:status
+php artisan route:list --path=cms
+php artisan test --filter=CmsValidation
+php artisan test --filter=CmsProgressUpdateTest
+php artisan tinker --execute="dump([
+    'validationReviews' => App\Models\CmsValidationReview::count(),
+    'validationVersions' => App\Models\CmsValidationVersion::count(),
+    'finalizedValidations' => App\Models\CmsValidationVersion::where('status_code', 'FINALIZED')->count(),
+    'currentValidatorAssignments' => App\Models\CmsValidationAssignment::where('is_current', true)->count(),
+]);"
+```
+
+At most one review may have `active_slot = ACTIVE` per case; at most one
+version may have `active_slot = ACTIVE` per review; and at most one assignment
+may have `current_slot = CURRENT` per review. Validator evidence is private
+Core storage and must be backed up with its matching database snapshot.
+CMS-5A has no React deployment change. CMS-5B, extensions, escalation, closure,
+reopening, reports, AIS, and ARMIS remain undeployed.
+
 ## 11. Production checklist
 
 - `APP_ENV=production`;

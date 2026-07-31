@@ -169,6 +169,48 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     ];
                 },
             ),
+            'validationSummary' => $this->whenLoaded(
+                'validationReviews',
+                function () use ($request): array {
+                    $restrictedRead = $request->user()->hasRole([
+                        'read_only',
+                        'auditee_representative',
+                    ]);
+                    $reviews = $restrictedRead
+                        ? $this->validationReviews->filter(
+                            fn ($review): bool => $review->finalizedVersion !== null,
+                        )->values()
+                        : $this->validationReviews;
+                    $latest = $reviews->first();
+                    $current = $latest?->currentVersion;
+                    $finalized = $latest?->finalizedVersion;
+
+                    return [
+                        'hasValidationReviews' => $reviews->isNotEmpty(),
+                        'latestValidationReviewId' => $latest?->id,
+                        'latestValidationVersionStatus' => $current?->status_code,
+                        'currentAssignedValidator' => $latest?->currentAssignment?->user
+                            ? $this->safeUser($latest->currentAssignment->user)
+                            : null,
+                        'latestProposedConclusion' => $restrictedRead
+                            ? null
+                            : $current?->proposed_conclusion_code,
+                        'latestFinalizedConclusion' => $finalized?->final_conclusion_code,
+                        'latestFinalizedAt' => $finalized?->finalized_at?->toISOString(),
+                        'awaitingSupervisoryReview' => $current?->status_code === 'SUBMITTED',
+                        'returnedForRevision' => $restrictedRead
+                            ? false
+                            : $current?->status_code === 'RETURNED',
+                        'latestValidatedCompletionPercentage' => $finalized
+                            ?->validated_completion_percentage,
+                        'permittedActions' => $restrictedRead
+                            ? []
+                            : $current?->getAttribute('available_actions') ?? [],
+                        'implementedDoesNotMeanClosed' => $finalized
+                            ?->final_conclusion_code === 'IMPLEMENTED',
+                    ];
+                },
+            ),
         ];
     }
 

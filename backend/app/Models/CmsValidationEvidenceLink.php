@@ -5,17 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
-/** Exact immutable Core Document Version used as management supporting evidence. */
-class CmsProgressEvidenceLink extends Model
+/** Exact immutable Core Document Version obtained by an independent validator. */
+class CmsValidationEvidenceLink extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'cms_progress_update_version_id',
-        'cms_milestone_progress_id',
+        'cms_validation_version_id',
+        'cms_validation_item_id',
         'document_id',
         'document_version_id',
         'evidence_category',
@@ -43,7 +42,7 @@ class CmsProgressEvidenceLink extends Model
     protected static function booted(): void
     {
         static::updating(function (self $link): void {
-            if ($link->version()->value('status_code') !== CmsProgressUpdateVersion::STATUS_DRAFT
+            if ($link->version()->value('status_code') !== CmsValidationVersion::STATUS_DRAFT
                 || array_diff(array_keys($link->getDirty()), [
                     'removed_by',
                     'removed_at',
@@ -51,28 +50,23 @@ class CmsProgressEvidenceLink extends Model
                     'updated_at',
                 ]) !== []) {
                 throw new LogicException(
-                    'Progress evidence links are immutable outside controlled draft removal.',
+                    'Validation evidence links are immutable outside controlled draft removal.',
                 );
             }
         });
         static::deleting(
-            fn (): never => throw new LogicException(
-                'Progress evidence link history cannot be deleted.',
-            ),
+            fn (): never => throw new LogicException('Validation evidence history cannot be deleted.'),
         );
     }
 
     public function version(): BelongsTo
     {
-        return $this->belongsTo(
-            CmsProgressUpdateVersion::class,
-            'cms_progress_update_version_id',
-        );
+        return $this->belongsTo(CmsValidationVersion::class, 'cms_validation_version_id');
     }
 
-    public function milestoneProgress(): BelongsTo
+    public function item(): BelongsTo
     {
-        return $this->belongsTo(CmsMilestoneProgress::class, 'cms_milestone_progress_id');
+        return $this->belongsTo(CmsValidationItem::class, 'cms_validation_item_id');
     }
 
     public function document(): BelongsTo
@@ -98,13 +92,5 @@ class CmsProgressEvidenceLink extends Model
     public function remover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'removed_by')->withTrashed();
-    }
-
-    public function validationAssessments(): HasMany
-    {
-        return $this->hasMany(
-            CmsValidationEvidenceAssessment::class,
-            'cms_progress_evidence_link_id',
-        );
     }
 }

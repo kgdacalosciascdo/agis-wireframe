@@ -5,6 +5,8 @@ namespace App\Services\Cms;
 use App\Models\CmsProgressUpdate;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
+use App\Models\CmsValidationReview;
+use App\Models\CmsValidationVersion;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -81,6 +83,55 @@ class CmsDashboardService
                         ->where('management_reported_overall_percentage', '>=', 100),
                 )
                 ->count(),
+            'casesAwaitingValidationAssignment' => CmsValidationReview::query()
+                ->whereIn('cms_recommendation_case_id', $visibleCaseIds)
+                ->where('active_slot', 'ACTIVE')
+                ->whereDoesntHave('currentAssignment')
+                ->count(),
+            'activeValidations' => CmsValidationReview::query()
+                ->whereIn('cms_recommendation_case_id', $visibleCaseIds)
+                ->where('active_slot', 'ACTIVE')
+                ->count(),
+            'validationsAwaitingSupervisoryReview' => CmsValidationVersion::query()
+                ->where('status_code', CmsValidationVersion::STATUS_SUBMITTED)
+                ->whereHas(
+                    'review',
+                    fn (Builder $review) => $review->whereIn(
+                        'cms_recommendation_case_id',
+                        $visibleCaseIds,
+                    ),
+                )
+                ->count(),
+            'returnedValidations' => CmsValidationVersion::query()
+                ->where('status_code', CmsValidationVersion::STATUS_RETURNED)
+                ->whereHas(
+                    'review',
+                    fn (Builder $review) => $review->whereIn(
+                        'cms_recommendation_case_id',
+                        $visibleCaseIds,
+                    ),
+                )
+                ->count(),
+            'finalizedValidationConclusions' => collect([
+                'NOT_IMPLEMENTED',
+                'PARTIALLY_IMPLEMENTED',
+                'IMPLEMENTED',
+                'INADEQUATE_BASIS',
+            ])->mapWithKeys(
+                fn (string $conclusion): array => [
+                    $conclusion => CmsValidationVersion::query()
+                        ->where('status_code', CmsValidationVersion::STATUS_FINALIZED)
+                        ->where('final_conclusion_code', $conclusion)
+                        ->whereHas(
+                            'review',
+                            fn (Builder $review) => $review->whereIn(
+                                'cms_recommendation_case_id',
+                                $visibleCaseIds,
+                            ),
+                        )
+                        ->count(),
+                ],
+            )->all(),
         ];
 
         return [
@@ -146,8 +197,8 @@ class CmsDashboardService
             ],
             'dataLimitations' => [
                 'Due-soon metrics require an approved runtime threshold.',
-                'Progress metrics are management-reported and have not been independently validated.',
-                'Independent validation, extension, and closure workflows are not implemented.',
+                'Progress metrics remain management-reported until a separate Validation Review is finalized.',
+                'Target-date extension, escalation, and recommendation closure workflows are not implemented.',
             ],
         ];
     }

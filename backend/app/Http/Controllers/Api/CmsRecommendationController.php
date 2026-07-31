@@ -11,6 +11,7 @@ use App\Services\Cms\CmsActionPlanService;
 use App\Services\Cms\CmsProgressUpdateService;
 use App\Services\Cms\CmsRecommendationRegistryService;
 use App\Services\Cms\CmsRecommendationScopeService;
+use App\Services\Cms\CmsValidationService;
 use App\Support\ActivityRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class CmsRecommendationController extends Controller
         private readonly CmsRecommendationScopeService $scope,
         private readonly CmsActionPlanService $actionPlans,
         private readonly CmsProgressUpdateService $progressUpdates,
+        private readonly CmsValidationService $validations,
     ) {}
 
     public function index(CmsRecommendationIndexRequest $request): JsonResponse
@@ -77,6 +79,19 @@ class CmsRecommendationController extends Controller
                 ),
             );
         }
+        foreach ($case->validationReviews as $validationReview) {
+            if (! $validationReview->currentVersion) {
+                continue;
+            }
+            $validationReview->currentVersion->setAttribute(
+                'available_actions',
+                $this->validations->permittedActions(
+                    $request->user(),
+                    $validationReview,
+                    $validationReview->currentVersion,
+                ),
+            );
+        }
         $this->recordView($request, $case);
 
         return response()->json([
@@ -103,6 +118,9 @@ class CmsRecommendationController extends Controller
             'actionPlan.acceptedVersion',
             'progressUpdates.currentVersion.activeEvidenceLinks',
             'progressUpdates.recordedVersion.activeEvidenceLinks',
+            'validationReviews.currentAssignment.user',
+            'validationReviews.currentVersion',
+            'validationReviews.finalizedVersion',
         ];
     }
 

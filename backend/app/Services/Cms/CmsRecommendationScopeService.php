@@ -61,6 +61,20 @@ class CmsRecommendationScopeService
                     }),
             );
 
+            $authority->orWhereHas(
+                'activeValidationReview.currentAssignment',
+                fn (Builder $assignment): Builder => $assignment
+                    ->where('user_id', $user->id)
+                    ->where('assignment_role_code', 'PRIMARY_VALIDATOR')
+                    ->where('is_current', true)
+                    ->where('effective_from', '<=', now())
+                    ->where(function (Builder $effective): void {
+                        $effective
+                            ->whereNull('effective_until')
+                            ->orWhere('effective_until', '>', now());
+                    }),
+            );
+
             if (($user->hasRole('auditee_representative')
                     || $user->hasRole('read_only'))
                 && $user->office_id) {
@@ -113,6 +127,16 @@ class CmsRecommendationScopeService
                 && $user->hasPermission('cms.recommendation.assign')
                 && $user->hasRole('cias_management'),
             new HttpException(403, 'You cannot manage Compliance Monitor assignments.'),
+        );
+    }
+
+    public function authorizeValidationAssignmentAuthority(User $user): void
+    {
+        throw_unless(
+            $this->isUsableAccount($user)
+                && $user->hasPermission('cms.validation.assign')
+                && $user->hasRole('cias_management'),
+            new HttpException(403, 'You cannot manage independent-validator assignments.'),
         );
     }
 

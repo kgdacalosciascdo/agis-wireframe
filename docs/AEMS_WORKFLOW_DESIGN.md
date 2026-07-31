@@ -723,7 +723,8 @@ registry, detail, and Compliance Monitor assignment APIs over the separate
 operational case. It never edits the immutable AEMS intake or source snapshots.
 Only AEMS creates recommendation cases; CMS assignment changes do not alter the
 AEMS recommendation, report, engagement lifecycle, or closure disposition.
-The dedicated React CMS workspace remains pending CMS-2B.
+The dedicated CMS-2B React workspace and CMS-3A Action Plan backend now consume
+this immutable handoff. AEMS still cannot modify CMS plans or monitoring state.
 
 ## 25. Workflow-design acceptance criteria
 

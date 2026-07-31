@@ -1,0 +1,207 @@
+# CMS Workflow Design
+
+## 1. Purpose and implemented boundary
+
+Compliance Management receives finalized recommendations from issued AEMS
+reports and preserves management accountability through a controlled
+implementation workflow.
+
+Implemented as-built scope:
+
+- CMS-1 immutable AEMS recommendation intake, operational case, and initial
+  append-only event;
+- CMS-2 scoped dashboard, server-driven registry, safe recommendation detail,
+  Compliance Monitor assignment history, and React workspace;
+- CMS-3A management-owned Corrective Action Plan family, immutable versions,
+  measurable milestones, independent compliance review, return, acceptance,
+  and controlled revision.
+
+CMS-3B React Action Plan pages are not implemented. Progress updates, evidence,
+independent validation, target-date extensions, due-soon configuration,
+reminders, escalation, closure, accepted risk, no-longer-applicable decisions,
+reopening, and CMS reports/exports remain future scope.
+
+## 2. Record lineage
+
+```text
+Issued AEMS Report Version
+  → immutable CmsRecommendation intake
+  → one CmsRecommendationCase
+  → zero or one CmsCorrectiveActionPlan family
+  → one or more immutable CmsActionPlanVersion records
+  → one or more version-owned CmsActionPlanMilestone records
+```
+
+The `{recommendation}` CMS route identifier is always
+`cms_recommendation_cases.id`. CMS never rewrites the issued recommendation,
+finding, report, original responsible-office snapshot, or original target date.
+
+## 3. Recommendation case status
+
+```text
+TRANSFERRED
+  → FOR_ACTION_PLAN       first Action Plan draft is created
+  → MONITORING            a reviewed Action Plan version is accepted
+```
+
+Draft updates, submission, review start, return, and an initial revision keep
+the case in `FOR_ACTION_PLAN`. A revision of an accepted plan leaves the case in
+`MONITORING`; the previously accepted version remains authoritative until the
+revision is accepted. Clients cannot set case status.
+
+## 4. Action Plan aggregate
+
+### 4.1 Stable family
+
+`cms_corrective_action_plans` has one row per recommendation case. It records
+the owner office, creator, current-version pointer, accepted-version pointer,
+and optimistic lock. Its display code is derived as
+`CAP-CMS-REC-{zero-padded case ID}`; no unsupported numbering configuration is
+stored.
+
+### 4.2 Immutable versions
+
+`cms_action_plan_versions` stores narratives, plan dates, owner/focal user,
+workflow actors and timestamps, immutable submission snapshot, prior-version
+lineage, and optimistic lock.
+
+Statuses:
+
+```text
+DRAFT → SUBMITTED → UNDER_REVIEW → ACCEPTED
+                                └→ RETURNED
+RETURNED → new DRAFT revision
+ACCEPTED → new DRAFT revision
+```
+
+Only `DRAFT` content is editable. Submitted, returned, and accepted records are
+never reopened. A newer accepted version changes the family accepted pointer;
+the old accepted record remains `ACCEPTED` and is derived as superseded.
+
+PostgreSQL uses a partial unique index and all supported test/runtime databases
+use a nullable `active_slot` unique key to enforce one
+`DRAFT`/`SUBMITTED`/`UNDER_REVIEW` version per family.
+
+### 4.3 Milestones
+
+Milestones belong to one version and record sequence, measurable output,
+indicator/verification information, responsible office/user, dates, optional
+weight, and display order. They can be replaced or removed only while their
+version is `DRAFT`.
+
+Submission requires at least one milestone. Sequence numbers are unique.
+Milestone responsibility remains with the Action Plan owner office in CMS-3A.
+Dates must fit the plan period. If weights are unused, no weighted progress is
+implied; if any weight is used, every milestone is weighted and the total must
+equal 100%.
+
+## 5. Ownership, access, and separation
+
+`CmsRecommendationScopeService` remains the single visibility and
+confidentiality boundary.
+
+Responsible-office actions require the exact granular permission, a usable
+account, case visibility, and an office matching the case lead responsible
+office:
+
+- create;
+- update a draft;
+- submit;
+- revise a returned or accepted current version.
+
+Reviewer actions require the assigned active Compliance Monitor or CIAS
+Management, the exact review/return/accept permission, case visibility,
+independence from the owner office, and separation from preparer, focal user,
+and submitter. Platform and AGIS administrators receive no professional review
+or acceptance authority.
+
+Permissions:
+
+```text
+cms.action-plan.view
+cms.action-plan.create
+cms.action-plan.update
+cms.action-plan.submit
+cms.action-plan.review
+cms.action-plan.accept
+cms.action-plan.return
+cms.action-plan.revise
+```
+
+Legacy `cms.*` permissions remain unchanged and do not bypass office,
+assignment, state, confidentiality, or separation rules.
+
+## 6. Completeness and target dates
+
+Submission and acceptance validate narratives, focal user, plan dates, at
+least one complete milestone, office/user eligibility, unique sequences, date
+consistency, weighting, and current `lockVersion`.
+
+An Action Plan target cannot exceed the case effective target without the
+future extension workflow. When the case has no effective target, management
+may propose an Action Plan date, but CMS-3A does not establish or overwrite the
+case target. Resources expose that missing-policy condition.
+
+## 7. Transactions, locking, and immutable baseline
+
+Creation, update, submission, review start, return, acceptance, and revision
+use database transactions and row locks. Unique constraints protect one family,
+version numbers, active versions, and milestone sequences. Optimistic version
+locks reject stale browser state.
+
+Acceptance atomically:
+
+1. verifies independent authority, completeness, and submission-snapshot
+   integrity;
+2. marks the version `ACCEPTED`;
+3. sets current and accepted family pointers;
+4. moves an initial case to `MONITORING`;
+5. appends the event and both log layers;
+6. schedules notifications after commit.
+
+Only the family `accepted_version_id` is the official monitoring baseline.
+
+## 8. Events, logs, and notifications
+
+Append-only recommendation event codes:
+
+```text
+ACTION_PLAN_CREATED
+ACTION_PLAN_UPDATED
+ACTION_PLAN_SUBMITTED
+ACTION_PLAN_REVIEW_STARTED
+ACTION_PLAN_RETURNED
+ACTION_PLAN_REVISION_CREATED
+ACTION_PLAN_ACCEPTED
+```
+
+Matching `cms.action-plan.*` Activity Log and Audit Trail actions retain IDs,
+statuses, pointers, ownership, milestone count, actor, and controlled reasons
+without copying full plan narratives into operational logs.
+
+After-commit workflow notifications cover submission, review start, return, and
+acceptance. Recipients are limited to authorized reviewers, submitter, focal
+user, current monitor, and responsible-office representatives as appropriate.
+No reminder or overdue notification is implemented.
+
+## 9. API
+
+```text
+GET  /api/cms/recommendations/{recommendation}/action-plan
+POST /api/cms/recommendations/{recommendation}/action-plans
+GET  /api/cms/action-plans/{actionPlan}
+PUT  /api/cms/action-plans/{actionPlan}/versions/{version}
+POST /api/cms/action-plans/{actionPlan}/versions/{version}/transitions/submit
+POST /api/cms/action-plans/{actionPlan}/versions/{version}/transitions/start-review
+POST /api/cms/action-plans/{actionPlan}/versions/{version}/transitions/return
+POST /api/cms/action-plans/{actionPlan}/versions/{version}/transitions/accept
+POST /api/cms/action-plans/{actionPlan}/versions/{version}/revisions
+```
+
+Resources expose safe case context, family pointers, version lineage,
+milestones, completeness, derived current/accepted/superseded state, and
+actor-specific permitted actions. They do not expose storage paths,
+unrestricted AEMS records, or raw confidential metadata.
+
+The CMS recommendation detail response adds only a backward-compatible
+`actionPlanSummary`. CMS-3B will consume the dedicated endpoints.

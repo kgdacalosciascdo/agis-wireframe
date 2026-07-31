@@ -442,7 +442,37 @@ stale-state responses explain the conflict and reload the current case. The
 due-soon dashboard metric remains visibly unavailable because no approved
 runtime threshold exists.
 
-### 11.7 Runtime logo
+### 11.7 CMS-3A Corrective Action Plan flow
+
+The responsible office creates one Action Plan family for an authorized
+recommendation. The initial draft moves the case from `TRANSFERRED` to
+`FOR_ACTION_PLAN`. Draft content and milestones remain management-owned.
+
+```mermaid
+flowchart LR
+    T[TRANSFERRED case] -->|responsible office creates| D[DRAFT v1]
+    D --> S[SUBMITTED immutable snapshot]
+    S --> R[UNDER_REVIEW]
+    R -->|return instructions| X[RETURNED immutable]
+    X -->|copy| ND[new DRAFT revision]
+    R -->|independent acceptance| A[ACCEPTED baseline]
+    A --> M[case MONITORING]
+    A -->|copy| RD[new DRAFT revision]
+    RD -->|later acceptance| NA[new accepted pointer]
+```
+
+`CmsRecommendationScopeService` remains authoritative. Responsible-office
+mutations require matching office and granular permission. Review, return, and
+acceptance require an active Compliance Monitor or CIAS Management reviewer who
+is independent of the owner office, preparer, focal user, and submitter.
+
+Transactions, row locks, optimistic version locks, unique family/version/active
+constraints, immutable snapshots, append-only recommendation events, Activity
+Log, Audit Trail, and after-commit notifications preserve the official accepted
+baseline. CMS-3B React forms and progress/evidence/validation/extension/closure
+workflows are not implemented.
+
+### 11.8 Runtime logo
 
 Branding images are the exception: validated logo files are stored in managed
 public storage because the login page must display them before authentication.

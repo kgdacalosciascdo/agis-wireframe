@@ -547,9 +547,53 @@ submission, refresh after success, and reload after a stale-lock response.
 The sidebar contains live CMS destinations but no static operational counts.
 Due-soon remains explicitly unavailable pending an approved runtime threshold.
 
-Corrective action plans, progress/evidence submission, validation, extensions,
-escalation, closure, accepted risk, reopening, and CMS reports are not
+### 8.0.1 CMS-3A Corrective Action Plans
+
+CMS-3A adds one management-owned Action Plan family per recommendation case,
+immutable content versions, measurable version-owned milestones, and controlled
+review/acceptance.
+
+| Method | Endpoint | Permission | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/cms/recommendations/{recommendation}/action-plan` | `cms.action-plan.view` | Case context and existing plan or actor-specific create availability |
+| `POST` | `/api/cms/recommendations/{recommendation}/action-plans` | `cms.action-plan.create` | Create family and version 1 draft |
+| `GET` | `/api/cms/action-plans/{actionPlan}` | `cms.action-plan.view` | Safe family, versions, milestones, completeness, and actions |
+| `PUT` | `/api/cms/action-plans/{actionPlan}/versions/{version}` | `cms.action-plan.update` | Replace current draft content and milestones |
+| `POST` | `/api/cms/action-plans/{actionPlan}/versions/{version}/transitions/submit` | `cms.action-plan.submit` | Validate and snapshot a complete draft |
+| `POST` | `/api/cms/action-plans/{actionPlan}/versions/{version}/transitions/start-review` | `cms.action-plan.review` | Start independent compliance review |
+| `POST` | `/api/cms/action-plans/{actionPlan}/versions/{version}/transitions/return` | `cms.action-plan.return` | Return immutable reviewed version with instructions |
+| `POST` | `/api/cms/action-plans/{actionPlan}/versions/{version}/transitions/accept` | `cms.action-plan.accept` | Establish the official accepted baseline |
+| `POST` | `/api/cms/action-plans/{actionPlan}/versions/{version}/revisions` | `cms.action-plan.revise` | Copy a returned/accepted current version into a new draft |
+
+Create/update payloads use camelCase narratives, dates, owner/focal IDs,
+`lockVersion`, and a `milestones` array. Submit requires `confirmation`; return
+requires `returnReason`; accept requires `acceptanceComment`, `confirmation`,
+and the latest lock; revision requires `revisionReason`.
+
+The family derives `CAP-CMS-REC-{case ID}` and each version derives a `-Vn`
+suffix. `currentVersionId` identifies the active working version;
+`acceptedVersionId` alone identifies the official monitoring baseline. Older
+accepted records remain `ACCEPTED` and resources derive `isSuperseded`.
+
+Version states are `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `RETURNED`, and
+`ACCEPTED`. Case states implemented through CMS-3A are `TRANSFERRED`,
+`FOR_ACTION_PLAN`, and `MONITORING`. Clients cannot set either state or a
+version/pointer value.
+
+Milestone weights are optional. If one is supplied, every milestone requires a
+weight and the total must equal 100%. This does not represent validated
+progress. A plan target cannot exceed the case effective target; when the case
+target is missing, a plan date remains only a proposal and does not update the
+case.
+
+The recommendation detail resource adds backward-compatible
+`actionPlanSummary`. Dedicated CMS-3B React Action Plan forms are not
 implemented.
+
+Progress/evidence submission, independent validation, extensions, due-soon
+configuration, reminders, escalation, closure, accepted risk,
+no-longer-applicable decisions, reopening, and CMS reports/exports remain
+unimplemented.
 
 ### 8.1 AEMS authorization contract
 
@@ -561,7 +605,7 @@ The lifecycle and Entry Conference additions are
 `aems.entry-conference.waive`.
 Formal closure adds 21 granular Completion Assessment, Closure, document-index,
 retention, and exceptional-reopening operations. The verified runtime
-catalogue contains 198 permissions in total, including 11 `cms.*` permissions.
+catalogue contains 206 permissions in total, including 19 `cms.*` permissions.
 Administrators receive monitoring access but do not receive audit approval or
 issuance permissions. CIAS Management has global audit authority. AGIS Users
 require an active `engagement_teams` assignment, and the assignment role limits

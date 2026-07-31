@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\AemsReportController;
 use App\Http\Controllers\Api\AemsTeamController;
 use App\Http\Controllers\Api\AemsWorkingPaperController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CmsActionPlanController;
 use App\Http\Controllers\Api\CmsDashboardController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
@@ -82,6 +83,24 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.recommendation.assign');
     Route::post('/cms/recommendations/{recommendation}/assignments/{assignment}/end', [CmsRecommendationAssignmentController::class, 'end'])
         ->middleware('permission:cms.recommendation.assign');
+    Route::get('/cms/recommendations/{recommendation}/action-plan', [CmsActionPlanController::class, 'forRecommendation'])
+        ->middleware('permission:cms.action-plan.view');
+    Route::post('/cms/recommendations/{recommendation}/action-plans', [CmsActionPlanController::class, 'store'])
+        ->middleware('permission:cms.action-plan.create');
+    Route::get('/cms/action-plans/{actionPlan}', [CmsActionPlanController::class, 'show'])
+        ->middleware('permission:cms.action-plan.view');
+    Route::put('/cms/action-plans/{actionPlan}/versions/{version}', [CmsActionPlanController::class, 'update'])
+        ->middleware('permission:cms.action-plan.update');
+    Route::post('/cms/action-plans/{actionPlan}/versions/{version}/transitions/submit', [CmsActionPlanController::class, 'submit'])
+        ->middleware('permission:cms.action-plan.submit');
+    Route::post('/cms/action-plans/{actionPlan}/versions/{version}/transitions/start-review', [CmsActionPlanController::class, 'startReview'])
+        ->middleware('permission:cms.action-plan.review');
+    Route::post('/cms/action-plans/{actionPlan}/versions/{version}/transitions/return', [CmsActionPlanController::class, 'return'])
+        ->middleware('permission:cms.action-plan.return');
+    Route::post('/cms/action-plans/{actionPlan}/versions/{version}/transitions/accept', [CmsActionPlanController::class, 'accept'])
+        ->middleware('permission:cms.action-plan.accept');
+    Route::post('/cms/action-plans/{actionPlan}/versions/{version}/revisions', [CmsActionPlanController::class, 'revise'])
+        ->middleware('permission:cms.action-plan.revise');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

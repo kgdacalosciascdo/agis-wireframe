@@ -7,6 +7,7 @@ use App\Http\Requests\CmsRecommendationIndexRequest;
 use App\Http\Resources\CmsRecommendationDetailResource;
 use App\Http\Resources\CmsRecommendationResource;
 use App\Models\CmsRecommendationCase;
+use App\Services\Cms\CmsActionPlanService;
 use App\Services\Cms\CmsRecommendationRegistryService;
 use App\Services\Cms\CmsRecommendationScopeService;
 use App\Support\ActivityRecorder;
@@ -20,6 +21,7 @@ class CmsRecommendationController extends Controller
     public function __construct(
         private readonly CmsRecommendationRegistryService $registry,
         private readonly CmsRecommendationScopeService $scope,
+        private readonly CmsActionPlanService $actionPlans,
     ) {}
 
     public function index(CmsRecommendationIndexRequest $request): JsonResponse
@@ -50,6 +52,16 @@ class CmsRecommendationController extends Controller
     {
         $case = $this->scope->resolveVisibleCase($request->user(), $recommendation);
         $case->load($this->detailRelations());
+        if ($case->actionPlan?->currentVersion) {
+            $case->actionPlan->currentVersion->setAttribute(
+                'available_actions',
+                $this->actionPlans->permittedActions(
+                    $request->user(),
+                    $case->actionPlan,
+                    $case->actionPlan->currentVersion,
+                ),
+            );
+        }
         $this->recordView($request, $case);
 
         return response()->json([
@@ -72,6 +84,8 @@ class CmsRecommendationController extends Controller
             'assignments.assigner',
             'assignments.ender',
             'events.actor',
+            'actionPlan.currentVersion.milestones',
+            'actionPlan.acceptedVersion',
         ];
     }
 

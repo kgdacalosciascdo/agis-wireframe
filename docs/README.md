@@ -11,6 +11,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md) | Core administrators, analysts, developers | Authentication, registries, roles/scopes, master lists, documents, workflows, notifications, logs, configuration |
 | [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) | CIAS management, auditors, analysts, developers | SIAP, Audit Universe, risk, prioritization, annual plan, schedules, resources, approval, reports |
 | [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md) | CIAS management, auditors, auditee representatives, developers | Engagement authorization, planning, fieldwork, findings, responses, reporting, and closure state machines |
+| [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md) | Responsible offices, Compliance Monitors, CIAS management, developers | Immutable intake, registry/scope, monitor assignment, Action Plan versions, milestones, review, acceptance, and future boundaries |
 | [API and Data Reference](API_AND_DATA_REFERENCE.md) | Frontend/backend developers and integrators | Endpoint families, request conventions, entities, relationships, lists, configuration keys |
 | [Operations Guide](OPERATIONS_GUIDE.md) | Developers, deployers, administrators | Setup, migrations, seeders, storage, SMTP, verification, production, backup, monitoring, troubleshooting |
 | [Development Standards](DEVELOPMENT_STANDARDS.md) | Everyone changing the system | Security, integrity, UX, reliability, testing, and definition of done |
@@ -23,7 +24,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | IAP — Internal Audit Planning | As-built documentation complete | Implemented |
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
-| CMS — Compliance Management | CMS-1 intake, CMS-2A backend, and CMS-2B React workspace documented | Immutable AEMS intake, operational case, scoped dashboard/registry/detail APIs and React pages, Compliance Monitor assignment controls/history, events, logs, and notifications are operational; action plans and later monitoring workflows are not implemented |
+| CMS — Compliance Management | CMS-1, CMS-2A/2B, and CMS-3A backend workflow documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, and the versioned Action Plan/milestone review and acceptance backend are operational; CMS-3B UI and later monitoring workflows are not implemented |
 | ARMIS — Audit Resource Management | Temporary capacity exists in IAP | Full module not implemented |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 
@@ -39,7 +40,8 @@ For a new developer:
 4. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
 5. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
 6. [API and Data Reference](API_AND_DATA_REFERENCE.md)
-7. [Operations Guide](OPERATIONS_GUIDE.md)
+7. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
+8. [Operations Guide](OPERATIONS_GUIDE.md)
 
 For a CIAS reviewer:
 

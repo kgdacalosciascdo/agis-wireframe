@@ -33,7 +33,10 @@ class CmsRecommendationIndexRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', Rule::in(['TRANSFERRED'])],
+            'status' => [
+                'nullable',
+                Rule::in(['TRANSFERRED', 'FOR_ACTION_PLAN', 'MONITORING']),
+            ],
             'officeId' => ['nullable', 'integer', 'exists:offices,id'],
             'risk' => ['nullable', 'string', 'max:80'],
             'confidentiality' => ['nullable', 'string', 'max:80'],

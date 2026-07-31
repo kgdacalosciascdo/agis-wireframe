@@ -18,6 +18,10 @@ class CmsRecommendationCase extends Model
 
     public const STATUS_TRANSFERRED = 'TRANSFERRED';
 
+    public const STATUS_FOR_ACTION_PLAN = 'FOR_ACTION_PLAN';
+
+    public const STATUS_MONITORING = 'MONITORING';
+
     protected $fillable = [
         'cms_recommendation_id',
         'status_code',
@@ -84,5 +88,13 @@ class CmsRecommendationCase extends Model
             ->where(function ($query): void {
                 $query->whereNull('effective_until')->orWhere('effective_until', '>', now());
             });
+    }
+
+    public function actionPlan(): HasOne
+    {
+        return $this->hasOne(
+            CmsCorrectiveActionPlan::class,
+            'cms_recommendation_case_id',
+        );
     }
 }

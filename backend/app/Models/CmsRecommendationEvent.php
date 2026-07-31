@@ -22,6 +22,20 @@ class CmsRecommendationEvent extends Model
 
     public const EVENT_COMPLIANCE_MONITOR_ASSIGNMENT_ENDED = 'COMPLIANCE_MONITOR_ASSIGNMENT_ENDED';
 
+    public const EVENT_ACTION_PLAN_CREATED = 'ACTION_PLAN_CREATED';
+
+    public const EVENT_ACTION_PLAN_UPDATED = 'ACTION_PLAN_UPDATED';
+
+    public const EVENT_ACTION_PLAN_SUBMITTED = 'ACTION_PLAN_SUBMITTED';
+
+    public const EVENT_ACTION_PLAN_REVIEW_STARTED = 'ACTION_PLAN_REVIEW_STARTED';
+
+    public const EVENT_ACTION_PLAN_RETURNED = 'ACTION_PLAN_RETURNED';
+
+    public const EVENT_ACTION_PLAN_REVISION_CREATED = 'ACTION_PLAN_REVISION_CREATED';
+
+    public const EVENT_ACTION_PLAN_ACCEPTED = 'ACTION_PLAN_ACCEPTED';
+
     protected $fillable = [
         'cms_recommendation_case_id',
         'cms_recommendation_id',

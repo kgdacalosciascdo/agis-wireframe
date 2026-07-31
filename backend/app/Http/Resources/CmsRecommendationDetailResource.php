@@ -81,6 +81,40 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     'actor' => $this->safeUser($event->actor),
                 ],
             )->values()),
+            'actionPlanSummary' => $this->whenLoaded('actionPlan', function () use ($request): array {
+                $plan = $this->actionPlan;
+                if (! $plan) {
+                    return [
+                        'hasActionPlan' => false,
+                        'permittedActions' => [],
+                    ];
+                }
+                $current = $plan->currentVersion;
+                $accepted = $plan->acceptedVersion;
+                if ($request->user()->hasRole('read_only')
+                    && $current
+                    && ! in_array($current->status_code, [
+                        'SUBMITTED',
+                        'UNDER_REVIEW',
+                        'ACCEPTED',
+                    ], true)) {
+                    $current = null;
+                }
+
+                return [
+                    'hasActionPlan' => true,
+                    'actionPlanId' => $plan->id,
+                    'currentVersionId' => $plan->current_version_id,
+                    'currentVersionNumber' => $current?->version_number,
+                    'currentVersionStatus' => $current?->status_code,
+                    'acceptedVersionId' => $plan->accepted_version_id,
+                    'acceptedVersionNumber' => $accepted?->version_number,
+                    'milestoneCount' => $current?->milestones?->count() ?? 0,
+                    'latestSubmittedAt' => $current?->submitted_at?->toISOString(),
+                    'latestAcceptedAt' => $accepted?->accepted_at?->toISOString(),
+                    'permittedActions' => $current?->getAttribute('available_actions') ?? [],
+                ];
+            }),
         ];
     }
 

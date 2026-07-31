@@ -113,8 +113,8 @@ class CmsDashboardService
                 'reason' => 'No approved CMS due-soon runtime threshold is configured.',
             ],
             'dataLimitations' => [
-                'CMS-2A cases currently use the TRANSFERRED workflow state only.',
                 'Due-soon metrics require an approved runtime threshold.',
+                'Progress, evidence, validation, extension, and closure workflows are not implemented.',
             ],
         ];
     }

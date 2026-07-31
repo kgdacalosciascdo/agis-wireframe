@@ -214,8 +214,30 @@ php artisan tinker --execute="dump([
 ]);"
 ```
 
-The CMS permission count is 11 (six legacy plus five CMS-2A granular codes).
+After CMS-3A, run the additive migrations
+`2026_07_31_020000_create_cms_action_plan_tables` and
+`2026_07_31_030000_enforce_cms_action_plan_active_slot`, then rerun
+`RolePermissionSeeder`. The CMS permission count is 19 (six legacy, five
+CMS-2A, and eight CMS-3A Action Plan codes).
 No case may have more than one current `COMPLIANCE_MONITOR`.
+
+Verify the controlled Action Plan foundation:
+
+```powershell
+php artisan migrate:status
+php artisan route:list --path=cms
+php artisan test --filter=CmsActionPlan
+php artisan tinker --execute="dump([
+    'families' => App\Models\CmsCorrectiveActionPlan::count(),
+    'versions' => App\Models\CmsActionPlanVersion::count(),
+    'milestones' => App\Models\CmsActionPlanMilestone::count(),
+    'acceptedBaselines' => App\Models\CmsCorrectiveActionPlan::whereNotNull('accepted_version_id')->count(),
+]);"
+```
+
+For each family, at most one version may have `active_slot = ACTIVE`; every
+accepted pointer must reference a version in the same family. Do not use
+`migrate:fresh` against retained data.
 
 Smoke-test:
 

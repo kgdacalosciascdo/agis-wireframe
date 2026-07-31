@@ -6,6 +6,7 @@ import {
   FileCheck2,
   History,
   Link2,
+  ListChecks,
   RefreshCw,
   ShieldCheck,
   UserRound,
@@ -153,6 +154,7 @@ export default function CmsRecommendationDetailPage() {
   const { user } = useAuth();
   const toast = useToast();
   const canAssign = hasPermission(user, "cms.recommendation.assign");
+  const canViewActionPlan = hasPermission(user, "cms.action-plan.view");
   const activeTab = tabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -337,6 +339,17 @@ export default function CmsRecommendationDetailPage() {
       <RegistryHeader
         actions={
           <div className="flex flex-wrap gap-2">
+            {canViewActionPlan && (
+              <Link
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800"
+                to={`/compliance-management/recommendations/${recommendationId}/action-plan`}
+              >
+                <ListChecks size={16} />
+                {record?.actionPlanSummary?.hasActionPlan
+                  ? "Open Action Plan"
+                  : "Prepare Action Plan"}
+              </Link>
+            )}
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
               to="/compliance-management/recommendations"
@@ -424,7 +437,13 @@ export default function CmsRecommendationDetailPage() {
         className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
         role="tabpanel"
       >
-        {activeTab === "overview" && <Overview record={record} currentMonitor={currentMonitor} />}
+        {activeTab === "overview" && (
+          <Overview
+            canViewActionPlan={canViewActionPlan}
+            currentMonitor={currentMonitor}
+            record={record}
+          />
+        )}
         {activeTab === "source" && <SourceLineage record={record} />}
         {activeTab === "assignments" && (
           <div>
@@ -546,7 +565,9 @@ function HeaderDatum({ label, value }) {
   );
 }
 
-function Overview({ record, currentMonitor }) {
+function Overview({ record, currentMonitor, canViewActionPlan }) {
+  const actionPlan = record.actionPlanSummary;
+
   return (
     <div>
       <h3 className="text-lg font-bold text-slate-800">Recommendation overview</h3>
@@ -595,6 +616,35 @@ function Overview({ record, currentMonitor }) {
             : "Unassigned"}
         </ReadOnlyField>
       </dl>
+      {canViewActionPlan && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Corrective Action Plan
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {actionPlan?.hasActionPlan
+                  ? `Current version ${actionPlan.currentVersionNumber ?? "unavailable"} · ${labelFor(actionPlan.currentVersionStatus)}`
+                  : "No Action Plan has been created."}
+              </p>
+              {actionPlan?.acceptedVersionNumber && (
+                <p className="mt-1 text-xs text-emerald-700">
+                  Version {actionPlan.acceptedVersionNumber} is the accepted
+                  monitoring baseline.
+                </p>
+              )}
+            </div>
+            <Link
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-sky-300 bg-white px-4 text-sm font-bold text-sky-800 hover:bg-sky-50"
+              to={`/compliance-management/recommendations/${record.id}/action-plan`}
+            >
+              <ListChecks size={16} />
+              {actionPlan?.hasActionPlan ? "Open workspace" : "Prepare plan"}
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -442,7 +442,7 @@ stale-state responses explain the conflict and reload the current case. The
 due-soon dashboard metric remains visibly unavailable because no approved
 runtime threshold exists.
 
-### 11.7 CMS-3A Corrective Action Plan flow
+### 11.7 CMS-3A/3B Corrective Action Plan flow
 
 The responsible office creates one Action Plan family for an authorized
 recommendation. The initial draft moves the case from `TRANSFERRED` to
@@ -469,8 +469,18 @@ is independent of the owner office, preparer, focal user, and submitter.
 Transactions, row locks, optimistic version locks, unique family/version/active
 constraints, immutable snapshots, append-only recommendation events, Activity
 Log, Audit Trail, and after-commit notifications preserve the official accepted
-baseline. CMS-3B React forms and progress/evidence/validation/extension/closure
-workflows are not implemented.
+baseline.
+
+CMS-3B exposes the aggregate at
+`/compliance-management/recommendations/{caseId}/action-plan`, linked from the
+authorized recommendation detail workspace. Responsible-office users prepare
+the draft and ordered milestones; independent reviewers start review, return
+with instructions, or accept. Historical versions are read-only, and the
+accepted baseline remains distinct from a later current revision. The client
+uses backend `availableActions`, granular presentation permissions, and the
+latest `lockVersion`, while Laravel remains authoritative for scope, workflow,
+separation of duties, and stale-state rejection. Progress, evidence,
+independent validation, extension, and closure workflows are not implemented.
 
 ### 11.8 Runtime logo
 

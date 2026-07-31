@@ -587,8 +587,14 @@ target is missing, a plan date remains only a proposal and does not update the
 case.
 
 The recommendation detail resource adds backward-compatible
-`actionPlanSummary`. Dedicated CMS-3B React Action Plan forms are not
-implemented.
+`actionPlanSummary`. CMS-3B consumes the dedicated endpoints at the protected
+React route
+`/compliance-management/recommendations/{caseId}/action-plan`. The workspace
+supports draft narratives and ordered milestones, submission, review start,
+return, acceptance, controlled revision, accepted-baseline visibility, and
+read-only version history. It sends `lockVersion` on each mutation and treats
+resource `availableActions` and Laravel authorization as authoritative. No new
+CMS-3B endpoint or payload shape was introduced.
 
 Progress/evidence submission, independent validation, extensions, due-soon
 configuration, reminders, escalation, closure, accepted risk,

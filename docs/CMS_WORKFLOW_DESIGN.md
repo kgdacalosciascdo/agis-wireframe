@@ -14,12 +14,15 @@ Implemented as-built scope:
   Compliance Monitor assignment history, and React workspace;
 - CMS-3A management-owned Corrective Action Plan family, immutable versions,
   measurable milestones, independent compliance review, return, acceptance,
-  and controlled revision.
+  and controlled revision;
+- CMS-3B responsive React Action Plan workspace for management preparation,
+  milestone editing, submission, reviewer decisions, accepted-baseline
+  visibility, immutable history, and controlled revision.
 
-CMS-3B React Action Plan pages are not implemented. Progress updates, evidence,
-independent validation, target-date extensions, due-soon configuration,
-reminders, escalation, closure, accepted risk, no-longer-applicable decisions,
-reopening, and CMS reports/exports remain future scope.
+Progress updates, evidence, independent validation, target-date extensions,
+due-soon configuration, reminders, escalation, closure, accepted risk,
+no-longer-applicable decisions, reopening, and CMS reports/exports remain
+future scope.
 
 ## 2. Record lineage
 
@@ -204,4 +207,40 @@ actor-specific permitted actions. They do not expose storage paths,
 unrestricted AEMS records, or raw confidential metadata.
 
 The CMS recommendation detail response adds only a backward-compatible
-`actionPlanSummary`. CMS-3B will consume the dedicated endpoints.
+`actionPlanSummary`.
+
+## 10. CMS-3B React workspace
+
+The protected route
+`/compliance-management/recommendations/{caseId}/action-plan` requires
+`cms.action-plan.view`. It is reached contextually from the recommendation
+detail page because the backend has no Action Plan collection endpoint; no
+unsupported sidebar registry is implied.
+
+The workspace:
+
+- preserves the recommendation, owner-office, target-date, confidentiality,
+  family, current-version, and accepted-baseline context;
+- supports draft narratives, focal/responsible users, plan dates, and
+  add/edit/remove/reorder milestone operations;
+- shows whether weighting is unused, incomplete, or totals 100%;
+- submits only complete drafts and exposes start-review, return, accept, and
+  revision controls from backend `availableActions` plus the matching granular
+  frontend permission;
+- renders every non-draft and every historical version read-only, including
+  current, accepted-baseline, and superseded indicators;
+- keeps the previously accepted baseline visible while a later draft is under
+  preparation or review;
+- sends the latest `lockVersion` with every mutation, blocks duplicate
+  submissions, warns before discarding unsaved work, preserves local draft
+  values after a stale-lock response, and offers an explicit authoritative
+  reload; and
+- presents validation details without clearing entered values, treats Laravel
+  authorization as final, and uses a generic unavailable state for scoped
+  `404` responses.
+
+The responsive Playwright coverage exercises responsible-office preparation,
+milestone weighting and ordering, reviewer return and acceptance, immutable
+history, revision, accepted-baseline continuity, authorization failure,
+optimistic-lock recovery, duplicate-click prevention, and scope-safe
+unavailability on desktop and mobile.

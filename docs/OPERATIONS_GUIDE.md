@@ -250,7 +250,20 @@ Smoke-test:
 7. an IAP detail page and report export;
 8. `/compliance-management/dashboard`, the server-driven Recommendation
    Registry, one authorized detail record, and one denied/out-of-scope detail
-   request.
+   request;
+9. one authorized
+   `/compliance-management/recommendations/{caseId}/action-plan` workspace,
+   including draft milestone editing, submit/review/return or acceptance,
+   immutable history, and one denied/out-of-scope request.
+
+CMS frontend regression checks:
+
+```powershell
+npm.cmd run test:e2e -- cms-responsive.spec.js cms-action-plan.spec.js
+```
+
+The CMS-3B workspace uses the existing CMS-3A routes and schema; it requires no
+additional migration or permission seeding.
 
 ## 11. Production checklist
 

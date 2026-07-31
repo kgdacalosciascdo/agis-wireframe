@@ -1,4 +1,11 @@
-import { AlertTriangle, CheckCircle2, CircleDot } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleDot,
+  Clock3,
+  FilePenLine,
+  RotateCcw,
+} from "lucide-react";
 import StatusBadge from "../ui/StatusBadge";
 import { labelFor } from "./cms-format";
 
@@ -36,6 +43,28 @@ export function CmsOverdueBadge({ overdue }) {
     <StatusBadge tone="danger">
       <AlertTriangle className="mr-1" size={13} aria-hidden="true" />
       Overdue
+    </StatusBadge>
+  );
+}
+
+export function CmsActionPlanStatusBadge({ status }) {
+  const appearances = {
+    DRAFT: { icon: FilePenLine, tone: "info" },
+    SUBMITTED: { icon: Clock3, tone: "warning" },
+    UNDER_REVIEW: { icon: CircleDot, tone: "warning" },
+    RETURNED: { icon: RotateCcw, tone: "danger" },
+    ACCEPTED: { icon: CheckCircle2, tone: "success" },
+  };
+  const appearance = appearances[status] ?? {
+    icon: CircleDot,
+    tone: "info",
+  };
+  const Icon = appearance.icon;
+
+  return (
+    <StatusBadge tone={appearance.tone}>
+      <Icon aria-hidden="true" className="mr-1" size={13} />
+      {labelFor(status, "Unknown")}
     </StatusBadge>
   );
 }

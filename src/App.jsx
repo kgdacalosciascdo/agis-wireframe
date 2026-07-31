@@ -97,6 +97,9 @@ const CmsRecommendationRegistryPage = lazy(
 const CmsRecommendationDetailPage = lazy(
   () => import("./pages/CmsRecommendationDetailPage"),
 );
+const CmsActionPlanPage = lazy(
+  () => import("./pages/CmsActionPlanPage"),
+);
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -597,6 +600,16 @@ export default function App() {
               <ProtectedPage permission="cms.recommendation.view">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsRecommendationDetailPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/action-plan"
+            element={
+              <ProtectedPage permission="cms.action-plan.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsActionPlanPage />
                 </Suspense>
               </ProtectedPage>
             }

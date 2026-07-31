@@ -418,6 +418,18 @@ export function pageForPath(pathname) {
     };
   }
 
+  if (
+    /^\/compliance-management\/recommendations\/\d+\/action-plan$/.test(
+      pathname,
+    )
+  ) {
+    return {
+      label: "Corrective Action Plan",
+      icon: ListChecks,
+      permission: "cms.action-plan.view",
+    };
+  }
+
   if (/^\/compliance-management\/recommendations\/\d+$/.test(pathname)) {
     return {
       label: "Recommendation Details",

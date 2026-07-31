@@ -2394,6 +2394,92 @@ export const cmsApi = {
       },
     );
   },
+  async getActionPlanForRecommendation(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/action-plan`,
+    );
+  },
+  async createActionPlan(recommendationId, payload) {
+    const data = await request(
+      `/api/cms/recommendations/${recommendationId}/action-plans`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
+  async getActionPlan(actionPlanId) {
+    const data = await request(`/api/cms/action-plans/${actionPlanId}`);
+    return data?.actionPlan ?? null;
+  },
+  async updateActionPlan(actionPlanId, versionId, payload) {
+    const data = await request(
+      `/api/cms/action-plans/${actionPlanId}/versions/${versionId}`,
+      {
+        method: "PUT",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
+  async submitActionPlan(actionPlanId, versionId, payload) {
+    const data = await request(
+      `/api/cms/action-plans/${actionPlanId}/versions/${versionId}/transitions/submit`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
+  async startActionPlanReview(actionPlanId, versionId, payload) {
+    const data = await request(
+      `/api/cms/action-plans/${actionPlanId}/versions/${versionId}/transitions/start-review`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
+  async returnActionPlan(actionPlanId, versionId, payload) {
+    const data = await request(
+      `/api/cms/action-plans/${actionPlanId}/versions/${versionId}/transitions/return`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
+  async acceptActionPlan(actionPlanId, versionId, payload) {
+    const data = await request(
+      `/api/cms/action-plans/${actionPlanId}/versions/${versionId}/transitions/accept`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
+  async reviseActionPlan(actionPlanId, versionId, payload) {
+    const data = await request(
+      `/api/cms/action-plans/${actionPlanId}/versions/${versionId}/revisions`,
+      {
+        method: "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.actionPlan ?? null;
+  },
 };
 
 export const profileApi = {

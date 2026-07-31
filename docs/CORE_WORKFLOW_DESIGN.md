@@ -21,6 +21,13 @@ Core currently provides:
 
 Core is a prerequisite for IAP, AEM, AFR, CMS, ARMIS, and AIS.
 
+The main `/dashboard` route is currently a role-aware demonstration landing
+page. Its access checks and module links use the authenticated user's real
+permissions, but its summary counts, upcoming activities, recent engagements,
+and task content are static frontend data. Its quick actions may display
+“coming soon” messages. It must not be treated as an operational reporting
+source; use the live IAP and AEMS dashboards for current module metrics.
+
 ```mermaid
 flowchart TD
     AUTH[Authentication and account controls] --> USER[User identity]

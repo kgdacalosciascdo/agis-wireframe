@@ -251,7 +251,155 @@ The backend:
 
 No private storage path is exposed as a public URL.
 
-### 11.4 Runtime logo
+AEMS evidence uses the same private-file boundary. Each upload creates a hidden
+module-owned Core `Document` and immutable `DocumentVersion`; an evidence
+replacement appends a version and never overwrites the old file. Working Paper
+approval stores the exact evidence row and document-version IDs relied upon,
+then locks those evidence versions against voiding or mutation.
+
+Validated issues preserve their exact approved Working Paper versions and
+verified evidence. Conversion is one-to-one and idempotent. Finding validation
+locks cited evidence; communication snapshots the finding, recommendations,
+recipients, confidentiality, due date, and support IDs. Finalization locks the
+finding, response/rejoinder disposition, and recommendations before later CMS
+transfer.
+
+Management-response and rejoinder supporting documents use the same private
+document boundary as other protected AEMS files. Every upload creates a hidden
+Core `Document` and immutable `DocumentVersion`;
+`aems_dialogue_attachments` pins that exact version to one response or one
+rejoinder. Dialogue payloads expose the actor, creation/update dates, content,
+exchange version, and checksum-bearing attachment metadata without replacing a
+prior submitted exchange.
+
+Exit Conference scheduling selects current formally communicated Findings and
+internal or external participants. Completion records attendance and a
+discussion outcome for every linked Finding, including agreement status,
+agreement/disagreement detail, and any revised target date. It then stores a
+completion snapshot and locks the schedule, outcomes, minutes, and exact
+attachment `DocumentVersion` IDs. Invited Auditee Representatives acknowledge
+the completed minutes through immutable, actor- and office-specific
+acknowledgement records.
+
+Draft Report generation selects current validated or later Findings, arranges
+report sections, and creates a private PDF-backed `DocumentVersion`. Every
+revision appends an immutable `AuditReportVersion`; return and approval comments
+remain pinned to the exact reviewed version. Final Report generation accepts
+only finalized Findings and records confidentiality, approving authority, and
+version-bound recipients. Issuance records the date and actor, marks recipients
+sent, locks the exact PDF and checksum, and idempotently creates one CMS intake
+record for each included finalized recommendation. The intake service
+independently revalidates the issued report, exact locked version, included
+current finalized Finding, non-archived Recommendation, finalized office/target
+source, and existing AEMS issuance authority. Each new immutable intake
+initializes one separate `CmsRecommendationCase` in `TRANSFERRED` and one
+append-only `INTAKE_CREATED` event. The case is the future operational root; its
+CMS monitoring workflow is not implemented yet.
+
+The aggregate lifecycle is now enforced by
+`AemsEngagementTransitionService`. A client sends an action and current
+`lockVersion`; it cannot send a target status. Laravel policy/permission,
+office and assignment scope, separation of duties, row lock, and the
+authoritative child records are checked in one transaction before the parent
+status changes.
+
+```mermaid
+flowchart LR
+    D[DRAFT] --> A[AUTHORIZATION_PREPARATION]
+    A --> Z[AUTHORIZED]
+    Z --> P[ENGAGEMENT_PLANNING]
+    P --> E[ENTRY_CONFERENCE]
+    E --> F[FIELDWORK]
+    F --> C[FINDINGS_COMMUNICATION]
+    C --> R[REPORTING]
+    R --> I[ISSUED]
+    I --> CR[CLOSURE_REVIEW]
+    CR --> CA[Completion Assessment APPROVED]
+    CA --> CO[Formal Closure APPROVED]
+    CO --> CL[CLOSED atomically]
+```
+
+The Entry Conference gate reads issued AEO, approved AEP/program, active team
+roles, attendance, agenda/briefing, Notes, material-matter dispositions,
+acknowledgements, and any exact Core DocumentVersion attachments. Completion or
+an independently authorized waiver is required before fieldwork.
+
+### 11.4 AEMS Engagement Tracker derivation
+
+The Engagement Tracker loads only `AuditEngagement` records visible through the
+central role-and-assignment scope. It then reads the current AEO, AEP, Audit
+Program, Entry Conference, and procedures, Working Papers, Evidence revisions, Findings,
+Management Responses, Exit Conferences, Audit Report, recipients, and
+recommendations.
+
+```mermaid
+flowchart LR
+    V[Visible engagements] --> C[Portfolio cards]
+    V --> S[14 derived stage measures]
+    S --> H[Overdue and health flags]
+    S --> G[Pre-closure gates]
+    C --> D[AEMS dashboard]
+    H --> D
+    G --> D
+```
+
+No tracker-owned workflow state is written. Filters and pagination affect the
+engagement list; the cards remain totals for the complete visible portfolio.
+Pre-closure readiness covers the Entry Conference, enforceable child-work,
+issuance, recipient, CMS-transfer, person-day, and review gates. It is advisory.
+The formal Completion Assessment and Closure workflows separately evaluate
+delivery, generate an authoritative checklist, preserve an exact final document
+index, approve retention/custody metadata, record lessons, and authorize the
+final `CLOSED` transition. The backend locks and re-evaluates the complete
+aggregate in one transaction; a 100% tracker value cannot close an engagement.
+
+The final document index references exact existing private
+`DocumentVersion`s—it does not duplicate files. A replaceable
+`EngagementRetentionProvider` supplies interim AEMS custody/retention metadata
+until Core Records Management replaces that boundary. Exceptional reopening
+requires written authority and independent CIAS approval and preserves the
+original closed snapshots as history.
+
+### 11.5 AEMS cross-module integration flow
+
+```mermaid
+flowchart LR
+    CORE[Core shared services] --> AEMS[AEMS execution and reporting]
+    IAP[Approved IAP engagement] -->|Read-only source + snapshot| AEMS
+    AEMS -->|Finalized recommendation from issued report| CMSI[CMS immutable intake]
+    CMSI --> CMSC[CMS case initialized as TRANSFERRED]
+    CMSC --> CMSE[Append-only INTAKE_CREATED event]
+    IAPRES[IAP interim resource data] --> RG[ResourcePlanningGateway]
+    ARMIS[Future ARMIS] -. replaces provider .-> RG
+    RG --> AEMS
+    AEMS -->|Assignments, workflow events, deadlines, issuance| NOTIFY[Core Notifications]
+```
+
+The IAP adapter owns eligibility, locking, and lineage updates; AEMS never
+edits approved planning content. The CMS adapter delegates to
+`CmsIntakeService`, which owns source eligibility, the unique transfer key,
+conflict-safe create-once intake, case initialization, intake event, and AEMS
+lineage synchronization. Unique database keys plus insert-ignore/re-query
+semantics ensure sequential and concurrent duplicate attempts resolve to the
+same source-matching intake. A conflicting immutable identity is rejected.
+Formally excluded AEMS recommendations create no CMS intake, case, or event.
+The resource contract currently reads IAP capacity, unavailability, skills,
+requirements, and AEMS-held person-days. Its provider status explicitly marks
+IAP as a non-authoritative fallback; ARMIS will later supply availability,
+workload, competencies, and actual person-days through the same contract.
+
+Core services remain shared rather than copied into AEMS. Roles and scopes
+authorize access; Master Lists supply descriptive values; Core
+`DocumentVersion`s preserve files and checksums; runtime configuration supplies
+limits, timezone, pagination, and document numbering; Activity Log and Audit
+Trail record mutations; Notifications are queued after successful AEMS
+transactions; and the daily reminder schedule detects overdue procedures,
+Management Response deadlines, and upcoming Exit Conferences. AEMS keeps
+domain-specific transition guards even though the
+generic Core workflow engine remains available, preventing configurable steps
+from introducing unsupported audit states.
+
+### 11.6 Runtime logo
 
 Branding images are the exception: validated logo files are stored in managed
 public storage because the login page must display them before authentication.

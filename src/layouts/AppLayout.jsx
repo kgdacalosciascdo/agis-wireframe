@@ -31,6 +31,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState(() => ({
     iap: location.pathname.startsWith("/internal-audit-planning"),
+    aem: location.pathname.startsWith("/audit-engagement-management"),
   }));
   const items = visibleFor(user, section.items);
 
@@ -61,6 +62,11 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
             const childExpanded =
               expandedItems[item.key] ??
               location.pathname.startsWith(item.path);
+            const moduleActive = childItems.some(
+              (child) =>
+                location.pathname === child.path ||
+                location.pathname.startsWith(`${child.path}/`),
+            );
 
             return (
               <div className="grid gap-1" key={item.path}>
@@ -68,7 +74,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                   <NavLink
                     className={({ isActive }) =>
                       `group flex min-h-10 min-w-0 flex-1 items-center rounded-md px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
-                        isActive
+                        isActive || moduleActive
                           ? "bg-[#4a87cb] text-white shadow-sm"
                           : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
                       } ${collapsed ? "justify-center" : "gap-3"}`
@@ -130,7 +136,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                                 : "text-blue-100 hover:bg-white/10 hover:text-white"
                             }`
                           }
-                          end={child.path === "/internal-audit-planning"}
+                          end={Boolean(child.end)}
                           key={child.path}
                           onClick={onNavigate}
                           to={child.path}

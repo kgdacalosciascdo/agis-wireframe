@@ -64,6 +64,15 @@ For normal upgrades:
 php backend/artisan migrate --force
 ```
 
+The CMS-1 intake-hardening migration performs a read-only preflight before
+adding the AEMS `cms_recommendation_id` foreign key. If it reports orphaned
+recommendation-to-CMS IDs, stop the deployment. Do not null, rewrite, or discard
+those values. Resolve each named pointer through an approved data-correction
+migration, take a new backup, and rerun the normal migration. Existing `OPEN`
+intake rows are deterministically changed to `TRANSFERRED`; recoverable source
+attributes are backfilled without fabricating unavailable historical values,
+and each intake receives one case and one initial event.
+
 Run only safe idempotent reference seeders when required:
 
 ```powershell
@@ -173,6 +182,20 @@ php artisan test --testsuite=Feature
 php artisan route:list
 php artisan migrate:status
 ```
+
+After CMS-1 deployment, also verify that intake, case, and initial-event counts
+match:
+
+```powershell
+php artisan tinker --execute="dump([
+    'intakes' => App\Models\CmsRecommendation::count(),
+    'cases' => App\Models\CmsRecommendationCase::count(),
+    'events' => App\Models\CmsRecommendationEvent::where('event_code', 'INTAKE_CREATED')->count(),
+]);"
+```
+
+Each valid intake must have one case and one `INTAKE_CREATED` event. Formally
+excluded AEMS recommendations are intentionally absent from all three counts.
 
 Smoke-test:
 

@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\AuditFinding;
+use App\Models\AuditProgramProcedure;
+use App\Models\ExitConference;
 use App\Models\IapPlanEngagement;
 use App\Models\User;
 use App\Models\WorkflowInstance;
+use Illuminate\Support\Collection;
 
 /**
  * Generates deduplicated due-date and workflow reminder notifications.
@@ -85,6 +89,176 @@ class NotificationReminderService
                 )->count();
             });
 
+        $delivered += $this->dispatchAemsProcedureReminders();
+        $delivered += $this->dispatchAemsResponseReminders();
+        $delivered += $this->dispatchAemsConferenceReminders();
+
         return $delivered;
+    }
+
+    private function dispatchAemsProcedureReminders(): int
+    {
+        $delivered = 0;
+
+        AuditProgramProcedure::query()
+            ->whereDate('target_date', '<', today())
+            ->whereNotIn('status', ['COMPLETED', 'WAIVED'])
+            ->with([
+                'program.engagement.teamMembers' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNull('ended_at'),
+            ])
+            ->each(function (AuditProgramProcedure $procedure) use (&$delivered): void {
+                $engagement = $procedure->program?->engagement;
+                if (! $engagement || ! $engagement->is_active) {
+                    return;
+                }
+                $recipients = collect([$procedure->assigned_to])
+                    ->merge(
+                        $engagement->teamMembers
+                            ->whereIn('assignment_role_code', ['SUPERVISOR', 'TEAM_LEADER'])
+                            ->pluck('user_id'),
+                    )
+                    ->filter()
+                    ->unique();
+                $delivered += $this->notifications->send($recipients, [
+                    'type' => 'AEMS_PROCEDURE_OVERDUE',
+                    'category' => 'OVERDUE',
+                    'priority' => 'URGENT',
+                    'moduleCode' => 'AEMS',
+                    'title' => "Overdue procedure: {$procedure->procedure_code}",
+                    'message' => "{$procedure->procedure_description} was due "
+                        .$procedure->target_date?->format('M j, Y').'.',
+                    'actionUrl' => "/audit-engagement-management/audit-program?engagementId={$engagement->id}",
+                    'actionLabel' => 'Open Audit Program',
+                    'subjectType' => AuditProgramProcedure::class,
+                    'subjectId' => $procedure->id,
+                    'subjectCode' => $procedure->procedure_code,
+                    'dedupeKey' => "aems:procedure:{$procedure->id}:overdue:"
+                        .$procedure->target_date?->toDateString(),
+                    'metadata' => [
+                        'engagementId' => $engagement->id,
+                        'targetDate' => $procedure->target_date?->toDateString(),
+                    ],
+                ])->count();
+            });
+
+        return $delivered;
+    }
+
+    private function dispatchAemsResponseReminders(): int
+    {
+        $delivered = 0;
+
+        AuditFinding::query()
+            ->where('is_current_revision', true)
+            ->whereIn('status', ['COMMUNICATED', 'AWAITING_MANAGEMENT_RESPONSE'])
+            ->whereNotNull('management_response_due_date')
+            ->whereDate('management_response_due_date', '<=', today()->addDays(3))
+            ->with([
+                'engagement.teamMembers' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNull('ended_at'),
+            ])
+            ->each(function (AuditFinding $finding) use (&$delivered): void {
+                $engagement = $finding->engagement;
+                if (! $engagement || ! $engagement->is_active) {
+                    return;
+                }
+                $overdue = $finding->management_response_due_date->isPast();
+                $recipients = $this->auditeeRepresentatives(
+                    collect([$finding->responsible_office_id]),
+                )->merge(
+                    $engagement->teamMembers
+                        ->whereIn('assignment_role_code', ['SUPERVISOR', 'TEAM_LEADER'])
+                        ->pluck('user_id'),
+                )->filter()->unique();
+                $delivered += $this->notifications->send($recipients, [
+                    'type' => $overdue
+                        ? 'AEMS_MANAGEMENT_RESPONSE_OVERDUE'
+                        : 'AEMS_MANAGEMENT_RESPONSE_DUE',
+                    'category' => $overdue ? 'OVERDUE' : 'DUE_DATE',
+                    'priority' => $overdue ? 'URGENT' : 'HIGH',
+                    'moduleCode' => 'AEMS',
+                    'title' => ($overdue ? 'Overdue response: ' : 'Response due soon: ')
+                        .$finding->finding_code,
+                    'message' => "Management's response to {$finding->title} is due "
+                        .$finding->management_response_due_date->format('M j, Y').'.',
+                    'actionUrl' => "/audit-engagement-management/auditee-responses?engagementId={$engagement->id}&findingId={$finding->id}",
+                    'actionLabel' => 'Open Auditee Response',
+                    'subjectType' => AuditFinding::class,
+                    'subjectId' => $finding->id,
+                    'subjectCode' => $finding->finding_code,
+                    'dedupeKey' => "aems:finding:{$finding->id}:response-due:"
+                        .$finding->management_response_due_date->toDateString().':'
+                        .($overdue ? 'overdue' : 'upcoming'),
+                    'metadata' => [
+                        'engagementId' => $engagement->id,
+                        'responseDueDate' => $finding->management_response_due_date->toDateString(),
+                    ],
+                ])->count();
+            });
+
+        return $delivered;
+    }
+
+    private function dispatchAemsConferenceReminders(): int
+    {
+        $delivered = 0;
+
+        ExitConference::query()
+            ->whereIn('status', ['SCHEDULED', 'RESCHEDULED'])
+            ->whereBetween('scheduled_start_at', [
+                now()->startOfDay(),
+                now()->addDays(7)->endOfDay(),
+            ])
+            ->with(['engagement', 'participants'])
+            ->each(function (ExitConference $conference) use (&$delivered): void {
+                $engagement = $conference->engagement;
+                if (! $engagement || ! $engagement->is_active) {
+                    return;
+                }
+                $recipients = $conference->participants->pluck('user_id')->filter()
+                    ->merge($this->auditeeRepresentatives(
+                        $conference->participants->pluck('office_id')->filter(),
+                    ))
+                    ->unique();
+                $delivered += $this->notifications->send($recipients, [
+                    'type' => 'AEMS_EXIT_CONFERENCE_REMINDER',
+                    'category' => 'DUE_DATE',
+                    'priority' => 'HIGH',
+                    'moduleCode' => 'AEMS',
+                    'title' => "Upcoming Exit Conference: {$conference->conference_code}",
+                    'message' => "The Exit Conference for {$engagement->title} starts "
+                        .$conference->scheduled_start_at?->diffForHumans().'.',
+                    'actionUrl' => "/audit-engagement-management/exit-conferences?engagementId={$engagement->id}",
+                    'actionLabel' => 'Open Exit Conference',
+                    'subjectType' => ExitConference::class,
+                    'subjectId' => $conference->id,
+                    'subjectCode' => $conference->conference_code,
+                    'dedupeKey' => "aems:conference:{$conference->id}:reminder:"
+                        .$conference->scheduled_start_at?->toDateString(),
+                    'metadata' => [
+                        'engagementId' => $engagement->id,
+                        'scheduledStartAt' => $conference->scheduled_start_at?->toISOString(),
+                    ],
+                ])->count();
+            });
+
+        return $delivered;
+    }
+
+    /** @return Collection<int, int> */
+    private function auditeeRepresentatives(Collection $officeIds): Collection
+    {
+        return User::query()
+            ->whereIn('office_id', $officeIds->filter()->unique())
+            ->where('is_active', true)
+            ->where(function ($query): void {
+                $query
+                    ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
+                    ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+            })
+            ->pluck('id');
     }
 }

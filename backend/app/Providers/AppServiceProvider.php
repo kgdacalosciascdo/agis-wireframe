@@ -2,9 +2,34 @@
 
 namespace App\Providers;
 
+use App\Contracts\Aems\CmsRecommendationGateway;
+use App\Contracts\Aems\EngagementRetentionProvider;
+use App\Contracts\Aems\IapEngagementGateway;
+use App\Contracts\Aems\ResourcePlanningGateway;
+use App\Integrations\Aems\DatabaseCmsRecommendationGateway;
+use App\Integrations\Aems\DatabaseIapEngagementGateway;
+use App\Integrations\Aems\InterimAemsRetentionProvider;
+use App\Integrations\Aems\InterimIapResourcePlanningGateway;
+use App\Models\AuditEngagement;
+use App\Models\AuditEvidence;
+use App\Models\AuditFinding;
+use App\Models\AuditIssue;
+use App\Models\AuditReport;
+use App\Models\EntryConference;
+use App\Models\ExitConference;
+use App\Models\WorkingPaper;
+use App\Policies\AuditEngagementPolicy;
+use App\Policies\AuditEvidencePolicy;
+use App\Policies\AuditFindingPolicy;
+use App\Policies\AuditIssuePolicy;
+use App\Policies\AuditReportPolicy;
+use App\Policies\EntryConferencePolicy;
+use App\Policies\ExitConferencePolicy;
+use App\Policies\WorkingPaperPolicy;
 use App\Services\RuntimeConfiguration;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -19,7 +44,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(IapEngagementGateway::class, DatabaseIapEngagementGateway::class);
+        $this->app->bind(CmsRecommendationGateway::class, DatabaseCmsRecommendationGateway::class);
+        $this->app->bind(ResourcePlanningGateway::class, InterimIapResourcePlanningGateway::class);
+        $this->app->bind(EngagementRetentionProvider::class, InterimAemsRetentionProvider::class);
     }
 
     /**
@@ -27,6 +55,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Explicit policy registration keeps AEMS authorization discoverable and testable.
+        Gate::policy(AuditEngagement::class, AuditEngagementPolicy::class);
+        Gate::policy(AuditEvidence::class, AuditEvidencePolicy::class);
+        Gate::policy(AuditFinding::class, AuditFindingPolicy::class);
+        Gate::policy(AuditIssue::class, AuditIssuePolicy::class);
+        Gate::policy(AuditReport::class, AuditReportPolicy::class);
+        Gate::policy(EntryConference::class, EntryConferencePolicy::class);
+        Gate::policy(WorkingPaper::class, WorkingPaperPolicy::class);
+        Gate::policy(ExitConference::class, ExitConferencePolicy::class);
+
         RateLimiter::for('login', function (Request $request) {
             $configuration = app(RuntimeConfiguration::class);
             $employeeId = Str::upper(trim((string) $request->input('employeeId')));

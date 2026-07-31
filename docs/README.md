@@ -1,7 +1,7 @@
 # AGIS Documentation
 
-This directory is the documentation entry point for the implemented AGIS Core and
-Internal Audit Planning modules.
+This directory is the documentation entry point for the implemented AGIS Core
+and Internal Audit Planning modules and the approved design baseline for AEMS.
 
 ## Document map
 
@@ -10,6 +10,7 @@ Internal Audit Planning modules.
 | [System Flow](SYSTEM_FLOW.md) | Product owners, developers, reviewers | End-to-end browser, API, database, files, authorization, logging, configuration, and IAP flow |
 | [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md) | Core administrators, analysts, developers | Authentication, registries, roles/scopes, master lists, documents, workflows, notifications, logs, configuration |
 | [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) | CIAS management, auditors, analysts, developers | SIAP, Audit Universe, risk, prioritization, annual plan, schedules, resources, approval, reports |
+| [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md) | CIAS management, auditors, auditee representatives, developers | Engagement authorization, planning, fieldwork, findings, responses, reporting, and closure state machines |
 | [API and Data Reference](API_AND_DATA_REFERENCE.md) | Frontend/backend developers and integrators | Endpoint families, request conventions, entities, relationships, lists, configuration keys |
 | [Operations Guide](OPERATIONS_GUIDE.md) | Developers, deployers, administrators | Setup, migrations, seeders, storage, SMTP, verification, production, backup, monitoring, troubleshooting |
 | [Development Standards](DEVELOPMENT_STANDARDS.md) | Everyone changing the system | Security, integrity, UX, reliability, testing, and definition of done |
@@ -20,9 +21,9 @@ Internal Audit Planning modules.
 | --- | --- | --- |
 | AGIS Core | As-built documentation complete | Implemented |
 | IAP — Internal Audit Planning | As-built documentation complete | Implemented |
-| AEM — Audit Engagement Management | Placeholder routes only | Not implemented |
+| AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
-| CMS — Compliance Management | Placeholder routes only | Not implemented |
+| CMS — Compliance Management | CMS-1 immutable intake foundation documented; operational pages remain placeholders | Hardened AEMS-to-CMS intake, one initialized operational case, and append-only intake event per valid transfer; dashboard, registry, action plans, monitoring, validation, and closure are not implemented |
 | ARMIS — Audit Resource Management | Temporary capacity exists in IAP | Full module not implemented |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 
@@ -36,14 +37,16 @@ For a new developer:
 2. [Development Standards](DEVELOPMENT_STANDARDS.md)
 3. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
 4. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
-5. [API and Data Reference](API_AND_DATA_REFERENCE.md)
-6. [Operations Guide](OPERATIONS_GUIDE.md)
+5. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
+6. [API and Data Reference](API_AND_DATA_REFERENCE.md)
+7. [Operations Guide](OPERATIONS_GUIDE.md)
 
 For a CIAS reviewer:
 
 1. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
-2. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
-3. [System Flow](SYSTEM_FLOW.md)
+2. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
+3. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
+4. [System Flow](SYSTEM_FLOW.md)
 
 ## Documentation maintenance
 

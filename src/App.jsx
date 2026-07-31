@@ -64,6 +64,32 @@ const IapResourceCapacityPage = lazy(
   () => import("./pages/IapResourceCapacityPage"),
 );
 const IapReportsPage = lazy(() => import("./pages/IapReportsPage"));
+const AemsEngagementRegistryPage = lazy(
+  () => import("./pages/AemsEngagementRegistryPage"),
+);
+const AemsDashboardPage = lazy(() => import("./pages/AemsDashboardPage"));
+const AemsTeamPage = lazy(() => import("./pages/AemsTeamPage"));
+const AemsAeoPage = lazy(() => import("./pages/AemsAeoPage"));
+const AemsAepPage = lazy(() => import("./pages/AemsAepPage"));
+const AemsAuditProgramPage = lazy(
+  () => import("./pages/AemsAuditProgramPage"),
+);
+const AemsWorkingPapersPage = lazy(
+  () => import("./pages/AemsWorkingPapersPage"),
+);
+const AemsFindingsPage = lazy(() => import("./pages/AemsFindingsPage"));
+const AemsIssuesPage = lazy(() => import("./pages/AemsIssuesPage"));
+const AemsResponsesPage = lazy(() => import("./pages/AemsResponsesPage"));
+const AemsExitConferencesPage = lazy(
+  () => import("./pages/AemsExitConferencesPage"),
+);
+const AemsReportsPage = lazy(() => import("./pages/AemsReportsPage"));
+const AemsEngagementDetailPage = lazy(
+  () => import("./pages/AemsEngagementDetailPage"),
+);
+const AemsEntryConferencePage = lazy(
+  () => import("./pages/AemsEntryConferencePage"),
+);
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -89,6 +115,19 @@ const implementedCorePaths = new Set([
   "/internal-audit-planning/scheduling",
   "/internal-audit-planning/resource-capacity",
   "/internal-audit-planning/reports",
+  "/audit-engagement-management",
+  "/audit-engagement-management/dashboard",
+  "/audit-engagement-management/team",
+  "/audit-engagement-management/aeo",
+  "/audit-engagement-management/aep",
+  "/audit-engagement-management/audit-program",
+  "/audit-engagement-management/entry-conferences",
+  "/audit-engagement-management/working-papers",
+  "/audit-engagement-management/issues",
+  "/audit-engagement-management/findings",
+  "/audit-engagement-management/auditee-responses",
+  "/audit-engagement-management/exit-conferences",
+  "/audit-engagement-management/reports",
 ]);
 
 function RouteLoading() {
@@ -358,6 +397,158 @@ export default function App() {
               <ProtectedPage permission="iap.view">
                 <Suspense fallback={<RouteLoading />}>
                   <IapPlanWorkspacePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/dashboard"
+            element={
+              <ProtectedPage permission="aems.engagement.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsDashboardPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/team"
+            element={
+              <ProtectedPage permission="aems.team.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsTeamPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/aeo"
+            element={
+              <ProtectedPage permission="aems.aeo.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsAeoPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/aep"
+            element={
+              <ProtectedPage permission="aems.aep.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsAepPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/audit-program"
+            element={
+              <ProtectedPage permission="aems.program.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsAuditProgramPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/working-papers"
+            element={
+              <ProtectedPage permission="aems.working-paper.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsWorkingPapersPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/issues"
+            element={
+              <ProtectedPage permission="aems.issue.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsIssuesPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/findings"
+            element={
+              <ProtectedPage permission="aems.finding.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsFindingsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/auditee-responses"
+            element={
+              <ProtectedPage permission="aems.management-response.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsResponsesPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/exit-conferences"
+            element={
+              <ProtectedPage permission="aems.conference.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsExitConferencesPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/reports"
+            element={
+              <ProtectedPage
+                permission={["aems.report.view", "aems.report.view_issued"]}
+              >
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsReportsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management"
+            element={
+              <ProtectedPage permission="aems.engagement.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsEngagementRegistryPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/entry-conferences"
+            element={
+              <ProtectedPage permission="aems.entry-conference.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsEntryConferencePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/entry-conference/:engagementId"
+            element={
+              <ProtectedPage permission="aems.entry-conference.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsEntryConferencePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/:engagementId"
+            element={
+              <ProtectedPage permission="aems.engagement.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsEngagementDetailPage />
                 </Suspense>
               </ProtectedPage>
             }

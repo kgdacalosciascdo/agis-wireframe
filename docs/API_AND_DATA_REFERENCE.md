@@ -338,6 +338,7 @@ Where supported:
 | `IapAuditUniverseItem` | responsible Office, primary Audit Area, stakeholder Offices, history |
 | `IapRiskPeriod` | criteria, assessments, period events |
 | `IapUniverseRiskAssessment` | period + universe item; scores, evidence, risk levels |
+| `IapRiskAssessment` | legacy annual-plan-scoped risk, scores, plan attachments, and engagement references |
 | `IapPrioritizationRun` | source risk period; ranked Items and Events |
 | `IapPrioritizationItem` | snapshot of subject, scores, rank, decision, and source IDs |
 | `InternalAuditPlan` | fiscal-year revision; engagements, risks, attachments, comments, workflow events |
@@ -352,7 +353,484 @@ Where supported:
 | `IapComment` | plan-owned review/management comment |
 | `IapWorkflowEvent` | immutable annual-plan transition |
 
-## 8. Reference/master-list codes
+Both `iap_risk_assessments` and `iap_universe_risk_assessments` remain active.
+The former supports legacy annual-plan-local risk records and revisions; the
+latter supports the current period/universe workflow, prioritization, newer
+plan lineage, and AEMS source snapshots. They are not interchangeable, and
+neither system is being migrated or removed as part of current maintenance.
+
+## 8. AEMS data model
+
+The AEMS database/model foundation, Engagement Registry, aggregate lifecycle,
+Entry Conference, Audit Team, AEO, AEP,
+Audit Program, Working Paper, Audit Evidence, Issue, Finding, Management
+Response, Auditor Rejoinder, Recommendation, Exit Conference, and Audit Report
+endpoints are implemented. The Engagement Tracker endpoint derives portfolio
+metrics and per-engagement progress from those records.
+`AemsEngagementTransitionService` now moves the parent through controlled
+actions and cross-workflow gates to `CLOSURE_REVIEW`, and executes the guarded
+atomic `CLOSED` transition for the implemented formal Completion Assessment and
+Engagement Closure aggregate.
+The full CMS case-management module remains pending. CMS-1 now provides a
+hardened immutable intake foundation: every valid AEMS transfer creates one
+source envelope, one separate operational case initialized in `TRANSFERRED`,
+and one append-only intake event.
+
+| Entity | Main relationships |
+| --- | --- |
+| `AuditEngagement` | optional approved IAP engagement source; offices, audit areas/focuses, team, AEO, AEP, Entry Conference, programs, working papers, evidence, issues, findings, conferences, reports, Completion Assessments, Closures, final index, retention, lessons, reopening requests, events |
+| `EntryConference` | one official PGIAM record per engagement; schedule, briefing, notes, completion/waiver, and optimistic lock |
+| `EntryConferenceParticipant` | internal, auditee, or external participant and attendance |
+| `EntryConferenceMatter` | matter, materiality, disposition, responsibility, and due date |
+| `EntryConferenceAgreement` | commitment, responsibility, due date, and status |
+| `EntryConferenceAcknowledgement` | immutable actor/office/version acknowledgement or reservation |
+| `EntryConferenceAttachment` | immutable link to one exact private Core DocumentVersion |
+| `EngagementTeam` | engagement + User assignment, role, person-days, active dates |
+| `EngagementTeamHistory` | append-only team assignment old/new values |
+| `AuditEngagementOrder` | one active family per engagement; immutable versions |
+| `AuditEngagementOrderVersion` | exact authority/scope/team snapshot and optional DocumentVersion |
+| `AuditEngagementPlan` | one active family per engagement; programs and immutable versions |
+| `AuditEngagementPlanVersion` | objectives, scope, methodology, criteria, dates, resources, risks |
+| `AuditProgram` | engagement/AEP revision with ordered procedures |
+| `AuditProgramProcedure` | assignee, target date, evidence expectation, completion/waiver |
+| `WorkingPaper` | engagement/procedure family with reviewer and immutable versions |
+| `WorkingPaperVersion` | objective, work performed, population/sample, result, conclusion, cross-references, and exact cited evidence versions |
+| `AuditEvidence` | immutable version family pinned to Core DocumentVersion, checksum, type, source, custodian, and confidentiality; many working-paper versions/issues/findings |
+| `AuditIssue` | engagement exception linked to working-paper versions and evidence; optional one Finding |
+| `AuditFinding` | engagement/issue revision with criteria, condition, cause, effect, evidence, recommendations, responses |
+| `AuditRecommendation` | finding + responsible office/target date + idempotent CMS transfer lineage |
+| `ManagementResponse` | versioned auditee response to a communicated Finding |
+| `AuditorRejoinder` | auditor disposition and response dialogue conclusion |
+| `AemsDialogueAttachment` | immutable link from one response or rejoinder to an exact private Core DocumentVersion |
+| `ExitConference` | engagement schedule, minutes, agreements, participants, acknowledgement |
+| `ExitConferenceParticipant` | internal/external attendee and attendance state |
+| `ExitConferenceAttachment` | immutable private Core DocumentVersion pinned to one conference |
+| `ExitConferenceAcknowledgement` | immutable actor-, office-, date-, comment-, status-, and version-specific auditee acknowledgement |
+| `AuditReport` | one active report family per engagement with confidentiality and immutable versions |
+| `AuditReportVersion` | generated content/file snapshot with selected Findings and recipients |
+| `ReportRecipient` | internal/external delivery and acknowledgement for an exact report version |
+| `AuditReportReviewComment` | immutable reviewer action and comment pinned to one exact report version |
+| `CmsRecommendation` | immutable AEMS source envelope created once from an eligible recommendation in the exact issued report version; preserves report checksum, confidentiality, risk, office, original target, actor/date, and complete JSON snapshot |
+| `CmsRecommendationCase` | one-to-one future operational root initialized in `TRANSFERRED`, with effective target date, lead office, creator/opened date, and optimistic lock |
+| `CmsRecommendationEvent` | append-only case history; CMS-1 creates exactly one idempotent `INTAKE_CREATED` event |
+| `EngagementEvent` | append-only action, actor, state, lock version, and old/new snapshots |
+| `CompletionAssessment` | current/revision family evaluating 25 required completion criteria |
+| `CompletionAssessmentItem` | criterion result, source, blocker, and elevated acceptance |
+| `CompletionAssessmentVersion` | immutable assessment snapshot pinned to an exact private Core DocumentVersion |
+| `EngagementClosure` | current/revision family, approval/closed snapshots, status, and exact Closure DocumentVersion |
+| `EngagementClosureChecklistItem` | evaluated authoritative gate and source record/path |
+| `EngagementClosureEvent` | append-only controlled Closure transition event |
+| `EngagementDocumentIndexItem` | exact indexed source record/DocumentVersion, checksum/file health, inclusion or authorized exclusion |
+| `EngagementRetentionRecord` | replaceable-provider custody, retention, permanent/disposition, and legal-hold snapshot |
+| `EngagementLessonLearned` | confidential post-engagement improvement record separate from issued results |
+| `EngagementReopenRequest` | written-authority exceptional reopening workflow and original closed snapshot |
+
+Important database constraints:
+
+- one non-cancelled, non-archived AEMS engagement per IAP plan engagement;
+- planned engagements require an IAP source;
+- PostgreSQL special engagements require separate authority metadata;
+- engagement coverage uses explicit office, audit-area, and audit-focus pivots;
+- a team user has at most one current assignment per engagement;
+- issue-to-finding conversion is one-to-one;
+- version and revision numbers are unique within their families;
+- current program, evidence, finding, and response revisions are unique;
+- Working Paper indexes are unique within an engagement;
+- exact Working Paper version/evidence links cannot be duplicated;
+- CMS transfer keys and source AEMS recommendation IDs cannot be duplicated;
+- AEMS `cms_recommendation_id` is a restrictive foreign key after an
+  orphan-pointer migration preflight;
+- each CMS intake has exactly one operational case;
+- each initial event uses a unique idempotency key, so retry cannot duplicate
+  `INTAKE_CREATED`;
+- immutable intake status is constrained to `TRANSFERRED`; operational CMS
+  states belong to the separate case and are not implemented in CMS-1.
+
+### 8.1 AEMS authorization contract
+
+There are 88 `aems.<resource>.<action>` permissions, including
+`aems.engagement.export` for the access-scoped Engagement Progress Report.
+The lifecycle and Entry Conference additions are
+`aems.engagement.transition`, `aems.entry-conference.view`,
+`aems.entry-conference.manage`, `aems.entry-conference.acknowledge`, and
+`aems.entry-conference.waive`.
+Formal closure adds 21 granular Completion Assessment, Closure, document-index,
+retention, and exceptional-reopening operations. The verified runtime
+catalogue contains 193 permissions in total.
+Administrators receive monitoring access but do not receive audit approval or
+issuance permissions. CIAS Management has global audit authority. AGIS Users
+require an active `engagement_teams` assignment, and the assignment role limits
+the actions they may perform.
+
+Collection endpoints must apply the corresponding model scope:
+
+```php
+AuditEngagement::query()->visibleTo($request->user());
+AuditIssue::query()->visibleTo($request->user());
+AuditFinding::query()->visibleTo($request->user());
+AuditReport::query()->visibleTo($request->user());
+WorkingPaper::query()->visibleTo($request->user());
+AuditEvidence::query()->visibleTo($request->user());
+```
+
+Record and transition endpoints must also call `$this->authorize(...)`.
+Currently registered policies cover `AuditEngagement`, `EntryConference`, `AuditEvidence`,
+`AuditIssue`, `AuditFinding`, `WorkingPaper`, `ExitConference`, and
+`AuditReport`.
+
+Auditee Representatives receive only communicated findings for their office,
+covered exit-conference records, and issued reports addressed to their user or
+office. Read-Only Users receive only issued reports naming their user as a
+recipient. Review, approval, issue, authorization, and closure operations also
+enforce preparer/originator separation.
+
+### 8.2 Engagement Registry endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements` | Search, filter, sort, paginate, and include archived engagements |
+| `GET` | `/api/aems/engagements/import-options` | List approved IAP engagements that have never been imported |
+| `POST` | `/api/aems/engagements/import` | Create an engagement from an approved IAP item |
+| `POST` | `/api/aems/engagements` | Create an independently authorized special or unplanned engagement |
+| `GET` | `/api/aems/engagements/{engagement}` | Return coverage, team, event, lineage, and snapshot details |
+| `PUT` | `/api/aems/engagements/{engagement}` | Update an editable engagement with optimistic locking |
+| `DELETE` | `/api/aems/engagements/{engagement}` | Soft-archive an engagement |
+| `POST` | `/api/aems/engagements/{engagement}/restore` | Restore an archived engagement when no active duplicate exists |
+
+The collection accepts `search`, `sourceType`, `status`, `officeId`,
+`auditAreaId`, `includeArchived`, `sortBy`, `sortDirection`, `page`, and
+`perPage`. Every query is constrained by the engagement-level visibility scope.
+
+An IAP import stores both direct lineage identifiers and an immutable
+`source_snapshot`. The snapshot preserves the plan and version, approval,
+prioritization decision and rank, original risk scores and residual-risk level,
+audit-universe subject, offices, audit areas/focuses, objectives, scope, dates,
+and planned person-days. Later IAP changes therefore do not rewrite the
+engagement's planning baseline.
+
+### 8.3 Audit Team endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/team` | Current team, candidates, history, resource summary, and warnings |
+| `POST` | `/api/aems/engagements/{engagement}/team` | Assign a Supervisor, Team Leader, Auditor, or Reviewer |
+| `PUT` | `/api/aems/engagements/{engagement}/team/{member}` | Update role, effort, dates, or notes |
+| `POST` | `/api/aems/engagements/{engagement}/team/{member}/reassign` | End the old assignment and create a replacement with linked history |
+| `DELETE` | `/api/aems/engagements/{engagement}/team/{member}` | End and soft-delete an assignment with a required reason |
+
+### 8.4 Audit Engagement Order endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/aeo` | AEO workspace, versions, workflow events, and readiness |
+| `POST` | `/api/aems/engagements/{engagement}/aeo` | Create the initial immutable draft version |
+| `PUT` | `/api/aems/engagements/{engagement}/aeo/{order}` | Create a new immutable content version |
+| `POST` | `/api/aems/engagements/{engagement}/aeo/{order}/transition` | Submit, review, return, resubmit, approve, or issue |
+| `POST` | `/api/aems/engagements/{engagement}/aeo/{order}/revise` | Start a formal revision from an approved or issued order |
+| `GET` | `/api/aems/engagements/{engagement}/aeo/{order}/pdf` | Download the exact approved AEO version |
+
+All AEO mutations require the current `lockVersion`. Review and approval enforce
+preparer separation, and approval additionally requires an independent review
+event for the current version.
+
+### 8.5 Audit Engagement Plan endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/aep` | AEP content, versions, risk lineage, team, and workflow history |
+| `POST` | `/api/aems/engagements/{engagement}/aep` | Create the initial immutable AEP version after AEO issuance |
+| `PUT` | `/api/aems/engagements/{engagement}/aep/{plan}` | Append an immutable draft/returned content version |
+| `POST` | `/api/aems/engagements/{engagement}/aep/{plan}/transition` | Submit, review, return, resubmit, or approve |
+| `POST` | `/api/aems/engagements/{engagement}/aep/{plan}/revise` | Start a formal revision of an approved AEP |
+
+The server copies risk, prioritization, and Audit Universe lineage from the
+engagement source snapshot. Clients cannot replace this lineage.
+
+### 8.6 Audit Program endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/programs` | Program revision families, procedures, team choices, and events |
+| `POST` | `/api/aems/engagements/{engagement}/programs` | Create a program from the approved AEP |
+| `PUT` | `/api/aems/engagements/{engagement}/programs/{program}` | Edit current draft/returned program metadata |
+| `POST` | `/api/aems/engagements/{engagement}/programs/{program}/transition` | Submit, review, return, resubmit, approve, start, or complete |
+| `POST` | `/api/aems/engagements/{engagement}/programs/{program}/revise` | Create a documented draft revision from an approved/active baseline |
+| `POST` | `/api/aems/engagements/{engagement}/programs/{program}/procedures` | Add a draft procedure |
+| `PUT` | `/api/aems/engagements/{engagement}/programs/{program}/procedures/{procedure}` | Edit a draft procedure |
+| `DELETE` | `/api/aems/engagements/{engagement}/programs/{program}/procedures/{procedure}` | Soft-delete a draft procedure |
+| `POST` | `/api/aems/engagements/{engagement}/programs/{program}/procedures/{procedure}/progress` | Record active-baseline progress, WP reference, completion, or waiver |
+| `POST` | `/api/aems/engagements/{engagement}/programs/{program}/procedures/{procedure}/review` | Record the independent reviewer result |
+
+Every mutation carries the parent program `lockVersion`; procedure mutations
+also carry the procedure `lockVersion`.
+
+### 8.7 Working Paper endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/working-papers` | Scoped Working Paper/Evidence workspace, active procedures, versions, events, and options |
+| `POST` | `/api/aems/engagements/{engagement}/working-papers` | Create a procedure-linked draft and immutable content version 1 |
+| `PUT` | `/api/aems/engagements/{engagement}/working-papers/{paper}` | Append an immutable draft/returned content version |
+| `POST` | `/api/aems/engagements/{engagement}/working-papers/{paper}/transition` | Submit, return, resubmit, approve/lock, or void |
+| `POST` | `/api/aems/engagements/{engagement}/working-papers/{paper}/revise` | Copy an approved version into a documented correction revision |
+
+Submission requires population/sample descriptions and verified or locked
+evidence, or a documented explanation that no attachment is required. Approval
+enforces preparer separation, locks the exact evidence rows cited by the current
+content version, and prevents content overwrite. Every mutation carries the
+Working Paper `lockVersion`.
+
+### 8.8 Audit Evidence endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/aems/engagements/{engagement}/evidence` | Upload private evidence file and create immutable evidence/document version 1 |
+| `POST` | `/api/aems/engagements/{engagement}/evidence/{evidence}/revisions` | Upload an immutable replacement version with required change reason |
+| `POST` | `/api/aems/engagements/{engagement}/evidence/{evidence}/transition` | Verify metadata/checksum or void eligible evidence with a reason |
+| `GET` | `/api/aems/engagements/{engagement}/evidence/{evidence}/download` | Download the exact authorized evidence version |
+
+Evidence uploads use multipart camelCase fields. Files are stored privately as
+hidden AEMS-owned Core documents. Verification checks the stored checksum;
+Working Paper approval changes cited `VERIFIED` evidence to `LOCKED`. Locked
+evidence cannot be voided, while replacement creates a new `DRAFT` current
+version and preserves the locked historical row.
+
+### 8.9 Issue endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/aems/engagements/{engagement}/issues` | Create a supported draft issue |
+| `PUT` | `/api/aems/engagements/{engagement}/issues/{issue}` | Update a draft issue and its exact support links |
+| `POST` | `/api/aems/engagements/{engagement}/issues/{issue}/transition` | Submit, independently validate, dismiss with reason, or idempotently convert |
+
+The implemented issue states are `DRAFT`, `SUBMITTED`, `VALIDATED`,
+`DISMISSED`, and `CONVERTED_TO_FINDING`. Submission requires a Working Paper
+version or evidence link. Validation requires approved Working Papers and
+verified/locked evidence. Terminal issues cannot be edited or deleted.
+
+### 8.10 Finding workspace and lifecycle endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/findings-workspaces` | List engagements visible to an audit-team user or responsible auditee office |
+| `GET` | `/api/aems/engagements/{engagement}/findings-workspace` | Scoped Issue/Finding workspace and controlled options |
+| `POST` | `/api/aems/engagements/{engagement}/findings` | Create a draft criteria-condition-cause-effect Finding |
+| `PUT` | `/api/aems/engagements/{engagement}/findings/{finding}` | Update draft content and exact support links |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/transition` | Submit, validate, communicate, request response, record non-response, or finalize |
+
+Finding validation requires independent authority, approved Working Paper
+versions, verified evidence, and a recommendation or documented reason for
+none. Validation locks cited evidence. Communication records an immutable
+snapshot containing the finding elements, recommendations, recipients,
+confidentiality, due date, and exact supporting IDs. Finalized findings are
+immutable.
+
+### 8.11 Recommendation endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/recommendations` | Add a draft recommendation |
+| `PUT` | `/api/aems/engagements/{engagement}/findings/{finding}/recommendations/{recommendation}` | Edit a draft recommendation |
+| `DELETE` | `/api/aems/engagements/{engagement}/findings/{finding}/recommendations/{recommendation}` | Remove a draft recommendation |
+
+Recommendations remain editable while their Finding is not finalized. Finding
+finalization stores a recommendation snapshot, changes every draft
+recommendation to `FINALIZED`, and prevents content mutation. CMS lineage fields
+remain reserved for an idempotent later transfer.
+
+### 8.12 Management Response endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses` | Responsible-office Auditee Representative creates a draft response |
+| `PUT` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}` | Update the current draft response |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/attachments` | Upload a private supporting document to the current draft response |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/transition` | Submit/resubmit, start review, or request clarification |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/revisions` | Create an immutable successor after clarification |
+
+Only the communicated responsible office can author a response. Submitted
+versions remain historical; clarification creates a new current version rather
+than overwriting the submitted response.
+
+### 8.13 Auditor Rejoinder endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/rejoinders` | Create a draft auditor disposition and rejoinder |
+| `PUT` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/rejoinders/{rejoinder}` | Update a draft rejoinder |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/rejoinders/{rejoinder}/attachments` | Upload a private supporting document to the draft rejoinder |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/responses/{response}/rejoinders/{rejoinder}/finalize` | Independently finalize the rejoinder and dialogue |
+| `GET` | `/api/aems/engagements/{engagement}/findings/{finding}/dialogue-attachments/{attachment}/download` | Download an authorized response or rejoinder attachment |
+
+Disposition values are `ACCEPT`, `PARTIALLY_ACCEPT`, and `REJECT`. Finalized
+responses and rejoinders are immutable and satisfy the Finding finalization
+dialogue gate.
+
+Every exchange returns its actor, creation/update dates, content, status, and
+version. Attachment metadata includes the exact document-version ID, original
+file name, file size, MIME type, SHA-256 checksum, uploader, and upload date.
+The file remains private and is served only through the engagement- and
+finding-scoped authorization boundary.
+
+### 8.14 Aggregate lifecycle and Entry Conference endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/lifecycle` | Return states, permitted actions, cross-workflow requirements, blockers, related links, and immutable transition history |
+| `POST` | `/api/aems/engagements/{engagement}/transitions/{action}` | Execute an authorized action with optimistic locking; never accepts a target status |
+| `GET` | `/api/aems/entry-conference-workspaces` | List engagements available to the actor's assignment or auditee-office scope |
+| `GET` | `/api/aems/engagements/{engagement}/entry-conference` | Load the office-scoped Entry Conference, reference lists, exact attachments, acknowledgements, and history |
+| `POST` | `/api/aems/engagements/{engagement}/entry-conference` | Create the one official draft Entry Conference |
+| `PUT` | `/api/aems/engagements/{engagement}/entry-conference/{conference}` | Update an editable conference, participants, matters, and agreements |
+| `POST` | `/api/aems/engagements/{engagement}/entry-conference/{conference}/transitions/{action}` | Schedule, reschedule, mark held, circulate notes, complete, waive, or cancel |
+| `POST` | `/api/aems/engagements/{engagement}/entry-conference/{conference}/acknowledgements` | Record an immutable acknowledgement with or without reservation |
+| `POST` | `/api/aems/engagements/{engagement}/entry-conference/{conference}/attachments` | Pin an uploaded briefing, agenda, notes, waiver support, or other file to an exact private Core DocumentVersion |
+| `GET` | `/api/aems/engagements/{engagement}/entry-conference/{conference}/attachments/{attachment}/download` | Download an authorized exact attachment version |
+
+Entry Conference statuses are `DRAFT`, `SCHEDULED`, `RESCHEDULED`, `HELD`,
+`NOTES_FOR_ACKNOWLEDGEMENT`, `ACKNOWLEDGED`, `COMPLETED`, `WAIVED`, and
+`CANCELLED`. Completion re-checks issued AEO, approved AEP/program, held date,
+agenda/briefing, both attendance classes, notes, and material-matter
+dispositions. Waiver requires CIAS authority, reason, separation, and any
+required supporting document. Completed and waived records are immutable.
+
+### 8.15 Exit Conference endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/exit-conference-workspaces` | List conference-enabled engagements in the caller's assignment or office scope |
+| `GET` | `/api/aems/engagements/{engagement}/exit-conferences` | Load schedules, participants, linked Findings, outcomes, files, and acknowledgements |
+| `POST` | `/api/aems/engagements/{engagement}/exit-conferences` | Schedule a conference with Findings and participants |
+| `PUT` | `/api/aems/engagements/{engagement}/exit-conferences/{conference}` | Update or reschedule an editable conference |
+| `POST` | `/api/aems/engagements/{engagement}/exit-conferences/{conference}/complete` | Record attendance, finding outcomes, revised dates, minutes, and lock the completion snapshot |
+| `POST` | `/api/aems/engagements/{engagement}/exit-conferences/{conference}/transition` | Formally waive or cancel with a reason |
+| `POST` | `/api/aems/engagements/{engagement}/exit-conferences/{conference}/attachments` | Upload an immutable private minutes or supporting document |
+| `GET` | `/api/aems/engagements/{engagement}/exit-conferences/{conference}/attachments/{attachment}/download` | Download an authorized conference document |
+| `POST` | `/api/aems/engagements/{engagement}/exit-conferences/{conference}/acknowledgements` | Invited Auditee Representative acknowledges completed minutes |
+
+Only current formally communicated or finalized Findings from the engagement
+can be selected. Completion requires attendance for every participant, an
+outcome for every linked Finding, and minutes. Completed, cancelled, and waived
+records are immutable; acknowledgement remains a separate append-only action.
+
+### 8.16 Audit Report endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/report-workspaces` | List internal report workspaces or issued reports visible to the recipient |
+| `GET` | `/api/aems/engagements/{engagement}/reports` | Load the report family, immutable versions, comments, recipients, and CMS transfers |
+| `POST` | `/api/aems/engagements/{engagement}/reports` | Generate the initial Draft Report PDF from validated or later Findings |
+| `POST` | `/api/aems/engagements/{engagement}/reports/{report}/versions` | Generate an immutable draft or final revision |
+| `POST` | `/api/aems/engagements/{engagement}/reports/{report}/final` | Generate the Final Report draft using finalized Findings only |
+| `POST` | `/api/aems/engagements/{engagement}/reports/{report}/transition` | Submit, return, approve, or issue |
+| `GET` | `/api/aems/engagements/{engagement}/reports/{report}/versions/{version}/download` | Download an authorized private PDF version |
+| `POST` | `/api/aems/engagements/{engagement}/reports/{report}/cms-transfer` | Idempotently synchronize included recommendations into CMS intake |
+
+Each generated version preserves its arranged sections, executive summary,
+selected Finding snapshots, exact Core document-version ID, PDF file name,
+size, and SHA-256 checksum. Reviewer comments, recipients, approval, and
+issuance metadata remain version- or family-bound as appropriate. Recipients
+can access only the current issued version; confidentiality gates other
+authorized downloads.
+
+### 8.17 Engagement Tracker endpoint
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/dashboard` | Return access-scoped portfolio cards, engagement progress, alerts, and pre-closure readiness |
+| `GET` | `/api/aems/dashboard/export` | Download the filtered, access-scoped Engagement Progress Report as CSV |
+
+The endpoint accepts `search`, `status`, `officeId`, `page`, `perPage`,
+`sortBy`, and `sortDirection`. Portfolio cards always represent the actor's
+complete visible portfolio; filters and pagination affect the engagement
+tracker list. The response includes:
+
+- active, planning, and fieldwork engagement counts;
+- overdue procedures, Working Papers awaiting review, Findings awaiting
+  response, upcoming Exit Conferences, and reports pending approval;
+- engagements whose currently implemented pre-closure gates are satisfied;
+- 14 derived stages per engagement: AEO, AEP, Audit Program, Entry Conference, fieldwork
+  procedures, Working Papers, Evidence, Findings, Management Responses, Exit
+  Conference, Draft Report, Final Report, CMS transfer, and Engagement
+  Closure;
+- overdue and schedule alerts, overall percentage, office/status filter
+  options, and pagination metadata;
+- the closure gate checklist and remaining blocker labels.
+- active integration metadata for Core, IAP, CMS, and the current
+  ARMIS-compatible resource provider.
+
+The endpoint uses `AuditEngagement::visibleTo()` before aggregation and record
+loading. It persists no dashboard-owned status. A stage changes only when its
+authoritative workflow record changes. “Ready for closure” means only that the
+pre-closure gates are met. The response separately reports the formal
+Completion Assessment and Closure status. Neither a tracker stage nor a 100%
+value can execute `CLOSED`.
+
+The CSV export accepts `search`, `status`, `officeId`, `sortBy`, and
+`sortDirection`, requires `aems.engagement.export`, and reuses the same
+visibility scope. Each export records an Activity Log and Audit Log containing
+the filters, row count, file name, actor, and request context.
+
+### 8.18 Completion Assessment and Closure endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/aems/engagements/{engagement}/completion-assessments` | Load revision/version history or create the current 25-criterion assessment |
+| `PUT` | `/api/aems/engagements/{engagement}/completion-assessments/{assessment}` | Update editable content and criterion results with optimistic locking |
+| `POST` | `/api/aems/engagements/{engagement}/completion-assessments/{assessment}/transitions/{action}` | Submit, return, resubmit, or approve through a controlled action |
+| `POST` | `/api/aems/engagements/{engagement}/completion-assessments/{assessment}/items/{item}/accept-blocker` | Elevated formal acceptance of a documented unresolved blocker |
+| `POST` | `/api/aems/engagements/{engagement}/completion-assessments/{assessment}/revisions` | Create a controlled current correction from an approved assessment |
+| `GET`, `POST` | `/api/aems/engagements/{engagement}/closure` | Load the formal workspace or create the current Closure record |
+| `PUT` | `/api/aems/engagements/{engagement}/closures/{closure}` | Update an editable Closure summary |
+| `GET` | `/api/aems/engagements/{engagement}/closures/{closure}/checklist` | Return evaluated authoritative gates and sources |
+| `POST` | `/api/aems/engagements/{engagement}/closures/{closure}/refresh-checklist` | Re-evaluate and persist current source-derived checklist results |
+| `POST` | `/api/aems/engagements/{engagement}/closures/{closure}/transitions/{action}` | Submit, return, resubmit, approve, or atomically close |
+| `GET`, `POST` | `/api/aems/engagements/{engagement}/document-index` | Load index/readiness or add an authorized supporting record |
+| `POST` | `/api/aems/engagements/{engagement}/document-index/refresh` | Discover eligible exact document versions without copying files |
+| `POST` | `/api/aems/engagements/{engagement}/document-index/{item}/exclude` | Exclude with mandatory reason and authority |
+| `GET` | `/api/aems/engagements/{engagement}/document-index/export` | Export the access-scoped final index as CSV |
+| `PUT` | `/api/aems/engagements/{engagement}/retention` | Save interim classification, custody, disposition, and legal-hold metadata |
+| `POST` | `/api/aems/engagements/{engagement}/retention/{retention}/approve` | Independently approve and lock retention metadata |
+| `POST` | `/api/aems/engagements/{engagement}/lessons-learned` | Record a confidential improvement item separate from issued results |
+| `GET`, `POST` | `/api/aems/engagements/{engagement}/reopen-requests` | Load history or draft a written-authority exceptional request |
+| `POST` | `/api/aems/engagements/{engagement}/reopen-requests/{reopen}/transitions/{action}` | Submit, approve, reject, or implement reopening |
+
+The server accepts action codes, never arbitrary status targets. An approved
+Completion Assessment or a 100% tracker value does not close the engagement.
+`CLOSE_ENGAGEMENT` locks and re-evaluates the current engagement and Closure,
+then atomically writes both `CLOSED` states, final snapshots, immutable events,
+Activity Log, and Audit Trail. Notifications are queued after commit.
+
+### 8.19 AEMS module integration contracts
+
+Cross-module operations resolve through container-bound contracts:
+
+| Contract | Current provider | Boundary |
+| --- | --- | --- |
+| `IapEngagementGateway` | `DatabaseIapEngagementGateway` | Lists and locks only approved/active IAP engagement sources, then preserves the imported source link |
+| `CmsRecommendationGateway` | `DatabaseCmsRecommendationGateway` | Thin adapter to `CmsIntakeService`; creates one immutable intake/case/event per eligible issued recommendation and returns the same source-matching record on retry |
+| `ResourcePlanningGateway` | `InterimIapResourcePlanningGateway` | Supplies capacity, availability, workload inputs, competencies, and person-days through an ARMIS-replaceable API |
+| `EngagementRetentionProvider` | `InterimAemsRetentionProvider` | Preserves approved AEMS retention/custody snapshots behind a Core Records Management-replaceable boundary; never destroys records |
+
+The dashboard response includes `integrations.core`, `integrations.iap`,
+`integrations.cms`, and `integrations.armis`. The ARMIS entry is intentionally
+reported as `IAP_INTERIM_FALLBACK` and non-authoritative. A future ARMIS adapter
+can replace the `ResourcePlanningGateway` binding without changing Audit Team
+or Engagement Tracker consumers.
+
+Core remains authoritative for Users, Offices, Roles, Permissions, Scopes,
+Audit Areas, Audit Focuses, Master Lists, private Documents and
+`DocumentVersion`s, reusable workflow infrastructure, Notifications, Activity
+Logs, Audit Trails, runtime settings, and document numbering. AEMS
+domain-specific transitions remain code-guarded because configurable workflow
+records must not create or bypass audit states. Team assignments and issued
+reports, AEO/AEP review, returned Working Papers, communicated Findings, Exit
+Conferences, and report review actions create deduplicated Core Notifications
+after the surrounding transaction commits. The scheduled reminder command also
+covers overdue procedures, Management Response deadlines, and upcoming Exit
+Conferences.
+
+## 9. Reference/master-list codes
 
 Important configurable list families include:
 
@@ -364,6 +842,8 @@ EMPLOYMENT_TYPE
 AUDIT_AREA_TYPE
 DOCUMENT_TYPE
 DOCUMENT_CONFIDENTIALITY
+AEMS_EVIDENCE_CATEGORY
+AEMS_EVIDENCE_SOURCE_TYPE
 RISK_LEVEL
 IAP_AUDIT_UNIVERSE_SUBJECT_TYPE
 IAP_PLANNING_PERIOD_TYPE
@@ -379,7 +859,7 @@ IAP_UNAVAILABILITY_TYPE
 
 Use the seeded `MasterListSeeder` as the source of exact current values.
 
-## 9. Runtime configuration keys
+## 10. Runtime configuration keys
 
 | Key | Type |
 | --- | --- |
@@ -398,7 +878,7 @@ Use the seeded `MasterListSeeder` as the source of exact current values.
 | `mail_encryption`, `mail_username`, `mail_password` | string/encrypted secret |
 | `mail_from_address`, `mail_from_name` | string |
 
-## 10. Source-of-truth rule
+## 11. Source-of-truth rule
 
 This reference describes the current implementation. When behavior and this file
 disagree, verify `backend/routes/api.php`, Form Requests, services, migrations,

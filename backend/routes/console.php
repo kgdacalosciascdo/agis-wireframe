@@ -16,7 +16,7 @@ Artisan::command(
         $count = $reminders->dispatch();
         $this->info("Notification reminder dispatch complete: {$count} deliveries processed.");
     },
-)->purpose('Create idempotent workflow and audit schedule reminders.');
+)->purpose('Create idempotent workflow, IAP, and AEMS due-date reminders.');
 
 Schedule::command('notifications:dispatch-reminders')
     ->dailyAt('07:00')

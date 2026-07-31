@@ -259,6 +259,23 @@ record legitimately omits an explicit level.
 Evidence downloads require authorization and are activity-logged. Evidence is
 soft-deleted when archived.
 
+### 7.4 Coexisting risk record systems
+
+Two risk record systems remain active and must be treated as distinct until a
+separate migration is approved:
+
+- `iap_risk_assessments` stores the legacy annual-plan-scoped assessments used
+  by the annual-plan workspace, plan-local supporting records, engagement
+  references, and annual-plan revision cloning.
+- `iap_universe_risk_assessments` stores assessment-period and Audit
+  Universe-scoped results used by the current period workflow, prioritization,
+  newer annual-plan lineage, and AEMS source snapshots.
+
+There is no automatic one-to-one equivalence between these tables. Consumers
+must follow the explicit foreign key for the workflow they are processing.
+Neither table, its routes, nor its compatibility relationships should be
+renamed, migrated, or removed as incidental maintenance.
+
 ## 8. Audit prioritization
 
 ### 8.1 Preconditions

@@ -1390,6 +1390,973 @@ export const resourceCapacityApi = {
   },
 };
 
+export const aemsDashboardApi = {
+  async show(filters = {}) {
+    const query = queryFrom(filters);
+    return request(
+      `/api/aems/dashboard${query.size ? `?${query.toString()}` : ""}`,
+    );
+  },
+  async export(filters = {}) {
+    const query = queryFrom(filters);
+    const response = await fetch(
+      `/api/aems/dashboard/export${query.size ? `?${query.toString()}` : ""}`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "text/csv",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const simpleName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    const fileName = encodedName
+      ? decodeURIComponent(encodedName)
+      : simpleName || "aems-engagement-progress.csv";
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const aemsEngagementApi = {
+  async list(filters = {}) {
+    const query = queryFrom(filters);
+    const data = await request(
+      `/api/aems/engagements${query.size ? `?${query.toString()}` : ""}`,
+    );
+    return {
+      engagements: Array.isArray(data?.engagements) ? data.engagements : [],
+      summary: data?.summary ?? {
+        total: 0,
+        planned: 0,
+        special: 0,
+        ongoing: 0,
+        archived: 0,
+      },
+      pagination: data?.pagination ?? {
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 10,
+        total: 0,
+      },
+    };
+  },
+  async show(id) {
+    const data = await request(`/api/aems/engagements/${id}`);
+    return data?.engagement ?? null;
+  },
+  async importOptions() {
+    const data = await request("/api/aems/engagements/import-options");
+    return Array.isArray(data?.iapEngagements) ? data.iapEngagements : [];
+  },
+  async importFromIap(payload) {
+    const data = await request("/api/aems/engagements/import", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.engagement ?? null;
+  },
+  async createSpecial(payload) {
+    const data = await request("/api/aems/engagements", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.engagement ?? null;
+  },
+  async update(id, payload) {
+    const data = await request(`/api/aems/engagements/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+    return data?.engagement ?? null;
+  },
+  async archive(id) {
+    await request(`/api/aems/engagements/${id}`, {
+      method: "DELETE",
+      csrf: true,
+    });
+  },
+  async restore(id) {
+    const data = await request(`/api/aems/engagements/${id}/restore`, {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.engagement ?? null;
+  },
+};
+
+export const aemsTeamApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/team`);
+  },
+  async assign(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/team`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.teamMember ?? null;
+  },
+  async update(engagementId, memberId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/team/${memberId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.teamMember ?? null;
+  },
+  async reassign(engagementId, memberId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/team/${memberId}/reassign`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.teamMember ?? null;
+  },
+  async end(engagementId, memberId, reason) {
+    await request(
+      `/api/aems/engagements/${engagementId}/team/${memberId}`,
+      { method: "DELETE", body: { reason }, csrf: true },
+    );
+  },
+};
+
+export const aemsAeoApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/aeo`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/aeo`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.order ?? null;
+  },
+  async update(engagementId, orderId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.order ?? null;
+  },
+  async transition(engagementId, orderId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.order ?? null;
+  },
+  async revise(engagementId, orderId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}/revise`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.order ?? null;
+  },
+  async downloadPdf(engagementId, order) {
+    const response = await fetch(
+      `/api/aems/engagements/${engagementId}/aeo/${order.id}/pdf`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/pdf",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${order.orderCode}-approved.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const aemsAepApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/aep`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/aep`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.plan ?? null;
+  },
+  async update(engagementId, planId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aep/${planId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.plan ?? null;
+  },
+  async transition(engagementId, planId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aep/${planId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.plan ?? null;
+  },
+  async revise(engagementId, planId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aep/${planId}/revise`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.plan ?? null;
+  },
+};
+
+export const aemsProgramApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/programs`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.program ?? null;
+  },
+  async update(engagementId, programId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.program ?? null;
+  },
+  async transition(engagementId, programId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.program ?? null;
+  },
+  async revise(engagementId, programId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/revise`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.program ?? null;
+  },
+  async addProcedure(engagementId, programId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/procedures`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.procedure ?? null;
+  },
+  async updateProcedure(engagementId, programId, procedureId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/procedures/${procedureId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.procedure ?? null;
+  },
+  async removeProcedure(engagementId, programId, procedureId, payload) {
+    await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/procedures/${procedureId}`,
+      { method: "DELETE", body: payload, csrf: true },
+    );
+  },
+  async progressProcedure(engagementId, programId, procedureId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/procedures/${procedureId}/progress`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.procedure ?? null;
+  },
+  async reviewProcedure(engagementId, programId, procedureId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/programs/${programId}/procedures/${procedureId}/review`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.procedure ?? null;
+  },
+};
+
+export const aemsWorkingPaperApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/working-papers`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/working-papers`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.workingPaper ?? null;
+  },
+  async update(engagementId, paperId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/working-papers/${paperId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.workingPaper ?? null;
+  },
+  async transition(engagementId, paperId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/working-papers/${paperId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.workingPaper ?? null;
+  },
+  async revise(engagementId, paperId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/working-papers/${paperId}/revise`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.workingPaper ?? null;
+  },
+};
+
+function evidenceForm(payload) {
+  const body = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    body.append(
+      key,
+      Array.isArray(value) ? JSON.stringify(value) : value,
+    );
+  });
+  return body;
+}
+
+export const aemsEvidenceApi = {
+  async upload(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/evidence`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.evidence ?? null;
+  },
+  async replace(engagementId, evidenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/evidence/${evidenceId}/revisions`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.evidence ?? null;
+  },
+  async transition(engagementId, evidenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/evidence/${evidenceId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.evidence ?? null;
+  },
+  async download(engagementId, evidence) {
+    const response = await fetch(
+      `/api/aems/engagements/${engagementId}/evidence/${evidence.id}/download`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/octet-stream",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = evidence.fileName || `${evidence.evidenceCode}.bin`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const aemsFindingApi = {
+  async engagements() {
+    const data = await request("/api/aems/findings-workspaces");
+    return data?.engagements ?? [];
+  },
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/findings-workspace`);
+  },
+  async createIssue(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/issues`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.issue ?? null;
+  },
+  async updateIssue(engagementId, issueId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/issues/${issueId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.issue ?? null;
+  },
+  async transitionIssue(engagementId, issueId, payload) {
+    return request(
+      `/api/aems/engagements/${engagementId}/issues/${issueId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+  },
+  async createFinding(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.finding ?? null;
+  },
+  async updateFinding(engagementId, findingId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.finding ?? null;
+  },
+  async transitionFinding(engagementId, findingId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.finding ?? null;
+  },
+  async saveRecommendation(engagementId, findingId, recommendationId, payload) {
+    const suffix = recommendationId ? `/${recommendationId}` : "";
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/recommendations${suffix}`,
+      {
+        method: recommendationId ? "PUT" : "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.recommendation ?? null;
+  },
+  async removeRecommendation(engagementId, findingId, recommendationId, payload) {
+    await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/recommendations/${recommendationId}`,
+      { method: "DELETE", body: payload, csrf: true },
+    );
+  },
+  async createResponse(engagementId, findingId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.response ?? null;
+  },
+  async updateResponse(engagementId, findingId, responseId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.response ?? null;
+  },
+  async transitionResponse(engagementId, findingId, responseId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.response ?? null;
+  },
+  async reviseResponse(engagementId, findingId, responseId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}/revisions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.response ?? null;
+  },
+  async uploadResponseAttachment(
+    engagementId,
+    findingId,
+    responseId,
+    payload,
+  ) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}/attachments`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.attachment ?? null;
+  },
+  async saveRejoinder(
+    engagementId,
+    findingId,
+    responseId,
+    rejoinderId,
+    payload,
+  ) {
+    const suffix = rejoinderId ? `/${rejoinderId}` : "";
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}/rejoinders${suffix}`,
+      {
+        method: rejoinderId ? "PUT" : "POST",
+        body: payload,
+        csrf: true,
+      },
+    );
+    return data?.rejoinder ?? null;
+  },
+  async finalizeRejoinder(
+    engagementId,
+    findingId,
+    responseId,
+    rejoinderId,
+    payload,
+  ) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}/rejoinders/${rejoinderId}/finalize`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.rejoinder ?? null;
+  },
+  async uploadRejoinderAttachment(
+    engagementId,
+    findingId,
+    responseId,
+    rejoinderId,
+    payload,
+  ) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/responses/${responseId}/rejoinders/${rejoinderId}/attachments`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.attachment ?? null;
+  },
+  async downloadAttachment(engagementId, findingId, attachment) {
+    const response = await fetch(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/dialogue-attachments/${attachment.id}/download`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/octet-stream",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = attachment.fileName || `${attachment.attachmentCode}.bin`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const aemsExitConferenceApi = {
+  async engagements() {
+    const data = await request("/api/aems/exit-conference-workspaces");
+    return data?.engagements ?? [];
+  },
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/exit-conferences`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/exit-conferences`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async update(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/exit-conferences/${conferenceId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async complete(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/exit-conferences/${conferenceId}/complete`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async transition(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/exit-conferences/${conferenceId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async uploadAttachment(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/exit-conferences/${conferenceId}/attachments`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.attachment ?? null;
+  },
+  async acknowledge(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/exit-conferences/${conferenceId}/acknowledgements`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.acknowledgement ?? null;
+  },
+  async downloadAttachment(engagementId, conferenceId, attachment) {
+    const response = await fetch(
+      `/api/aems/engagements/${engagementId}/exit-conferences/${conferenceId}/attachments/${attachment.id}/download`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/octet-stream",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = attachment.fileName || `${attachment.attachmentCode}.bin`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const aemsLifecycleApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/lifecycle`);
+  },
+  async transition(engagementId, action, payload) {
+    return request(
+      `/api/aems/engagements/${engagementId}/transitions/${action}`,
+      { method: "POST", body: payload, csrf: true },
+    );
+  },
+};
+
+export const aemsEntryConferenceApi = {
+  async engagements() {
+    const data = await request("/api/aems/entry-conference-workspaces");
+    return data?.engagements ?? [];
+  },
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/entry-conference`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/entry-conference`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async update(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/entry-conference/${conferenceId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async transition(engagementId, conferenceId, action, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/entry-conference/${conferenceId}/transitions/${action}`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.conference ?? null;
+  },
+  async acknowledge(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/entry-conference/${conferenceId}/acknowledgements`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.acknowledgement ?? null;
+  },
+  async uploadAttachment(engagementId, conferenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/entry-conference/${conferenceId}/attachments`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.attachment ?? null;
+  },
+  async downloadAttachment(engagementId, conferenceId, attachment) {
+    const response = await fetch(
+      `/api/aems/engagements/${engagementId}/entry-conference/${conferenceId}/attachments/${attachment.id}/download`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/octet-stream",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = attachment.fileName || `${attachment.attachmentCode}.bin`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const aemsCompletionAssessmentApi = {
+  async show(engagementId) {
+    return request(
+      `/api/aems/engagements/${engagementId}/completion-assessments`,
+    );
+  },
+  async create(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/completion-assessments`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.assessment ?? null;
+  },
+  async update(engagementId, assessmentId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/completion-assessments/${assessmentId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.assessment ?? null;
+  },
+  async transition(engagementId, assessmentId, action, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/completion-assessments/${assessmentId}/transitions/${action}`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.assessment ?? null;
+  },
+  async acceptBlocker(
+    engagementId,
+    assessmentId,
+    itemId,
+    payload,
+  ) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/completion-assessments/${assessmentId}/items/${itemId}/accept-blocker`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.assessment ?? null;
+  },
+  async revise(engagementId, assessmentId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/completion-assessments/${assessmentId}/revisions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.assessment ?? null;
+  },
+};
+
+export const aemsClosureApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/closure`);
+  },
+  async create(engagementId, payload) {
+    return request(`/api/aems/engagements/${engagementId}/closure`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async update(engagementId, closureId, payload) {
+    return request(
+      `/api/aems/engagements/${engagementId}/closures/${closureId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+  },
+  async refreshChecklist(engagementId, closureId) {
+    return request(
+      `/api/aems/engagements/${engagementId}/closures/${closureId}/refresh-checklist`,
+      { method: "POST", csrf: true },
+    );
+  },
+  async transition(engagementId, closureId, action, payload) {
+    return request(
+      `/api/aems/engagements/${engagementId}/closures/${closureId}/transitions/${action}`,
+      { method: "POST", body: payload, csrf: true },
+    );
+  },
+  async saveRetention(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/retention`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.retention ?? null;
+  },
+  async approveRetention(engagementId, retentionId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/retention/${retentionId}/approve`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.retention ?? null;
+  },
+  async addLesson(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/lessons-learned`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.lesson ?? null;
+  },
+  async excludeRecommendation(engagementId, recommendationId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/recommendations/${recommendationId}/cms-exclusion`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.recommendation ?? null;
+  },
+};
+
+export const aemsDocumentIndexApi = {
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/document-index`);
+  },
+  async refresh(engagementId) {
+    return request(
+      `/api/aems/engagements/${engagementId}/document-index/refresh`,
+      { method: "POST", csrf: true },
+    );
+  },
+  async add(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/document-index`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.item ?? null;
+  },
+  async exclude(engagementId, itemId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/document-index/${itemId}/exclude`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.item ?? null;
+  },
+  exportUrl(engagementId) {
+    return `/api/aems/engagements/${engagementId}/document-index/export`;
+  },
+};
+
+export const aemsReopenApi = {
+  async list(engagementId) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reopen-requests`,
+    );
+    return data?.requests ?? [];
+  },
+  async create(engagementId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reopen-requests`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.request ?? null;
+  },
+  async transition(engagementId, requestId, action, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reopen-requests/${requestId}/transitions/${action}`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.request ?? null;
+  },
+};
+
+export const aemsReportApi = {
+  async engagements() {
+    const data = await request("/api/aems/report-workspaces");
+    return data?.engagements ?? [];
+  },
+  async show(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/reports`);
+  },
+  async create(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/reports`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.report ?? null;
+  },
+  async revise(engagementId, reportId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reports/${reportId}/versions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.report ?? null;
+  },
+  async createFinal(engagementId, reportId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reports/${reportId}/final`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.report ?? null;
+  },
+  async transition(engagementId, reportId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reports/${reportId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.report ?? null;
+  },
+  async transferRecommendations(engagementId, reportId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/reports/${reportId}/cms-transfer`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.transfers ?? [];
+  },
+  async download(engagementId, reportId, version) {
+    const response = await fetch(
+      `/api/aems/engagements/${engagementId}/reports/${reportId}/versions/${version.id}/download`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/pdf",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      version.pdfFileName ||
+      `audit-report-v${version.versionNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
 export const profileApi = {
   async show() {
     const data = await request("/api/profile");

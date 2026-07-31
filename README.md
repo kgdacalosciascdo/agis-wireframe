@@ -98,12 +98,81 @@ self-service Profile/Password pages. Demo seeding creates the 42 referenced city
 offices plus the AGIS system office, an office head and employee account per city
 office, realistic audit areas/focuses, and shared workflow reference lists.
 
+AEMS now includes a protected module dashboard at
+`/audit-engagement-management/dashboard` and Engagement Registry at
+`/audit-engagement-management`. The dashboard is an access-scoped Engagement
+Tracker with portfolio cards, overdue indicators, 14 workflow-stage progress
+measures, and derived pre-closure gates. It imports approved IAP engagements without
+duplication, preserves immutable planning/risk snapshots, supports separately
+authorized special engagements, applies engagement-level visibility, and
+provides searchable, sortable, paginated detail, archive, and restore flows.
+Audit Team assignment adds person-days, dates, resource/competency warnings,
+and immutable reassignment history. The AEO workspace implements independent
+review, return/resubmission, approval, issuance, formal revisions, immutable
+versions, and approved-version PDF generation. AEP and Audit Program establish
+the fieldwork baseline. The Working Papers and Evidence workspace now provides
+procedure-linked immutable content versions, independent return/approval,
+revision history, protected checksum-verified evidence versions, exact evidence
+locking, confidentiality, and authorized downloads.
+
+The aggregate engagement lifecycle is executable through one authoritative
+transition service from `DRAFT` through the guarded atomic `CLOSED`
+transition. Its workspace shows
+the status timeline, permitted actions, child-workflow blockers, related
+records, and immutable history. The official PGIAM Entry Conference is a
+separate pre-fieldwork gate with structured briefing content, internal,
+auditee, and external participants, attendance, matters, commitments, Notes,
+exact Core DocumentVersions, auditee acknowledgement, elevated waiver, and
+immutable completion. Formal Completion Assessment and Engagement Closure add
+25 completion criteria, a source-derived checklist, exact final document index,
+interim retention/custody metadata, lessons learned, independent approval,
+immutable closed snapshots, and written-authority exceptional reopening.
+
+The Issues, Findings, and Recommendations workspace completes supported issue
+capture, independent validation, idempotent conversion, criteria-condition-
+cause-effect findings, formal communication, versioned management responses,
+auditor rejoinders, and immutable finalized recommendations ready for later CMS
+transfer.
+
+The AEMS sidebar now separates Audit Issues, Findings & Recommendations, and
+Auditee Responses into focused workspaces. Dialogue exchanges preserve the
+actor, timestamps, content, version, and private supporting documents; each
+attachment is checksum-verified and pinned to the exact response or rejoinder
+version.
+
+Exit Conferences now have a dedicated workspace for hybrid scheduling,
+participants and attendance, directly linked finding discussions, agreements
+and disagreements, revised target dates, locked minutes, private immutable
+attachments, and versioned auditee acknowledgements.
+
+Audit Reports now have a dedicated generation workspace with arranged sections,
+validated-Finding Draft Reports, finalized-Finding Final Reports, immutable
+private PDF versions, version-bound reviewer comments and recipients, controlled
+issuance, SHA-256 checksums, and idempotent recommendation intake into CMS.
+The tracker derives every count and percentage from those authoritative
+workflow records; it does not maintain a second copy of workflow state. CIAS
+management can export the same scoped data as an audited Engagement Progress
+CSV.
+
+AEMS cross-module dependencies now resolve through explicit integration
+boundaries. Approved IAP engagements are consumed read-only with immutable
+source snapshots; issued recommendations enter CMS through an idempotent
+create-once adapter; and capacity, availability, competencies, workload, and
+person-days use a replaceable resource contract. The active resource provider
+is the interim IAP fallback until ARMIS becomes authoritative. Assignments,
+review transitions, returned Working Papers, communicated Findings, Exit
+Conferences, report approval/issuance, and scheduled deadline reminders use
+the deduplicated Core Notification service. Core remains the authority for
+identities, access, reference data, documents, logs, runtime configuration,
+and document numbering.
+
 ## Documentation
 
 - `docs/README.md` — documentation index
 - `docs/SYSTEM_FLOW.md` — complete end-to-end system flow
 - `docs/CORE_WORKFLOW_DESIGN.md` — as-built AGIS Core workflow
 - `docs/IAP_WORKFLOW_DESIGN.md` — as-built IAP workflow
+- `docs/AEMS_WORKFLOW_DESIGN.md` — approved AEMS workflow design baseline
 - `docs/API_AND_DATA_REFERENCE.md` — API and entity reference
 - `docs/OPERATIONS_GUIDE.md` — setup, deployment, backup, and troubleshooting
 - `docs/DEVELOPMENT_STANDARDS.md` — required security, privacy, quality, and operations rules

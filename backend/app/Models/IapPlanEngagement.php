@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -187,5 +188,13 @@ class IapPlanEngagement extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(IapAttachment::class, 'plan_engagement_id');
+    }
+
+    /**
+     * Returns the active AEMS engagement created from this approved planning item.
+     */
+    public function aemEngagement(): HasOne
+    {
+        return $this->hasOne(AuditEngagement::class, 'iap_plan_engagement_id');
     }
 }

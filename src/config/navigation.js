@@ -2,16 +2,21 @@ import {
   Activity,
   Bell,
   Blocks,
+  BriefcaseBusiness,
   Building2,
+  CalendarCheck2,
   CalendarDays,
   ChartColumnBig,
   ChartNoAxesCombined,
+  ClipboardCheck,
   Database,
   FileText,
+  Files,
   FileBarChart,
   KeyRound,
   LayoutDashboard,
   ListChecks,
+  MessageSquareText,
   Network,
   Settings,
   ShieldAlert,
@@ -59,6 +64,7 @@ export const iapPages = [
     path: "/internal-audit-planning",
     permission: "iap.view",
     icon: CalendarDays,
+    end: true,
   },
   {
     label: "Audit Scheduling",
@@ -76,6 +82,88 @@ export const iapPages = [
     label: "IAP Reports",
     path: "/internal-audit-planning/reports",
     permission: "iap.view",
+    icon: FileBarChart,
+  },
+];
+
+export const aemsPages = [
+  {
+    label: "Engagement Tracker",
+    path: "/audit-engagement-management/dashboard",
+    permission: "aems.engagement.view",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Engagement Registry",
+    path: "/audit-engagement-management",
+    permission: "aems.engagement.view",
+    icon: BriefcaseBusiness,
+    end: true,
+  },
+  {
+    label: "Audit Team",
+    path: "/audit-engagement-management/team",
+    permission: "aems.team.view",
+    icon: UsersRound,
+  },
+  {
+    label: "Engagement Orders",
+    path: "/audit-engagement-management/aeo",
+    permission: "aems.aeo.view",
+    icon: FileText,
+  },
+  {
+    label: "Engagement Plan",
+    path: "/audit-engagement-management/aep",
+    permission: "aems.aep.view",
+    icon: SquareCheckBig,
+  },
+  {
+    label: "Audit Program",
+    path: "/audit-engagement-management/audit-program",
+    permission: "aems.program.view",
+    icon: ListChecks,
+  },
+  {
+    label: "Entry Conferences",
+    path: "/audit-engagement-management/entry-conferences",
+    permission: "aems.entry-conference.view",
+    icon: CalendarCheck2,
+  },
+  {
+    label: "Working Papers & Evidence",
+    path: "/audit-engagement-management/working-papers",
+    permission: "aems.working-paper.view",
+    icon: Files,
+  },
+  {
+    label: "Audit Issues",
+    path: "/audit-engagement-management/issues",
+    permission: "aems.issue.view",
+    icon: ShieldAlert,
+  },
+  {
+    label: "Findings & Recommendations",
+    path: "/audit-engagement-management/findings",
+    permission: "aems.finding.view",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Auditee Responses",
+    path: "/audit-engagement-management/auditee-responses",
+    permission: "aems.management-response.view",
+    icon: MessageSquareText,
+  },
+  {
+    label: "Exit Conferences",
+    path: "/audit-engagement-management/exit-conferences",
+    permission: "aems.conference.view",
+    icon: CalendarCheck2,
+  },
+  {
+    label: "Audit Reports",
+    path: "/audit-engagement-management/reports",
+    permission: ["aems.report.view", "aems.report.view_issued"],
     icon: FileBarChart,
   },
 ];
@@ -106,14 +194,15 @@ export const modules = [
   },
   {
     key: "aem",
-    code: "AEM",
-    label: "Audit Engagement Management",
-    path: "/audit-engagement-management",
-    permission: "aem.view",
+    code: "AEMS",
+    label: "Audit Engagement Monitoring",
+    path: "/audit-engagement-management/dashboard",
+    permission: "aems.engagement.view",
     icon: ShieldCheck,
     value: 18,
     note: "Active Engagements",
     tone: "green",
+    children: aemsPages,
   },
   {
     key: "afr",
@@ -288,6 +377,9 @@ export const allNavigationItems = navigationSections.flatMap(
 );
 
 export function hasPermission(user, permission) {
+  if (Array.isArray(permission)) {
+    return permission.some((code) => user?.permissions?.includes(code));
+  }
   return Boolean(user?.permissions?.includes(permission));
 }
 
@@ -301,6 +393,14 @@ export function pageForPath(pathname) {
       label: "Annual Audit Plan",
       icon: CalendarDays,
       permission: "iap.view",
+    };
+  }
+
+  if (/^\/audit-engagement-management\/\d+$/.test(pathname)) {
+    return {
+      label: "Engagement Details",
+      icon: ShieldCheck,
+      permission: "aems.engagement.view",
     };
   }
 

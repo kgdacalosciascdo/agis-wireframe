@@ -71,6 +71,13 @@ const metrics = [
   ["responsesAwaitingReview", "Escalation responses awaiting review", MessageSquareText, "sky"],
   ["escalationsInFollowUp", "Escalations in follow-up", Clock3, "emerald"],
   ["resolvedEscalations", "Escalations resolved (process only)", CheckCircle2, "slate"],
+  ["implementedRecommendationsEligibleForClosure", "Implemented eligible for closure", ShieldAlert, "emerald"],
+  ["closureRequestsInDraft", "Closure drafts", FileCheck2, "slate"],
+  ["closureRequestsAwaitingReview", "Closures awaiting review", UserRoundCheck, "amber"],
+  ["closureRequestsAwaitingDecision", "Closures awaiting decision", Clock3, "warning"],
+  ["returnedClosureRequests", "Closures returned", FileWarning, "red"],
+  ["recentlyClosedRecommendations", "Recently closed", CheckCircle2, "emerald"],
+  ["totalClosedRecommendations", "Total formally closed", CheckCircle2, "sky"],
 ];
 
 const attention = [

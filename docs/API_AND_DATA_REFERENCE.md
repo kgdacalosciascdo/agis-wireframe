@@ -1270,3 +1270,5 @@ reopening, reports, exports, AIS, and ARMIS remain unimplemented.
 Closure endpoints are available under `/api/cms/recommendations/{recommendation}/closure-requests`, `/closure-options`, and `/api/cms/closure-requests/{closureRequest}`. Version transitions are exposed through `submit`, `start-review`, `return`, `recommend`, `approve`, `reject`, and `revisions` routes. The backend selects and pins the finalized Validation, accepted Action Plan, and recorded Progress Update lineage; clients cannot submit source IDs or case statuses.
 
 The closure schema consists of `cms_closure_requests`, `cms_closure_request_versions`, `cms_closure_review_assessments`, `cms_closure_decisions`, and `cms_closure_evidence_links`. Closure evidence pins exact Core Document Versions and is never a second storage system.
+
+The React client uses the existing `cmsApi` request wrapper for closure options, request families, version mutations, transitions, revisions, and protected evidence operations. It never submits a target case status or constructs a storage URL.

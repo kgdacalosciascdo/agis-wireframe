@@ -491,3 +491,23 @@ The current CMS-5B regression verification completed successfully on 2026-07-31:
 # CMS-8A deployment notes
 
 Run the additive `2026_08_05_000000_create_cms_closure_tables` migration and reseed `RolePermissionSeeder` when deploying CMS-8A. The migration preserves existing CMS history and adds closure tables, case closure lineage, and the `FOR_CLOSURE`/`CLOSED` statuses. Verify permissions, PostgreSQL constraints, Core document access, and immutable decision records before enabling a future CMS-8B client.
+
+CMS-8B verification includes `npm.cmd run lint`, `npm.cmd run build`, and the focused `tests/e2e/cms-closure.spec.js` browser checks. The full Playwright inventory should be run in deterministic groups when the local environment exceeds the command limit; a timeout is not a passing result.
+
+CMS-8B stabilization gate (2026-08-03): the focused closure suite passed 6
+desktop/mobile tests. The full Playwright command timed out after ten minutes;
+deterministic groups covered all 52 discovered tests. AEMS (6), IAP (2), CMS
+action-plan (10), CMS closure (6), CMS responsive (2), and the remaining CMS
+groups (26) were run separately. One legacy validation test was throttled before
+page load; the account remained active and unlocked, so the login throttle was
+not bypassed; the exact test passed independently after the cooldown. A stale
+AGIS Vite process on port 5173 caused the earlier web
+server timeout; Laravel health on port 8000 was healthy, the verified repo Vite
+process was restarted, and the focused suite then started normally.
+
+Backend gate checks confirm migrations through
+`2026_08_05_000000_create_cms_closure_tables`, 102 CMS routes, CMS regression
+coverage of 47 tests/644 assertions, and AEMS coverage of 38 tests/723
+assertions. The complete Feature suite remains a local timeout; deterministic
+groups are the reproducible record. `npm.cmd run lint`, `npm.cmd run build`, and
+`git diff --check` pass.

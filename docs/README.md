@@ -84,9 +84,22 @@ accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.
 
 ## Diagram rendering
 
+## CMS-8B verification status
+
+CMS-8A closure backend and the CMS-8B recommendation-scoped React workspace are
+implemented. The workspace preserves backend readiness, authorization,
+optimistic locking, immutable lineage, Core-version evidence links, controlled
+review/decision actions, and closed-case read-only behavior. Accepted-risk,
+alternative dispositions, reopening, reporting, exports, AIS, and ARMIS remain
+deferred.
+
 The workflow documents use Mermaid diagrams. GitHub and compatible Markdown
 viewers render them automatically. In a viewer without Mermaid support, the
 adjacent headings, tables, and numbered rules remain the authoritative text.
 # CMS-8A status
 
 Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B), reopening, accepted-risk, no-longer-applicable, automatic closure, reporting, AIS, and ARMIS integrations remain deferred.
+
+CMS-8B frontend status
+
+The recommendation-scoped Closure Request workspace, readiness presentation, source lineage, evidence controls, review/decision actions, version history, Recommendation Detail entry point, dashboard closure metrics, and responsive browser coverage are implemented. The client preserves backend authorization and optimistic-lock handling.

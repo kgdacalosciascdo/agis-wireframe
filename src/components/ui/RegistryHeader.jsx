@@ -28,7 +28,7 @@ export default function RegistryHeader({
         )}
       </div>
       {actions && (
-        <div className="flex w-full flex-wrap gap-2 [&>button]:w-full sm:w-auto sm:[&>button]:w-auto">
+        <div className="flex w-full flex-wrap gap-2 [&>button]:w-full sm:w-auto sm:max-w-[68%] sm:shrink-0 sm:justify-end sm:[&>button]:w-auto">
           {actions}
         </div>
       )}

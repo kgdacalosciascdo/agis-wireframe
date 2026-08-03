@@ -108,6 +108,7 @@ const CmsValidationsPage = lazy(
 );
 const CmsExtensionsPage = lazy(() => import("./pages/CmsExtensionsPage"));
 const CmsEscalationsPage = lazy(() => import("./pages/CmsEscalationsPage"));
+const CmsClosureRequestsPage = lazy(() => import("./pages/CmsClosureRequestsPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -698,6 +699,26 @@ export default function App() {
               <ProtectedPage permission="cms.escalation.view">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsEscalationsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/closure-requests"
+            element={
+              <ProtectedPage permission="cms.closure.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsClosureRequestsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/closure-requests/:closureRequestId"
+            element={
+              <ProtectedPage permission="cms.closure.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsClosureRequestsPage />
                 </Suspense>
               </ProtectedPage>
             }

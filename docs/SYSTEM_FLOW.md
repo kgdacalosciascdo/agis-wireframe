@@ -844,3 +844,5 @@ reopening, reporting, exports, AIS, and ARMIS remain deferred.
 # CMS closure boundary
 
 CMS now distinguishes `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED`. Management completion, accepted progress, extension approval, escalation resolution, and validation drafts do not close a recommendation. An independent finalized `IMPLEMENTED` validation supports a Closure Request; an independent review assessment and CIAS Management Closure Decision are required for formal closure.
+
+The frontend exposes Closure only from an authorized recommendation detail context. Readiness, available actions, lock versions, scope-safe errors, and closed-case read-only behavior are supplied by CMS-8A; the client does not recalculate eligibility or provide reopening controls.

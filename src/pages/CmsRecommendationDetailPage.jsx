@@ -36,6 +36,7 @@ const tabs = [
   ["source", "Source & Lineage", Link2],
   ["assignments", "Assignments", UserRound],
   ["history", "History", History],
+  ["closure", "Closure", ShieldCheck],
 ];
 
 function displayDate(value, includeTime = false) {
@@ -160,7 +161,9 @@ export default function CmsRecommendationDetailPage() {
   const canViewValidation = hasPermission(user, "cms.validation.view");
   const canViewExtension = hasPermission(user, "cms.extension.view");
   const canViewEscalation = hasPermission(user, "cms.escalation.view");
-  const activeTab = tabs.some(([key]) => key === searchParams.get("tab"))
+  const canViewClosure = hasPermission(user, "cms.closure.view");
+  const visibleTabs = tabs.filter(([key]) => key !== "closure" || canViewClosure);
+  const activeTab = visibleTabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
   const [record, setRecord] = useState(null);
@@ -447,7 +450,7 @@ export default function CmsRecommendationDetailPage() {
         className="mb-4 flex overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
         role="tablist"
       >
-        {tabs.map(([key, label, Icon]) => (
+        {visibleTabs.map(([key, label, Icon]) => (
           <button
             aria-selected={activeTab === key}
             className={`inline-flex min-w-max flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition focus-visible:outline-2 focus-visible:outline-sky-600 ${
@@ -480,6 +483,7 @@ export default function CmsRecommendationDetailPage() {
               canViewValidation={canViewValidation}
               canViewExtension={canViewExtension}
               canViewEscalation={canViewEscalation}
+              canViewClosure={canViewClosure}
               currentMonitor={currentMonitor}
               record={record}
           />
@@ -548,6 +552,9 @@ export default function CmsRecommendationDetailPage() {
             <CmsRecommendationTimeline events={record.timeline} />
           </div>
         )}
+        {activeTab === "closure" && canViewClosure && (
+          <ClosureSummary record={record} />
+        )}
       </section>
 
       {assignmentOpen && (
@@ -605,7 +612,7 @@ function HeaderDatum({ label, value }) {
   );
 }
 
-function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension, canViewEscalation }) {
+function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension, canViewEscalation, canViewClosure }) {
   const actionPlan = record.actionPlanSummary;
 
   return (
@@ -744,8 +751,33 @@ function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation
           </div>
         </div>
       )}
+      {canViewClosure && (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Formal recommendation closure</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {record.closureSummary?.formallyClosed
+                  ? "Formally closed"
+                  : record.closureSummary?.activeRequestStatus
+                    ? `Closure Request · ${labelFor(record.closureSummary.activeRequestStatus)}`
+                    : record.status === "IMPLEMENTED"
+                      ? "Eligible for formal closure when readiness passes"
+                      : "Closure is not currently available"}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">Implemented validation is distinct from a final Closure Decision.</p>
+            </div>
+            <Link className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-50" to={`/compliance-management/recommendations/${record.id}/closure-requests`}><ShieldCheck size={16} /> Open closure workspace</Link>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function ClosureSummary({ record }) {
+  const summary = record.closureSummary || {};
+  return <div><div className={`rounded-xl border p-4 ${summary.formallyClosed ? "border-emerald-300 bg-emerald-50" : "border-sky-200 bg-sky-50"}`}><div className="flex items-start gap-3"><ShieldCheck className={summary.formallyClosed ? "text-emerald-700" : "text-sky-700"} /><div><h3 className="text-lg font-bold text-slate-800">{summary.formallyClosed ? "This recommendation is formally closed" : "Recommendation closure"}</h3><p className="mt-1 text-sm leading-6 text-slate-600">{summary.formallyClosed ? "The approved Closure Decision is immutable. Reopening is not implemented in this phase." : "A finalized independent IMPLEMENTED validation is not itself formal closure."}</p></div></div></div><dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><ReadOnlyField label="Case status">{record.status}</ReadOnlyField><ReadOnlyField label="Active Closure Request">{summary.activeRequestId || "None"}</ReadOnlyField><ReadOnlyField label="Active request status">{summary.activeRequestStatus || "None"}</ReadOnlyField><ReadOnlyField label="Prior request count">{summary.priorRequestCount ?? 0}</ReadOnlyField><ReadOnlyField label="Closed date">{displayDate(summary.closedAt)}</ReadOnlyField><ReadOnlyField label="Closure Decision">{summary.closureDecisionId || "Not recorded"}</ReadOnlyField></dl><div className="mt-5"><Link className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white" to={`/compliance-management/recommendations/${record.id}/closure-requests`}><ShieldCheck size={16} /> View Closure Requests</Link></div></div>;
 }
 
 function SourceLineage({ record }) {

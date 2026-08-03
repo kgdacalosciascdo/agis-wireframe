@@ -2372,6 +2372,63 @@ export const cmsApi = {
     );
     return data?.recommendation ?? null;
   },
+  async getClosureOptions(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/closure-options`);
+  },
+  async getClosureRequests(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/closure-requests`);
+  },
+  async createClosureRequest(recommendationId, payload) {
+    const data = await request(`/api/cms/recommendations/${recommendationId}/closure-requests`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async getClosureRequest(closureRequestId) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}`);
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async updateClosureRequest(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async submitClosureRequest(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/transitions/submit`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async startClosureReview(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/transitions/start-review`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async returnClosureRequest(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/transitions/return`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async recommendClosure(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/transitions/recommend`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async approveClosure(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/transitions/approve`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async rejectClosure(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/transitions/reject`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async createClosureRevision(closureRequestId, versionId, payload) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/revisions`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async uploadClosureEvidence(closureRequestId, versionId, formData) {
+    const data = await request(`/api/cms/closure-requests/${closureRequestId}/versions/${versionId}/evidence`, { method: "POST", body: formData, csrf: true });
+    return data?.request ?? null;
+  },
+  async downloadClosureEvidence(evidenceId, fileName = "closure-evidence") {
+    return documentApi.downloadFile(`/api/cms/closure-evidence/${evidenceId}/download`, fileName);
+  },
+  async removeClosureEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/closure-evidence/${evidenceId}`, { method: "DELETE", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
   async getProgressUpdates(recommendationId) {
     return request(
       `/api/cms/recommendations/${recommendationId}/progress-updates`,

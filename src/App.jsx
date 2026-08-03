@@ -106,6 +106,7 @@ const CmsProgressUpdatesPage = lazy(
 const CmsValidationsPage = lazy(
   () => import("./pages/CmsValidationsPage"),
 );
+const CmsExtensionsPage = lazy(() => import("./pages/CmsExtensionsPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -656,6 +657,26 @@ export default function App() {
               <ProtectedPage permission="cms.validation.view">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsValidationsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/extensions"
+            element={
+              <ProtectedPage permission="cms.extension.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsExtensionsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/extensions/:extensionId"
+            element={
+              <ProtectedPage permission="cms.extension.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsExtensionsPage />
                 </Suspense>
               </ProtectedPage>
             }

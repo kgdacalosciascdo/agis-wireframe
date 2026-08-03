@@ -804,5 +804,7 @@ family moves through draft, submission, independent review, assessment, and a
 recorded management decision. Approval alone updates the effective target date;
 the original date and case lifecycle remain unchanged. Exact document-version
 evidence, optimistic locks, append-only date history, audit/activity records,
-and notifications are part of the transaction. The extension backend is
-CMS-6A; its React workspace is deferred to CMS-6B.
+and notifications are part of the transaction. CMS-6A supplies the backend
+contract and CMS-6B supplies the protected recommendation-specific React
+workspace. Pending requests continue to use the current effective date for
+overdue presentation; only approval changes it.

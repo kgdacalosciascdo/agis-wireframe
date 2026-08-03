@@ -319,8 +319,9 @@ version may have `active_slot = ACTIVE` per review; and at most one assignment
 may have `current_slot = CURRENT` per review. Validator evidence is private
 Core storage and must be backed up with its matching database snapshot.
 CMS-5B is a frontend deployment change only; it adds no migration or seed step.
-Extensions, escalation, closure, reopening, reports, AIS, and ARMIS remain
-undeployed.
+CMS-6A and CMS-6B now provide the target-date extension backend and React
+workspace. Escalation, closure, reopening, reports, AIS, and ARMIS remain
+deferred.
 
 After CMS-6A, run the additive migration
 `2026_08_03_000000_create_cms_target_date_extension_tables`, then rerun
@@ -328,9 +329,14 @@ After CMS-6A, run the additive migration
 target-date history for existing CMS cases and adds extension request,
 version, assessment, decision, evidence-link, and history tables. It does not
 change original recommendation dates or case statuses. Back up the database
-and private document storage together before applying it. The extension React
-workspace is deferred to CMS-6B; no reminder, escalation, or closure jobs are
-installed by CMS-6A.
+and private document storage together before applying it. No reminder,
+escalation, or closure jobs are installed by CMS-6A.
+
+CMS-6B is a frontend deployment change for the CMS-6A extension workspace. It
+adds no migration, seed step, permission, or API endpoint. Run the normal
+frontend lint, build, and focused Playwright suite after deployment. The
+workspace continues to use authenticated CMS-6A endpoints and does not add
+reminders, escalation, closure, reopening, reporting, AIS, or ARMIS behavior.
 
 ## 11. Production checklist
 

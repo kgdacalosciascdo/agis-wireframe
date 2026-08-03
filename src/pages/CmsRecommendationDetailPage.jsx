@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  CalendarClock,
   ClipboardCheck,
   FileCheck2,
   History,
@@ -157,6 +158,7 @@ export default function CmsRecommendationDetailPage() {
   const canViewActionPlan = hasPermission(user, "cms.action-plan.view");
   const canViewProgress = hasPermission(user, "cms.progress.view");
   const canViewValidation = hasPermission(user, "cms.validation.view");
+  const canViewExtension = hasPermission(user, "cms.extension.view");
   const activeTab = tabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -368,6 +370,14 @@ export default function CmsRecommendationDetailPage() {
                 <ClipboardCheck size={16} /> Validations
               </Link>
             )}
+            {canViewExtension && (
+              <Link
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-bold text-amber-800 hover:bg-amber-100"
+                to={`/compliance-management/recommendations/${recommendationId}/extensions`}
+              >
+                <CalendarClock size={16} /> Target-Date Extensions
+              </Link>
+            )}
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
               to="/compliance-management/recommendations"
@@ -459,6 +469,7 @@ export default function CmsRecommendationDetailPage() {
             <Overview
               canViewActionPlan={canViewActionPlan}
               canViewValidation={canViewValidation}
+              canViewExtension={canViewExtension}
               currentMonitor={currentMonitor}
               record={record}
           />
@@ -584,7 +595,7 @@ function HeaderDatum({ label, value }) {
   );
 }
 
-function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation }) {
+function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension }) {
   const actionPlan = record.actionPlanSummary;
 
   return (
@@ -688,6 +699,22 @@ function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation
             >
               <ClipboardCheck size={16} /> Open workspace
             </Link>
+          </div>
+        </div>
+      )}
+      {canViewExtension && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Target-date extensions</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {record.targetDateExtensionSummary?.requestCount
+                  ? `${record.targetDateExtensionSummary.requestCount} request${record.targetDateExtensionSummary.requestCount === 1 ? "" : "s"} · ${record.targetDateExtensionSummary.openRequestCount || 0} unresolved`
+                  : "No target-date extension requests have been created."}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">Original target: {displayDate(record.targetDateExtensionSummary?.originalTargetDate || record.intake?.originalTargetDate)} · Current effective: {displayDate(record.targetDateExtensionSummary?.currentEffectiveTargetDate || record.effectiveTargetDate)}</p>
+            </div>
+            <Link className="inline-flex h-10 items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 text-sm font-bold text-amber-800 hover:bg-amber-50" to={`/compliance-management/recommendations/${record.id}/extensions`}><CalendarClock size={16} /> Open workspace</Link>
           </div>
         </div>
       )}

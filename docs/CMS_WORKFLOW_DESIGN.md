@@ -632,7 +632,33 @@ confidentiality snapshots. Approved and rejected versions, decisions, and date
 history are append-only; stale lock versions and changed source snapshots are
 rejected.
 
-CMS-6A exposes the extension API and dashboard/detail aggregates. The React
-extension workspace is deferred to CMS-6B. Automated reminders, escalation,
+CMS-6A exposes the extension API and dashboard/detail aggregates. CMS-6B adds
+the recommendation-scoped React extension list and detail workspace. Automated reminders, escalation,
 closure, accepted-risk, no-longer-applicable, reopening, recurrence, reports,
 exports, AIS, and ARMIS integrations remain outside this increment.
+
+## CMS-6B React workspace
+
+The frontend routes are recommendation-specific:
+
+```text
+/compliance-management/recommendations/:recommendationId/extensions
+/compliance-management/recommendations/:recommendationId/extensions/:extensionId
+```
+
+Recommendation Detail links to the workspace and displays the CMS-6A extension
+summary without replacing the current effective target date. The workspace
+contains a request list, creation context, draft form, Supporting Evidence,
+Assessment & Recommendation, Decision, and Versions & History tabs. It uses
+the existing `cmsApi` wrapper, authenticated Core downloads, responsive cards,
+and backend `availableActions` for control visibility.
+
+Original, current effective, requested, and approved dates are always labelled
+separately. Pending, returned, or rejected requests never change the effective
+date display; only an approved backend decision does. Draft evidence can be
+linked or removed with a reason, while submitted and historical evidence is
+read-only. Stale locks and source changes preserve local context and offer a
+reload rather than overwriting newer state.
+
+The workspace does not add escalation, closure, accepted-risk, reopening,
+recurrence, reporting, exports, AIS, or ARMIS functionality.

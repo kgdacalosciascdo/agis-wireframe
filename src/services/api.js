@@ -2461,6 +2461,108 @@ export const cmsApi = {
       `/api/cms/recommendations/${recommendationId}/validation-options`,
     );
   },
+  async getExtensionOptions(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/extension-options`,
+    );
+  },
+  async getExtensions(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/extensions`,
+    );
+  },
+  async getExtensionHistory(recommendationId) {
+    return request(
+      `/api/cms/recommendations/${recommendationId}/extensions/history`,
+    );
+  },
+  async createExtension(recommendationId, payload) {
+    const data = await request(
+      `/api/cms/recommendations/${recommendationId}/extensions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async getExtension(extensionId) {
+    return request(`/api/cms/extensions/${extensionId}`);
+  },
+  async updateExtension(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}`,
+      { method: "PUT", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async submitExtension(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/transitions/submit`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async startExtensionReview(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/transitions/start-review`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async returnExtension(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/transitions/return`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async recommendExtension(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/transitions/recommend`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async approveExtension(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/transitions/approve`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async rejectExtension(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/transitions/reject`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async createExtensionRevision(extensionId, versionId, payload) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/revisions`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async uploadExtensionEvidence(extensionId, versionId, formData) {
+    const data = await request(
+      `/api/cms/extensions/${extensionId}/versions/${versionId}/evidence`,
+      { method: "POST", body: formData, csrf: true },
+    );
+    return data?.extension ?? null;
+  },
+  async downloadExtensionEvidence(evidenceId, fileName = "extension-evidence") {
+    return documentApi.downloadFile(
+      `/api/cms/extension-evidence/${evidenceId}/download`,
+      fileName,
+    );
+  },
+  async removeExtensionEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/extension-evidence/${evidenceId}`, {
+      method: "DELETE",
+      body: payload,
+      csrf: true,
+    });
+    return data?.extension ?? null;
+  },
   async createValidation(recommendationId, payload) {
     const data = await request(
       `/api/cms/recommendations/${recommendationId}/validations`,

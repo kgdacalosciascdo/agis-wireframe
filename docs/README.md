@@ -24,7 +24,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | IAP — Internal Audit Planning | As-built documentation complete | Implemented |
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
-| CMS — Compliance Management | CMS-1 through CMS-6A documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plans, versioned management-reported progress, independent validation, and the CMS-6A target-date extension backend are operational; the CMS-6B extension workspace, escalation, and closure remain unimplemented |
+| CMS — Compliance Management | CMS-1 through CMS-6B documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plans, versioned management-reported progress, independent validation, and the CMS-6A/6B target-date extension workflow are operational; escalation and closure remain unimplemented |
 | ARMIS — Audit Resource Management | Temporary capacity exists in IAP | Full module not implemented |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 
@@ -72,11 +72,11 @@ Use current code and tests as the implementation source of truth:
 - defaults: `backend/database/seeders`;
 - verification: `backend/tests/Feature`.
 
-CMS-6A target-date extensions are implemented as a backend workflow with
-immutable request versions, exact evidence links, approval decisions, and
-append-only effective-date history. The frontend extension workspace is
-deferred to CMS-6B; reminders, escalation, and formal closure remain separate
-future increments.
+CMS-6A/6B target-date extensions are implemented as an approval-controlled
+backend and recommendation-specific React workspace with immutable request
+versions, exact evidence links, protected downloads, approval decisions, and
+append-only effective-date history. Reminders, escalation, and formal closure
+remain separate future increments.
 
 ## Diagram rendering
 

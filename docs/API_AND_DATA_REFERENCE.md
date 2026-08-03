@@ -1198,3 +1198,18 @@ decisions, exact evidence links, and append-only target-date history. The
 extension permissions are `cms.extension.*` and `cms.extension-evidence.*`;
 the verified CMS permission total is 58 in the current runtime. Existing
 legacy `aem.*` compatibility permissions are retained.
+
+### CMS-6B frontend integration
+
+The React workspace uses the existing `cmsApi` request wrapper and the CMS-6A
+routes above. Its protected recommendation-specific routes are:
+
+```text
+/compliance-management/recommendations/:recommendationId/extensions
+/compliance-management/recommendations/:recommendationId/extensions/:extensionId
+```
+
+The frontend sends only CMS-6A camelCase payload fields and current lock
+versions. It never submits baseline source IDs, actors, statuses, approved
+dates, or case-status changes. Evidence uploads use multipart requests and
+protected authenticated downloads; internal storage paths are never rendered.

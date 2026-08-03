@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
+  CheckCircle2,
   ClipboardCheck,
   Clock3,
   FileCheck2,
@@ -13,6 +14,7 @@ import {
   SquareCheckBig,
   UserRoundCheck,
   UserRoundX,
+  XCircle,
 } from "lucide-react";
 import { Link } from "react-router";
 import { CmsOverdueBadge, CmsRiskBadge } from "../components/cms/CmsBadges";
@@ -54,6 +56,12 @@ const metrics = [
   ["activeValidations", "Active validations", ClipboardCheck, "sky"],
   ["validationsAwaitingSupervisoryReview", "Validations awaiting supervisory review", FileCheck2, "warning"],
   ["returnedValidations", "Returned validations", FileWarning, "red"],
+  ["extensionRequestsInDraft", "Extension drafts", FileCheck2, "slate"],
+  ["extensionRequestsAwaitingReview", "Extensions awaiting review", Clock3, "amber"],
+  ["extensionRequestsAwaitingApproval", "Extensions awaiting approval", Clock3, "warning"],
+  ["returnedExtensionRequests", "Extensions returned", FileWarning, "red"],
+  ["approvedExtensions", "Approved extensions", CheckCircle2, "emerald"],
+  ["rejectedExtensionRequests", "Rejected extensions", XCircle, "red"],
 ];
 
 const attention = [

@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\AemsTeamController;
 use App\Http\Controllers\Api\AemsWorkingPaperController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CmsActionPlanController;
+use App\Http\Controllers\Api\CmsClosureController;
 use App\Http\Controllers\Api\CmsDashboardController;
 use App\Http\Controllers\Api\CmsEscalationController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
@@ -247,6 +248,22 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.escalation-evidence.download');
     Route::delete('/cms/escalation-response-evidence/{evidence}', [CmsEscalationController::class, 'removeResponseEvidence'])
         ->middleware('permission:cms.escalation-evidence.remove_draft');
+
+    Route::get('/cms/recommendations/{recommendation}/closure-requests', [CmsClosureController::class, 'index'])->middleware('permission:cms.closure.view');
+    Route::get('/cms/recommendations/{recommendation}/closure-options', [CmsClosureController::class, 'options'])->middleware('permission:cms.closure.request');
+    Route::post('/cms/recommendations/{recommendation}/closure-requests', [CmsClosureController::class, 'store'])->middleware('permission:cms.closure.request');
+    Route::get('/cms/closure-requests/{closureRequest}', [CmsClosureController::class, 'show'])->middleware('permission:cms.closure.view');
+    Route::put('/cms/closure-requests/{closureRequest}/versions/{version}', [CmsClosureController::class, 'update'])->middleware('permission:cms.closure.update');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/transitions/submit', [CmsClosureController::class, 'submit'])->middleware('permission:cms.closure.submit');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/transitions/start-review', [CmsClosureController::class, 'startReview'])->middleware('permission:cms.closure.review');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/transitions/return', [CmsClosureController::class, 'returnVersion'])->middleware('permission:cms.closure.return');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/transitions/recommend', [CmsClosureController::class, 'recommend'])->middleware('permission:cms.closure.recommend');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/transitions/approve', [CmsClosureController::class, 'approve'])->middleware('permission:cms.closure.approve');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/transitions/reject', [CmsClosureController::class, 'reject'])->middleware('permission:cms.closure.reject');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/revisions', [CmsClosureController::class, 'revise'])->middleware('permission:cms.closure.revise');
+    Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/evidence', [CmsClosureController::class, 'uploadEvidence'])->middleware('permission:cms.closure-evidence.upload');
+    Route::delete('/cms/closure-evidence/{evidence}', [CmsClosureController::class, 'removeEvidence'])->middleware('permission:cms.closure-evidence.remove_draft');
+    Route::get('/cms/closure-evidence/{evidence}/download', [CmsClosureController::class, 'downloadEvidence'])->middleware('permission:cms.closure-evidence.download');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

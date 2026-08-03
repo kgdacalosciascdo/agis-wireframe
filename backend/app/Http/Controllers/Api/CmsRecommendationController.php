@@ -142,6 +142,9 @@ class CmsRecommendationController extends Controller
             'escalations.currentNotice.acknowledgements',
             'escalations.response.currentVersion.preparer',
             'escalations.resolution.resolver',
+            'closureRequests.currentVersion.assessment.reviewer',
+            'closureRequests.currentVersion.decision.decider',
+            'closureRequests.resolvedVersion.decision.decider',
         ];
     }
 

@@ -107,6 +107,7 @@ const CmsValidationsPage = lazy(
   () => import("./pages/CmsValidationsPage"),
 );
 const CmsExtensionsPage = lazy(() => import("./pages/CmsExtensionsPage"));
+const CmsEscalationsPage = lazy(() => import("./pages/CmsEscalationsPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -677,6 +678,26 @@ export default function App() {
               <ProtectedPage permission="cms.extension.view">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsExtensionsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/escalations"
+            element={
+              <ProtectedPage permission="cms.escalation.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsEscalationsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/escalations/:escalationId"
+            element={
+              <ProtectedPage permission="cms.escalation.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsEscalationsPage />
                 </Suspense>
               </ProtectedPage>
             }

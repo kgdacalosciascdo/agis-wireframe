@@ -1250,6 +1250,23 @@ monitor, prior escalation count, safe recipient summaries, lock version, and
 authoritative unavailability reasons. The permission catalogue adds fourteen
 `cms.escalation.*` permissions and four `cms.escalation-evidence.*` permissions.
 
-CMS-7B will provide the React escalation workspace. Automatic escalation,
-scheduled reminders, recommendation closure, accepted risk, reopening,
-reports, exports, AIS, and ARMIS remain unimplemented.
+The React workspace is available at the recommendation-scoped routes
+`/compliance-management/recommendations/:recommendationId/escalations` and
+`/compliance-management/recommendations/:recommendationId/escalations/:escalationId`.
+It uses the existing `cmsApi` request wrapper, Sanctum-protected multipart
+uploads, and authenticated evidence downloads. Notice/response drafts are the
+only editable versions; returned, issued, accepted, and resolved records are
+rendered read-only and corrections use revision endpoints. The frontend keeps
+source snapshots separate from current recommendation context and does not
+change recommendation status or closure state.
+
+The current CMS-7A resources leave `availableActions` empty; until the backend
+adds those computed actions, the UI combines exact status and seeded permission
+visibility while Laravel remains authoritative for every mutation. Automatic
+escalation, scheduled reminders, recommendation closure, accepted risk,
+reopening, reports, exports, AIS, and ARMIS remain unimplemented.
+# CMS-8A closure API
+
+Closure endpoints are available under `/api/cms/recommendations/{recommendation}/closure-requests`, `/closure-options`, and `/api/cms/closure-requests/{closureRequest}`. Version transitions are exposed through `submit`, `start-review`, `return`, `recommend`, `approve`, `reject`, and `revisions` routes. The backend selects and pins the finalized Validation, accepted Action Plan, and recorded Progress Update lineage; clients cannot submit source IDs or case statuses.
+
+The closure schema consists of `cms_closure_requests`, `cms_closure_request_versions`, `cms_closure_review_assessments`, `cms_closure_decisions`, and `cms_closure_evidence_links`. Closure evidence pins exact Core Document Versions and is never a second storage system.

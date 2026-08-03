@@ -340,7 +340,12 @@ workspace continues to use authenticated CMS-6A endpoints and does not add
 reminders, closure, reopening, reporting, AIS, or ARMIS behavior. CMS-7A
 requires the additive `2026_08_04_000000_create_cms_escalation_tables`
 migration and no seed reset; run the focused CMS escalation feature tests after
-applying it.
+applying it. CMS-7B is a frontend-only deployment: it adds the protected
+recommendation-scoped escalation routes, live CMS dashboard metrics, and
+authenticated evidence controls. Verify with `npm.cmd run lint`,
+`npm.cmd run build`, and the focused CMS Playwright specs when available. The
+current backend resources do not compute `availableActions`, so Laravel 403
+responses remain the final authority for professional controls.
 
 ## 11. Production checklist
 
@@ -483,3 +488,6 @@ The current CMS-5B regression verification completed successfully on 2026-07-31:
   assertions.
 - `php artisan test --testsuite=Feature` — 163 tests, 2,795 assertions.
 - `git diff --check` — passed.
+# CMS-8A deployment notes
+
+Run the additive `2026_08_05_000000_create_cms_closure_tables` migration and reseed `RolePermissionSeeder` when deploying CMS-8A. The migration preserves existing CMS history and adds closure tables, case closure lineage, and the `FOR_CLOSURE`/`CLOSED` statuses. Verify permissions, PostgreSQL constraints, Core document access, and immutable decision records before enabling a future CMS-8B client.

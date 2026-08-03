@@ -7,6 +7,7 @@ import {
   Clock3,
   FileCheck2,
   Hourglass,
+  MessageSquareText,
   Eye,
   FileWarning,
   RefreshCw,
@@ -62,6 +63,14 @@ const metrics = [
   ["returnedExtensionRequests", "Extensions returned", FileWarning, "red"],
   ["approvedExtensions", "Approved extensions", CheckCircle2, "emerald"],
   ["rejectedExtensionRequests", "Rejected extensions", XCircle, "red"],
+  ["recommendationsEligibleForEscalation", "Recommendations eligible for escalation", ShieldAlert, "amber"],
+  ["activeEscalations", "Active escalations", ShieldAlert, "red"],
+  ["noticesAwaitingReview", "Escalation notices awaiting review", FileCheck2, "warning"],
+  ["issuedNoticesAwaitingAcknowledgement", "Issued notices awaiting acknowledgement", UserRoundCheck, "amber"],
+  ["responsesOverdue", "Escalation responses overdue", AlertTriangle, "red"],
+  ["responsesAwaitingReview", "Escalation responses awaiting review", MessageSquareText, "sky"],
+  ["escalationsInFollowUp", "Escalations in follow-up", Clock3, "emerald"],
+  ["resolvedEscalations", "Escalations resolved (process only)", CheckCircle2, "slate"],
 ];
 
 const attention = [

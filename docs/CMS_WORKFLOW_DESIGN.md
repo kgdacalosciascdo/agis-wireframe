@@ -693,7 +693,30 @@ recommendation closure was not performed.
 Notice and response evidence pins exact Core Document Versions with checksum
 and confidentiality snapshots. Notice issuance, response acceptance, and
 resolution use optimistic locking, row transactions, append-only CMS events,
-Activity Log entries, and after-commit notifications. Automatic escalation,
-scheduled reminders, recommendation closure, accepted risk, no-longer-
-applicable decisions, reopening, reports, exports, AIS, ARMIS, and CMS-7B
-React pages remain deferred.
+Activity Log entries, and after-commit notifications.
+
+## CMS-7B escalation React workspace
+
+The recommendation-scoped routes `/compliance-management/recommendations/:id/escalations`
+and `/compliance-management/recommendations/:id/escalations/:escalationId` provide
+the protected list and detail workspace. The workspace consumes the CMS-7A
+options, list, detail, version, evidence, acknowledgement, response, and
+resolution endpoints. It keeps source snapshots read-only, separates escalation
+status from recommendation status, supports draft-only editing and evidence
+links, immutable revisions, protected downloads, stale-lock reload guidance,
+and read-only views for returned/issued/accepted versions. Recommendation Detail
+and the CMS dashboard link to the workspace and display live CMS-7A metrics.
+
+The CMS-7A Resources currently do not populate per-record `availableActions`;
+the frontend uses returned actions when present and falls back to existing
+permission/status visibility until that contract is enriched. Laravel remains
+authoritative. Automatic escalation, scheduled reminders, recommendation
+closure, accepted risk, no-longer-applicable decisions, reopening, reports,
+exports, AIS, and ARMIS remain deferred.
+# CMS-8A formal recommendation closure
+
+CMS closure is a separate professional decision from management-reported completion and independent validation. A finalized validation conclusion of `IMPLEMENTED` is required before a Closure Request can be submitted; only an approved Closure Decision changes the case to `CLOSED`.
+
+Closure Requests are immutable versioned families (`DRAFT → SUBMITTED → UNDER_REVIEW → RETURNED/FOR_DECISION → APPROVED/REJECTED`). Submission moves `IMPLEMENTED` to `FOR_CLOSURE`; rejection returns it to `IMPLEMENTED`; approval atomically records the decision and moves it to terminal `CLOSED`. Closed cases remain read-only and reopening, accepted-risk, and no-longer-applicable workflows are not implemented.
+
+CMS-8A adds an authoritative readiness checklist, source-lineage and final snapshots, independent review assessment, CIAS Management decision authority, restrictive evidence links to Core document versions, separation-of-duties checks, and closure permissions (`cms.closure.*`, `cms.closure-evidence.*`). CMS-8B React workspace is deferred.

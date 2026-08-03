@@ -836,6 +836,11 @@ case status, original/effective dates, overdue context, target-date extension
 context, accepted Action Plan, latest Progress Update, latest validation, and
 Compliance Monitor at submission/issuance time. Escalation operational status
 never mutates the recommendation implementation status; resolving an
-escalation does not close the recommendation. CMS-7B will add the React pages;
-automatic creation, reminders, closure, accepted risk, reopening, reporting,
-exports, AIS, and ARMIS remain deferred.
+escalation does not close the recommendation. CMS-7B provides the protected
+recommendation-scoped React list/detail workspace, immutable version views,
+evidence controls, acknowledgement, response, follow-up, and resolution
+presentation. Automatic creation, reminders, closure, accepted risk,
+reopening, reporting, exports, AIS, and ARMIS remain deferred.
+# CMS closure boundary
+
+CMS now distinguishes `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED`. Management completion, accepted progress, extension approval, escalation resolution, and validation drafts do not close a recommendation. An independent finalized `IMPLEMENTED` validation supports a Closure Request; an independent review assessment and CIAS Management Closure Decision are required for formal closure.

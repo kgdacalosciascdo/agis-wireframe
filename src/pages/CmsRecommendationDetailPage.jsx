@@ -159,6 +159,7 @@ export default function CmsRecommendationDetailPage() {
   const canViewProgress = hasPermission(user, "cms.progress.view");
   const canViewValidation = hasPermission(user, "cms.validation.view");
   const canViewExtension = hasPermission(user, "cms.extension.view");
+  const canViewEscalation = hasPermission(user, "cms.escalation.view");
   const activeTab = tabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -378,6 +379,14 @@ export default function CmsRecommendationDetailPage() {
                 <CalendarClock size={16} /> Target-Date Extensions
               </Link>
             )}
+            {canViewEscalation && (
+              <Link
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-bold text-red-800 hover:bg-red-100"
+                to={`/compliance-management/recommendations/${recommendationId}/escalations`}
+              >
+                <ShieldCheck size={16} /> Escalations
+              </Link>
+            )}
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
               to="/compliance-management/recommendations"
@@ -470,6 +479,7 @@ export default function CmsRecommendationDetailPage() {
               canViewActionPlan={canViewActionPlan}
               canViewValidation={canViewValidation}
               canViewExtension={canViewExtension}
+              canViewEscalation={canViewEscalation}
               currentMonitor={currentMonitor}
               record={record}
           />
@@ -595,7 +605,7 @@ function HeaderDatum({ label, value }) {
   );
 }
 
-function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension }) {
+function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension, canViewEscalation }) {
   const actionPlan = record.actionPlanSummary;
 
   return (
@@ -715,6 +725,22 @@ function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation
               <p className="mt-1 text-xs text-slate-600">Original target: {displayDate(record.targetDateExtensionSummary?.originalTargetDate || record.intake?.originalTargetDate)} · Current effective: {displayDate(record.targetDateExtensionSummary?.currentEffectiveTargetDate || record.effectiveTargetDate)}</p>
             </div>
             <Link className="inline-flex h-10 items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 text-sm font-bold text-amber-800 hover:bg-amber-50" to={`/compliance-management/recommendations/${record.id}/extensions`}><CalendarClock size={16} /> Open workspace</Link>
+          </div>
+        </div>
+      )}
+      {canViewEscalation && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-red-700">Escalation activity</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {record.escalationSummary?.hasEscalations
+                  ? `${record.escalationSummary.activeEscalationId ? `Escalation #${record.escalationSummary.activeEscalationId}` : "Active escalation"} · ${labelFor(record.escalationSummary.activeOperationalStatus)}`
+                  : "No formal escalation has been recorded."}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">Escalation resolution never closes the recommendation or establishes implementation.</p>
+            </div>
+            <Link className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-300 bg-white px-4 text-sm font-bold text-red-800 hover:bg-red-100" to={`/compliance-management/recommendations/${record.id}/escalations`}><ShieldCheck size={16} /> Open workspace</Link>
           </div>
         </div>
       )}

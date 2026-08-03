@@ -2762,6 +2762,86 @@ export const cmsApi = {
     );
     return data?.actionPlan ?? null;
   },
+  async getEscalations(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/escalations`);
+  },
+  async getEscalationOptions(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/escalation-options`);
+  },
+  async createEscalation(recommendationId, payload) {
+    const data = await request(`/api/cms/recommendations/${recommendationId}/escalations`, { method: "POST", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async getEscalation(escalationId) {
+    const data = await request(`/api/cms/escalations/${escalationId}`);
+    return data?.escalation ?? null;
+  },
+  async updateEscalationNotice(escalationId, versionId, payload) {
+    const data = await request(`/api/cms/escalations/${escalationId}/notice-versions/${versionId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async submitEscalationNotice(escalationId, versionId, payload) { return this.escalationNoticeTransition(escalationId, versionId, "submit", payload); },
+  async startEscalationNoticeReview(escalationId, versionId, payload) { return this.escalationNoticeTransition(escalationId, versionId, "start-review", payload); },
+  async returnEscalationNotice(escalationId, versionId, payload) { return this.escalationNoticeTransition(escalationId, versionId, "return", payload); },
+  async issueEscalationNotice(escalationId, versionId, payload) { return this.escalationNoticeTransition(escalationId, versionId, "issue", payload); },
+  async escalationNoticeTransition(escalationId, versionId, action, payload) {
+    const data = await request(`/api/cms/escalations/${escalationId}/notice-versions/${versionId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async createEscalationNoticeRevision(escalationId, versionId, payload) {
+    const data = await request(`/api/cms/escalations/${escalationId}/notice-versions/${versionId}/revisions`, { method: "POST", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async acknowledgeEscalation(escalationId, payload) {
+    const data = await request(`/api/cms/escalations/${escalationId}/acknowledgements`, { method: "POST", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async getEscalationResponse(escalationId) {
+    const data = await request(`/api/cms/escalations/${escalationId}/response`);
+    return data?.response ?? null;
+  },
+  async createEscalationResponse(escalationId, payload) {
+    const data = await request(`/api/cms/escalations/${escalationId}/response`, { method: "POST", body: payload, csrf: true });
+    return data?.response ?? null;
+  },
+  async updateEscalationResponse(responseId, versionId, payload) {
+    const data = await request(`/api/cms/escalation-responses/${responseId}/versions/${versionId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.response ?? null;
+  },
+  async escalationResponseTransition(responseId, versionId, action, payload) {
+    const data = await request(`/api/cms/escalation-responses/${responseId}/versions/${versionId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.response ?? null;
+  },
+  async submitEscalationResponse(responseId, versionId, payload) { return this.escalationResponseTransition(responseId, versionId, "submit", payload); },
+  async startEscalationResponseReview(responseId, versionId, payload) { return this.escalationResponseTransition(responseId, versionId, "start-review", payload); },
+  async returnEscalationResponse(responseId, versionId, payload) { return this.escalationResponseTransition(responseId, versionId, "return", payload); },
+  async acceptEscalationResponse(responseId, versionId, payload) { return this.escalationResponseTransition(responseId, versionId, "accept", payload); },
+  async createEscalationResponseRevision(responseId, versionId, payload) {
+    const data = await request(`/api/cms/escalation-responses/${responseId}/versions/${versionId}/revisions`, { method: "POST", body: payload, csrf: true });
+    return data?.response ?? null;
+  },
+  async resolveEscalation(escalationId, payload) {
+    const data = await request(`/api/cms/escalations/${escalationId}/resolve`, { method: "POST", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async uploadEscalationNoticeEvidence(escalationId, versionId, formData) {
+    const data = await request(`/api/cms/escalations/${escalationId}/notice-versions/${versionId}/evidence`, { method: "POST", body: formData, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async downloadEscalationNoticeEvidence(evidenceId, fileName = "escalation-notice-evidence") { return documentApi.downloadFile(`/api/cms/escalation-notice-evidence/${evidenceId}/download`, fileName); },
+  async removeEscalationNoticeEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/escalation-notice-evidence/${evidenceId}`, { method: "DELETE", body: payload, csrf: true });
+    return data?.escalation ?? null;
+  },
+  async uploadEscalationResponseEvidence(responseId, versionId, formData) {
+    const data = await request(`/api/cms/escalation-responses/${responseId}/versions/${versionId}/evidence`, { method: "POST", body: formData, csrf: true });
+    return data?.response ?? null;
+  },
+  async downloadEscalationResponseEvidence(evidenceId, fileName = "escalation-response-evidence") { return documentApi.downloadFile(`/api/cms/escalation-response-evidence/${evidenceId}/download`, fileName); },
+  async removeEscalationResponseEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/escalation-response-evidence/${evidenceId}`, { method: "DELETE", body: payload, csrf: true });
+    return data?.response ?? null;
+  },
 };
 
 export const profileApi = {

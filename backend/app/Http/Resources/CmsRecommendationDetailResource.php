@@ -240,6 +240,18 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     'escalations' => CmsEscalationResource::collection($this->escalations),
                 ],
             ),
+            'closureSummary' => $this->whenLoaded(
+                'closureRequests',
+                fn (): array => [
+                    'hasClosureRequests' => $this->closureRequests->isNotEmpty(),
+                    'activeRequestId' => $this->closureRequests->first(fn ($r): bool => $r->resolved_at === null)?->id,
+                    'activeRequestStatus' => $this->closureRequests->first(fn ($r): bool => $r->resolved_at === null)?->currentVersion?->status_code,
+                    'priorRequestCount' => $this->closureRequests->count(),
+                    'formallyClosed' => $this->status_code === 'CLOSED',
+                    'closedAt' => $this->closed_at?->toISOString(),
+                    'closureDecisionId' => $this->closure_decision_id,
+                ],
+            ),
         ];
     }
 

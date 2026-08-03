@@ -36,7 +36,7 @@ class CmsTargetDateExtensionTest extends TestCase
 
         $this->assertSame(10, Permission::query()->where('code', 'like', 'cms.extension.%')->count());
         $this->assertSame(4, Permission::query()->where('code', 'like', 'cms.extension-evidence.%')->count());
-        $this->assertSame(76, Permission::query()->where('code', 'like', 'cms.%')->count());
+        $this->assertSame(90, Permission::query()->where('code', 'like', 'cms.%')->count());
 
         $routes = collect(Route::getRoutes())->filter(
             fn ($route): bool => str_contains($route->uri(), 'cms/extensions')

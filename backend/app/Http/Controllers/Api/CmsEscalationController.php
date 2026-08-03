@@ -41,7 +41,9 @@ class CmsEscalationController extends Controller
 
     public function show(Request $request, int $escalation): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => ['escalation' => new CmsEscalationResource($this->escalations->show($request->user(), $escalation))]]);
+        $record = $this->escalations->show($request->user(), $escalation);
+        $this->escalations->decorateAvailableActions($request->user(), $record);
+        return response()->json(['success' => true, 'data' => ['escalation' => new CmsEscalationResource($record)]]);
     }
 
     public function store(CmsEscalationNoticeDraftRequest $request, int $recommendation): JsonResponse
@@ -169,11 +171,17 @@ class CmsEscalationController extends Controller
 
     private function mutation($e, string $message, int $status = 200): JsonResponse
     {
+        if ($e instanceof \App\Models\CmsEscalation) {
+            $this->escalations->decorateAvailableActions(request()->user(), $e);
+        }
         return response()->json(['success' => true, 'message' => $message, 'data' => ['escalation' => new CmsEscalationResource($e)]], $status);
     }
 
     private function responseMutation($r, string $message, int $status = 200): JsonResponse
     {
+        if ($r?->escalation) {
+            $this->escalations->decorateAvailableActions(request()->user(), $r->escalation);
+        }
         return response()->json(['success' => true, 'message' => $message, 'data' => ['response' => new CmsEscalationResponseResource($r)]], $status);
     }
 

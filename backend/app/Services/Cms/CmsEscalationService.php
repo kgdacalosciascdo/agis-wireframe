@@ -47,6 +47,8 @@ class CmsEscalationService
         $escalations = CmsEscalation::query()->where('cms_recommendation_case_id', $case->id)
             ->with($this->relations())->orderByDesc('escalation_sequence')->get();
 
+        $escalations->each(fn (CmsEscalation $escalation) => $this->decorateAvailableActions($actor, $escalation));
+
         return ['case' => $case, 'escalations' => $escalations, 'permittedActions' => $this->permittedCaseActions($actor, $case, $escalations->first())];
     }
 
@@ -56,7 +58,108 @@ class CmsEscalationService
         throw_unless($reference, new HttpException(404, 'The escalation is unavailable.'));
         $this->case($actor, $reference->cms_recommendation_case_id);
 
-        return CmsEscalation::query()->whereKey($id)->with($this->relations())->firstOrFail();
+        $escalation = CmsEscalation::query()->whereKey($id)->with($this->relations())->firstOrFail();
+
+        return $escalation;
+    }
+
+    /** Decorate an escalation graph with actor-scoped, record-specific actions. */
+    public function decorateAvailableActions(User $actor, CmsEscalation $escalation): CmsEscalation
+    {
+        $case = $escalation->case;
+        $actions = [];
+        $notice = $escalation->currentNotice;
+        $usable = $this->scope->isUsableAccount($actor);
+        $independent = $usable && $this->canIndependent($actor, $case, $notice?->prepared_by, $notice?->review_started_by, ['cms.escalation.review', 'cms.escalation.response-review', 'cms.escalation.response-accept']);
+        $preparer = $usable && (int) $actor->office_id !== (int) $case?->lead_responsible_office_id
+            && $actor->hasPermission('cms.escalation.create');
+        $responsible = $usable && (int) $actor->office_id === (int) $case?->lead_responsible_office_id
+            && $actor->hasPermission('cms.escalation.respond');
+
+        if ($notice) {
+            if ($notice->status_code === CmsEscalationNoticeVersion::STATUS_DRAFT && $preparer) {
+                if ($actor->hasPermission('cms.escalation.update')) {
+                    $actions[] = 'update';
+                }
+                if ($actor->hasPermission('cms.escalation.submit')) {
+                    $actions[] = 'submit';
+                }
+            }
+            if ($notice->status_code === CmsEscalationNoticeVersion::STATUS_SUBMITTED && $independent && $actor->hasPermission('cms.escalation.review')) {
+                $actions[] = 'start-review';
+            }
+            if ($notice->status_code === CmsEscalationNoticeVersion::STATUS_UNDER_REVIEW) {
+                if ($actor->hasPermission('cms.escalation.return')) {
+                    $actions[] = 'return';
+                }
+                if ($independent && $actor->hasPermission('cms.escalation.issue')) {
+                    $actions[] = 'issue';
+                }
+            }
+            if ($notice->status_code === CmsEscalationNoticeVersion::STATUS_RETURNED && $preparer && $actor->hasPermission('cms.escalation.revise')) {
+                $actions[] = 'revise';
+            }
+        }
+        if ($escalation->issuedNotice && $responsible && $actor->hasPermission('cms.escalation.acknowledge')
+            && ! $escalation->issuedNotice->acknowledgements?->contains('office_id', $actor->office_id)) {
+            $actions[] = 'acknowledge';
+        }
+        if ($escalation->issuedNotice && ! $escalation->response && $responsible) {
+            $actions[] = 'respond';
+        }
+        $response = $escalation->response;
+        $version = $response?->currentVersion;
+        if ($version) {
+            if ($version->status_code === CmsEscalationResponseVersion::STATUS_DRAFT && $responsible) {
+                if ($actor->hasPermission('cms.escalation.respond')) {
+                    $actions[] = 'update-response';
+                }
+                if ($actor->hasPermission('cms.escalation.respond')) {
+                    $actions[] = 'submit-response';
+                }
+            }
+            if ($version->status_code === CmsEscalationResponseVersion::STATUS_SUBMITTED && $independent && $actor->hasPermission('cms.escalation.response-review')) {
+                $actions[] = 'start-response-review';
+            }
+            if ($version->status_code === CmsEscalationResponseVersion::STATUS_UNDER_REVIEW) {
+                if ($actor->hasPermission('cms.escalation.response-return')) {
+                    $actions[] = 'return-response';
+                }
+                if ($independent && $actor->hasPermission('cms.escalation.response-accept')) {
+                    $actions[] = 'accept-response';
+                }
+            }
+            if ($version->status_code === CmsEscalationResponseVersion::STATUS_RETURNED && $responsible && $actor->hasPermission('cms.escalation.revise')) {
+                $actions[] = 'revise-response';
+            }
+            $version->setAttribute('available_actions', array_values(array_unique($actions)));
+        }
+        if ($escalation->operational_status_code !== CmsEscalation::STATUS_RESOLVED
+            && $actor->hasRole('cias_management') && $actor->hasPermission('cms.escalation.resolve')
+            && (int) $actor->office_id !== (int) $case?->lead_responsible_office_id && $usable) {
+            $actions[] = 'resolve';
+        }
+
+        $escalation->setAttribute('available_actions', array_values(array_unique($actions)));
+        $notice?->setAttribute('available_actions', array_values(array_unique($actions)));
+
+        return $escalation;
+    }
+
+    private function canIndependent(User $actor, ?CmsRecommendationCase $case, ...$args): bool
+    {
+        $permissions = ['cms.escalation.review'];
+        if ($args !== [] && is_array(end($args))) {
+            $permissions = array_pop($args);
+        }
+        $monitor = $case?->currentAssignment?->user_id === $actor->id && $actor->hasAnyPermission($permissions);
+        $management = $actor->hasRole('cias_management') && $actor->hasPermission('cms.escalation.review');
+        if (! $case || (! $management && ! $monitor)) {
+            return false;
+        }
+
+        return ! in_array($actor->id, array_filter($args), true)
+            && (int) $actor->office_id !== (int) $case->lead_responsible_office_id;
     }
 
     public function options(User $actor, int $caseId): array

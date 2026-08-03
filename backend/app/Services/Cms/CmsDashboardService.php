@@ -2,6 +2,7 @@
 
 namespace App\Services\Cms;
 
+use App\Models\CmsClosureRequestVersion;
 use App\Models\CmsEscalation;
 use App\Models\CmsEscalationNoticeVersion;
 use App\Models\CmsEscalationResponseVersion;
@@ -29,9 +30,11 @@ class CmsDashboardService
     {
         $now = CarbonImmutable::now();
         $today = $now->startOfDay();
-        $base = $this->registry->baseQuery($user, 'cms.dashboard.view');
+        $portfolio = $this->registry->baseQuery($user, 'cms.dashboard.view');
+        $base = clone $portfolio;
+        $base->where('cms_recommendation_cases.status_code', '!=', CmsRecommendationCase::STATUS_CLOSED);
         $overdue = $this->registry->applyOverdue(clone $base, $today);
-        $visibleCaseIds = (clone $base)->reorder()->pluck('cms_recommendation_cases.id');
+        $visibleCaseIds = (clone $portfolio)->reorder()->pluck('cms_recommendation_cases.id');
 
         $cards = [
             'totalVisibleCases' => (clone $base)->count(),
@@ -152,6 +155,13 @@ class CmsDashboardService
             'responsesAwaitingReview' => CmsEscalationResponseVersion::query()->where('status_code', CmsEscalationResponseVersion::STATUS_SUBMITTED)->whereHas('response', fn (Builder $query) => $query->whereHas('escalation', fn (Builder $escalation) => $escalation->whereIn('cms_recommendation_case_id', $visibleCaseIds)))->count(),
             'escalationsInFollowUp' => CmsEscalation::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->where('operational_status_code', CmsEscalation::STATUS_FOLLOW_UP)->count(),
             'resolvedEscalations' => CmsEscalation::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->where('operational_status_code', CmsEscalation::STATUS_RESOLVED)->count(),
+            'implementedRecommendationsEligibleForClosure' => (clone $base)->where('cms_recommendation_cases.status_code', CmsRecommendationCase::STATUS_IMPLEMENTED)->whereDoesntHave('unresolvedClosureRequest')->count(),
+            'closureRequestsInDraft' => CmsClosureRequestVersion::query()->where('status_code', CmsClosureRequestVersion::DRAFT)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'closureRequestsAwaitingReview' => CmsClosureRequestVersion::query()->whereIn('status_code', [CmsClosureRequestVersion::SUBMITTED, CmsClosureRequestVersion::UNDER_REVIEW])->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'closureRequestsAwaitingDecision' => CmsClosureRequestVersion::query()->where('status_code', CmsClosureRequestVersion::FOR_DECISION)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'returnedClosureRequests' => CmsClosureRequestVersion::query()->where('status_code', CmsClosureRequestVersion::RETURNED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'recentlyClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->where('closed_at', '>=', $now->copy()->subDays(30))->count(),
+            'totalClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->count(),
             'finalizedValidationConclusions' => collect([
                 'NOT_IMPLEMENTED',
                 'PARTIALLY_IMPLEMENTED',

@@ -121,6 +121,20 @@ class CmsRecommendationApiTest extends TestCase
             'cms.escalation-evidence.upload',
             'cms.escalation-evidence.download',
             'cms.escalation-evidence.remove_draft',
+            'cms.closure.view',
+            'cms.closure.request',
+            'cms.closure.update',
+            'cms.closure.submit',
+            'cms.closure.review',
+            'cms.closure.return',
+            'cms.closure.recommend',
+            'cms.closure.approve',
+            'cms.closure.reject',
+            'cms.closure.revise',
+            'cms.closure-evidence.view',
+            'cms.closure-evidence.upload',
+            'cms.closure-evidence.download',
+            'cms.closure-evidence.remove_draft',
         ], Permission::query()->where('code', 'like', 'cms.%')->pluck('code')->all());
 
         $management = $this->user('departmenthead');

@@ -77,12 +77,16 @@ backend and recommendation-specific React workspace with immutable request
 versions, exact evidence links, protected downloads, approval decisions, and
 append-only effective-date history. CMS-7A adds the backend escalation workflow
 with formal notice, acknowledgement, response review, follow-up, and resolution
-records; CMS-7B provides the React workspace. Automatic escalation, reminders,
-recommendation closure, accepted risk, reopening, reporting, exports, AIS, and
-ARMIS remain deferred.
+records; CMS-7B provides the protected recommendation-scoped React workspace,
+including notice, acknowledgement, response, evidence, follow-up, and
+resolution views. Automatic escalation, reminders, recommendation closure,
+accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.
 
 ## Diagram rendering
 
 The workflow documents use Mermaid diagrams. GitHub and compatible Markdown
 viewers render them automatically. In a viewer without Mermaid support, the
 adjacent headings, tables, and numbered rules remain the authoritative text.
+# CMS-8A status
+
+Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B), reopening, accepted-risk, no-longer-applicable, automatic closure, reporting, AIS, and ARMIS integrations remain deferred.

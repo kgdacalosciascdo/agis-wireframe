@@ -28,6 +28,10 @@ class CmsRecommendationCase extends Model
 
     public const STATUS_IMPLEMENTED = 'IMPLEMENTED';
 
+    public const STATUS_FOR_CLOSURE = 'FOR_CLOSURE';
+
+    public const STATUS_CLOSED = 'CLOSED';
+
     protected $fillable = [
         'cms_recommendation_id',
         'status_code',
@@ -36,6 +40,7 @@ class CmsRecommendationCase extends Model
         'opened_at',
         'created_by',
         'lock_version',
+        'closed_at', 'closed_by', 'closure_decision_id',
     ];
 
     protected function casts(): array
@@ -44,6 +49,7 @@ class CmsRecommendationCase extends Model
             'effective_target_implementation_date' => 'date',
             'opened_at' => 'datetime',
             'lock_version' => 'integer',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -162,5 +168,25 @@ class CmsRecommendationCase extends Model
             CmsValidationReview::class,
             'cms_recommendation_case_id',
         )->where('active_slot', 'ACTIVE');
+    }
+
+    public function closureRequests(): HasMany
+    {
+        return $this->hasMany(CmsClosureRequest::class, 'cms_recommendation_case_id')->orderByDesc('request_sequence');
+    }
+
+    public function unresolvedClosureRequest(): HasOne
+    {
+        return $this->hasOne(CmsClosureRequest::class, 'cms_recommendation_case_id')->whereNull('resolved_at');
+    }
+
+    public function closureDecision(): BelongsTo
+    {
+        return $this->belongsTo(CmsClosureDecision::class, 'closure_decision_id');
+    }
+
+    public function closedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by')->withTrashed();
     }
 }

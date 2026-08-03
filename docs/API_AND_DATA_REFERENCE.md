@@ -1169,3 +1169,32 @@ The response contains only eligible recorded Progress Update Versions, safe
 Primary Validator display fields, case lock/context, and unavailable reasons.
 The endpoint reuses the CMS-5A aggregate independence and confidentiality
 guards; the frontend never loads the unrestricted User Registry.
+
+## CMS-6A target-date extension API
+
+The backend exposes the following additive routes:
+
+```text
+GET    /api/cms/recommendations/{recommendation}/extensions
+GET    /api/cms/recommendations/{recommendation}/extensions/history
+GET    /api/cms/recommendations/{recommendation}/extension-options
+POST   /api/cms/recommendations/{recommendation}/extensions
+GET    /api/cms/extensions/{extension}
+PUT    /api/cms/extensions/{extension}/versions/{version}
+POST   /api/cms/extensions/{extension}/versions/{version}/transitions/submit
+POST   /api/cms/extensions/{extension}/versions/{version}/transitions/start-review
+POST   /api/cms/extensions/{extension}/versions/{version}/transitions/return
+POST   /api/cms/extensions/{extension}/versions/{version}/transitions/recommend
+POST   /api/cms/extensions/{extension}/versions/{version}/transitions/approve
+POST   /api/cms/extensions/{extension}/versions/{version}/transitions/reject
+POST   /api/cms/extensions/{extension}/versions/{version}/revisions
+POST   /api/cms/extensions/{extension}/versions/{version}/evidence
+GET    /api/cms/extension-evidence/{evidence}/download
+DELETE /api/cms/extension-evidence/{evidence}
+```
+
+The migration creates request families, immutable versions, assessments,
+decisions, exact evidence links, and append-only target-date history. The
+extension permissions are `cms.extension.*` and `cms.extension-evidence.*`;
+the verified CMS permission total is 58 in the current runtime. Existing
+legacy `aem.*` compatibility permissions are retained.

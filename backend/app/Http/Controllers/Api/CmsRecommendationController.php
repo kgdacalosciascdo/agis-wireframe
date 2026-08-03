@@ -11,6 +11,7 @@ use App\Services\Cms\CmsActionPlanService;
 use App\Services\Cms\CmsProgressUpdateService;
 use App\Services\Cms\CmsRecommendationRegistryService;
 use App\Services\Cms\CmsRecommendationScopeService;
+use App\Services\Cms\CmsTargetDateExtensionService;
 use App\Services\Cms\CmsValidationService;
 use App\Support\ActivityRecorder;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +27,7 @@ class CmsRecommendationController extends Controller
         private readonly CmsActionPlanService $actionPlans,
         private readonly CmsProgressUpdateService $progressUpdates,
         private readonly CmsValidationService $validations,
+        private readonly CmsTargetDateExtensionService $extensions,
     ) {}
 
     public function index(CmsRecommendationIndexRequest $request): JsonResponse
@@ -92,6 +94,14 @@ class CmsRecommendationController extends Controller
                 ),
             );
         }
+        foreach ($case->targetDateExtensionRequests as $extension) {
+            foreach ($extension->versions as $version) {
+                $version->setAttribute(
+                    'available_actions',
+                    $this->extensions->permittedActions($request->user(), $extension, $version),
+                );
+            }
+        }
         $this->recordView($request, $case);
 
         return response()->json([
@@ -121,6 +131,12 @@ class CmsRecommendationController extends Controller
             'validationReviews.currentAssignment.user',
             'validationReviews.currentVersion',
             'validationReviews.finalizedVersion',
+            'targetDateExtensionRequests.versions.assessment.assessor',
+            'targetDateExtensionRequests.versions.decision.decider',
+            'targetDateExtensionRequests.versions.activeEvidenceLinks.documentVersion',
+            'targetDateExtensionRequests.currentVersion',
+            'targetDateExtensionRequests.resolvedVersion',
+            'targetDateHistory.actor',
         ];
     }
 

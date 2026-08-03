@@ -211,6 +211,24 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     ];
                 },
             ),
+            'targetDateExtensionSummary' => $this->whenLoaded(
+                'targetDateExtensionRequests',
+                fn (): array => [
+                    'requestCount' => $this->targetDateExtensionRequests->count(),
+                    'openRequestCount' => $this->targetDateExtensionRequests->filter(
+                        fn ($extension): bool => $extension->resolved_at === null,
+                    )->count(),
+                    'approvedRequestCount' => $this->targetDateExtensionRequests->filter(
+                        fn ($extension): bool => $extension->resolvedVersion?->status_code === 'APPROVED',
+                    )->count(),
+                    'currentEffectiveTargetDate' => $this->effective_target_implementation_date?->toDateString(),
+                    'originalTargetDate' => $this->recommendation?->original_target_implementation_date?->toDateString(),
+                    'requests' => CmsTargetDateExtensionResource::collection($this->targetDateExtensionRequests),
+                    'history' => CmsRecommendationTargetDateHistoryResource::collection(
+                        $this->whenLoaded('targetDateHistory'),
+                    ),
+                ],
+            ),
         ];
     }
 

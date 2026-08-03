@@ -796,3 +796,13 @@ validator records procedures, professional evidence assessments, and a proposed
 conclusion; an independent supervisor starts review, returns work, or finalizes
 the conclusion. `IMPLEMENTED` is an independent professional conclusion only and
 does not mean the recommendation is closed.
+
+## CMS target-date extension flow
+
+Eligible CMS cases may create one unresolved target-date extension family. The
+family moves through draft, submission, independent review, assessment, and a
+recorded management decision. Approval alone updates the effective target date;
+the original date and case lifecycle remain unchanged. Exact document-version
+evidence, optimistic locks, append-only date history, audit/activity records,
+and notifications are part of the transaction. The extension backend is
+CMS-6A; its React workspace is deferred to CMS-6B.

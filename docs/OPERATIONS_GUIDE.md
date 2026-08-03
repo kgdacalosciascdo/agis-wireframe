@@ -293,7 +293,7 @@ together. CMS-4A has no React deployment change.
 
 After CMS-5A, run the additive migration
 `2026_07_31_050000_create_cms_validation_tables`, then rerun
-`RolePermissionSeeder`. CMS has 44 permissions: the prior 31 plus nine
+`RolePermissionSeeder`. CMS has 58 permissions: the prior 31 plus nine
 `cms.validation.*` and four `cms.validation-evidence.*` codes. The migration
 adds six validation tables and expands only the recommendation-case status
 constraint; it does not rewrite intake, Action Plan, Progress Update, evidence,
@@ -321,6 +321,16 @@ Core storage and must be backed up with its matching database snapshot.
 CMS-5B is a frontend deployment change only; it adds no migration or seed step.
 Extensions, escalation, closure, reopening, reports, AIS, and ARMIS remain
 undeployed.
+
+After CMS-6A, run the additive migration
+`2026_08_03_000000_create_cms_target_date_extension_tables`, then rerun
+`RolePermissionSeeder`. The migration backfills immutable initial/effective
+target-date history for existing CMS cases and adds extension request,
+version, assessment, decision, evidence-link, and history tables. It does not
+change original recommendation dates or case statuses. Back up the database
+and private document storage together before applying it. The extension React
+workspace is deferred to CMS-6B; no reminder, escalation, or closure jobs are
+installed by CMS-6A.
 
 ## 11. Production checklist
 

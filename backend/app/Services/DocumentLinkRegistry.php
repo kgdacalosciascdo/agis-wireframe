@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditArea;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
+use App\Models\CmsTargetDateExtensionVersion;
 use App\Models\CmsValidationVersion;
 use App\Models\IapAuditUniverseItem;
 use App\Models\IapPlanEngagement;
@@ -228,6 +229,36 @@ class DocumentLinkRegistry
                         "CMS-VAL-ITEM-{$item->id}",
                         "{$code} — Validation Item {$item->sequence_number}",
                     ),
+                ));
+            }
+        }
+
+        if ($user->hasPermission('cms.extension-evidence.upload')) {
+            $visibleCaseIds = $this->cmsScope
+                ->visibleCases(
+                    CmsRecommendationCase::query(),
+                    $user,
+                    'cms.extension.view',
+                )
+                ->pluck('id');
+            $extensionVersions = CmsTargetDateExtensionVersion::query()
+                ->where('status_code', 'DRAFT')
+                ->whereHas(
+                    'request',
+                    fn ($query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds),
+                )
+                ->with('request')
+                ->orderByDesc('id')
+                ->limit(250)
+                ->get();
+            foreach ($extensionVersions as $version) {
+                $code = $version->displayCode();
+                $options->push($this->option(
+                    'CMS',
+                    'EXTENSION_REQUEST_VERSION',
+                    $version->id,
+                    $code,
+                    "{$code} — Target-Date Extension Request",
                 ));
             }
         }

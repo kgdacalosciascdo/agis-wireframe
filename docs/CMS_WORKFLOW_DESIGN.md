@@ -611,3 +611,28 @@ use authenticated Core document routes. A finalized `IMPLEMENTED` conclusion is
 displayed as independently validated while closure remains pending; the React
 workspace does not create closure, extensions, reminders, escalation, reopening,
 reports, exports, or CMS/AIS/ARMIS integrations.
+
+## CMS-6A target-date extensions
+
+CMS-6A adds a backend-only, approval-controlled target-date extension workflow.
+An extension is a stable request family with immutable versions and follows
+`DRAFT → SUBMITTED → UNDER_REVIEW → FOR_APPROVAL → APPROVED|REJECTED`, with
+`RETURNED` revisions between review stages. Requests are available only for
+eligible `MONITORING` or `PARTIALLY_IMPLEMENTED` cases with an accepted action
+plan, recorded progress, a current effective target date, and no active
+validation. The responsible office prepares and submits; independent CMS
+reviewers assess; an authorized management decision-maker approves or rejects.
+
+The original AEMS target date remains immutable. Only an approved decision may
+change `cms_recommendation_cases.effective_target_implementation_date`; every
+change appends `cms_recommendation_target_date_history` and records a decision,
+event, activity entry, audit entry, and notification. Case status is unchanged.
+Evidence is linked to an exact Core document version, with checksum and
+confidentiality snapshots. Approved and rejected versions, decisions, and date
+history are append-only; stale lock versions and changed source snapshots are
+rejected.
+
+CMS-6A exposes the extension API and dashboard/detail aggregates. The React
+extension workspace is deferred to CMS-6B. Automated reminders, escalation,
+closure, accepted-risk, no-longer-applicable, reopening, recurrence, reports,
+exports, AIS, and ARMIS integrations remain outside this increment.

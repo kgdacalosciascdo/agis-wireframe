@@ -120,6 +120,30 @@ class CmsRecommendationCase extends Model
         )->orderByDesc('validation_sequence');
     }
 
+    public function targetDateExtensionRequests(): HasMany
+    {
+        return $this->hasMany(
+            CmsTargetDateExtensionRequest::class,
+            'cms_recommendation_case_id',
+        )->orderByDesc('request_sequence');
+    }
+
+    public function unresolvedTargetDateExtensionRequest(): HasOne
+    {
+        return $this->hasOne(
+            CmsTargetDateExtensionRequest::class,
+            'cms_recommendation_case_id',
+        )->whereNull('resolved_at');
+    }
+
+    public function targetDateHistory(): HasMany
+    {
+        return $this->hasMany(
+            CmsRecommendationTargetDateHistory::class,
+            'cms_recommendation_case_id',
+        )->orderBy('occurred_at')->orderBy('id');
+    }
+
     public function activeValidationReview(): HasOne
     {
         return $this->hasOne(

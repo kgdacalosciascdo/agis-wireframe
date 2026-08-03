@@ -5,6 +5,7 @@ namespace App\Services\Cms;
 use App\Models\CmsProgressUpdate;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
+use App\Models\CmsTargetDateExtensionVersion;
 use App\Models\CmsValidationReview;
 use App\Models\CmsValidationVersion;
 use App\Models\User;
@@ -113,6 +114,33 @@ class CmsDashboardService
                     ),
                 )
                 ->count(),
+            'extensionRequestsInDraft' => CmsTargetDateExtensionVersion::query()
+                ->where('status_code', CmsTargetDateExtensionVersion::STATUS_DRAFT)
+                ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
+                ->count(),
+            'extensionRequestsAwaitingReview' => CmsTargetDateExtensionVersion::query()
+                ->whereIn('status_code', [
+                    CmsTargetDateExtensionVersion::STATUS_SUBMITTED,
+                    CmsTargetDateExtensionVersion::STATUS_UNDER_REVIEW,
+                ])
+                ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
+                ->count(),
+            'extensionRequestsAwaitingApproval' => CmsTargetDateExtensionVersion::query()
+                ->where('status_code', CmsTargetDateExtensionVersion::STATUS_FOR_APPROVAL)
+                ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
+                ->count(),
+            'returnedExtensionRequests' => CmsTargetDateExtensionVersion::query()
+                ->where('status_code', CmsTargetDateExtensionVersion::STATUS_RETURNED)
+                ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
+                ->count(),
+            'approvedExtensions' => CmsTargetDateExtensionVersion::query()
+                ->where('status_code', CmsTargetDateExtensionVersion::STATUS_APPROVED)
+                ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
+                ->count(),
+            'rejectedExtensionRequests' => CmsTargetDateExtensionVersion::query()
+                ->where('status_code', CmsTargetDateExtensionVersion::STATUS_REJECTED)
+                ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
+                ->count(),
             'finalizedValidationConclusions' => collect([
                 'NOT_IMPLEMENTED',
                 'PARTIALLY_IMPLEMENTED',
@@ -199,7 +227,7 @@ class CmsDashboardService
             'dataLimitations' => [
                 'Due-soon metrics require an approved runtime threshold.',
                 'Progress metrics remain management-reported until a separate Validation Review is finalized.',
-                'Target-date extension, escalation, and recommendation closure workflows are not implemented.',
+                'Escalation and recommendation closure workflows are not implemented; target-date extensions are tracked through the CMS-6A workflow.',
             ],
         ];
     }

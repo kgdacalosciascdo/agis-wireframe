@@ -88,6 +88,20 @@ class CmsRecommendationApiTest extends TestCase
             'cms.validation-evidence.upload',
             'cms.validation-evidence.download',
             'cms.validation-evidence.remove_draft',
+            'cms.extension.view',
+            'cms.extension.create',
+            'cms.extension.update',
+            'cms.extension.submit',
+            'cms.extension.review',
+            'cms.extension.return',
+            'cms.extension.recommend',
+            'cms.extension.approve',
+            'cms.extension.reject',
+            'cms.extension.revise',
+            'cms.extension-evidence.view',
+            'cms.extension-evidence.upload',
+            'cms.extension-evidence.download',
+            'cms.extension-evidence.remove_draft',
         ], Permission::query()->where('code', 'like', 'cms.%')->pluck('code')->all());
 
         $management = $this->user('departmenthead');

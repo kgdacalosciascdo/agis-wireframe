@@ -67,7 +67,7 @@ class CmsValidationTest extends TestCase
             4,
             Permission::query()->where('code', 'like', 'cms.validation-evidence.%')->count(),
         );
-        $this->assertSame(44, Permission::query()->where('code', 'like', 'cms.%')->count());
+        $this->assertSame(58, Permission::query()->where('code', 'like', 'cms.%')->count());
 
         $management = $this->user('departmenthead');
         $validator = $this->user('cias.employee');

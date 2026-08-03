@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\CmsDashboardController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
+use App\Http\Controllers\Api\CmsTargetDateExtensionController;
 use App\Http\Controllers\Api\CmsValidationController;
 use App\Http\Controllers\Api\CoreRegistryController;
 use App\Http\Controllers\Api\DemoAccountController;
@@ -159,6 +160,39 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.validation-evidence.download');
     Route::delete('/cms/validation-evidence/{evidence}', [CmsValidationController::class, 'removeEvidence'])
         ->middleware('permission:cms.validation-evidence.remove_draft');
+
+    Route::get('/cms/recommendations/{recommendation}/extensions', [CmsTargetDateExtensionController::class, 'forRecommendation'])
+        ->middleware('permission:cms.extension.view');
+    Route::get('/cms/recommendations/{recommendation}/extensions/history', [CmsTargetDateExtensionController::class, 'history'])
+        ->middleware('permission:cms.extension.view');
+    Route::get('/cms/recommendations/{recommendation}/extension-options', [CmsTargetDateExtensionController::class, 'options'])
+        ->middleware('permission:cms.extension.create');
+    Route::post('/cms/recommendations/{recommendation}/extensions', [CmsTargetDateExtensionController::class, 'store'])
+        ->middleware('permission:cms.extension.create');
+    Route::get('/cms/extensions/{extension}', [CmsTargetDateExtensionController::class, 'show'])
+        ->middleware('permission:cms.extension.view');
+    Route::put('/cms/extensions/{extension}/versions/{version}', [CmsTargetDateExtensionController::class, 'update'])
+        ->middleware('permission:cms.extension.update');
+    Route::post('/cms/extensions/{extension}/versions/{version}/transitions/submit', [CmsTargetDateExtensionController::class, 'submit'])
+        ->middleware('permission:cms.extension.submit');
+    Route::post('/cms/extensions/{extension}/versions/{version}/transitions/start-review', [CmsTargetDateExtensionController::class, 'startReview'])
+        ->middleware('permission:cms.extension.review');
+    Route::post('/cms/extensions/{extension}/versions/{version}/transitions/return', [CmsTargetDateExtensionController::class, 'return'])
+        ->middleware('permission:cms.extension.return');
+    Route::post('/cms/extensions/{extension}/versions/{version}/transitions/recommend', [CmsTargetDateExtensionController::class, 'recommend'])
+        ->middleware('permission:cms.extension.recommend');
+    Route::post('/cms/extensions/{extension}/versions/{version}/transitions/approve', [CmsTargetDateExtensionController::class, 'approve'])
+        ->middleware('permission:cms.extension.approve');
+    Route::post('/cms/extensions/{extension}/versions/{version}/transitions/reject', [CmsTargetDateExtensionController::class, 'reject'])
+        ->middleware('permission:cms.extension.reject');
+    Route::post('/cms/extensions/{extension}/versions/{version}/revisions', [CmsTargetDateExtensionController::class, 'revise'])
+        ->middleware('permission:cms.extension.revise');
+    Route::post('/cms/extensions/{extension}/versions/{version}/evidence', [CmsTargetDateExtensionController::class, 'uploadEvidence'])
+        ->middleware('permission:cms.extension-evidence.upload');
+    Route::get('/cms/extension-evidence/{evidence}/download', [CmsTargetDateExtensionController::class, 'downloadEvidence'])
+        ->middleware('permission:cms.extension-evidence.download');
+    Route::delete('/cms/extension-evidence/{evidence}', [CmsTargetDateExtensionController::class, 'removeEvidence'])
+        ->middleware('permission:cms.extension-evidence.remove_draft');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

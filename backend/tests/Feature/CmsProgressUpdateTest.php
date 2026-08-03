@@ -462,7 +462,7 @@ class CmsProgressUpdateTest extends TestCase
             )
             ->assertJsonPath(
                 'data.dataLimitations.2',
-                'Escalation and recommendation closure workflows are not implemented; target-date extensions are tracked through the CMS-6A workflow.',
+                'Automatic escalation, scheduled reminders, recommendation closure, accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.',
             );
     }
 

@@ -144,6 +144,18 @@ class CmsRecommendationCase extends Model
         )->orderBy('occurred_at')->orderBy('id');
     }
 
+    public function escalations(): HasMany
+    {
+        return $this->hasMany(CmsEscalation::class, 'cms_recommendation_case_id')
+            ->orderByDesc('escalation_sequence');
+    }
+
+    public function activeEscalation(): HasOne
+    {
+        return $this->hasOne(CmsEscalation::class, 'cms_recommendation_case_id')
+            ->whereNull('resolved_at');
+    }
+
     public function activeValidationReview(): HasOne
     {
         return $this->hasOne(

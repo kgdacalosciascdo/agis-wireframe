@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\AuditArea;
+use App\Models\CmsEscalationNoticeVersion;
+use App\Models\CmsEscalationResponseVersion;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
 use App\Models\CmsTargetDateExtensionVersion;
@@ -260,6 +262,20 @@ class DocumentLinkRegistry
                     $code,
                     "{$code} — Target-Date Extension Request",
                 ));
+            }
+        }
+
+        if ($user->hasPermission('cms.escalation-evidence.upload')) {
+            $visibleCaseIds = $this->cmsScope->visibleCases(CmsRecommendationCase::query(), $user, 'cms.escalation.view')->pluck('id');
+            $noticeVersions = CmsEscalationNoticeVersion::query()->where('status_code', 'DRAFT')->whereHas('escalation', fn ($query) => $query->whereHas('case', fn ($case) => $case->whereIn('id', $visibleCaseIds)))->with('escalation')->orderByDesc('id')->limit(250)->get();
+            foreach ($noticeVersions as $version) {
+                $code = "ESC-NOTICE-{$version->cms_escalation_id}-V{$version->version_number}";
+                $options->push($this->option('CMS', 'ESCALATION_NOTICE_VERSION', $version->id, $code, "{$code} — Escalation Notice"));
+            }
+            $responseVersions = CmsEscalationResponseVersion::query()->where('status_code', 'DRAFT')->whereHas('response', fn ($query) => $query->whereHas('escalation', fn ($escalation) => $escalation->whereHas('case', fn ($case) => $case->whereIn('id', $visibleCaseIds))))->with('response')->orderByDesc('id')->limit(250)->get();
+            foreach ($responseVersions as $version) {
+                $code = "ESC-RESPONSE-{$version->cms_escalation_response_id}-V{$version->version_number}";
+                $options->push($this->option('CMS', 'ESCALATION_RESPONSE_VERSION', $version->id, $code, "{$code} — Escalation Response"));
             }
         }
 

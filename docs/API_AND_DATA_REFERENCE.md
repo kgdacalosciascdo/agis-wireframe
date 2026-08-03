@@ -650,9 +650,9 @@ counts without changing existing fields.
 
 CMS-4B provides the recommendation-specific React workspace. Independent
 validation and implementation conclusions are implemented by CMS-5A below.
-Extensions, due-soon configuration, reminders, escalation, closure, accepted
-risk, no-longer-applicable decisions, reopening, and CMS reports/exports remain
-unimplemented.
+Due-soon configuration, reminders, escalation closure, accepted risk,
+no-longer-applicable decisions, reopening, and CMS reports/exports remain
+unimplemented; CMS-6A/6B target-date extensions are operational.
 
 ### 8.0.3 CMS-5A independent validation backend
 
@@ -1196,7 +1196,7 @@ DELETE /api/cms/extension-evidence/{evidence}
 The migration creates request families, immutable versions, assessments,
 decisions, exact evidence links, and append-only target-date history. The
 extension permissions are `cms.extension.*` and `cms.extension-evidence.*`;
-the verified CMS permission total is 58 in the current runtime. Existing
+the verified CMS permission total is 76 in the current runtime. Existing
 legacy `aem.*` compatibility permissions are retained.
 
 ### CMS-6B frontend integration
@@ -1213,3 +1213,43 @@ The frontend sends only CMS-6A camelCase payload fields and current lock
 versions. It never submits baseline source IDs, actors, statuses, approved
 dates, or case-status changes. Evidence uploads use multipart requests and
 protected authenticated downloads; internal storage paths are never rendered.
+
+## CMS-7A escalation management API
+
+CMS-7A adds a backend-only, scoped escalation workflow. The escalation family
+is separate from recommendation case status and uses immutable notice and
+response versions.
+
+```text
+GET  /api/cms/recommendations/{recommendation}/escalations
+GET  /api/cms/recommendations/{recommendation}/escalation-options
+POST /api/cms/recommendations/{recommendation}/escalations
+GET  /api/cms/escalations/{escalation}
+PUT  /api/cms/escalations/{escalation}/notice-versions/{version}
+POST /api/cms/escalations/{escalation}/notice-versions/{version}/transitions/submit
+POST /api/cms/escalations/{escalation}/notice-versions/{version}/transitions/start-review
+POST /api/cms/escalations/{escalation}/notice-versions/{version}/transitions/return
+POST /api/cms/escalations/{escalation}/notice-versions/{version}/transitions/issue
+POST /api/cms/escalations/{escalation}/notice-versions/{version}/revisions
+POST /api/cms/escalations/{escalation}/acknowledgements
+GET  /api/cms/escalations/{escalation}/response
+POST /api/cms/escalations/{escalation}/response
+PUT  /api/cms/escalation-responses/{response}/versions/{version}
+POST /api/cms/escalation-responses/{response}/versions/{version}/transitions/submit
+POST /api/cms/escalation-responses/{response}/versions/{version}/transitions/start-review
+POST /api/cms/escalation-responses/{response}/versions/{version}/transitions/return
+POST /api/cms/escalation-responses/{response}/versions/{version}/transitions/accept
+POST /api/cms/escalation-responses/{response}/versions/{version}/revisions
+POST /api/cms/escalations/{escalation}/resolve
+```
+
+Notice and response evidence pins exact Core Document Versions with checksum
+and confidentiality snapshots. The options endpoint returns trigger codes,
+source target-date and overdue context, pending extension context, active
+monitor, prior escalation count, safe recipient summaries, lock version, and
+authoritative unavailability reasons. The permission catalogue adds fourteen
+`cms.escalation.*` permissions and four `cms.escalation-evidence.*` permissions.
+
+CMS-7B will provide the React escalation workspace. Automatic escalation,
+scheduled reminders, recommendation closure, accepted risk, reopening,
+reports, exports, AIS, and ARMIS remain unimplemented.

@@ -229,6 +229,17 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     ),
                 ],
             ),
+            'escalationSummary' => $this->whenLoaded(
+                'escalations',
+                fn (): array => [
+                    'hasEscalations' => $this->escalations->isNotEmpty(),
+                    'activeEscalationId' => $this->escalations->first(fn ($e): bool => $e->resolved_at === null)?->id,
+                    'activeOperationalStatus' => $this->escalations->first(fn ($e): bool => $e->resolved_at === null)?->operational_status_code,
+                    'primaryTriggerCode' => $this->escalations->first(fn ($e): bool => $e->resolved_at === null)?->primary_trigger_code,
+                    'priorEscalationCount' => $this->escalations->count(),
+                    'escalations' => CmsEscalationResource::collection($this->escalations),
+                ],
+            ),
         ];
     }
 

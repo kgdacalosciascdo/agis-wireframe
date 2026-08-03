@@ -9,6 +9,7 @@ use App\Models\AuditLog;
 use App\Models\AuditRecommendation;
 use App\Models\AuditReport;
 use App\Models\AuditReportVersion;
+use App\Models\CmsEscalation;
 use App\Models\CmsRecommendation;
 use App\Models\CmsRecommendationAssignment;
 use App\Models\CmsRecommendationCase;
@@ -102,6 +103,24 @@ class CmsRecommendationApiTest extends TestCase
             'cms.extension-evidence.upload',
             'cms.extension-evidence.download',
             'cms.extension-evidence.remove_draft',
+            'cms.escalation.view',
+            'cms.escalation.create',
+            'cms.escalation.update',
+            'cms.escalation.submit',
+            'cms.escalation.review',
+            'cms.escalation.return',
+            'cms.escalation.issue',
+            'cms.escalation.acknowledge',
+            'cms.escalation.respond',
+            'cms.escalation.response-review',
+            'cms.escalation.response-return',
+            'cms.escalation.response-accept',
+            'cms.escalation.resolve',
+            'cms.escalation.revise',
+            'cms.escalation-evidence.view',
+            'cms.escalation-evidence.upload',
+            'cms.escalation-evidence.download',
+            'cms.escalation-evidence.remove_draft',
         ], Permission::query()->where('code', 'like', 'cms.%')->pluck('code')->all());
 
         $management = $this->user('departmenthead');
@@ -408,6 +427,76 @@ class CmsRecommendationApiTest extends TestCase
                 ->whereKey($case->id)
                 ->exists(),
         );
+    }
+
+    public function test_cms_escalation_notice_submission_review_and_issue_preserve_case_status(): void
+    {
+        $management = $this->user('departmenthead');
+        $monitor = $this->user('auditor');
+        $issuer = User::factory()->create([
+            'role_id' => $management->role_id,
+            'office_id' => $management->office_id,
+            'is_active' => true,
+            'is_manually_locked' => false,
+        ]);
+        $issuer->syncRoleAssignments([$management->role_id], $management->role_id);
+        $case = $this->case('ESCALATION', $this->user('auditee')->office, 'INTERNAL', 'HIGH', now()->subDay());
+        $case->forceFill(['status_code' => CmsRecommendationCase::STATUS_MONITORING])->save();
+        $this->directAssignment($case, $monitor);
+
+        Sanctum::actingAs($monitor);
+        $create = $this->postJson("/api/cms/recommendations/{$case->id}/escalations", [
+            'primaryTriggerCode' => 'OVERDUE_TARGET',
+            'subject' => 'Escalation notice',
+            'escalationSummary' => 'Management attention is required.',
+            'basisAndContext' => 'The effective target date has passed.',
+            'requiredManagementActions' => 'Provide a documented response.',
+            'requiredResponseContents' => 'Include actions, owner, and date.',
+            'responseDueDate' => now()->addDays(10)->toDateString(),
+            'lockVersion' => $case->lock_version,
+        ])->assertCreated();
+        $escalationId = $create->json('data.escalation.id');
+        $versionId = $create->json('data.escalation.currentNotice.id');
+        $lock = $create->json('data.escalation.lockVersion');
+
+        $submit = $this->postJson("/api/cms/escalations/{$escalationId}/notice-versions/{$versionId}/transitions/submit", ['lockVersion' => $lock, 'confirmation' => true])->assertOk();
+        $lock = $submit->json('data.escalation.lockVersion');
+
+        Sanctum::actingAs($management);
+        $review = $this->postJson("/api/cms/escalations/{$escalationId}/notice-versions/{$versionId}/transitions/start-review", ['lockVersion' => $lock])->assertOk();
+        $lock = $review->json('data.escalation.lockVersion');
+        $issuer = User::factory()->create(['role_id' => $management->role_id, 'office_id' => $management->office_id, 'is_active' => true, 'is_manually_locked' => false]);
+        $issuer->syncRoleAssignments([$management->role_id], $management->role_id);
+        Sanctum::actingAs($issuer);
+        Sanctum::actingAs($issuer);
+        $this->postJson("/api/cms/escalations/{$escalationId}/notice-versions/{$versionId}/transitions/issue", ['lockVersion' => $review->json('data.escalation.currentNotice.lockVersion'), 'issuanceComment' => 'Issued after independent review.', 'confirmation' => true])->assertOk();
+
+        $this->assertDatabaseHas('cms_escalations', ['id' => $escalationId, 'operational_status_code' => CmsEscalation::STATUS_ISSUED]);
+        $this->assertDatabaseHas('cms_recommendation_cases', ['id' => $case->id, 'status_code' => CmsRecommendationCase::STATUS_MONITORING]);
+
+        $auditee = $this->user('auditee');
+        Sanctum::actingAs($auditee);
+        $response = $this->postJson("/api/cms/escalations/{$escalationId}/response", [
+            'managementResponseSummary' => 'Management has responded.',
+            'rootCauseOrExplanation' => 'The process owner changed.',
+            'actionsCompleted' => 'The control was redesigned.',
+            'remainingActions' => 'Evidence will be retained.',
+            'committedActions' => 'Complete the remaining action.',
+            'responsiblePersonOrOffice' => 'Responsible office head',
+            'commitmentTargetDate' => now()->addDays(30)->toDateString(),
+            'noEvidenceExplanation' => 'Supporting evidence will be provided during follow-up.',
+            'lockVersion' => 1,
+        ])->assertCreated();
+        $responseId = $response->json('data.response.id');
+        $responseVersionId = $response->json('data.response.currentVersion.id');
+        $responseLock = $response->json('data.response.currentVersion.lockVersion');
+        $submitted = $this->postJson("/api/cms/escalation-responses/{$responseId}/versions/{$responseVersionId}/transitions/submit", ['lockVersion' => $responseLock, 'confirmation' => true])->assertOk();
+
+        Sanctum::actingAs($management);
+        $reviewed = $this->postJson("/api/cms/escalation-responses/{$responseId}/versions/{$responseVersionId}/transitions/start-review", ['lockVersion' => $submitted->json('data.response.currentVersion.lockVersion')])->assertOk();
+        $accepted = $this->postJson("/api/cms/escalation-responses/{$responseId}/versions/{$responseVersionId}/transitions/accept", ['lockVersion' => $reviewed->json('data.response.currentVersion.lockVersion'), 'acceptanceComment' => 'Accepted as the follow-up baseline.', 'confirmation' => true])->assertOk();
+        $this->postJson("/api/cms/escalations/{$escalationId}/resolve", ['lockVersion' => $accepted->json('data.response.escalation.lockVersion') ?: $this->getJson("/api/cms/escalations/{$escalationId}")->json('data.escalation.lockVersion'), 'resolutionSummary' => 'Formal escalation addressed.', 'basisForResolution' => 'The management response is sufficient for follow-up.', 'followUpRequirements' => 'Continue normal CMS monitoring.', 'confirmation' => true])->assertOk();
+        $this->assertDatabaseHas('cms_escalations', ['id' => $escalationId, 'operational_status_code' => CmsEscalation::STATUS_RESOLVED]);
     }
 
     private function user(string $username): User

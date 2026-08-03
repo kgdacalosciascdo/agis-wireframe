@@ -320,7 +320,8 @@ may have `current_slot = CURRENT` per review. Validator evidence is private
 Core storage and must be backed up with its matching database snapshot.
 CMS-5B is a frontend deployment change only; it adds no migration or seed step.
 CMS-6A and CMS-6B now provide the target-date extension backend and React
-workspace. Escalation, closure, reopening, reports, AIS, and ARMIS remain
+workspace. CMS-7A adds the additive escalation backend; CMS-7B React pages,
+automatic escalation, closure, reopening, reports, AIS, and ARMIS remain
 deferred.
 
 After CMS-6A, run the additive migration
@@ -336,7 +337,10 @@ CMS-6B is a frontend deployment change for the CMS-6A extension workspace. It
 adds no migration, seed step, permission, or API endpoint. Run the normal
 frontend lint, build, and focused Playwright suite after deployment. The
 workspace continues to use authenticated CMS-6A endpoints and does not add
-reminders, escalation, closure, reopening, reporting, AIS, or ARMIS behavior.
+reminders, closure, reopening, reporting, AIS, or ARMIS behavior. CMS-7A
+requires the additive `2026_08_04_000000_create_cms_escalation_tables`
+migration and no seed reset; run the focused CMS escalation feature tests after
+applying it.
 
 ## 11. Production checklist
 

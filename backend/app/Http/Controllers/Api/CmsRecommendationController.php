@@ -137,6 +137,11 @@ class CmsRecommendationController extends Controller
             'targetDateExtensionRequests.currentVersion',
             'targetDateExtensionRequests.resolvedVersion',
             'targetDateHistory.actor',
+            'escalations.currentNotice.preparer',
+            'escalations.currentNotice.recipients',
+            'escalations.currentNotice.acknowledgements',
+            'escalations.response.currentVersion.preparer',
+            'escalations.resolution.resolver',
         ];
     }
 

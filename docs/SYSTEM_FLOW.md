@@ -808,3 +808,34 @@ and notifications are part of the transaction. CMS-6A supplies the backend
 contract and CMS-6B supplies the protected recommendation-specific React
 workspace. Pending requests continue to use the current effective date for
 overdue presentation; only approval changes it.
+
+## CMS-7A escalation management flow
+
+```mermaid
+flowchart LR
+    O[Eligible MONITORING/PARTIALLY_IMPLEMENTED case] --> D[Escalation notice draft]
+    D --> S[Submit]
+    S --> R[Independent review]
+    R -->|Return| RV[Immutable notice revision]
+    RV --> D
+    R -->|Issue| I[Issued notice + recipient snapshots]
+    I --> A[Responsible-office acknowledgement]
+    I --> MR[Management response draft]
+    MR --> MS[Submit response]
+    MS --> RR[Independent response review]
+    RR -->|Return| RRV[Immutable response revision]
+    RRV --> MR
+    RR -->|Accept| F[Follow-up baseline]
+    F --> X[CIAS resolution]
+```
+
+CMS-7A stores escalation families, immutable notice/response versions,
+recipient snapshots, append-only acknowledgements, Core Document evidence
+links, and immutable escalation resolutions. Source snapshots preserve the
+case status, original/effective dates, overdue context, target-date extension
+context, accepted Action Plan, latest Progress Update, latest validation, and
+Compliance Monitor at submission/issuance time. Escalation operational status
+never mutates the recommendation implementation status; resolving an
+escalation does not close the recommendation. CMS-7B will add the React pages;
+automatic creation, reminders, closure, accepted risk, reopening, reporting,
+exports, AIS, and ARMIS remain deferred.

@@ -28,9 +28,10 @@ Implemented as-built scope:
   four controlled conclusions, and authoritative implementation-state
   transitions.
 
-Target-date extensions, due-soon configuration, reminders, escalation, closure, accepted risk,
+Target-date extensions and the CMS-7A escalation backend are operational.
+Due-soon configuration, reminders, closure, accepted risk,
 no-longer-applicable decisions, reopening, and CMS reports/exports remain
-future scope. The CMS-5B React validation workspace is operational against the
+staged increments. The CMS-5B React validation workspace is operational against the
 CMS-5A contracts and the scoped `validation-options` endpoint described in
 section 13.6.
 
@@ -423,9 +424,9 @@ validation errors, uncertain network results, loading, empty, and retry states
 are presented without silently resending a mutation.
 
 CMS-4B remains a presentation layer for management-reported information. It
-does not add independent validation, implementation conclusions, extensions,
-escalation, closure, accepted-risk decisions, reopening, reports, exports, AIS,
-or ARMIS integration.
+does not add independent validation, implementation conclusions, escalation,
+closure, accepted-risk decisions, reopening, reports, exports, AIS, or ARMIS
+integration. Target-date extensions are provided by CMS-6A/6B.
 
 ## 13. CMS-5A independent validation
 
@@ -578,7 +579,7 @@ after-commit notifications cover creation, assignment/replacement, updates,
 evidence links/removal, submission, supervisory review, return, revision, and
 finalization.
 
-Explicitly deferred: target-date extension, automated reminders, escalation,
+Explicitly deferred: automated reminders, escalation React workspace (CMS-7B),
 closure request/approval, accepted risk, no-longer-applicable decisions,
 reopening, recurrence analysis, reports, exports, AIS, and ARMIS integration.
 
@@ -610,7 +611,9 @@ lock versions and reload after conflicts. Protected validator-evidence downloads
 use authenticated Core document routes. A finalized `IMPLEMENTED` conclusion is
 displayed as independently validated while closure remains pending; the React
 workspace does not create closure, extensions, reminders, escalation, reopening,
-reports, exports, or CMS/AIS/ARMIS integrations.
+reports, exports, or CMS/AIS/ARMIS integrations. CMS-7A now provides the
+backend escalation workflow; the CMS-7B React escalation workspace remains
+deferred.
 
 ## CMS-6A target-date extensions
 
@@ -660,5 +663,37 @@ linked or removed with a reason, while submitted and historical evidence is
 read-only. Stale locks and source changes preserve local context and offer a
 reload rather than overwriting newer state.
 
-The workspace does not add escalation, closure, accepted-risk, reopening,
+The workspace does not add escalation UI, closure, accepted-risk, reopening,
 recurrence, reporting, exports, AIS, or ARMIS functionality.
+
+## CMS-7A escalation management backend
+
+CMS-7A records a formal escalation separately from recommendation
+implementation status. New escalations are allowed only for visible
+`MONITORING` or `PARTIALLY_IMPLEMENTED` cases with no unresolved escalation.
+Supported primary triggers are `OVERDUE_TARGET`, `MISSING_PROGRESS_UPDATE`,
+`REPEATED_PROGRESS_RETURN`, `INADEQUATE_MANAGEMENT_RESPONSE`,
+`VALIDATION_NOT_IMPLEMENTED`, `VALIDATION_INADEQUATE_BASIS`,
+`REPEATED_EXTENSION_REQUEST`, `FAILURE_TO_COMPLETE_REQUIRED_ACTION`,
+`MANAGEMENT_NON_RESPONSE`, and `OTHER` (which requires an explanation).
+
+Notice versions follow `DRAFT → SUBMITTED → UNDER_REVIEW → RETURNED|ISSUED`;
+returned notices require a new immutable revision. Issuance snapshots the
+source case, target dates, overdue context, extension context, action plan,
+progress, validation, monitor, trigger, and recipients. Issuance never changes
+the recommendation case status. Responsible-office acknowledgement is
+append-only and separate from agreement.
+
+Responsible-office responses follow `DRAFT → SUBMITTED → UNDER_REVIEW →
+RETURNED|ACCEPTED_FOR_FOLLOW_UP`; accepted responses establish a follow-up
+baseline without validating implementation. CIAS Management may resolve the
+escalation process only; the immutable resolution explicitly records that
+recommendation closure was not performed.
+
+Notice and response evidence pins exact Core Document Versions with checksum
+and confidentiality snapshots. Notice issuance, response acceptance, and
+resolution use optimistic locking, row transactions, append-only CMS events,
+Activity Log entries, and after-commit notifications. Automatic escalation,
+scheduled reminders, recommendation closure, accepted risk, no-longer-
+applicable decisions, reopening, reports, exports, AIS, ARMIS, and CMS-7B
+React pages remain deferred.

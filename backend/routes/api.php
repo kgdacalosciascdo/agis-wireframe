@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\AemsWorkingPaperController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CmsActionPlanController;
 use App\Http\Controllers\Api\CmsDashboardController;
+use App\Http\Controllers\Api\CmsEscalationController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
@@ -193,6 +194,59 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.extension-evidence.download');
     Route::delete('/cms/extension-evidence/{evidence}', [CmsTargetDateExtensionController::class, 'removeEvidence'])
         ->middleware('permission:cms.extension-evidence.remove_draft');
+
+    Route::get('/cms/recommendations/{recommendation}/escalations', [CmsEscalationController::class, 'forRecommendation'])
+        ->middleware('permission:cms.escalation.view');
+    Route::get('/cms/recommendations/{recommendation}/escalation-options', [CmsEscalationController::class, 'options'])
+        ->middleware('permission:cms.escalation.create');
+    Route::post('/cms/recommendations/{recommendation}/escalations', [CmsEscalationController::class, 'store'])
+        ->middleware('permission:cms.escalation.create');
+    Route::get('/cms/escalations/{escalation}', [CmsEscalationController::class, 'show'])
+        ->middleware('permission:cms.escalation.view');
+    Route::put('/cms/escalations/{escalation}/notice-versions/{version}', [CmsEscalationController::class, 'update'])
+        ->middleware('permission:cms.escalation.update');
+    Route::post('/cms/escalations/{escalation}/notice-versions/{version}/transitions/submit', [CmsEscalationController::class, 'submit'])
+        ->middleware('permission:cms.escalation.submit');
+    Route::post('/cms/escalations/{escalation}/notice-versions/{version}/transitions/start-review', [CmsEscalationController::class, 'startReview'])
+        ->middleware('permission:cms.escalation.review');
+    Route::post('/cms/escalations/{escalation}/notice-versions/{version}/transitions/return', [CmsEscalationController::class, 'returnNotice'])
+        ->middleware('permission:cms.escalation.return');
+    Route::post('/cms/escalations/{escalation}/notice-versions/{version}/transitions/issue', [CmsEscalationController::class, 'issue'])
+        ->middleware('permission:cms.escalation.issue');
+    Route::post('/cms/escalations/{escalation}/notice-versions/{version}/revisions', [CmsEscalationController::class, 'revise'])
+        ->middleware('permission:cms.escalation.revise');
+    Route::post('/cms/escalations/{escalation}/acknowledgements', [CmsEscalationController::class, 'acknowledge'])
+        ->middleware('permission:cms.escalation.acknowledge');
+    Route::get('/cms/escalations/{escalation}/response', [CmsEscalationController::class, 'response'])
+        ->middleware('permission:cms.escalation.view');
+    Route::post('/cms/escalations/{escalation}/response', [CmsEscalationController::class, 'createResponse'])
+        ->middleware('permission:cms.escalation.respond');
+    Route::put('/cms/escalation-responses/{response}/versions/{version}', [CmsEscalationController::class, 'updateResponse'])
+        ->middleware('permission:cms.escalation.respond');
+    Route::post('/cms/escalation-responses/{response}/versions/{version}/transitions/submit', [CmsEscalationController::class, 'submitResponse'])
+        ->middleware('permission:cms.escalation.respond');
+    Route::post('/cms/escalation-responses/{response}/versions/{version}/transitions/start-review', [CmsEscalationController::class, 'startResponseReview'])
+        ->middleware('permission:cms.escalation.response-review');
+    Route::post('/cms/escalation-responses/{response}/versions/{version}/transitions/return', [CmsEscalationController::class, 'returnResponse'])
+        ->middleware('permission:cms.escalation.response-return');
+    Route::post('/cms/escalation-responses/{response}/versions/{version}/transitions/accept', [CmsEscalationController::class, 'acceptResponse'])
+        ->middleware('permission:cms.escalation.response-accept');
+    Route::post('/cms/escalation-responses/{response}/versions/{version}/revisions', [CmsEscalationController::class, 'reviseResponse'])
+        ->middleware('permission:cms.escalation.revise');
+    Route::post('/cms/escalations/{escalation}/resolve', [CmsEscalationController::class, 'resolve'])
+        ->middleware('permission:cms.escalation.resolve');
+    Route::post('/cms/escalations/{escalation}/notice-versions/{version}/evidence', [CmsEscalationController::class, 'uploadNoticeEvidence'])
+        ->middleware('permission:cms.escalation-evidence.upload');
+    Route::get('/cms/escalation-notice-evidence/{evidence}/download', [CmsEscalationController::class, 'downloadNoticeEvidence'])
+        ->middleware('permission:cms.escalation-evidence.download');
+    Route::delete('/cms/escalation-notice-evidence/{evidence}', [CmsEscalationController::class, 'removeNoticeEvidence'])
+        ->middleware('permission:cms.escalation-evidence.remove_draft');
+    Route::post('/cms/escalation-responses/{response}/versions/{version}/evidence', [CmsEscalationController::class, 'uploadResponseEvidence'])
+        ->middleware('permission:cms.escalation-evidence.upload');
+    Route::get('/cms/escalation-response-evidence/{evidence}/download', [CmsEscalationController::class, 'downloadResponseEvidence'])
+        ->middleware('permission:cms.escalation-evidence.download');
+    Route::delete('/cms/escalation-response-evidence/{evidence}', [CmsEscalationController::class, 'removeResponseEvidence'])
+        ->middleware('permission:cms.escalation-evidence.remove_draft');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

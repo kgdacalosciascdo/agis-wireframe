@@ -2,6 +2,9 @@
 
 namespace App\Services\Cms;
 
+use App\Models\CmsEscalation;
+use App\Models\CmsEscalationNoticeVersion;
+use App\Models\CmsEscalationResponseVersion;
 use App\Models\CmsProgressUpdate;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
@@ -141,6 +144,14 @@ class CmsDashboardService
                 ->where('status_code', CmsTargetDateExtensionVersion::STATUS_REJECTED)
                 ->whereHas('request', fn (Builder $request) => $request->whereIn('cms_recommendation_case_id', $visibleCaseIds))
                 ->count(),
+            'recommendationsEligibleForEscalation' => (clone $base)->whereIn('cms_recommendation_cases.status_code', [CmsRecommendationCase::STATUS_MONITORING, CmsRecommendationCase::STATUS_PARTIALLY_IMPLEMENTED])->whereDoesntHave('activeEscalation')->count(),
+            'activeEscalations' => CmsEscalation::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->whereNull('resolved_at')->count(),
+            'noticesAwaitingReview' => CmsEscalationNoticeVersion::query()->where('status_code', CmsEscalationNoticeVersion::STATUS_SUBMITTED)->whereHas('escalation', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'issuedNoticesAwaitingAcknowledgement' => CmsEscalation::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->where('operational_status_code', CmsEscalation::STATUS_ISSUED)->whereNotNull('issued_notice_version_id')->whereDoesntHave('acknowledgements')->count(),
+            'responsesOverdue' => CmsEscalationResponseVersion::query()->whereIn('status_code', [CmsEscalationResponseVersion::STATUS_SUBMITTED, CmsEscalationResponseVersion::STATUS_UNDER_REVIEW])->whereHas('response', fn (Builder $query) => $query->whereHas('escalation', fn (Builder $escalation) => $escalation->whereIn('cms_recommendation_case_id', $visibleCaseIds)))->whereHas('response.issuedNoticeVersion', fn (Builder $query) => $query->whereDate('response_due_date', '<', $today->toDateString()))->count(),
+            'responsesAwaitingReview' => CmsEscalationResponseVersion::query()->where('status_code', CmsEscalationResponseVersion::STATUS_SUBMITTED)->whereHas('response', fn (Builder $query) => $query->whereHas('escalation', fn (Builder $escalation) => $escalation->whereIn('cms_recommendation_case_id', $visibleCaseIds)))->count(),
+            'escalationsInFollowUp' => CmsEscalation::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->where('operational_status_code', CmsEscalation::STATUS_FOLLOW_UP)->count(),
+            'resolvedEscalations' => CmsEscalation::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->where('operational_status_code', CmsEscalation::STATUS_RESOLVED)->count(),
             'finalizedValidationConclusions' => collect([
                 'NOT_IMPLEMENTED',
                 'PARTIALLY_IMPLEMENTED',
@@ -227,7 +238,7 @@ class CmsDashboardService
             'dataLimitations' => [
                 'Due-soon metrics require an approved runtime threshold.',
                 'Progress metrics remain management-reported until a separate Validation Review is finalized.',
-                'Escalation and recommendation closure workflows are not implemented; target-date extensions are tracked through the CMS-6A workflow.',
+                'Automatic escalation, scheduled reminders, recommendation closure, accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.',
             ],
         ];
     }

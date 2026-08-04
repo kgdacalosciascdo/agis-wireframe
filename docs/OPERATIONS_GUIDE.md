@@ -546,3 +546,27 @@ states, creation, type-specific fields, terminal presentation, and safe
 no-reopening behavior. A login-throttle failure must be rerun independently
 after cooldown and reported separately; authentication throttling must not be
 weakened.
+# Render Free deployment operations
+
+The Render Free image is a same-origin demonstration deployment. Follow
+[`RENDER_DEPLOYMENT.md`](RENDER_DEPLOYMENT.md) for the Docker image, Render
+Dashboard settings, environment variables, and first-administrator bootstrap.
+
+Important operational limits:
+
+- The web service has no persistent disk.
+- `FILESYSTEM_DISK=local` evidence uploads are temporary and may disappear on
+  restart, redeploy, or spin-down.
+- Evidence remains private and protected; do not create `public/storage` or
+  public download URLs.
+- Queues run synchronously with `QUEUE_CONNECTION=sync`; no worker or scheduled
+  automation service is part of the Free deployment.
+- Run production seeders only with the explicit
+  `RUN_PRODUCTION_SEEDERS=true` flag, then disable it after initialization.
+- Remove all `BOOTSTRAP_ADMIN_*` variables immediately after the first secure
+  administrator is created.
+
+The unauthenticated `GET /health` endpoint returns safe JSON and performs a
+lightweight database check. Render should use `/health` as its health-check
+path. A failing database check returns HTTP 503 without exposing credentials or
+debug details.

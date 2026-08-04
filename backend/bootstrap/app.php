@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->prepend(ApplyRuntimeConfiguration::class);
         $middleware->statefulApi();
+        // Render terminates TLS at its proxy and forwards the original scheme.
+        // Trust the proxy headers so secure cookies and generated URLs remain
+        // HTTPS without redirect loops.
+        $middleware->trustProxies(at: '*');
         $middleware->alias([
             'permission' => EnsureUserHasPermission::class,
         ]);

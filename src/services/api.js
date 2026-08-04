@@ -4,6 +4,17 @@ const JSON_HEADERS = {
   "X-Requested-With": "XMLHttpRequest",
 };
 
+// Production uses the same Render origin, so the default remains the relative
+// `/api` path. A non-default value is available for explicitly configured
+// environments without hard-coding a deployment hostname.
+const baseURL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+
+function apiPath(path) {
+  return path.startsWith("/api")
+    ? `${baseURL}${path.slice("/api".length)}`
+    : path;
+}
+
 export class ApiError extends Error {
   constructor(message, { status = 0, errors = {} } = {}) {
     super(message);
@@ -102,7 +113,7 @@ async function request(path, { method = "GET", body, csrf = false } = {}) {
   let response;
 
   try {
-    response = await fetch(path, {
+    response = await fetch(apiPath(path), {
       method,
       credentials: "include",
       headers,

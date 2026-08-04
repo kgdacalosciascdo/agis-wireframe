@@ -563,6 +563,12 @@ Important operational limits:
   automation service is part of the Free deployment.
 - Run production seeders only with the explicit
   `RUN_PRODUCTION_SEEDERS=true` flag, then disable it after initialization.
+- For a controlled Render demonstration dataset, also set
+  `RUN_FULL_DEMO_SEEDERS=true`, `DEMO_ACCOUNTS_ENABLED=true`, and an explicit
+  temporary `DEMO_DEFAULT_PASSWORD`. Disable all three after verification.
+- The Render demo runner is idempotent and excludes AEMS/CMS operational
+  records and physical document/evidence fixture files; it does not call the
+  destructive local `DatabaseSeeder` path.
 - Remove all `BOOTSTRAP_ADMIN_*` variables immediately after the first secure
   administrator is created.
 

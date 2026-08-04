@@ -59,12 +59,16 @@ SANCTUM_STATEFUL_DOMAINS=<service>.onrender.com
 CORS_ALLOWED_ORIGINS=https://<service>.onrender.com
 
 RUN_PRODUCTION_SEEDERS=true
+RUN_FULL_DEMO_SEEDERS=true
+DEMO_ACCOUNTS_ENABLED=true
+DEMO_DEFAULT_PASSWORD=<temporary strong demo password>
 BOOTSTRAP_ADMIN_ENABLED=false
-DEMO_ACCOUNTS_ENABLED=false
 ```
 
-Set `RUN_PRODUCTION_SEEDERS=false` after the first successful deployment and
-remove any bootstrap variables after the initial account has been created.
+The first controlled demo deployment runs both the idempotent production
+reference seeder and the dedicated `RenderDemoSeeder`. Set both seeder flags
+and `DEMO_ACCOUNTS_ENABLED` to `false` after the dataset has been verified.
+Never place a real administrator password in source control or in this guide.
 
 ## First administrator
 
@@ -99,13 +103,35 @@ variables immediately after the first successful bootstrap.
 3. runs `php artisan migrate --force` (never `migrate:fresh` or destructive SQL);
 4. optionally runs only `Database\\Seeders\\ProductionSeeder` when
    `RUN_PRODUCTION_SEEDERS=true`;
-5. optionally runs the guarded administrator bootstrap;
-6. caches configuration and views; and
-7. starts Apache with `exec` on Render's `${PORT:-10000}`.
+5. optionally runs `Database\\Seeders\\RenderDemoSeeder` when
+   `RUN_FULL_DEMO_SEEDERS=true`;
+6. optionally runs the guarded administrator bootstrap;
+7. caches configuration and views; and
+8. starts Apache with `exec` on Render's `${PORT:-10000}`.
 
 The production seeder contains only idempotent roles, permissions, offices,
 controlled reference data, workflows, audit areas, and runtime configuration.
 It does not create demo users, sample engagements, or sample recommendations.
+
+### Full Render demonstration dataset
+
+`RenderDemoSeeder` is a dedicated, repeatable runner. It does not call
+`DatabaseSeeder`, does not truncate or force-delete retained data in full-demo
+mode, and is safe to rerun after a restart. It creates the six configured demo
+accounts (`admin`, `agisadmin`, `departmenthead`, `auditor`, `auditee`, and
+`mayor`), Core office employees and heads, Audit Universe items and histories,
+the SIAP plan with objectives, priorities, and workflow events, the 2025/2026
+IAP risk periods with criteria, assessments, scores and events, the finalized
+prioritization run, the 2026 annual plan with engagements, teams, schedules,
+capacity, skills and unavailability, and seeded in-app notifications.
+
+The current repository has no AEMS or CMS operational demo seeders. Therefore
+the full Render demo does **not** fabricate AEMS engagements, working papers,
+evidence, findings, auditee responses, reports, CMS recommendations, action
+plans, or closure records. Those workflows remain available for authorized
+users to create through the application. Seeders also create no physical
+document/evidence fixture files; Render Free's local uploads remain ephemeral
+and private.
 
 ## Local image check
 

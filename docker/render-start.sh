@@ -31,6 +31,10 @@ if [[ "${RUN_PRODUCTION_SEEDERS:-false}" == "true" ]]; then
     php artisan db:seed --class=Database\\Seeders\\ProductionSeeder --force
 fi
 
+if [[ "${RUN_FULL_DEMO_SEEDERS:-false}" == "true" ]]; then
+    php artisan db:seed --class=Database\\Seeders\\RenderDemoSeeder --force
+fi
+
 if [[ "${BOOTSTRAP_ADMIN_ENABLED:-false}" == "true" ]]; then
     php artisan agis:bootstrap-admin
 fi

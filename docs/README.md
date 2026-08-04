@@ -79,8 +79,9 @@ append-only effective-date history. CMS-7A adds the backend escalation workflow
 with formal notice, acknowledgement, response review, follow-up, and resolution
 records; CMS-7B provides the protected recommendation-scoped React workspace,
 including notice, acknowledgement, response, evidence, follow-up, and
-resolution views. Automatic escalation, reminders, recommendation closure,
-accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.
+resolution views. CMS-9A now adds the accepted-risk and no-longer-applicable
+disposition backend; its React workspace remains deferred to CMS-9B. Reopening,
+reminders/automation, reporting, exports, AIS, and ARMIS remain deferred.
 
 ## Diagram rendering
 
@@ -89,17 +90,28 @@ accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.
 CMS-8A closure backend and the CMS-8B recommendation-scoped React workspace are
 implemented. The workspace preserves backend readiness, authorization,
 optimistic locking, immutable lineage, Core-version evidence links, controlled
-review/decision actions, and closed-case read-only behavior. Accepted-risk,
-alternative dispositions, reopening, reporting, exports, AIS, and ARMIS remain
-deferred.
+review/decision actions, and closed-case read-only behavior. CMS-9A disposition
+backend controls accepted-risk and no-longer-applicable decisions; reopening,
+reporting, exports, AIS, and ARMIS remain deferred.
 
 The workflow documents use Mermaid diagrams. GitHub and compatible Markdown
 viewers render them automatically. In a viewer without Mermaid support, the
 adjacent headings, tables, and numbered rules remain the authoritative text.
 # CMS-8A status
 
-Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B), reopening, accepted-risk, no-longer-applicable, automatic closure, reporting, AIS, and ARMIS integrations remain deferred.
+Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B) and CMS-9A disposition backend are implemented; reopening, automatic closure, reporting, AIS, and ARMIS integrations remain deferred.
 
 CMS-8B frontend status
 
 The recommendation-scoped Closure Request workspace, readiness presentation, source lineage, evidence controls, review/decision actions, version history, Recommendation Detail entry point, dashboard closure metrics, and responsive browser coverage are implemented. The client preserves backend authorization and optimistic-lock handling.
+
+## CMS-9A status
+
+Accepted-Risk and No-Longer-Applicable request families, immutable versions,
+independent assessments, separate CIAS Management decisions, exact Core
+Document Version evidence links, readiness checks, case transitions,
+permissions, events, Activity Log/Audit Trail entries, notifications, APIs, and
+Recommendation Detail/dashboard contracts are implemented and backend-tested.
+CMS-9B is the next gated phase for the React workspace. Controlled reopening,
+scheduled automation, closure-readiness candidates, reports, exports, AIS, and
+ARMIS have not been started.

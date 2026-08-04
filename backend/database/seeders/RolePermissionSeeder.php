@@ -109,6 +109,8 @@ class RolePermissionSeeder extends Seeder
         'cms.escalation-evidence' => ['view', 'upload', 'download', 'remove_draft'],
         'cms.closure' => ['view', 'request', 'update', 'submit', 'review', 'return', 'recommend', 'approve', 'reject', 'revise'],
         'cms.closure-evidence' => ['view', 'upload', 'download', 'remove_draft'],
+        'cms.disposition' => ['view', 'request', 'update', 'submit', 'review', 'return', 'recommend', 'approve', 'reject', 'revise'],
+        'cms.disposition-evidence' => ['view', 'upload', 'download', 'remove_draft'],
         'arms' => ['view', 'manage'],
         'ais' => ['view', 'export'],
         'documents' => [
@@ -170,6 +172,8 @@ class RolePermissionSeeder extends Seeder
                          || str_starts_with($code, 'cms.evidence.')
                          || str_starts_with($code, 'cms.validation.')
                          || str_starts_with($code, 'cms.validation-evidence.')
+                         || str_starts_with($code, 'cms.disposition.')
+                         || str_starts_with($code, 'cms.disposition-evidence.')
                         || in_array($code, [
                             'cms.dashboard.view',
                             'cms.recommendation.view',
@@ -268,6 +272,8 @@ class RolePermissionSeeder extends Seeder
                     'cms.escalation-evidence.view', 'cms.escalation-evidence.download',
                     ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'cms.closure.'))->all(),
                     'cms.closure-evidence.view', 'cms.closure-evidence.download',
+                    ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'cms.disposition.'))->all(),
+                    'cms.disposition-evidence.view', 'cms.disposition-evidence.download',
                     'arms.view', 'arms.manage', 'ais.view', 'ais.export',
                     'documents.view', 'documents.upload', 'documents.update',
                     'documents.view_confidential', 'documents.view_restricted',
@@ -343,6 +349,8 @@ class RolePermissionSeeder extends Seeder
                     'cms.escalation-evidence.view', 'cms.escalation-evidence.download',
                     'cms.closure.view', 'cms.closure.request', 'cms.closure.update', 'cms.closure.submit', 'cms.closure.revise',
                     'cms.closure-evidence.view', 'cms.closure-evidence.upload', 'cms.closure-evidence.download', 'cms.closure-evidence.remove_draft',
+                    'cms.disposition.view', 'cms.disposition.request', 'cms.disposition.update', 'cms.disposition.submit', 'cms.disposition.revise',
+                    'cms.disposition-evidence.view', 'cms.disposition-evidence.upload', 'cms.disposition-evidence.download', 'cms.disposition-evidence.remove_draft',
                     'arms.view', 'ais.view',
                     'documents.view', 'documents.upload', 'documents.download',
                     'documents.view_confidential',
@@ -387,6 +395,8 @@ class RolePermissionSeeder extends Seeder
                     'cms.escalation-evidence.remove_draft',
                     'cms.closure.view', 'cms.closure.request', 'cms.closure.update', 'cms.closure.submit', 'cms.closure.revise',
                     'cms.closure-evidence.view', 'cms.closure-evidence.upload', 'cms.closure-evidence.download', 'cms.closure-evidence.remove_draft',
+                    'cms.disposition.view', 'cms.disposition.request', 'cms.disposition.update', 'cms.disposition.submit', 'cms.disposition.revise',
+                    'cms.disposition-evidence.view', 'cms.disposition-evidence.upload', 'cms.disposition-evidence.download', 'cms.disposition-evidence.remove_draft',
                     'documents.view', 'documents.upload', 'documents.download',
                     'notifications.view',
                     'workflows.act',
@@ -411,6 +421,7 @@ class RolePermissionSeeder extends Seeder
                     'cms.extension-evidence.view', 'cms.extension-evidence.download',
                     'cms.escalation.view', 'cms.escalation-evidence.view', 'cms.escalation-evidence.download',
                     'cms.closure.view', 'cms.closure-evidence.view', 'cms.closure-evidence.download',
+                    'cms.disposition.view', 'cms.disposition-evidence.view', 'cms.disposition-evidence.download',
                     'aems.report.view_issued',
                     'arms.view', 'ais.view', 'documents.view', 'notifications.view',
                     'administrative_reports.view',

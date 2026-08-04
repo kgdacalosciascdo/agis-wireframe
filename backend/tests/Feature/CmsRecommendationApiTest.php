@@ -135,6 +135,20 @@ class CmsRecommendationApiTest extends TestCase
             'cms.closure-evidence.upload',
             'cms.closure-evidence.download',
             'cms.closure-evidence.remove_draft',
+            'cms.disposition.view',
+            'cms.disposition.request',
+            'cms.disposition.update',
+            'cms.disposition.submit',
+            'cms.disposition.review',
+            'cms.disposition.return',
+            'cms.disposition.recommend',
+            'cms.disposition.approve',
+            'cms.disposition.reject',
+            'cms.disposition.revise',
+            'cms.disposition-evidence.view',
+            'cms.disposition-evidence.upload',
+            'cms.disposition-evidence.download',
+            'cms.disposition-evidence.remove_draft',
         ], Permission::query()->where('code', 'like', 'cms.%')->pluck('code')->all());
 
         $management = $this->user('departmenthead');

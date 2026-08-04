@@ -129,7 +129,7 @@ class CoreModuleTest extends TestCase
         $this->getJson('/api/audit-focuses')->assertOk();
         $this->getJson('/api/users')->assertOk()->assertJsonCount(89, 'data.users');
         $this->getJson('/api/roles')->assertOk()->assertJsonCount(6, 'data.roles');
-        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(277, 'data.permissions');
+        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(291, 'data.permissions');
         $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(23, 'data.masterLists');
         $this->getJson('/api/master-lists?configurableOnly=1')
             ->assertOk()

@@ -8,6 +8,7 @@ use App\Http\Resources\CmsRecommendationDetailResource;
 use App\Http\Resources\CmsRecommendationResource;
 use App\Models\CmsRecommendationCase;
 use App\Services\Cms\CmsActionPlanService;
+use App\Services\Cms\CmsDispositionService;
 use App\Services\Cms\CmsProgressUpdateService;
 use App\Services\Cms\CmsRecommendationRegistryService;
 use App\Services\Cms\CmsRecommendationScopeService;
@@ -28,6 +29,7 @@ class CmsRecommendationController extends Controller
         private readonly CmsProgressUpdateService $progressUpdates,
         private readonly CmsValidationService $validations,
         private readonly CmsTargetDateExtensionService $extensions,
+        private readonly CmsDispositionService $dispositions,
     ) {}
 
     public function index(CmsRecommendationIndexRequest $request): JsonResponse
@@ -102,6 +104,14 @@ class CmsRecommendationController extends Controller
                 );
             }
         }
+        foreach ($case->dispositionRequests as $disposition) {
+            if ($disposition->currentVersion) {
+                $disposition->currentVersion->setAttribute(
+                    'available_actions',
+                    $this->dispositions->permittedActions($request->user(), $disposition, $disposition->currentVersion),
+                );
+            }
+        }
         $this->recordView($request, $case);
 
         return response()->json([
@@ -145,6 +155,10 @@ class CmsRecommendationController extends Controller
             'closureRequests.currentVersion.assessment.reviewer',
             'closureRequests.currentVersion.decision.decider',
             'closureRequests.resolvedVersion.decision.decider',
+            'dispositionRequests.currentVersion.assessment.reviewer',
+            'dispositionRequests.currentVersion.decision.decider',
+            'dispositionRequests.resolvedVersion.decision.decider',
+            'dispositionRequests.currentVersion.evidenceLinks.documentVersion',
         ];
     }
 

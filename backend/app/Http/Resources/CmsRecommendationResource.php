@@ -24,7 +24,7 @@ class CmsRecommendationResource extends JsonResource
             'isOverdue' => $target !== null
                 && $target->lt(CarbonImmutable::today())
                 && ! in_array($this->status_code, [
-                    'CLOSED', 'ACCEPTED_RISK', 'CANCELLED',
+                    'CLOSED', 'ACCEPTED_RISK', 'NO_LONGER_APPLICABLE', 'CANCELLED',
                 ], true),
             'lockVersion' => $this->lock_version,
             'recommendationCode' => $this->recommendation?->recommendation_code,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\CmsDispositionRequestResource;
 use Illuminate\Http\Request;
 
 /** Complete safe CMS-2A workspace assembled from case, intake, and lineage snapshots. */
@@ -250,6 +251,19 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     'formallyClosed' => $this->status_code === 'CLOSED',
                     'closedAt' => $this->closed_at?->toISOString(),
                     'closureDecisionId' => $this->closure_decision_id,
+                ],
+            ),
+            'dispositionSummary' => $this->whenLoaded(
+                'dispositionRequests',
+                fn (): array => [
+                    'hasDispositionRequests' => $this->dispositionRequests->isNotEmpty(),
+                    'activeRequestId' => $this->dispositionRequests->first(fn ($r): bool => $r->resolved_at === null)?->id,
+                    'activeRequestStatus' => $this->dispositionRequests->first(fn ($r): bool => $r->resolved_at === null)?->currentVersion?->status_code,
+                    'activeDispositionCode' => $this->dispositionRequests->first(fn ($r): bool => $r->resolved_at === null)?->disposition_code,
+                    'priorRequestCount' => $this->dispositionRequests->count(),
+                    'acceptedRisk' => $this->status_code === 'ACCEPTED_RISK',
+                    'noLongerApplicable' => $this->status_code === 'NO_LONGER_APPLICABLE',
+                    'requests' => CmsDispositionRequestResource::collection($this->dispositionRequests),
                 ],
             ),
         ];

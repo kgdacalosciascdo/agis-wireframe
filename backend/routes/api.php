@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CmsActionPlanController;
 use App\Http\Controllers\Api\CmsClosureController;
 use App\Http\Controllers\Api\CmsDashboardController;
+use App\Http\Controllers\Api\CmsDispositionController;
 use App\Http\Controllers\Api\CmsEscalationController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
@@ -264,6 +265,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cms/closure-requests/{closureRequest}/versions/{version}/evidence', [CmsClosureController::class, 'uploadEvidence'])->middleware('permission:cms.closure-evidence.upload');
     Route::delete('/cms/closure-evidence/{evidence}', [CmsClosureController::class, 'removeEvidence'])->middleware('permission:cms.closure-evidence.remove_draft');
     Route::get('/cms/closure-evidence/{evidence}/download', [CmsClosureController::class, 'downloadEvidence'])->middleware('permission:cms.closure-evidence.download');
+
+    Route::get('/cms/recommendations/{recommendation}/dispositions', [CmsDispositionController::class, 'index'])->middleware('permission:cms.disposition.view');
+    Route::get('/cms/recommendations/{recommendation}/disposition-options', [CmsDispositionController::class, 'options'])->middleware('permission:cms.disposition.request');
+    Route::post('/cms/recommendations/{recommendation}/dispositions', [CmsDispositionController::class, 'store'])->middleware('permission:cms.disposition.request');
+    Route::get('/cms/disposition-requests/{dispositionRequest}', [CmsDispositionController::class, 'show'])->middleware('permission:cms.disposition.view');
+    Route::put('/cms/disposition-requests/{dispositionRequest}/versions/{version}', [CmsDispositionController::class, 'update'])->middleware('permission:cms.disposition.update');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/transitions/submit', [CmsDispositionController::class, 'submit'])->middleware('permission:cms.disposition.submit');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/transitions/start-review', [CmsDispositionController::class, 'startReview'])->middleware('permission:cms.disposition.review');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/transitions/return', [CmsDispositionController::class, 'returnVersion'])->middleware('permission:cms.disposition.return');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/transitions/recommend', [CmsDispositionController::class, 'recommend'])->middleware('permission:cms.disposition.review');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/transitions/approve', [CmsDispositionController::class, 'approve'])->middleware('permission:cms.disposition.approve');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/transitions/reject', [CmsDispositionController::class, 'reject'])->middleware('permission:cms.disposition.reject');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/revisions', [CmsDispositionController::class, 'revise'])->middleware('permission:cms.disposition.revise');
+    Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/evidence', [CmsDispositionController::class, 'uploadEvidence'])->middleware('permission:cms.disposition-evidence.upload');
+    Route::delete('/cms/disposition-evidence/{evidence}', [CmsDispositionController::class, 'removeEvidence'])->middleware('permission:cms.disposition-evidence.remove_draft');
+    Route::get('/cms/disposition-evidence/{evidence}/download', [CmsDispositionController::class, 'downloadEvidence'])->middleware('permission:cms.disposition-evidence.download');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

@@ -3,6 +3,7 @@
 namespace App\Services\Cms;
 
 use App\Models\CmsClosureRequestVersion;
+use App\Models\CmsDispositionRequestVersion;
 use App\Models\CmsEscalation;
 use App\Models\CmsEscalationNoticeVersion;
 use App\Models\CmsEscalationResponseVersion;
@@ -32,7 +33,11 @@ class CmsDashboardService
         $today = $now->startOfDay();
         $portfolio = $this->registry->baseQuery($user, 'cms.dashboard.view');
         $base = clone $portfolio;
-        $base->where('cms_recommendation_cases.status_code', '!=', CmsRecommendationCase::STATUS_CLOSED);
+        $base->whereNotIn('cms_recommendation_cases.status_code', [
+            CmsRecommendationCase::STATUS_CLOSED,
+            CmsRecommendationCase::STATUS_ACCEPTED_RISK,
+            CmsRecommendationCase::STATUS_NO_LONGER_APPLICABLE,
+        ]);
         $overdue = $this->registry->applyOverdue(clone $base, $today);
         $visibleCaseIds = (clone $portfolio)->reorder()->pluck('cms_recommendation_cases.id');
 
@@ -160,6 +165,13 @@ class CmsDashboardService
             'closureRequestsAwaitingReview' => CmsClosureRequestVersion::query()->whereIn('status_code', [CmsClosureRequestVersion::SUBMITTED, CmsClosureRequestVersion::UNDER_REVIEW])->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
             'closureRequestsAwaitingDecision' => CmsClosureRequestVersion::query()->where('status_code', CmsClosureRequestVersion::FOR_DECISION)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
             'returnedClosureRequests' => CmsClosureRequestVersion::query()->where('status_code', CmsClosureRequestVersion::RETURNED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'recommendationsEligibleForDisposition' => (clone $base)->whereIn('cms_recommendation_cases.status_code', [CmsRecommendationCase::STATUS_MONITORING, CmsRecommendationCase::STATUS_PARTIALLY_IMPLEMENTED])->whereDoesntHave('unresolvedDispositionRequest')->count(),
+            'dispositionRequestsInDraft' => CmsDispositionRequestVersion::query()->where('status_code', CmsDispositionRequestVersion::DRAFT)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'dispositionRequestsAwaitingReview' => CmsDispositionRequestVersion::query()->whereIn('status_code', [CmsDispositionRequestVersion::SUBMITTED, CmsDispositionRequestVersion::UNDER_REVIEW])->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'dispositionRequestsAwaitingDecision' => CmsDispositionRequestVersion::query()->where('status_code', CmsDispositionRequestVersion::FOR_DECISION)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'returnedDispositionRequests' => CmsDispositionRequestVersion::query()->where('status_code', CmsDispositionRequestVersion::RETURNED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'acceptedRiskRecommendations' => (clone $portfolio)->where('cms_recommendation_cases.status_code', CmsRecommendationCase::STATUS_ACCEPTED_RISK)->count(),
+            'noLongerApplicableRecommendations' => (clone $portfolio)->where('cms_recommendation_cases.status_code', CmsRecommendationCase::STATUS_NO_LONGER_APPLICABLE)->count(),
             'recentlyClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->where('closed_at', '>=', $now->copy()->subDays(30))->count(),
             'totalClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->count(),
             'finalizedValidationConclusions' => collect([
@@ -231,7 +243,7 @@ class CmsDashboardService
                         'cms_recommendation_cases.effective_target_implementation_date',
                     )
                     ->whereNotIn('cms_recommendation_cases.status_code', [
-                        'CLOSED', 'ACCEPTED_RISK', 'CANCELLED',
+                        'CLOSED', 'ACCEPTED_RISK', 'NO_LONGER_APPLICABLE', 'CANCELLED',
                     ])
                     ->orderBy(
                         'cms_recommendation_cases.effective_target_implementation_date',

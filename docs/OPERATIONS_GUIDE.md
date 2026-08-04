@@ -511,3 +511,24 @@ coverage of 47 tests/644 assertions, and AEMS coverage of 38 tests/723
 assertions. The complete Feature suite remains a local timeout; deterministic
 groups are the reproducible record. `npm.cmd run lint`, `npm.cmd run build`, and
 `git diff --check` pass.
+
+## CMS-9A deployment and verification
+
+CMS-9A is an additive backend migration. Deploy
+`2026_08_06_000000_create_cms_disposition_tables`, then reseed
+`RolePermissionSeeder`; do not remove legacy permissions or alter existing CMS
+tables. Verify the PostgreSQL case-status constraint includes
+`FOR_DISPOSITION`, `ACCEPTED_RISK`, and `NO_LONGER_APPLICABLE`.
+
+The focused gate is:
+
+```powershell
+php artisan test --filter="accepted_risk_disposition|no_longer_applicable"
+php artisan test --filter=CmsValidationTest
+php artisan test --filter=CmsClosureTest
+php artisan route:list --path=disposition
+```
+
+CMS-9A has no frontend migration or AIS/ARMIS dependency. The React workspace,
+controlled reopening, reminders/automation, reports, and protected exports
+remain gated for later phases.

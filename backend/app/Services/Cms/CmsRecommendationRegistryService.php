@@ -25,7 +25,7 @@ class CmsRecommendationRegistryService
     ];
 
     /** @var list<string> */
-    private const TERMINAL_STATUSES = ['CLOSED', 'ACCEPTED_RISK', 'CANCELLED'];
+    private const TERMINAL_STATUSES = ['CLOSED', 'ACCEPTED_RISK', 'NO_LONGER_APPLICABLE', 'CANCELLED'];
 
     public function __construct(
         private readonly CmsRecommendationScopeService $scope,

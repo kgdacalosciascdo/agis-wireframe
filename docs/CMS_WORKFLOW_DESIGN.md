@@ -722,3 +722,38 @@ Closure Requests are immutable versioned families (`DRAFT → SUBMITTED → UNDE
 CMS-8A adds an authoritative readiness checklist, source-lineage and final snapshots, independent review assessment, CIAS Management decision authority, restrictive evidence links to Core document versions, separation-of-duties checks, and closure permissions (`cms.closure.*`, `cms.closure-evidence.*`).
 
 CMS-8B now provides recommendation-scoped Closure Request list and detail routes at `/compliance-management/recommendations/{id}/closure-requests` and `/closure-requests/{requestId}`. The client renders the backend readiness checklist, immutable source lineage, evidence links, assessment, decision, version history, draft editing, and available backend actions. `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED` remain distinct in the UI; reopening and alternative dispositions remain unavailable.
+
+## CMS-9A accepted-risk and no-longer-applicable dispositions
+
+CMS-9A adds two controlled professional dispositions without treating either as
+implementation or ordinary closure. A shared immutable request family supports
+`ACCEPTED_RISK` and `NO_LONGER_APPLICABLE` versions:
+
+```text
+DRAFT → SUBMITTED → UNDER_REVIEW → FOR_DECISION → APPROVED|REJECTED
+                         └→ RETURNED → new immutable revision (DRAFT)
+```
+
+Submission moves a `MONITORING` or `PARTIALLY_IMPLEMENTED` case to
+`FOR_DISPOSITION`. Approval atomically moves it to the selected terminal
+disposition; rejection restores the version's pinned prior case status. No
+disposition changes a recommendation to `CLOSED`, and no automation or client
+can make the final decision.
+
+The responsible office or authorized compliance monitor prepares the request.
+An independent reviewer records readiness, basis, evidence, and risk
+assessments; a different CIAS Management decision-maker records approval or
+rejection. Active validation, extension, escalation, closure, and disposition
+requests block eligibility. Optimistic case/version locks and transactional
+transitions prevent concurrent updates.
+
+Disposition evidence links pin an exact Core `DocumentVersion`, checksum, and
+confidentiality snapshot. Submitted, reviewed, decided, and linked-evidence
+records are immutable; corrections use a new request version. Every transition
+records an append-only CMS event, Activity Log entry, Audit Trail entry, and
+after-commit notification.
+
+CMS-9A is backend-only. Recommendation Detail and the dashboard expose live
+disposition summaries, readiness, and available actions; the React workspace is
+reserved for CMS-9B. Reopening, reminders/automation, reports/exports, AIS, and
+ARMIS remain outside this increment.

@@ -1196,7 +1196,8 @@ DELETE /api/cms/extension-evidence/{evidence}
 The migration creates request families, immutable versions, assessments,
 decisions, exact evidence links, and append-only target-date history. The
 extension permissions are `cms.extension.*` and `cms.extension-evidence.*`;
-the verified CMS permission total is 76 in the current runtime. Existing
+the verified CMS permission total at that increment was 76; CMS-9A raises the
+current runtime total to 104. Existing
 legacy `aem.*` compatibility permissions are retained.
 
 ### CMS-6B frontend integration
@@ -1272,3 +1273,47 @@ Closure endpoints are available under `/api/cms/recommendations/{recommendation}
 The closure schema consists of `cms_closure_requests`, `cms_closure_request_versions`, `cms_closure_review_assessments`, `cms_closure_decisions`, and `cms_closure_evidence_links`. Closure evidence pins exact Core Document Versions and is never a second storage system.
 
 The React client uses the existing `cmsApi` request wrapper for closure options, request families, version mutations, transitions, revisions, and protected evidence operations. It never submits a target case status or constructs a storage URL.
+
+## CMS-9A disposition API and data reference
+
+CMS-9A adds the shared disposition request family and immutable version,
+assessment, decision, and evidence-link tables:
+
+```text
+cms_disposition_requests
+cms_disposition_request_versions
+cms_disposition_review_assessments
+cms_disposition_decisions
+cms_disposition_evidence_links
+```
+
+The request supports `ACCEPTED_RISK` and `NO_LONGER_APPLICABLE`. Evidence links
+store both the Core `document_id` and exact `document_version_id`, checksum, and
+confidentiality snapshot. Submitted versions, assessments, decisions, and
+evidence links cannot be edited or deleted.
+
+Protected endpoints are:
+
+```text
+GET    /api/cms/recommendations/{recommendation}/dispositions
+GET    /api/cms/recommendations/{recommendation}/disposition-options
+POST   /api/cms/recommendations/{recommendation}/dispositions
+GET    /api/cms/disposition-requests/{request}
+PUT    /api/cms/disposition-requests/{request}/versions/{version}
+POST   /api/cms/disposition-requests/{request}/versions/{version}/transitions/submit
+POST   /api/cms/disposition-requests/{request}/versions/{version}/transitions/start-review
+POST   /api/cms/disposition-requests/{request}/versions/{version}/transitions/return
+POST   /api/cms/disposition-requests/{request}/versions/{version}/transitions/recommend
+POST   /api/cms/disposition-requests/{request}/versions/{version}/transitions/approve
+POST   /api/cms/disposition-requests/{request}/versions/{version}/transitions/reject
+POST   /api/cms/disposition-requests/{request}/versions/{version}/revisions
+POST   /api/cms/disposition-requests/{request}/versions/{version}/evidence
+DELETE /api/cms/disposition-evidence/{evidence}
+GET    /api/cms/disposition-evidence/{evidence}/download
+```
+
+The CMS-9A permission catalogue contains ten `cms.disposition.*` permissions
+and four `cms.disposition-evidence.*` permissions. The verified runtime CMS
+permission total is **104**; all legacy `aem.*` compatibility permissions remain
+unchanged. The React disposition workspace is intentionally deferred to
+CMS-9B.

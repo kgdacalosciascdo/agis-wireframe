@@ -846,3 +846,16 @@ reopening, reporting, exports, AIS, and ARMIS remain deferred.
 CMS now distinguishes `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED`. Management completion, accepted progress, extension approval, escalation resolution, and validation drafts do not close a recommendation. An independent finalized `IMPLEMENTED` validation supports a Closure Request; an independent review assessment and CIAS Management Closure Decision are required for formal closure.
 
 The frontend exposes Closure only from an authorized recommendation detail context. Readiness, available actions, lock versions, scope-safe errors, and closed-case read-only behavior are supplied by CMS-8A; the client does not recalculate eligibility or provide reopening controls.
+
+## CMS-9A disposition boundary
+
+Accepted-risk and no-longer-applicable requests use the existing CMS visibility
+service and Core document confidentiality rules. The responsible office or
+compliance monitor prepares the request, an independent reviewer records the
+assessment, and a different CIAS Management actor records the final decision.
+Submission and decision are transactional case transitions; automation and the
+browser cannot make the professional decision. Exact Core document versions,
+CMS events, Activity Logs, Audit Trail entries, and after-commit notifications
+are captured for every transition. CMS-9B will provide the React workspace;
+reopening, automation, reports/exports, AIS, and ARMIS remain outside this
+phase.

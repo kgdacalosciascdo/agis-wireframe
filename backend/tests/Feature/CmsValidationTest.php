@@ -9,6 +9,7 @@ use App\Models\AuditReport;
 use App\Models\AuditReportVersion;
 use App\Models\CmsActionPlanVersion;
 use App\Models\CmsCorrectiveActionPlan;
+use App\Models\CmsDispositionDecision;
 use App\Models\CmsMilestoneProgress;
 use App\Models\CmsProgressUpdate;
 use App\Models\CmsProgressUpdateVersion;
@@ -19,6 +20,8 @@ use App\Models\CmsValidationAssignment;
 use App\Models\CmsValidationEvidenceLink;
 use App\Models\CmsValidationReview;
 use App\Models\CmsValidationVersion;
+use App\Models\Document;
+use App\Models\DocumentVersion;
 use App\Models\MasterList;
 use App\Models\Permission;
 use App\Models\User;
@@ -67,7 +70,7 @@ class CmsValidationTest extends TestCase
             4,
             Permission::query()->where('code', 'like', 'cms.validation-evidence.%')->count(),
         );
-        $this->assertSame(90, Permission::query()->where('code', 'like', 'cms.%')->count());
+        $this->assertSame(104, Permission::query()->where('code', 'like', 'cms.%')->count());
 
         $management = $this->user('departmenthead');
         $validator = $this->user('cias.employee');
@@ -117,6 +120,236 @@ class CmsValidationTest extends TestCase
         } catch (QueryException) {
             $this->assertTrue(true);
         }
+    }
+
+    public function test_accepted_risk_disposition_requires_independent_review_and_decision(): void
+    {
+        $fixture = $this->fixture('DISPOSITION-ACCEPTED-RISK');
+        $auditee = $fixture['auditee'];
+        $management = $fixture['supervisor'];
+        $reviewer = User::factory()->create([
+            'role_id' => $management->role_id,
+            'office_id' => $management->office_id,
+            'username' => 'cias.disposition.decisioner',
+            'employee_id' => 'CIAS-DISP-001',
+        ]);
+        $decisionMaker = User::factory()->create([
+            'role_id' => $management->role_id,
+            'office_id' => $management->office_id,
+            'username' => 'cias.disposition.approver',
+            'employee_id' => 'CIAS-DISP-003',
+        ]);
+        $case = $fixture['case']->fresh();
+
+        Sanctum::actingAs($auditee);
+        $draft = $this->postJson("/api/cms/recommendations/{$case->id}/dispositions", [
+            'dispositionCode' => 'ACCEPTED_RISK',
+        ])->assertCreated()->json('data.request');
+        $version = $draft['currentVersion'];
+
+        $document = Document::query()->create([
+            'document_type_id' => MasterList::query()->firstOrFail()->items()->firstOrFail()->id,
+            'title' => 'Disposition support evidence',
+            'original_file_name' => 'disposition-support.txt',
+            'storage_path' => 'cms/disposition-support.txt',
+            'mime_type' => 'text/plain',
+            'file_extension' => 'txt',
+            'file_size' => 12,
+            'checksum_sha256' => hash('sha256', 'support'),
+            'uploaded_by' => $auditee->id,
+            'updated_by' => $auditee->id,
+            'is_active' => true,
+        ]);
+        $documentVersion = DocumentVersion::query()->create([
+            'document_id' => $document->id,
+            'version_number' => 1,
+            'change_summary' => 'Initial evidence version.',
+            'original_file_name' => 'disposition-support.txt',
+            'storage_path' => 'cms/disposition-support.txt',
+            'mime_type' => 'text/plain',
+            'file_size' => 12,
+            'checksum_sha256' => hash('sha256', 'support'),
+            'uploaded_by' => $auditee->id,
+        ]);
+        $document->forceFill(['current_version_id' => $documentVersion->id])->save();
+        $linked = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/evidence", [
+            'documentVersionId' => $documentVersion->id,
+            'evidenceCategory' => 'DISPOSITION_SUPPORT',
+            'title' => 'Exact Core version support',
+            'sourceOrCustodian' => 'Responsible office',
+        ])->assertOk()->json('data.request');
+        $version = $linked['currentVersion'];
+        $this->assertDatabaseHas('cms_disposition_evidence_links', [
+            'document_id' => $document->id,
+            'document_version_id' => $documentVersion->id,
+            'checksum_sha256' => $documentVersion->checksum_sha256,
+        ]);
+
+        $payload = [
+            'lockVersion' => $version['lockVersion'],
+            'dispositionSummary' => 'Management requests controlled accepted-risk disposition.',
+            'basisAndCriteria' => 'The residual risk is within the approved risk tolerance.',
+            'riskImpactAssessment' => 'Residual risk remains monitored under the approved control plan.',
+            'managementPosition' => 'Management accepts the documented residual risk.',
+            'responsibleOfficeConfirmation' => 'The responsible office confirms ownership of monitoring.',
+            'acceptedRiskRationale' => 'Further implementation is disproportionate to the residual exposure.',
+            'riskTreatmentAndMonitoring' => 'Quarterly monitoring and management reporting will continue.',
+            'noAdditionalEvidenceExplanation' => 'The existing evidence set is complete for this decision.',
+        ];
+        $submittedResponse = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/submit", $payload)
+            ->assertOk();
+        $submitted = $submittedResponse->json('data.request');
+        $this->assertSame('FOR_DISPOSITION', $submittedResponse->json('data.caseContext.status'));
+
+        Sanctum::actingAs($management);
+        $underReview = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/start-review", [])
+            ->assertOk()->json('data.request');
+        $this->assertSame('UNDER_REVIEW', $underReview['currentVersion']['statusCode']);
+        Sanctum::actingAs($reviewer);
+        $reviewed = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/recommend", [
+            'readinessAssessment' => 'Ready.',
+            'basisAssessment' => 'Basis is adequately documented.',
+            'evidenceAssessment' => 'Evidence is sufficient and traceable.',
+            'riskAssessment' => 'Residual risk is accepted subject to monitoring.',
+        ])->assertOk()->json('data.request');
+        $this->assertSame('FOR_DECISION', $reviewed['currentVersion']['statusCode']);
+
+        Sanctum::actingAs($decisionMaker);
+        $approvedResponse = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/approve", [
+            'decisionComment' => 'Approved by an independent CIAS Management decision-maker.',
+            'effectiveDate' => today()->toDateString(),
+        ])->assertOk();
+        $approved = $approvedResponse->json('data.request');
+
+        $this->assertSame('APPROVED', $approved['currentVersion']['statusCode']);
+        $this->assertSame('ACCEPTED_RISK', $approvedResponse->json('data.caseContext.status'));
+        $this->assertDatabaseHas('cms_disposition_decisions', [
+            'cms_disposition_request_version_id' => $version['id'],
+            'decision_code' => 'APPROVED',
+            'decided_by' => $decisionMaker->id,
+            'new_case_status' => 'ACCEPTED_RISK',
+        ]);
+        $this->assertDatabaseHas('cms_recommendation_events', [
+            'cms_recommendation_case_id' => $case->id,
+            'event_code' => 'DISPOSITION_APPROVED',
+        ]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'cms.disposition.approved']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'cms.disposition.approved']);
+        $this->assertDatabaseHas('notifications', ['type' => 'CMS_DISPOSITION_APPROVED']);
+        $decision = CmsDispositionDecision::query()->where('cms_disposition_request_version_id', $version['id'])->firstOrFail();
+        try {
+            $decision->update(['decision_comment' => 'tamper']);
+            $this->fail('Disposition decisions must remain immutable.');
+        } catch (LogicException) {
+            $this->assertTrue(true);
+        }
+        Sanctum::actingAs($management);
+        $this->getJson('/api/cms/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.cards.acceptedRiskRecommendations', 1)
+            ->assertJsonPath('data.cards.totalVisibleCases', 0);
+        $this->getJson("/api/cms/recommendations/{$case->id}")
+            ->assertOk()
+            ->assertJsonPath('data.recommendation.dispositionSummary.acceptedRisk', true);
+    }
+
+    public function test_no_longer_applicable_is_a_separate_disposition_and_rejection_restores_prior_status(): void
+    {
+        $fixture = $this->fixture('DISPOSITION-NLA');
+        $case = $fixture['case']->fresh();
+        $auditee = $fixture['auditee'];
+        $management = $fixture['supervisor'];
+        $reviewer = User::factory()->create([
+            'role_id' => $management->role_id,
+            'office_id' => $management->office_id,
+            'username' => 'cias.disposition.rejecter',
+            'employee_id' => 'CIAS-DISP-002',
+        ]);
+        $decisionMaker = User::factory()->create([
+            'role_id' => $management->role_id,
+            'office_id' => $management->office_id,
+            'username' => 'cias.disposition.nla-approver',
+            'employee_id' => 'CIAS-DISP-004',
+        ]);
+
+        Sanctum::actingAs($auditee);
+        $draft = $this->postJson("/api/cms/recommendations/{$case->id}/dispositions", ['dispositionCode' => 'NO_LONGER_APPLICABLE'])
+            ->assertCreated()->json('data.request');
+        $version = $draft['currentVersion'];
+        $payload = [
+            'lockVersion' => $version['lockVersion'],
+            'dispositionSummary' => 'The recommendation is no longer applicable.',
+            'basisAndCriteria' => 'The underlying process has been retired.',
+            'riskImpactAssessment' => 'The original risk no longer exists in the current operating model.',
+            'managementPosition' => 'Management confirms the changed operating context.',
+            'responsibleOfficeConfirmation' => 'The responsible office confirms the transition.',
+            'noLongerApplicableBasis' => 'The audited activity was formally discontinued.',
+            'transitionOrRecordsImpact' => 'Records are retained under the replacement process.',
+            'noAdditionalEvidenceExplanation' => 'No additional evidence is required beyond the transition record.',
+        ];
+        $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/submit", $payload)->assertOk();
+        Sanctum::actingAs($management);
+        $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/start-review", [])->assertOk();
+        Sanctum::actingAs($reviewer);
+        $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/recommend", [
+            'readinessAssessment' => 'Ready.', 'basisAssessment' => 'Adequate.', 'evidenceAssessment' => 'Sufficient.', 'riskAssessment' => 'No residual risk from the retired activity.',
+        ])->assertOk();
+        Sanctum::actingAs($decisionMaker);
+        $rejectedResponse = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/reject", [
+            'decisionComment' => 'The transition evidence does not yet establish that the recommendation is no longer applicable.',
+        ])->assertOk();
+        $rejected = $rejectedResponse->json('data.request');
+        $this->assertSame('REJECTED', $rejected['currentVersion']['statusCode']);
+        $this->assertSame('MONITORING', $rejectedResponse->json('data.caseContext.status'));
+        $this->assertDatabaseHas('cms_disposition_decisions', ['decision_code' => 'REJECTED', 'new_case_status' => 'MONITORING']);
+    }
+
+    public function test_returned_disposition_creates_a_new_immutable_revision(): void
+    {
+        $fixture = $this->fixture('DISPOSITION-REVISION');
+        $case = $fixture['case']->fresh();
+        $auditee = $fixture['auditee'];
+        $management = $fixture['supervisor'];
+        $reviewer = User::factory()->create([
+            'role_id' => $management->role_id,
+            'office_id' => $management->office_id,
+            'username' => 'cias.disposition.reviser',
+            'employee_id' => 'CIAS-DISP-005',
+        ]);
+
+        Sanctum::actingAs($auditee);
+        $draft = $this->postJson("/api/cms/recommendations/{$case->id}/dispositions", ['dispositionCode' => 'ACCEPTED_RISK'])
+            ->assertCreated()->json('data.request');
+        $version = $draft['currentVersion'];
+        $payload = [
+            'lockVersion' => $version['lockVersion'],
+            'dispositionSummary' => 'Initial disposition draft.',
+            'basisAndCriteria' => 'Initial basis.',
+            'riskImpactAssessment' => 'Initial risk assessment.',
+            'managementPosition' => 'Initial management position.',
+            'responsibleOfficeConfirmation' => 'Initial office confirmation.',
+            'acceptedRiskRationale' => 'Initial accepted-risk rationale.',
+            'noAdditionalEvidenceExplanation' => 'Initial evidence explanation.',
+        ];
+        $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/submit", $payload)->assertOk();
+        Sanctum::actingAs($management);
+        $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/start-review", [])->assertOk();
+        Sanctum::actingAs($reviewer);
+        $returned = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/transitions/return", ['returnReason' => 'Provide a clearer risk treatment narrative.'])
+            ->assertOk()->json('data.request');
+        $this->assertSame('RETURNED', $returned['currentVersion']['statusCode']);
+
+        Sanctum::actingAs($auditee);
+        $revised = $this->postJson("/api/cms/disposition-requests/{$draft['id']}/versions/{$version['id']}/revisions", [
+            'revisionReason' => 'Expanded the risk treatment narrative.',
+        ])->assertCreated()->json('data.request');
+        $this->assertSame(2, $revised['currentVersion']['versionNumber']);
+        $this->assertSame('DRAFT', $revised['currentVersion']['statusCode']);
+        $this->assertDatabaseHas('cms_disposition_request_versions', [
+            'id' => $version['id'],
+            'status_code' => 'RETURNED',
+            'active_slot' => null,
+        ]);
     }
 
     public function test_review_creation_pins_latest_sources_assigns_validator_and_enforces_independence(): void

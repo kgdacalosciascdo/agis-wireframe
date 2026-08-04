@@ -32,6 +32,12 @@ class CmsRecommendationCase extends Model
 
     public const STATUS_CLOSED = 'CLOSED';
 
+    public const STATUS_FOR_DISPOSITION = 'FOR_DISPOSITION';
+
+    public const STATUS_ACCEPTED_RISK = 'ACCEPTED_RISK';
+
+    public const STATUS_NO_LONGER_APPLICABLE = 'NO_LONGER_APPLICABLE';
+
     protected $fillable = [
         'cms_recommendation_id',
         'status_code',
@@ -183,6 +189,18 @@ class CmsRecommendationCase extends Model
     public function closureDecision(): BelongsTo
     {
         return $this->belongsTo(CmsClosureDecision::class, 'closure_decision_id');
+    }
+
+    public function dispositionRequests(): HasMany
+    {
+        return $this->hasMany(CmsDispositionRequest::class, 'cms_recommendation_case_id')
+            ->orderByDesc('request_sequence');
+    }
+
+    public function unresolvedDispositionRequest(): HasOne
+    {
+        return $this->hasOne(CmsDispositionRequest::class, 'cms_recommendation_case_id')
+            ->whereNull('resolved_at');
     }
 
     public function closedBy(): BelongsTo

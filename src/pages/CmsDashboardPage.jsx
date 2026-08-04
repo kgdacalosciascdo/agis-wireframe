@@ -11,6 +11,7 @@ import {
   Eye,
   FileWarning,
   RefreshCw,
+  RotateCcw,
   ShieldAlert,
   SquareCheckBig,
   UserRoundCheck,
@@ -78,6 +79,13 @@ const metrics = [
   ["returnedClosureRequests", "Closures returned", FileWarning, "red"],
   ["recentlyClosedRecommendations", "Recently closed", CheckCircle2, "emerald"],
   ["totalClosedRecommendations", "Total formally closed", CheckCircle2, "sky"],
+  ["terminalRecommendationsEligibleForReopening", "Terminal recommendations eligible for reopening", RotateCcw, "amber"],
+  ["reopeningDrafts", "Reopening drafts", FileCheck2, "slate"],
+  ["reopeningRequestsAwaitingReview", "Reopenings awaiting review", UserRoundCheck, "warning"],
+  ["reopeningRequestsAwaitingDecision", "Reopenings awaiting decision", Clock3, "warning"],
+  ["returnedReopeningRequests", "Reopenings returned", FileWarning, "red"],
+  ["rejectedReopeningRequests", "Reopenings rejected", XCircle, "red"],
+  ["recentlyReopenedRecommendations", "Recently reopened", RotateCcw, "emerald"],
 ];
 
 const attention = [

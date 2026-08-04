@@ -437,6 +437,11 @@ export default function CmsRecommendationRegistryPage() {
                     </td>
                     <td className="px-4 py-3">
                       <CmsStatusBadge status={record.status} />
+                      {record.currentlyReopened && (
+                        <span className="mt-1 block text-xs font-semibold text-emerald-700">
+                          Reopened · Cycle {record.activeCycleNumber ?? 1}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       <span className="block">

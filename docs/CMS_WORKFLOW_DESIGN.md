@@ -780,3 +780,28 @@ Supporting Evidence, Review Assessment, Final Decision, and Versions & History
 tabs. It does not expose reopening, automation, reports, exports, AIS, or ARMIS
 controls. Historical version detail is rendered when supplied by the backend
 resource; CMS-9A currently returns the authoritative current version only.
+
+## CMS-10A controlled recommendation reopening backend
+
+Reopening is an exceptional workflow for effective `CLOSED`, `ACCEPTED_RISK`,
+and `NO_LONGER_APPLICABLE` recommendations. The original Closure or
+Disposition Decision remains immutable and is pinned by ID and source snapshot.
+The request family is `DRAFT → SUBMITTED → UNDER_REVIEW → RETURNED/FOR_DECISION
+→ APPROVED/REJECTED`; returned requests are corrected through new immutable
+revisions. Approval may move the case only to `FOR_ACTION_PLAN` or `MONITORING`.
+Monitoring requires an accepted Action Plan, current Compliance Monitor, valid
+target date, and suitability assessment. Approval starts a new active cycle;
+rejection leaves the terminal case unchanged.
+
+Independent review and CIAS Management decision authority are separated from
+the initiator. Optimistic locks, atomic transitions, immutable assessments and
+decisions, exact Core Document Version evidence, scope/confidentiality checks,
+CMS events, Activity Log, Audit Trail, and after-commit notifications apply to
+all transitions. No automation, direct closure, AIS, or ARMIS integration is
+included. CMS-10B consumes this backend contract through protected React routes
+`/compliance-management/recommendations/:recommendationId/reopening-requests`
+and its request-detail child route. The workspace treats backend readiness and
+`availableActions` as authoritative, keeps exact Core-version evidence links
+protected, and shows the current active cycle alongside the preserved
+historical terminal decision. It never mutates case status directly or treats
+a request/review as a reopening.

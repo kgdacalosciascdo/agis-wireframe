@@ -47,6 +47,8 @@ class CmsRecommendationCase extends Model
         'created_by',
         'lock_version',
         'closed_at', 'closed_by', 'closure_decision_id',
+        'active_cycle_number', 'reopening_count', 'last_reopened_at',
+        'last_reopened_by', 'last_reopening_decision_id',
     ];
 
     protected function casts(): array
@@ -56,6 +58,9 @@ class CmsRecommendationCase extends Model
             'opened_at' => 'datetime',
             'lock_version' => 'integer',
             'closed_at' => 'datetime',
+            'active_cycle_number' => 'integer',
+            'reopening_count' => 'integer',
+            'last_reopened_at' => 'datetime',
         ];
     }
 
@@ -206,5 +211,27 @@ class CmsRecommendationCase extends Model
     public function closedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by')->withTrashed();
+    }
+
+    public function lastReopenedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'last_reopened_by')->withTrashed();
+    }
+
+    public function lastReopeningDecision(): BelongsTo
+    {
+        return $this->belongsTo(CmsReopeningDecision::class, 'last_reopening_decision_id');
+    }
+
+    public function reopeningRequests(): HasMany
+    {
+        return $this->hasMany(CmsReopeningRequest::class, 'cms_recommendation_case_id')
+            ->orderByDesc('request_sequence');
+    }
+
+    public function unresolvedReopeningRequest(): HasOne
+    {
+        return $this->hasOne(CmsReopeningRequest::class, 'cms_recommendation_case_id')
+            ->whereNull('resolved_at');
     }
 }

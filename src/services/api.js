@@ -2443,6 +2443,63 @@ export const cmsApi = {
     const data = await request(`/api/cms/disposition-evidence/${evidenceId}`, { method: "DELETE", body: payload, csrf: true });
     return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
   },
+  async getReopeningOptions(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/reopening-options`);
+  },
+  async getReopeningRequests(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/reopenings`);
+  },
+  async createReopeningRequest(recommendationId, payload) {
+    const data = await request(`/api/cms/recommendations/${recommendationId}/reopenings`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async getReopeningRequest(reopeningRequestId) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}`);
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async updateReopeningRequest(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async submitReopeningRequest(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/transitions/submit`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async startReopeningReview(reopeningRequestId, versionId, payload = {}) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/transitions/start-review`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async returnReopeningRequest(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/transitions/return`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async recommendReopening(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/transitions/recommend`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async approveReopening(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/transitions/approve`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async rejectReopening(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/transitions/reject`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async createReopeningRevision(reopeningRequestId, versionId, payload) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/revisions`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async uploadReopeningEvidence(reopeningRequestId, versionId, formData) {
+    const data = await request(`/api/cms/reopening-requests/${reopeningRequestId}/versions/${versionId}/evidence`, { method: "POST", body: formData, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async downloadReopeningEvidence(evidenceId, fileName = "reopening-evidence") {
+    return documentApi.downloadFile(`/api/cms/reopening-evidence/${evidenceId}/download`, fileName);
+  },
+  async removeReopeningEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/reopening-evidence/${evidenceId}`, { method: "DELETE", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
   async getClosureRequests(recommendationId) {
     return request(`/api/cms/recommendations/${recommendationId}/closure-requests`);
   },

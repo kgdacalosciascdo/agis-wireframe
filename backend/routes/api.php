@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\CmsEscalationController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
+use App\Http\Controllers\Api\CmsReopeningController;
 use App\Http\Controllers\Api\CmsTargetDateExtensionController;
 use App\Http\Controllers\Api\CmsValidationController;
 use App\Http\Controllers\Api\CoreRegistryController;
@@ -281,6 +282,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cms/disposition-requests/{dispositionRequest}/versions/{version}/evidence', [CmsDispositionController::class, 'uploadEvidence'])->middleware('permission:cms.disposition-evidence.upload');
     Route::delete('/cms/disposition-evidence/{evidence}', [CmsDispositionController::class, 'removeEvidence'])->middleware('permission:cms.disposition-evidence.remove_draft');
     Route::get('/cms/disposition-evidence/{evidence}/download', [CmsDispositionController::class, 'downloadEvidence'])->middleware('permission:cms.disposition-evidence.download');
+
+    Route::get('/cms/recommendations/{recommendation}/reopenings', [CmsReopeningController::class, 'index'])->middleware('permission:cms.reopening.view');
+    Route::get('/cms/recommendations/{recommendation}/reopening-options', [CmsReopeningController::class, 'options'])->middleware('permission:cms.reopening.request');
+    Route::post('/cms/recommendations/{recommendation}/reopenings', [CmsReopeningController::class, 'store'])->middleware('permission:cms.reopening.request');
+    Route::get('/cms/reopening-requests/{reopeningRequest}', [CmsReopeningController::class, 'show'])->middleware('permission:cms.reopening.view');
+    Route::put('/cms/reopening-requests/{reopeningRequest}/versions/{version}', [CmsReopeningController::class, 'update'])->middleware('permission:cms.reopening.update');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/transitions/submit', [CmsReopeningController::class, 'submit'])->middleware('permission:cms.reopening.submit');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/transitions/start-review', [CmsReopeningController::class, 'startReview'])->middleware('permission:cms.reopening.review');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/transitions/return', [CmsReopeningController::class, 'returnVersion'])->middleware('permission:cms.reopening.return');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/transitions/recommend', [CmsReopeningController::class, 'recommend'])->middleware('permission:cms.reopening.recommend');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/transitions/approve', [CmsReopeningController::class, 'approve'])->middleware('permission:cms.reopening.approve');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/transitions/reject', [CmsReopeningController::class, 'reject'])->middleware('permission:cms.reopening.reject');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/revisions', [CmsReopeningController::class, 'revise'])->middleware('permission:cms.reopening.revise');
+    Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/evidence', [CmsReopeningController::class, 'uploadEvidence'])->middleware('permission:cms.reopening-evidence.upload');
+    Route::delete('/cms/reopening-evidence/{evidence}', [CmsReopeningController::class, 'removeEvidence'])->middleware('permission:cms.reopening-evidence.remove_draft');
+    Route::get('/cms/reopening-evidence/{evidence}/download', [CmsReopeningController::class, 'downloadEvidence'])->middleware('permission:cms.reopening-evidence.download');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');

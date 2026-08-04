@@ -870,3 +870,22 @@ presented as formally accepted residual risk—not implementation or closure;
 No Longer Applicable is presented as an authoritative change of circumstances.
 Protected Core evidence downloads, stale-lock reload guidance, safe 403/404
 states, and responsive history/evidence cards use the existing CMS UI patterns.
+
+## CMS-10B controlled reopening workspace flow
+
+Recommendation Detail exposes the recommendation-scoped Reopening workspace
+only when `cms.reopening.view` is granted. The list and detail routes consume
+the CMS-10A options, readiness, and `availableActions` responses; the client
+does not recreate eligibility rules or submit arbitrary case statuses. Drafts
+can be edited and linked to protected exact Core Document Versions, while
+submitted, returned, reviewed, approved, and rejected versions are presented
+according to their immutable backend state.
+
+The workspace keeps the historical Closure or Disposition Decision visible and
+explicitly separate from the request, independent assessment, and final
+Reopening Decision. A request, review, or rejection never reactivates a case;
+only an approved decision starts a new active cycle at `FOR_ACTION_PLAN` or
+`MONITORING`. Stale locks offer an authoritative reload, protected downloads
+remain authenticated, and scope-safe 403/404 responses do not disclose hidden
+records. Automation, reminders, reports, exports, AIS, and ARMIS are not part
+of this flow.

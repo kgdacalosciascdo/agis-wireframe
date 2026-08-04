@@ -12,6 +12,7 @@ use App\Services\Cms\CmsDispositionService;
 use App\Services\Cms\CmsProgressUpdateService;
 use App\Services\Cms\CmsRecommendationRegistryService;
 use App\Services\Cms\CmsRecommendationScopeService;
+use App\Services\Cms\CmsReopeningService;
 use App\Services\Cms\CmsTargetDateExtensionService;
 use App\Services\Cms\CmsValidationService;
 use App\Support\ActivityRecorder;
@@ -30,6 +31,7 @@ class CmsRecommendationController extends Controller
         private readonly CmsValidationService $validations,
         private readonly CmsTargetDateExtensionService $extensions,
         private readonly CmsDispositionService $dispositions,
+        private readonly CmsReopeningService $reopenings,
     ) {}
 
     public function index(CmsRecommendationIndexRequest $request): JsonResponse
@@ -112,6 +114,14 @@ class CmsRecommendationController extends Controller
                 );
             }
         }
+        foreach ($case->reopeningRequests as $reopening) {
+            if ($reopening->currentVersion) {
+                $reopening->currentVersion->setAttribute(
+                    'available_actions',
+                    $this->reopenings->permittedActions($request->user(), $reopening, $reopening->currentVersion),
+                );
+            }
+        }
         $this->recordView($request, $case);
 
         return response()->json([
@@ -159,6 +169,13 @@ class CmsRecommendationController extends Controller
             'dispositionRequests.currentVersion.decision.decider',
             'dispositionRequests.resolvedVersion.decision.decider',
             'dispositionRequests.currentVersion.evidenceLinks.documentVersion',
+            'reopeningRequests.currentVersion.assessment.reviewer',
+            'reopeningRequests.currentVersion.decision.decider',
+            'reopeningRequests.resolvedVersion.decision.decider',
+            'reopeningRequests.currentVersion.evidenceLinks.documentVersion',
+            'reopeningRequests.currentVersion.activeEvidenceLinks.documentVersion',
+            'reopeningRequests.sourceClosureDecision.version',
+            'reopeningRequests.sourceDispositionDecision.version',
         ];
     }
 

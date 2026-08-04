@@ -546,6 +546,63 @@ states, creation, type-specific fields, terminal presentation, and safe
 no-reopening behavior. A login-throttle failure must be rerun independently
 after cooldown and reported separately; authentication throttling must not be
 weakened.
+
+## CMS-10B controlled reopening workspace
+
+CMS-10B adds no infrastructure or deployment service. It is delivered through
+the existing same-origin React build and authenticated `/api` routes. The
+recommendation-scoped entry points are:
+
+```text
+/compliance-management/recommendations/:recommendationId/reopening-requests
+/compliance-management/recommendations/:recommendationId/reopening-requests/:reopeningRequestId
+```
+
+The frontend is a protected presentation and workflow client for CMS-10A. It
+uses backend readiness and `availableActions`, preserves optimistic lock
+versions, and never changes a case status directly. Exact Core Document
+Version evidence is linked and downloaded through protected endpoints; no
+storage paths or public document URLs are exposed. After approval, the UI shows
+the new active cycle and approved destination while retaining the immutable
+historical terminal decision. Rejection leaves the terminal status unchanged.
+
+Playwright starts Laravel from `backend/` and Vite from the repository root.
+The default readiness URLs are `http://127.0.0.1:8000/health` and
+`http://127.0.0.1:5173/login`. If those ports are occupied by another local
+application, use explicit overrides without terminating the unrelated process:
+
+```powershell
+$env:PLAYWRIGHT_BACKEND_PORT = "8010"
+$env:PLAYWRIGHT_FRONTEND_PORT = "5174"
+npx.cmd playwright test tests/e2e/cms-reopening.spec.js
+```
+
+The harness passes the selected backend port to Vite through
+`VITE_API_PROXY_TARGET` and adds the selected frontend port to
+`SANCTUM_STATEFUL_DOMAINS`, preserving same-origin session behavior.
+
+Operational verification for CMS-10B:
+
+```powershell
+npm.cmd run lint
+npm.cmd run build
+php artisan test tests/Feature/CmsReopeningTest.php
+npx.cmd playwright test tests/e2e/cms-reopening.spec.js --project=desktop-chrome
+```
+
+The Playwright spec uses mocked CMS-10A responses for frontend contract checks.
+If the local Laravel/Vite web server cannot start, report that as an
+environment failure rather than a passing browser test. CMS-11 automation and
+reminders, CMS-12 reports/exports, AIS, and ARMIS remain deferred.
+
+CMS-10B verification gate (2026-08-04): the focused reopening specification
+completed all 6 tests across desktop and mobile after one mobile login-throttle
+rerun. The complete inventory contained 68 tests in 11 specifications and two
+projects. Its aggregate command exceeded the local execution window, so
+deterministic desktop and mobile groups were run instead: desktop 34/34 and
+mobile 34/34 passed, including independent reruns of throttle-affected tests.
+The backend Feature suite passed 174 tests and 2,928 assertions. No Render
+infrastructure files were changed.
 # Render Free deployment operations
 
 The Render Free image is a same-origin demonstration deployment. Follow

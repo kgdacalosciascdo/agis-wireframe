@@ -110,6 +110,7 @@ const CmsExtensionsPage = lazy(() => import("./pages/CmsExtensionsPage"));
 const CmsEscalationsPage = lazy(() => import("./pages/CmsEscalationsPage"));
 const CmsClosureRequestsPage = lazy(() => import("./pages/CmsClosureRequestsPage"));
 const CmsDispositionsPage = lazy(() => import("./pages/CmsDispositionsPage"));
+const CmsReopeningPage = lazy(() => import("./pages/CmsReopeningPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -740,6 +741,26 @@ export default function App() {
               <ProtectedPage permission="cms.disposition.view">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsDispositionsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/reopening-requests"
+            element={
+              <ProtectedPage permission="cms.reopening.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsReopeningPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/recommendations/:recommendationId/reopening-requests/:reopeningRequestId"
+            element={
+              <ProtectedPage permission="cms.reopening.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsReopeningPage />
                 </Suspense>
               </ProtectedPage>
             }

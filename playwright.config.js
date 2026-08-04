@@ -1,4 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import { env } from "node:process";
+
+const backendPort = env.PLAYWRIGHT_BACKEND_PORT || "8000";
+const frontendPort = env.PLAYWRIGHT_FRONTEND_PORT || "5173";
+const backendUrl = `http://127.0.0.1:${backendPort}`;
+const frontendUrl = `http://127.0.0.1:${frontendPort}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -11,7 +17,7 @@ export default defineConfig({
   retries: 0,
   reporter: "line",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: frontendUrl,
     channel: "chrome",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
@@ -34,15 +40,24 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command:
-        "php backend/artisan serve --host=127.0.0.1 --port=8000",
-      url: "http://127.0.0.1:8000/api/health",
+      command: `php artisan serve --host=127.0.0.1 --port=${backendPort}`,
+      cwd: "./backend",
+      env: {
+        ...env,
+        APP_URL: backendUrl,
+        SANCTUM_STATEFUL_DOMAINS: `127.0.0.1:${frontendPort},localhost:${frontendPort},127.0.0.1,localhost`,
+      },
+      url: `${backendUrl}/health`,
       reuseExistingServer: true,
       timeout: 120_000,
     },
     {
-      command: "npm run dev -- --host=127.0.0.1 --port=5173",
-      url: "http://127.0.0.1:5173/login",
+      command: `npm.cmd run dev -- --host=127.0.0.1 --port=${frontendPort}`,
+      env: {
+        ...env,
+        VITE_API_PROXY_TARGET: backendUrl,
+      },
+      url: `${frontendUrl}/login`,
       reuseExistingServer: true,
       timeout: 120_000,
     },

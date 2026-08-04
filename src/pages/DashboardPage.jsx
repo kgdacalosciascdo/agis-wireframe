@@ -255,7 +255,9 @@ export default function DashboardPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const content = roleContent[user.roleCode] ?? roleContent.agis_user;
-  const allowedModules = visibleFor(user, modules);
+  const allowedModules = visibleFor(user, modules).filter(
+    (module) => module.key !== "core",
+  );
 
   return (
     <div className="p-3 sm:p-5">
@@ -272,7 +274,7 @@ export default function DashboardPage() {
         </time>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-7">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {allowedModules.map((module) => (
           <ModuleCard key={module.key} module={module} onOpen={navigate} />
         ))}

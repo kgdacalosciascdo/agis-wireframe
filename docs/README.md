@@ -80,8 +80,9 @@ with formal notice, acknowledgement, response review, follow-up, and resolution
 records; CMS-7B provides the protected recommendation-scoped React workspace,
 including notice, acknowledgement, response, evidence, follow-up, and
 resolution views. CMS-9A now adds the accepted-risk and no-longer-applicable
-disposition backend; its React workspace remains deferred to CMS-9B. Reopening,
-reminders/automation, reporting, exports, AIS, and ARMIS remain deferred.
+disposition backend and CMS-9B React workspace. CMS-10A now adds the controlled
+reopening backend and CMS-10B now provides its protected React workspace. Reminders/
+automation, reporting, exports, AIS, and ARMIS remain deferred.
 
 ## Diagram rendering
 
@@ -91,7 +92,8 @@ CMS-8A closure backend and the CMS-8B recommendation-scoped React workspace are
 implemented. The workspace preserves backend readiness, authorization,
 optimistic locking, immutable lineage, Core-version evidence links, controlled
 review/decision actions, and closed-case read-only behavior. CMS-9A disposition
-backend controls accepted-risk and no-longer-applicable decisions; reopening,
+backend controls accepted-risk and no-longer-applicable decisions. CMS-10A
+controlled reopening and its React workspace are backend/frontend verified;
 reporting, exports, AIS, and ARMIS remain deferred.
 
 The workflow documents use Mermaid diagrams. GitHub and compatible Markdown
@@ -112,9 +114,10 @@ independent assessments, separate CIAS Management decisions, exact Core
 Document Version evidence links, readiness checks, case transitions,
 permissions, events, Activity Log/Audit Trail entries, notifications, APIs, and
 Recommendation Detail/dashboard contracts are implemented and backend-tested.
-CMS-9B is the next gated phase for the React workspace. Controlled reopening,
-scheduled automation, closure-readiness candidates, reports, exports, AIS, and
-ARMIS have not been started.
+CMS-10A controlled reopening and CMS-10B React workspace are implemented and
+verified. Scheduled automation,
+closure-readiness candidates, reports, exports, AIS, and ARMIS have not been
+started.
 
 ## CMS-9B status
 
@@ -125,5 +128,6 @@ No-Longer-Applicable draft narratives, immutable workflow presentation,
 protected Core-version evidence links/downloads, review and decision panels,
 returned revisions, terminal banners, Recommendation Detail integration, and
 CMS dashboard-compatible backend metrics. The current CMS-9A Resource does not
-return historical versions; the UI does not fabricate them. CMS-10A reopening,
-automation, reports/exports, AIS, and ARMIS remain deferred.
+return historical versions; the UI does not fabricate them. CMS-10A reopening
+backend and CMS-10B reopening UI are implemented; automation, reports/exports,
+AIS, and ARMIS remain deferred.

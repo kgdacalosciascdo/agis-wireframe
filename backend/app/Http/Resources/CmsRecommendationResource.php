@@ -18,6 +18,12 @@ class CmsRecommendationResource extends JsonResource
             'id' => $this->id,
             'cmsRecommendationCode' => sprintf('CMS-REC-%06d', $this->id),
             'status' => $this->status_code,
+            'activeCycleNumber' => (int) ($this->active_cycle_number ?: 1),
+            'reopeningCount' => (int) ($this->reopening_count ?: 0),
+            'lastReopenedAt' => $this->last_reopened_at?->toISOString(),
+            'currentlyReopened' => (int) ($this->reopening_count ?: 0) > 0
+                && ! in_array($this->status_code, ['CLOSED', 'ACCEPTED_RISK', 'NO_LONGER_APPLICABLE', 'CANCELLED'], true),
+            'terminalSource' => $this->last_reopening_decision_id ? 'REOPENED' : ($this->status_code === 'CLOSED' ? 'CLOSURE' : (in_array($this->status_code, ['ACCEPTED_RISK', 'NO_LONGER_APPLICABLE'], true) ? 'DISPOSITION' : null)),
             'openedAt' => $this->opened_at?->toISOString(),
             'transferredAt' => $this->recommendation?->transferred_at?->toISOString(),
             'effectiveTargetDate' => $target?->toDateString(),

@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Http\Resources\CmsDispositionRequestResource;
 use Illuminate\Http\Request;
 
 /** Complete safe CMS-2A workspace assembled from case, intake, and lineage snapshots. */
@@ -264,6 +263,24 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                     'acceptedRisk' => $this->status_code === 'ACCEPTED_RISK',
                     'noLongerApplicable' => $this->status_code === 'NO_LONGER_APPLICABLE',
                     'requests' => CmsDispositionRequestResource::collection($this->dispositionRequests),
+                ],
+            ),
+            'reopeningSummary' => $this->whenLoaded(
+                'reopeningRequests',
+                fn (): array => [
+                    'hasReopeningRequests' => $this->reopeningRequests->isNotEmpty(),
+                    'activeRequestId' => $this->reopeningRequests->first(fn ($r): bool => $r->resolved_at === null)?->id,
+                    'activeRequestStatus' => $this->reopeningRequests->first(fn ($r): bool => $r->resolved_at === null)?->currentVersion?->status_code,
+                    'sourceTerminalStatus' => $this->reopeningRequests->first()?->source_terminal_status,
+                    'priorRequestCount' => $this->reopeningRequests->count(),
+                    'wasPreviouslyClosed' => $this->reopeningRequests->contains(fn ($r): bool => $r->source_terminal_status === 'CLOSED'),
+                    'wasPreviouslyAcceptedRisk' => $this->reopeningRequests->contains(fn ($r): bool => $r->source_terminal_status === 'ACCEPTED_RISK'),
+                    'wasPreviouslyNoLongerApplicable' => $this->reopeningRequests->contains(fn ($r): bool => $r->source_terminal_status === 'NO_LONGER_APPLICABLE'),
+                    'currentlyReopened' => (int) ($this->reopening_count ?: 0) > 0 && ! in_array($this->status_code, ['CLOSED', 'ACCEPTED_RISK', 'NO_LONGER_APPLICABLE', 'CANCELLED'], true),
+                    'activeCycleNumber' => (int) ($this->active_cycle_number ?: 1),
+                    'latestReopeningDate' => $this->last_reopened_at?->toISOString(),
+                    'latestDecision' => $this->lastReopeningDecision ? new CmsReopeningDecisionResource($this->lastReopeningDecision) : null,
+                    'requests' => CmsReopeningRequestResource::collection($this->reopeningRequests),
                 ],
             ),
         ];

@@ -10,6 +10,7 @@ use App\Models\CmsEscalationResponseVersion;
 use App\Models\CmsProgressUpdate;
 use App\Models\CmsProgressUpdateVersion;
 use App\Models\CmsRecommendationCase;
+use App\Models\CmsReopeningRequestVersion;
 use App\Models\CmsTargetDateExtensionVersion;
 use App\Models\CmsValidationReview;
 use App\Models\CmsValidationVersion;
@@ -172,6 +173,16 @@ class CmsDashboardService
             'returnedDispositionRequests' => CmsDispositionRequestVersion::query()->where('status_code', CmsDispositionRequestVersion::RETURNED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
             'acceptedRiskRecommendations' => (clone $portfolio)->where('cms_recommendation_cases.status_code', CmsRecommendationCase::STATUS_ACCEPTED_RISK)->count(),
             'noLongerApplicableRecommendations' => (clone $portfolio)->where('cms_recommendation_cases.status_code', CmsRecommendationCase::STATUS_NO_LONGER_APPLICABLE)->count(),
+            'terminalRecommendationsEligibleForReopening' => (clone $portfolio)
+                ->whereIn('cms_recommendation_cases.status_code', [CmsRecommendationCase::STATUS_CLOSED, CmsRecommendationCase::STATUS_ACCEPTED_RISK, CmsRecommendationCase::STATUS_NO_LONGER_APPLICABLE])
+                ->whereDoesntHave('unresolvedReopeningRequest')
+                ->count(),
+            'reopeningDrafts' => CmsReopeningRequestVersion::query()->where('status_code', CmsReopeningRequestVersion::DRAFT)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'reopeningRequestsAwaitingReview' => CmsReopeningRequestVersion::query()->whereIn('status_code', [CmsReopeningRequestVersion::SUBMITTED, CmsReopeningRequestVersion::UNDER_REVIEW])->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'reopeningRequestsAwaitingDecision' => CmsReopeningRequestVersion::query()->where('status_code', CmsReopeningRequestVersion::FOR_DECISION)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'returnedReopeningRequests' => CmsReopeningRequestVersion::query()->where('status_code', CmsReopeningRequestVersion::RETURNED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'rejectedReopeningRequests' => CmsReopeningRequestVersion::query()->where('status_code', CmsReopeningRequestVersion::REJECTED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
+            'recentlyReopenedRecommendations' => (clone $portfolio)->whereNotNull('cms_recommendation_cases.last_reopened_at')->where('cms_recommendation_cases.last_reopened_at', '>=', $now->copy()->subDays(30))->count(),
             'recentlyClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->where('closed_at', '>=', $now->copy()->subDays(30))->count(),
             'totalClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->count(),
             'finalizedValidationConclusions' => collect([
@@ -260,7 +271,7 @@ class CmsDashboardService
             'dataLimitations' => [
                 'Due-soon metrics require an approved runtime threshold.',
                 'Progress metrics remain management-reported until a separate Validation Review is finalized.',
-                'Automatic escalation, scheduled reminders, recommendation closure, accepted risk, reopening, reporting, exports, AIS, and ARMIS remain deferred.',
+                'Automatic escalation, scheduled reminders, reporting, exports, AIS, and ARMIS remain deferred.',
             ],
         ];
     }

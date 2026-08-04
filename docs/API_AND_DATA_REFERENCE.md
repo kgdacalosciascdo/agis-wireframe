@@ -1314,9 +1314,10 @@ GET    /api/cms/disposition-evidence/{evidence}/download
 
 The CMS-9A permission catalogue contains ten `cms.disposition.*` permissions
 and four `cms.disposition-evidence.*` permissions. The verified runtime CMS
-permission total is **104**; all legacy `aem.*` compatibility permissions remain
-unchanged. The React disposition workspace is intentionally deferred to
-CMS-9B.
+permission total was **104** at CMS-9A and is **118** after CMS-10A; all legacy
+`aem.*` compatibility permissions remain unchanged. The React disposition
+workspace is implemented in CMS-9B; the reopening workspace is reserved for
+CMS-10B.
 
 ### CMS-9B frontend contract
 
@@ -1339,3 +1340,40 @@ and does not include the complete historical `versions` collection. CMS-9B
 therefore renders the current version and a safe history-unavailable state rather
 than inventing historical records. Extending that Resource is a future
 backward-compatible backend contract decision.
+
+## CMS-10A reopening API and data reference
+
+CMS-10A adds `cms_reopening_requests`, immutable
+`cms_reopening_request_versions`, `cms_reopening_review_assessments`,
+`cms_reopening_decisions`, and `cms_reopening_evidence_links`. Case cycle
+lineage is held in `active_cycle_number`, `reopening_count`,
+`last_reopened_at`, and `last_reopening_decision_id`. Evidence pins an exact
+Core `DocumentVersion`, checksum, and confidentiality snapshot.
+
+Protected routes are listed below; all require authentication and the matching
+`cms.reopening.*` or `cms.reopening-evidence.*` permission:
+
+```text
+GET    /api/cms/recommendations/{recommendation}/reopenings
+GET    /api/cms/recommendations/{recommendation}/reopening-options
+POST   /api/cms/recommendations/{recommendation}/reopenings
+GET    /api/cms/reopening-requests/{request}
+PUT    /api/cms/reopening-requests/{request}/versions/{version}
+POST   /api/cms/reopening-requests/{request}/versions/{version}/transitions/submit
+POST   /api/cms/reopening-requests/{request}/versions/{version}/transitions/start-review
+POST   /api/cms/reopening-requests/{request}/versions/{version}/transitions/return
+POST   /api/cms/reopening-requests/{request}/versions/{version}/transitions/recommend
+POST   /api/cms/reopening-requests/{request}/versions/{version}/transitions/approve
+POST   /api/cms/reopening-requests/{request}/versions/{version}/transitions/reject
+POST   /api/cms/reopening-requests/{request}/versions/{version}/revisions
+POST   /api/cms/reopening-requests/{request}/versions/{version}/evidence
+DELETE /api/cms/reopening-evidence/{evidence}
+GET    /api/cms/reopening-evidence/{evidence}/download
+```
+
+Recommendation Detail and dashboard responses expose reopening summaries,
+readiness, active-cycle counters, request actions, and review/decision lineage.
+CMS-10B consumes these routes through the existing same-origin `cmsApi` client;
+no alternate API client, public document URL, or frontend-only endpoint is
+introduced. Direct refresh and deep links require the existing authenticated
+route guard and `cms.reopening.view`.

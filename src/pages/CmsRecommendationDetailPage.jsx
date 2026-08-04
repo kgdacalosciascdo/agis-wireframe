@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ShieldCheck,
   ShieldAlert,
+  RotateCcw,
   UserRound,
   UserRoundMinus,
   UserRoundPlus,
@@ -39,6 +40,7 @@ const tabs = [
   ["history", "History", History],
   ["closure", "Closure", ShieldCheck],
   ["dispositions", "Dispositions", ShieldAlert],
+  ["reopening", "Reopening", RotateCcw],
 ];
 
 function displayDate(value, includeTime = false) {
@@ -165,7 +167,8 @@ export default function CmsRecommendationDetailPage() {
   const canViewEscalation = hasPermission(user, "cms.escalation.view");
   const canViewClosure = hasPermission(user, "cms.closure.view");
   const canViewDisposition = hasPermission(user, "cms.disposition.view");
-  const visibleTabs = tabs.filter(([key]) => (key !== "closure" || canViewClosure) && (key !== "dispositions" || canViewDisposition));
+  const canViewReopening = hasPermission(user, "cms.reopening.view");
+  const visibleTabs = tabs.filter(([key]) => (key !== "closure" || canViewClosure) && (key !== "dispositions" || canViewDisposition) && (key !== "reopening" || canViewReopening));
   const activeTab = visibleTabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -561,6 +564,23 @@ export default function CmsRecommendationDetailPage() {
         )}
         {activeTab === "dispositions" && canViewDisposition && (
           <DispositionSummary record={record} />
+        )}
+        {activeTab === "reopening" && canViewReopening && (
+          <div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <h3 className="text-lg font-bold text-slate-800">Controlled recommendation reopening</h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+                Historical Closure and Disposition Decisions remain immutable. Only an approved Reopening Decision can start a new active compliance cycle.
+              </p>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Reopening Requests</p>
+                <p className="mt-1 text-sm text-slate-600">{record.reopeningSummary?.priorRequestCount ?? 0} request families · active cycle {record.reopeningSummary?.activeCycleNumber ?? record.activeCycleNumber ?? 1}</p>
+              </div>
+              <Link className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800" to={`/compliance-management/recommendations/${record.id}/reopening-requests`}><RotateCcw size={16} /> Open Reopening workspace</Link>
+            </div>
+          </div>
         )}
       </section>
 

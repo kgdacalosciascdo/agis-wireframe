@@ -258,6 +258,15 @@ export default function DashboardPage() {
   const allowedModules = visibleFor(user, modules).filter(
     (module) => module.key !== "core",
   );
+  const moduleCount = Math.min(Math.max(allowedModules.length, 1), 6);
+  const moduleGridClasses = {
+    1: "grid-cols-1",
+    2: "sm:grid-cols-2",
+    3: "sm:grid-cols-2 lg:grid-cols-3",
+    4: "sm:grid-cols-2 lg:grid-cols-4",
+    5: "sm:grid-cols-2 lg:grid-cols-5",
+    6: "sm:grid-cols-2 lg:grid-cols-6",
+  }[moduleCount];
 
   return (
     <div className="p-3 sm:p-5">
@@ -274,7 +283,7 @@ export default function DashboardPage() {
         </time>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className={`grid gap-3 ${moduleGridClasses}`}>
         {allowedModules.map((module) => (
           <ModuleCard key={module.key} module={module} onOpen={navigate} />
         ))}

@@ -450,6 +450,10 @@ class RolePermissionSeeder extends Seeder
             );
         }
 
+        if (config('demo.full_render_seeders')) {
+            return;
+        }
+
         Permission::query()
             ->whereIn('code', ['iap.delete'])
             ->delete();

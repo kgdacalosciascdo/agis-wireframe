@@ -5,6 +5,7 @@ $defaultPassword = env('DEMO_DEFAULT_PASSWORD', $localEnvironment ? 'lala' : nul
 
 return [
     'enabled' => (bool) env('DEMO_ACCOUNTS_ENABLED', $localEnvironment),
+    'full_render_seeders' => (bool) env('RUN_FULL_DEMO_SEEDERS', false),
     'default_password' => $defaultPassword,
 
     'accounts' => [

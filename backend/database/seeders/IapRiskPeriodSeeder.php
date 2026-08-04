@@ -33,7 +33,10 @@ class IapRiskPeriodSeeder extends Seeder
 
     public function run(): void
     {
-        IapSchedulingSeeder::clearDemoPlan();
+        $renderSafe = (bool) config('demo.full_render_seeders');
+        if (! $renderSafe) {
+            IapSchedulingSeeder::clearDemoPlan();
+        }
         $management = User::query()->whereHas('role', fn ($role) => $role->where('code', 'cias_management'))->first();
         $auditor = User::query()->whereHas('role', fn ($role) => $role->where('code', 'agis_user'))->first();
         $validator = User::query()->whereHas('role', fn ($role) => $role->where('code', 'platform_admin'))->first();
@@ -63,6 +66,12 @@ class IapRiskPeriodSeeder extends Seeder
         ] as $cycle) {
             $existing = IapRiskPeriod::withTrashed()
                 ->where('period_code', 'RISK-'.$cycle['year'])->first();
+            if ($renderSafe && $existing) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                continue;
+            }
             if ($existing) {
                 IapPrioritizationRun::withTrashed()
                     ->where('risk_period_id', $existing->id)

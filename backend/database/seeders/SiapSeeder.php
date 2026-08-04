@@ -17,6 +17,7 @@ class SiapSeeder extends Seeder
 {
     public function run(): void
     {
+        $renderSafe = (bool) config('demo.full_render_seeders');
         $management = User::query()->where('username', 'departmenthead')->first();
         $approver = User::query()->where('username', 'admin')->first();
         if (! $management || ! $approver) {
@@ -50,7 +51,9 @@ class SiapSeeder extends Seeder
             ],
         );
 
-        $plan->objectives()->delete();
+        if (! $renderSafe) {
+            $plan->objectives()->delete();
+        }
         foreach ([
             [
                 'code' => 'OBJ-1',
@@ -74,20 +77,30 @@ class SiapSeeder extends Seeder
                 'areas' => ['PROCUREMENT', 'COMPLIANCE'],
             ],
         ] as $index => $data) {
-            $objective = SiapObjective::query()->create([
-                'strategic_plan_id' => $plan->id,
-                'objective_code' => $data['code'],
+            $attributes = [
                 'title' => $data['title'],
                 'description' => $data['description'],
                 'expected_outcome' => $data['outcome'],
                 'display_order' => $index + 1,
-            ]);
+            ];
+            $objective = $renderSafe
+                ? SiapObjective::query()->updateOrCreate(
+                    ['strategic_plan_id' => $plan->id, 'objective_code' => $data['code']],
+                    $attributes,
+                )
+                : SiapObjective::query()->create([
+                    'strategic_plan_id' => $plan->id,
+                    'objective_code' => $data['code'],
+                    ...$attributes,
+                ]);
             $objective->auditAreas()->sync(
                 AuditArea::query()->whereIn('code', $data['areas'])->pluck('id'),
             );
         }
 
-        $plan->priorities()->delete();
+        if (! $renderSafe) {
+            $plan->priorities()->delete();
+        }
         foreach ([
             [
                 'code' => 'PRI-1',
@@ -111,35 +124,62 @@ class SiapSeeder extends Seeder
                 'outcome' => 'Defensible procurement decisions and better public-service outcomes.',
             ],
         ] as $index => $data) {
-            SiapPriority::query()->create([
-                'strategic_plan_id' => $plan->id,
-                'priority_code' => $data['code'],
+            $attributes = [
                 'title' => $data['title'],
                 'theme' => $data['theme'],
                 'description' => $data['description'],
                 'expected_outcome' => $data['outcome'],
                 'display_order' => $index + 1,
-            ]);
+            ];
+            if ($renderSafe) {
+                SiapPriority::query()->updateOrCreate(
+                    ['strategic_plan_id' => $plan->id, 'priority_code' => $data['code']],
+                    $attributes,
+                );
+            } else {
+                SiapPriority::query()->create([
+                    'strategic_plan_id' => $plan->id,
+                    'priority_code' => $data['code'],
+                    ...$attributes,
+                ]);
+            }
         }
 
-        $plan->workflowEvents()->delete();
+        if (! $renderSafe) {
+            $plan->workflowEvents()->delete();
+        }
         foreach ([
             ['CREATE', null, 'DRAFT', $management, 1, 'Initial strategic plan prepared.'],
             ['SUBMIT', 'DRAFT', 'PENDING_REVIEW', $management, 2, 'Submitted for formal CIAS review.'],
             ['APPROVE', 'PENDING_REVIEW', 'APPROVED', $approver, 3, 'Approved as the strategic direction for 2026–2030.'],
             ['ACTIVATE', 'APPROVED', 'ACTIVE', $approver, 4, 'Activated for annual risk-based planning.'],
         ] as [$action, $from, $to, $actor, $version, $comment]) {
-            SiapWorkflowEvent::query()->create([
-                'strategic_plan_id' => $plan->id,
-                'action' => $action,
-                'from_status' => $from,
-                'to_status' => $to,
+            $attributes = [
                 'actor_id' => $actor->id,
                 'actor_role_code' => $actor->role->code,
                 'comment' => $comment,
                 'plan_lock_version' => $version,
                 'metadata' => ['seeded' => true],
-            ]);
+            ];
+            if ($renderSafe) {
+                SiapWorkflowEvent::query()->firstOrCreate(
+                    [
+                        'strategic_plan_id' => $plan->id,
+                        'action' => $action,
+                        'from_status' => $from,
+                        'to_status' => $to,
+                    ],
+                    $attributes,
+                );
+            } else {
+                SiapWorkflowEvent::query()->create([
+                    'strategic_plan_id' => $plan->id,
+                    'action' => $action,
+                    'from_status' => $from,
+                    'to_status' => $to,
+                    ...$attributes,
+                ]);
+            }
         }
     }
 }

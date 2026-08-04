@@ -47,7 +47,10 @@ class IapSchedulingSeeder extends Seeder
 
     public function run(): void
     {
-        self::clearDemoPlan();
+        $renderSafe = (bool) config('demo.full_render_seeders');
+        if (! $renderSafe) {
+            self::clearDemoPlan();
+        }
         $management = User::query()
             ->whereHas('role', fn ($role) => $role->where('code', 'cias_management'))
             ->first();
@@ -60,6 +63,15 @@ class IapSchedulingSeeder extends Seeder
             ->with('items.auditUniverseItem')
             ->first();
         if (! $management || ! $auditor || ! $run) {
+            return;
+        }
+        $existingDemoPlan = InternalAuditPlan::withTrashed()
+            ->where('plan_code', self::DEMO_PLAN_CODE)
+            ->first();
+        if ($renderSafe && $existingDemoPlan) {
+            if ($existingDemoPlan->trashed()) {
+                $existingDemoPlan->restore();
+            }
             return;
         }
         if (InternalAuditPlan::query()
@@ -236,20 +248,36 @@ class IapSchedulingSeeder extends Seeder
         }
 
         if ($training) {
-            IapAuditorUnavailability::withTrashed()
-                ->where('user_id', $auditor->id)
-                ->where('title', 'Government audit data analytics training')
-                ->get()
-                ->each->forceDelete();
-            IapAuditorUnavailability::query()->create([
-                'user_id' => $auditor->id,
+            $attributes = [
                 'unavailability_type_id' => $training->id,
-                'title' => 'Government audit data analytics training',
                 'start_date' => '2026-07-13',
                 'end_date' => '2026-07-17',
                 'notes' => 'Temporary ARMIS-compatible demonstration availability record.',
                 'created_by' => $management->id,
-            ]);
+            ];
+            if ($renderSafe) {
+                $unavailability = IapAuditorUnavailability::withTrashed()->updateOrCreate(
+                    [
+                        'user_id' => $auditor->id,
+                        'title' => 'Government audit data analytics training',
+                    ],
+                    $attributes,
+                );
+                if ($unavailability->trashed()) {
+                    $unavailability->restore();
+                }
+            } else {
+                IapAuditorUnavailability::withTrashed()
+                    ->where('user_id', $auditor->id)
+                    ->where('title', 'Government audit data analytics training')
+                    ->get()
+                    ->each->forceDelete();
+                IapAuditorUnavailability::query()->create([
+                    'user_id' => $auditor->id,
+                    'title' => 'Government audit data analytics training',
+                    ...$attributes,
+                ]);
+            }
         }
     }
 

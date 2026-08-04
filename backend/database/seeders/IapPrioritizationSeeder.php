@@ -16,6 +16,7 @@ class IapPrioritizationSeeder extends Seeder
 {
     public function run(): void
     {
+        $renderSafe = (bool) config('demo.full_render_seeders');
         $management = User::query()
             ->whereHas('role', fn ($role) => $role->where('code', 'cias_management'))
             ->first();
@@ -30,10 +31,18 @@ class IapPrioritizationSeeder extends Seeder
             return;
         }
 
-        IapPrioritizationRun::withTrashed()
+        $existingRun = IapPrioritizationRun::withTrashed()
             ->where('run_code', 'PRIO-2025')
-            ->get()
-            ->each->forceDelete();
+            ->first();
+        if ($renderSafe && $existingRun) {
+            if ($existingRun->trashed()) {
+                $existingRun->restore();
+            }
+            return;
+        }
+        if ($existingRun) {
+            $existingRun->forceDelete();
+        }
 
         $run = IapPrioritizationRun::query()->create([
             'run_code' => 'PRIO-2025',

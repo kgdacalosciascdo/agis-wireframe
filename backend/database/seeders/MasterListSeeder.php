@@ -82,9 +82,11 @@ class MasterListSeeder extends Seeder
 
     public function run(): void
     {
-        MasterList::query()
-            ->whereIn('code', self::REMOVED_SYSTEM_LISTS)
-            ->each(fn (MasterList $list) => $list->delete());
+        if (! config('demo.full_render_seeders')) {
+            MasterList::query()
+                ->whereIn('code', self::REMOVED_SYSTEM_LISTS)
+                ->each(fn (MasterList $list) => $list->delete());
+        }
 
         foreach ([
             ...self::LISTS,

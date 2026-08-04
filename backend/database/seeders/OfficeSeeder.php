@@ -263,7 +263,7 @@ class OfficeSeeder extends Seeder
             }
         }
 
-        if (config('demo.enabled')) {
+        if (config('demo.enabled') && ! config('demo.full_render_seeders')) {
             $demoCodes = array_column(self::DEMO_OFFICES, 'code');
 
             Office::query()

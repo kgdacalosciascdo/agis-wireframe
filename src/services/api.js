@@ -2375,6 +2375,63 @@ export const cmsApi = {
   async getClosureOptions(recommendationId) {
     return request(`/api/cms/recommendations/${recommendationId}/closure-options`);
   },
+  async getDispositionOptions(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/disposition-options`);
+  },
+  async getDispositions(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/dispositions`);
+  },
+  async createDisposition(recommendationId, payload) {
+    const data = await request(`/api/cms/recommendations/${recommendationId}/dispositions`, { method: "POST", body: payload, csrf: true });
+    return data?.request ?? null;
+  },
+  async getDisposition(dispositionId) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}`);
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async updateDisposition(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async submitDisposition(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/transitions/submit`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async startDispositionReview(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/transitions/start-review`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async returnDisposition(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/transitions/return`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async recommendDisposition(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/transitions/recommend`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async approveDisposition(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/transitions/approve`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async rejectDisposition(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/transitions/reject`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async createDispositionRevision(dispositionId, versionId, payload) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/revisions`, { method: "POST", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async uploadDispositionEvidence(dispositionId, versionId, formData) {
+    const data = await request(`/api/cms/disposition-requests/${dispositionId}/versions/${versionId}/evidence`, { method: "POST", body: formData, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
+  async downloadDispositionEvidence(evidenceId, fileName = "disposition-evidence") {
+    return documentApi.downloadFile(`/api/cms/disposition-evidence/${evidenceId}/download`, fileName);
+  },
+  async removeDispositionEvidence(evidenceId, payload) {
+    const data = await request(`/api/cms/disposition-evidence/${evidenceId}`, { method: "DELETE", body: payload, csrf: true });
+    return data?.request ? { request: data.request, caseContext: data.caseContext } : null;
+  },
   async getClosureRequests(recommendationId) {
     return request(`/api/cms/recommendations/${recommendationId}/closure-requests`);
   },

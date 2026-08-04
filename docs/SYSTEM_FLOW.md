@@ -859,3 +859,14 @@ CMS events, Activity Logs, Audit Trail entries, and after-commit notifications
 are captured for every transition. CMS-9B will provide the React workspace;
 reopening, automation, reports/exports, AIS, and ARMIS remain outside this
 phase.
+
+## CMS-9B disposition workspace flow
+
+Recommendation Detail links to the scoped Dispositions workspace when
+`cms.disposition.view` is available. The client loads options and readiness,
+creates only the two backend-supported disposition types, preserves draft lock
+versions, and submits transitions through `availableActions`. Accepted Risk is
+presented as formally accepted residual risk—not implementation or closure;
+No Longer Applicable is presented as an authoritative change of circumstances.
+Protected Core evidence downloads, stale-lock reload guidance, safe 403/404
+states, and responsive history/evidence cards use the existing CMS UI patterns.

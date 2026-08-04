@@ -10,6 +10,7 @@ import {
   ListChecks,
   RefreshCw,
   ShieldCheck,
+  ShieldAlert,
   UserRound,
   UserRoundMinus,
   UserRoundPlus,
@@ -37,6 +38,7 @@ const tabs = [
   ["assignments", "Assignments", UserRound],
   ["history", "History", History],
   ["closure", "Closure", ShieldCheck],
+  ["dispositions", "Dispositions", ShieldAlert],
 ];
 
 function displayDate(value, includeTime = false) {
@@ -162,7 +164,8 @@ export default function CmsRecommendationDetailPage() {
   const canViewExtension = hasPermission(user, "cms.extension.view");
   const canViewEscalation = hasPermission(user, "cms.escalation.view");
   const canViewClosure = hasPermission(user, "cms.closure.view");
-  const visibleTabs = tabs.filter(([key]) => key !== "closure" || canViewClosure);
+  const canViewDisposition = hasPermission(user, "cms.disposition.view");
+  const visibleTabs = tabs.filter(([key]) => (key !== "closure" || canViewClosure) && (key !== "dispositions" || canViewDisposition));
   const activeTab = visibleTabs.some(([key]) => key === searchParams.get("tab"))
     ? searchParams.get("tab")
     : "overview";
@@ -484,6 +487,7 @@ export default function CmsRecommendationDetailPage() {
               canViewExtension={canViewExtension}
               canViewEscalation={canViewEscalation}
               canViewClosure={canViewClosure}
+              canViewDisposition={canViewDisposition}
               currentMonitor={currentMonitor}
               record={record}
           />
@@ -555,6 +559,9 @@ export default function CmsRecommendationDetailPage() {
         {activeTab === "closure" && canViewClosure && (
           <ClosureSummary record={record} />
         )}
+        {activeTab === "dispositions" && canViewDisposition && (
+          <DispositionSummary record={record} />
+        )}
       </section>
 
       {assignmentOpen && (
@@ -612,7 +619,7 @@ function HeaderDatum({ label, value }) {
   );
 }
 
-function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension, canViewEscalation, canViewClosure }) {
+function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation, canViewExtension, canViewEscalation, canViewClosure, canViewDisposition }) {
   const actionPlan = record.actionPlanSummary;
 
   return (
@@ -771,6 +778,20 @@ function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation
           </div>
         </div>
       )}
+      {canViewDisposition && (
+        <div className={`mt-4 rounded-xl border p-4 ${record.dispositionSummary?.acceptedRisk ? "border-amber-200 bg-amber-50" : record.dispositionSummary?.noLongerApplicable ? "border-violet-200 bg-violet-50" : "border-sky-200 bg-sky-50"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Recommendation dispositions</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">
+                {record.dispositionSummary?.acceptedRisk ? "Accepted Risk — not implemented" : record.dispositionSummary?.noLongerApplicable ? "No Longer Applicable" : record.dispositionSummary?.activeRequestStatus ? `Disposition Request · ${labelFor(record.dispositionSummary.activeRequestStatus)}` : "No disposition request has been created."}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">Accepted Risk and No Longer Applicable are not implementation or ordinary closure.</p>
+            </div>
+            <Link className="inline-flex h-10 items-center gap-2 rounded-lg border border-sky-300 bg-white px-4 text-sm font-bold text-sky-800 hover:bg-sky-50" to={`/compliance-management/recommendations/${record.id}/dispositions`}><ShieldAlert size={16} /> Open workspace</Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -778,6 +799,13 @@ function Overview({ record, currentMonitor, canViewActionPlan, canViewValidation
 function ClosureSummary({ record }) {
   const summary = record.closureSummary || {};
   return <div><div className={`rounded-xl border p-4 ${summary.formallyClosed ? "border-emerald-300 bg-emerald-50" : "border-sky-200 bg-sky-50"}`}><div className="flex items-start gap-3"><ShieldCheck className={summary.formallyClosed ? "text-emerald-700" : "text-sky-700"} /><div><h3 className="text-lg font-bold text-slate-800">{summary.formallyClosed ? "This recommendation is formally closed" : "Recommendation closure"}</h3><p className="mt-1 text-sm leading-6 text-slate-600">{summary.formallyClosed ? "The approved Closure Decision is immutable. Reopening is not implemented in this phase." : "A finalized independent IMPLEMENTED validation is not itself formal closure."}</p></div></div></div><dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><ReadOnlyField label="Case status">{record.status}</ReadOnlyField><ReadOnlyField label="Active Closure Request">{summary.activeRequestId || "None"}</ReadOnlyField><ReadOnlyField label="Active request status">{summary.activeRequestStatus || "None"}</ReadOnlyField><ReadOnlyField label="Prior request count">{summary.priorRequestCount ?? 0}</ReadOnlyField><ReadOnlyField label="Closed date">{displayDate(summary.closedAt)}</ReadOnlyField><ReadOnlyField label="Closure Decision">{summary.closureDecisionId || "Not recorded"}</ReadOnlyField></dl><div className="mt-5"><Link className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white" to={`/compliance-management/recommendations/${record.id}/closure-requests`}><ShieldCheck size={16} /> View Closure Requests</Link></div></div>;
+}
+
+function DispositionSummary({ record }) {
+  const summary = record.dispositionSummary || {};
+  const type = summary.activeDispositionCode;
+  const terminal = summary.acceptedRisk || summary.noLongerApplicable;
+  return <div><div className={`rounded-xl border p-4 ${summary.acceptedRisk ? "border-amber-300 bg-amber-50" : summary.noLongerApplicable ? "border-violet-300 bg-violet-50" : "border-sky-200 bg-sky-50"}`}><div className="flex items-start gap-3"><ShieldAlert className={summary.acceptedRisk ? "text-amber-700" : summary.noLongerApplicable ? "text-violet-700" : "text-sky-700"} /><div><h3 className="text-lg font-bold text-slate-800">{summary.acceptedRisk ? "Accepted Risk — not implemented" : summary.noLongerApplicable ? "No Longer Applicable" : "Controlled recommendation disposition"}</h3><p className="mt-1 text-sm leading-6 text-slate-600">{summary.acceptedRisk ? "Residual risk was formally accepted through an authorized disposition decision. This does not represent implementation or ordinary recommendation closure." : summary.noLongerApplicable ? "The recommendation was formally determined to be no longer applicable based on an authorized documented change in circumstances." : "Accepted Risk and No Longer Applicable remain distinct from implementation and ordinary closure."}</p></div></div></div><dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><ReadOnlyField label="Case status">{record.status}</ReadOnlyField><ReadOnlyField label="Active request">{summary.activeRequestId || "None"}</ReadOnlyField><ReadOnlyField label="Active request status">{summary.activeRequestStatus || "None"}</ReadOnlyField><ReadOnlyField label="Disposition type">{type || (terminal ? record.status : "None")}</ReadOnlyField><ReadOnlyField label="Prior request count">{summary.priorRequestCount ?? 0}</ReadOnlyField></dl><div className="mt-5"><Link className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white" to={`/compliance-management/recommendations/${record.id}/dispositions`}><ShieldAlert size={16} /> Open Dispositions workspace</Link></div></div>;
 }
 
 function SourceLineage({ record }) {

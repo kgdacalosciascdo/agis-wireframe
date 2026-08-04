@@ -1317,3 +1317,25 @@ and four `cms.disposition-evidence.*` permissions. The verified runtime CMS
 permission total is **104**; all legacy `aem.*` compatibility permissions remain
 unchanged. The React disposition workspace is intentionally deferred to
 CMS-9B.
+
+### CMS-9B frontend contract
+
+The React client uses the existing `cmsApi` request wrapper and the protected
+recommendation-scoped routes:
+
+```text
+/compliance-management/recommendations/:recommendationId/dispositions
+/compliance-management/recommendations/:recommendationId/dispositions/:dispositionId
+```
+
+Frontend actions are shown only when both the current frontend permission and
+backend `availableActions` allow them. Readiness and creation reasons are
+rendered from the backend; React does not recalculate eligibility or submit a
+case status. Evidence is linked to an exact Core Document Version and downloaded
+through the authenticated endpoint. Internal storage paths are never displayed.
+
+The CMS-9A request Resource currently exposes the authoritative current version
+and does not include the complete historical `versions` collection. CMS-9B
+therefore renders the current version and a safe history-unavailable state rather
+than inventing historical records. Extending that Resource is a future
+backward-compatible backend contract decision.

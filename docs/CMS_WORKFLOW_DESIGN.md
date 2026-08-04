@@ -757,3 +757,26 @@ CMS-9A is backend-only. Recommendation Detail and the dashboard expose live
 disposition summaries, readiness, and available actions; the React workspace is
 reserved for CMS-9B. Reopening, reminders/automation, reports/exports, AIS, and
 ARMIS remain outside this increment.
+
+## CMS-9B disposition React workspace
+
+CMS-9B adds the protected recommendation-scoped routes:
+
+```text
+/compliance-management/recommendations/:recommendationId/dispositions
+/compliance-management/recommendations/:recommendationId/dispositions/:dispositionId
+```
+
+The workspace consumes the CMS-9A options, readiness, request, version,
+assessment, decision, and exact Core-version evidence contracts. It keeps
+Accepted Risk and No Longer Applicable visually and semantically distinct from
+`IMPLEMENTED` and `CLOSED`, renders backend `availableActions`, and uses
+authenticated protected downloads. Draft narratives may be edited; submitted,
+reviewed, decision-stage, approved, and rejected versions are rendered
+read-only. Returned versions use the revision endpoint.
+
+The workspace includes Overview, Readiness & Eligibility, Disposition Details,
+Supporting Evidence, Review Assessment, Final Decision, and Versions & History
+tabs. It does not expose reopening, automation, reports, exports, AIS, or ARMIS
+controls. Historical version detail is rendered when supplied by the backend
+resource; CMS-9A currently returns the authoritative current version only.

@@ -532,3 +532,17 @@ php artisan route:list --path=disposition
 CMS-9A has no frontend migration or AIS/ARMIS dependency. The React workspace,
 controlled reopening, reminders/automation, reports, and protected exports
 remain gated for later phases.
+
+CMS-9B verification adds:
+
+```powershell
+npm.cmd run lint
+npm.cmd run build
+npx.cmd playwright test tests/e2e/cms-dispositions.spec.js
+```
+
+The focused browser suite covers desktop and mobile routes, empty/readiness
+states, creation, type-specific fields, terminal presentation, and safe
+no-reopening behavior. A login-throttle failure must be rerun independently
+after cooldown and reported separately; authentication throttling must not be
+weakened.

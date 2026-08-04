@@ -115,3 +115,15 @@ Recommendation Detail/dashboard contracts are implemented and backend-tested.
 CMS-9B is the next gated phase for the React workspace. Controlled reopening,
 scheduled automation, closure-readiness candidates, reports, exports, AIS, and
 ARMIS have not been started.
+
+## CMS-9B status
+
+The recommendation-scoped React Dispositions workspace is implemented at
+`/compliance-management/recommendations/:recommendationId/dispositions` and its
+request detail route. It supports backend readiness, Accepted-Risk and
+No-Longer-Applicable draft narratives, immutable workflow presentation,
+protected Core-version evidence links/downloads, review and decision panels,
+returned revisions, terminal banners, Recommendation Detail integration, and
+CMS dashboard-compatible backend metrics. The current CMS-9A Resource does not
+return historical versions; the UI does not fabricate them. CMS-10A reopening,
+automation, reports/exports, AIS, and ARMIS remain deferred.

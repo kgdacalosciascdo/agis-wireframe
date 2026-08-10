@@ -26,7 +26,7 @@ COPY backend/ ./
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative --no-scripts
 
 FROM php:8.3-apache
-
+  
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 WORKDIR /var/www/html
 

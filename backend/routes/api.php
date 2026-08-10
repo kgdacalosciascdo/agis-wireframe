@@ -30,6 +30,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ArmisResourceController;
 use App\Http\Controllers\Api\ArmisFoundationController;
 use App\Http\Controllers\Api\ArmisCompetencyController;
+use App\Http\Controllers\Api\ArmisAssignmentController;
+use App\Http\Controllers\Api\ArmisPlanningController;
+use App\Http\Controllers\Api\ArmisReportController;
 use App\Http\Controllers\Api\CmsActionPlanController;
 use App\Http\Controllers\Api\CmsAutomationController;
 use App\Http\Controllers\Api\CmsClosureController;
@@ -850,6 +853,110 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:armis.competency.verify');
     Route::post('/armis/competencies/{competency}/revisions', [ArmisCompetencyController::class, 'revise'])
         ->middleware('permission:armis.competency.manage');
+
+    Route::get('/armis/planning/metadata', [ArmisPlanningController::class, 'metadata'])
+        ->middleware('permission:armis.availability.view');
+    Route::get('/armis/availability', [ArmisPlanningController::class, 'availabilityIndex'])
+        ->middleware('permission:armis.availability.view');
+    Route::post('/armis/availability', [ArmisPlanningController::class, 'availabilityStore'])
+        ->middleware('permission:armis.availability.manage');
+    Route::get('/armis/availability/{availability}', [ArmisPlanningController::class, 'availabilityShow'])
+        ->middleware('permission:armis.availability.view');
+    Route::put('/armis/availability/{availability}', [ArmisPlanningController::class, 'availabilityUpdate'])
+        ->middleware('permission:armis.availability.manage');
+    Route::post('/armis/availability/{availability}/submit', [ArmisPlanningController::class, 'availabilitySubmit'])
+        ->middleware('permission:armis.availability.manage');
+    Route::post('/armis/availability/{availability}/revisions', [ArmisPlanningController::class, 'availabilityRevise'])
+        ->middleware('permission:armis.availability.manage');
+    Route::post('/armis/availability/{availability}/review', [ArmisPlanningController::class, 'availabilityReview'])
+        ->middleware('permission:armis.availability.review');
+    Route::post('/armis/availability/{availability}/lock', [ArmisPlanningController::class, 'availabilityLock'])
+        ->middleware('permission:armis.availability.approve');
+
+    Route::get('/armis/capacity', [ArmisPlanningController::class, 'capacityIndex'])
+        ->middleware('permission:armis.capacity.view');
+    Route::post('/armis/capacity', [ArmisPlanningController::class, 'capacityStore'])
+        ->middleware('permission:armis.capacity.manage');
+    Route::get('/armis/capacity/{capacity}', [ArmisPlanningController::class, 'capacityShow'])
+        ->middleware('permission:armis.capacity.view');
+    Route::put('/armis/capacity/{capacity}', [ArmisPlanningController::class, 'capacityUpdate'])
+        ->middleware('permission:armis.capacity.manage');
+    Route::post('/armis/capacity/{capacity}/submit', [ArmisPlanningController::class, 'capacitySubmit'])
+        ->middleware('permission:armis.capacity.manage');
+    Route::post('/armis/capacity/{capacity}/review', [ArmisPlanningController::class, 'capacityReview'])
+        ->middleware('permission:armis.capacity.review');
+    Route::post('/armis/capacity/{capacity}/lock', [ArmisPlanningController::class, 'capacityLock'])
+        ->middleware('permission:armis.capacity.approve');
+
+    Route::get('/armis/workload', [ArmisPlanningController::class, 'workloadIndex'])
+        ->middleware('permission:armis.workload.view');
+    Route::post('/armis/workload', [ArmisPlanningController::class, 'workloadStore'])
+        ->middleware('permission:armis.workload.manage');
+    Route::get('/armis/workload/{workload}', [ArmisPlanningController::class, 'workloadShow'])
+        ->middleware('permission:armis.workload.view');
+    Route::put('/armis/workload/{workload}', [ArmisPlanningController::class, 'workloadUpdate'])
+        ->middleware('permission:armis.workload.manage');
+    Route::post('/armis/workload/{workload}/submit', [ArmisPlanningController::class, 'workloadSubmit'])
+        ->middleware('permission:armis.workload.manage');
+    Route::post('/armis/workload/{workload}/review', [ArmisPlanningController::class, 'workloadReview'])
+        ->middleware('permission:armis.workload.review');
+    Route::post('/armis/workload/{workload}/lock', [ArmisPlanningController::class, 'workloadLock'])
+        ->middleware('permission:armis.workload.approve');
+    Route::get('/armis/utilization', [ArmisPlanningController::class, 'utilization'])
+        ->middleware('permission:armis.capacity.view');
+
+    Route::get('/armis/assignments/metadata', [ArmisAssignmentController::class, 'metadata'])
+        ->middleware('permission:armis.assignment.view');
+    Route::get('/armis/assignments', [ArmisAssignmentController::class, 'assignmentIndex'])
+        ->middleware('permission:armis.assignment.view');
+    Route::post('/armis/assignments', [ArmisAssignmentController::class, 'assignmentStore'])
+        ->middleware('permission:armis.assignment.manage');
+    Route::get('/armis/assignments/{assignment}', [ArmisAssignmentController::class, 'assignmentShow'])
+        ->middleware('permission:armis.assignment.view');
+    Route::put('/armis/assignments/{assignment}', [ArmisAssignmentController::class, 'assignmentUpdate'])
+        ->middleware('permission:armis.assignment.manage');
+    Route::post('/armis/assignments/{assignment}/submit', [ArmisAssignmentController::class, 'assignmentSubmit'])
+        ->middleware('permission:armis.assignment.manage');
+    Route::post('/armis/assignments/{assignment}/review', [ArmisAssignmentController::class, 'assignmentReview'])
+        ->middleware('permission:armis.assignment.review');
+    Route::post('/armis/assignments/{assignment}/lock', [ArmisAssignmentController::class, 'assignmentLock'])
+        ->middleware('permission:armis.assignment.approve');
+    Route::post('/armis/assignments/{assignment}/revisions', [ArmisAssignmentController::class, 'assignmentRevise'])
+        ->middleware('permission:armis.assignment.manage');
+    Route::get('/armis/assignments/{assignment}/conflicts', [ArmisAssignmentController::class, 'assignmentConflicts'])
+        ->middleware('permission:armis.assignment.view');
+
+    Route::get('/armis/actuals', [ArmisAssignmentController::class, 'actualIndex'])
+        ->middleware('permission:armis.actuals.view');
+    Route::post('/armis/actuals', [ArmisAssignmentController::class, 'actualStore'])
+        ->middleware('permission:armis.actuals.record');
+    Route::get('/armis/actuals/{actual}', [ArmisAssignmentController::class, 'actualShow'])
+        ->middleware('permission:armis.actuals.view');
+    Route::put('/armis/actuals/{actual}', [ArmisAssignmentController::class, 'actualUpdate'])
+        ->middleware('permission:armis.actuals.record');
+    Route::post('/armis/actuals/{actual}/submit', [ArmisAssignmentController::class, 'actualSubmit'])
+        ->middleware('permission:armis.actuals.record');
+    Route::post('/armis/actuals/{actual}/review', [ArmisAssignmentController::class, 'actualReview'])
+        ->middleware('permission:armis.actuals.review');
+    Route::post('/armis/actuals/{actual}/lock', [ArmisAssignmentController::class, 'actualLock'])
+        ->middleware('permission:armis.actuals.approve');
+    Route::post('/armis/actuals/{actual}/revisions', [ArmisAssignmentController::class, 'actualRevise'])
+        ->middleware('permission:armis.actuals.revise');
+
+    Route::get('/armis/reports', [ArmisReportController::class, 'catalog'])
+        ->middleware('permission:armis.report.view');
+    Route::get('/armis/reports/runs', [ArmisReportController::class, 'runs'])
+        ->middleware('permission:armis.report.view');
+    Route::get('/armis/reports/runs/{run}', [ArmisReportController::class, 'show'])
+        ->middleware('permission:armis.report.view');
+    Route::post('/armis/reports/{report}/generate', [ArmisReportController::class, 'generate'])
+        ->middleware('permission:armis.report.view');
+    Route::post('/armis/reports/runs/{run}/exports', [ArmisReportController::class, 'export'])
+        ->middleware('permission:armis.report.export');
+    Route::get('/armis/report-exports/{export}/download', [ArmisReportController::class, 'download'])
+        ->middleware('permission:armis.report.export');
+    Route::get('/armis/administration', [ArmisReportController::class, 'administration'])
+        ->middleware('permission:armis.report.view');
 
     Route::get('/iap/audit-universe', [IapAuditUniverseController::class, 'index'])
         ->middleware('permission:iap.view');

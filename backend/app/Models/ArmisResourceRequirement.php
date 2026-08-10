@@ -45,4 +45,9 @@ class ArmisResourceRequirement extends Model
     {
         return $this->hasMany(ArmisRequirementCompetency::class, 'requirement_id');
     }
+
+    public function workloadAllocations(): HasMany
+    {
+        return $this->hasMany(ArmisWorkloadAllocation::class, 'requirement_id');
+    }
 }

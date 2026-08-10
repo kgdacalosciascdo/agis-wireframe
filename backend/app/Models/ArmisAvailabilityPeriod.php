@@ -17,14 +17,16 @@ class ArmisAvailabilityPeriod extends Model
     public const TYPES = ['AVAILABLE', 'UNAVAILABLE', 'LEAVE', 'TRAINING', 'OTHER'];
 
     protected $fillable = [
-        'resource_profile_id', 'availability_type', 'start_date', 'end_date',
-        'person_days', 'status', 'notes', 'submitted_by', 'submitted_at',
-        'reviewed_by', 'reviewed_at', 'approved_by', 'approved_at', 'lock_version',
+        'availability_family_uuid', 'resource_profile_id', 'version_number', 'supersedes_id',
+        'is_current_revision', 'availability_type', 'start_date', 'end_date', 'person_days',
+        'status', 'notes', 'submitted_by', 'submitted_at', 'reviewed_by', 'reviewed_at',
+        'approved_by', 'approved_at', 'created_by', 'updated_by', 'lock_version',
     ];
 
     protected function casts(): array
     {
         return [
+            'version_number' => 'integer', 'is_current_revision' => 'boolean',
             'start_date' => 'date', 'end_date' => 'date', 'person_days' => 'decimal:2',
             'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'approved_at' => 'datetime',
             'lock_version' => 'integer',
@@ -49,5 +51,20 @@ class ArmisAvailabilityPeriod extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by')->withTrashed();
+    }
+
+    public function supersedes(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'supersedes_id')->withTrashed();
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by')->withTrashed();
     }
 }

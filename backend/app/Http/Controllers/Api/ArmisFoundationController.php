@@ -37,15 +37,18 @@ class ArmisFoundationController extends Controller
             ->get();
         $availability = ArmisAvailabilityPeriod::query()
             ->whereIn('resource_profile_id', $profileIds)
+            ->where('is_current_revision', true)
             ->orderBy('start_date')
             ->get();
         $capacities = ArmisCapacitySubmission::query()
             ->whereIn('resource_profile_id', $profileIds)
+            ->where('is_current_revision', true)
             ->orderByDesc('fiscal_year')
             ->orderByDesc('version_number')
             ->get();
         $workload = ArmisWorkloadAllocation::query()
             ->whereIn('resource_profile_id', $profileIds)
+            ->where('is_current_revision', true)
             ->orderByDesc('fiscal_year')
             ->get();
         $actuals = ArmisActualPersonDay::query()
@@ -109,7 +112,10 @@ class ArmisFoundationController extends Controller
                 ])->values(),
                 'availability' => $availability->map(fn (ArmisAvailabilityPeriod $item): array => [
                     'id' => $item->id,
+                    'availabilityFamilyUuid' => $item->availability_family_uuid,
                     'resourceProfileId' => $item->resource_profile_id,
+                    'versionNumber' => $item->version_number,
+                    'isCurrentRevision' => (bool) $item->is_current_revision,
                     'availabilityType' => $item->availability_type,
                     'startDate' => $item->start_date?->toDateString(),
                     'endDate' => $item->end_date?->toDateString(),
@@ -125,6 +131,7 @@ class ArmisFoundationController extends Controller
                     'availablePersonDays' => (float) $item->available_person_days,
                     'status' => $item->status,
                     'supersedesId' => $item->supersedes_id,
+                    'isCurrentRevision' => (bool) $item->is_current_revision,
                     'lockVersion' => $item->lock_version,
                 ])->values(),
                 'requirements' => $requirements->map(fn (ArmisResourceRequirement $item): array => [
@@ -148,7 +155,11 @@ class ArmisFoundationController extends Controller
                 ])->values(),
                 'workload' => $workload->map(fn (ArmisWorkloadAllocation $item): array => [
                     'id' => $item->id,
+                    'workloadFamilyUuid' => $item->workload_family_uuid,
                     'resourceProfileId' => $item->resource_profile_id,
+                    'versionNumber' => $item->version_number,
+                    'supersedesId' => $item->supersedes_id,
+                    'isCurrentRevision' => (bool) $item->is_current_revision,
                     'requirementId' => $item->requirement_id,
                     'sourceModule' => $item->source_module,
                     'sourceType' => $item->source_type,

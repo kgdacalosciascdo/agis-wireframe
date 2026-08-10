@@ -16,14 +16,14 @@ class ArmisCapacitySubmission extends Model
 
     protected $fillable = [
         'resource_profile_id', 'fiscal_year', 'version_number', 'available_person_days',
-        'status', 'notes', 'supersedes_id', 'submitted_by', 'submitted_at',
-        'reviewed_by', 'reviewed_at', 'approved_by', 'approved_at', 'lock_version',
+        'status', 'is_current_revision', 'notes', 'supersedes_id', 'submitted_by', 'submitted_at',
+        'reviewed_by', 'reviewed_at', 'approved_by', 'approved_at', 'created_by', 'updated_by', 'lock_version',
     ];
 
     protected function casts(): array
     {
         return [
-            'fiscal_year' => 'integer', 'version_number' => 'integer',
+            'fiscal_year' => 'integer', 'version_number' => 'integer', 'is_current_revision' => 'boolean',
             'available_person_days' => 'decimal:2', 'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime', 'approved_at' => 'datetime', 'lock_version' => 'integer',
         ];
@@ -52,5 +52,15 @@ class ArmisCapacitySubmission extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by')->withTrashed();
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by')->withTrashed();
     }
 }

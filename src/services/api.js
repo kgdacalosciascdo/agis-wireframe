@@ -2464,6 +2464,280 @@ export const armisApi = {
       csrf: true,
     });
   },
+  async getPlanningMetadata() {
+    return request("/api/armis/planning/metadata");
+  },
+  async getAvailability(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/availability${query ? `?${query}` : ""}`);
+  },
+  async createAvailability(payload) {
+    return request("/api/armis/availability", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateAvailability(id, payload) {
+    return request(`/api/armis/availability/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async reviseAvailability(id, payload) {
+    return request(`/api/armis/availability/${id}/revisions`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async submitAvailability(id, lockVersion) {
+    return request(`/api/armis/availability/${id}/submit`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviewAvailability(id, payload) {
+    return request(`/api/armis/availability/${id}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async lockAvailability(id, lockVersion) {
+    return request(`/api/armis/availability/${id}/lock`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async getCapacity(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/capacity${query ? `?${query}` : ""}`);
+  },
+  async createCapacity(payload) {
+    return request("/api/armis/capacity", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateCapacity(id, payload) {
+    return request(`/api/armis/capacity/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async submitCapacity(id, lockVersion) {
+    return request(`/api/armis/capacity/${id}/submit`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviewCapacity(id, payload) {
+    return request(`/api/armis/capacity/${id}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async lockCapacity(id, lockVersion) {
+    return request(`/api/armis/capacity/${id}/lock`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async getWorkload(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/workload${query ? `?${query}` : ""}`);
+  },
+  async createWorkload(payload) {
+    return request("/api/armis/workload", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateWorkload(id, payload) {
+    return request(`/api/armis/workload/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async submitWorkload(id, lockVersion) {
+    return request(`/api/armis/workload/${id}/submit`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviewWorkload(id, payload) {
+    return request(`/api/armis/workload/${id}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async lockWorkload(id, lockVersion) {
+    return request(`/api/armis/workload/${id}/lock`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async getUtilization(fiscalYear, resourceProfileId = null) {
+    const query = queryFrom({ fiscalYear, resourceProfileId }).toString();
+    return request(`/api/armis/utilization?${query}`);
+  },
+  async getAssignmentMetadata() {
+    return request("/api/armis/assignments/metadata");
+  },
+  async getAssignments(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/assignments${query ? `?${query}` : ""}`);
+  },
+  async getAssignment(id) {
+    return request(`/api/armis/assignments/${id}`);
+  },
+  async createAssignment(payload) {
+    return request("/api/armis/assignments", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateAssignment(id, payload) {
+    return request(`/api/armis/assignments/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async submitAssignment(id, lockVersion) {
+    return request(`/api/armis/assignments/${id}/submit`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviewAssignment(id, payload) {
+    return request(`/api/armis/assignments/${id}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async lockAssignment(id, lockVersion) {
+    return request(`/api/armis/assignments/${id}/lock`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviseAssignment(id, payload) {
+    return request(`/api/armis/assignments/${id}/revisions`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async getAssignmentConflicts(id) {
+    return request(`/api/armis/assignments/${id}/conflicts`);
+  },
+  async getActuals(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/actuals${query ? `?${query}` : ""}`);
+  },
+  async getActual(id) {
+    return request(`/api/armis/actuals/${id}`);
+  },
+  async createActual(payload) {
+    return request("/api/armis/actuals", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateActual(id, payload) {
+    return request(`/api/armis/actuals/${id}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async submitActual(id, lockVersion) {
+    return request(`/api/armis/actuals/${id}/submit`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviewActual(id, payload) {
+    return request(`/api/armis/actuals/${id}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async lockActual(id, lockVersion) {
+    return request(`/api/armis/actuals/${id}/lock`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviseActual(id, payload) {
+    return request(`/api/armis/actuals/${id}/revisions`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+};
+
+export const armisReportApi = {
+  async getCatalog() {
+    return request("/api/armis/reports");
+  },
+  async getRuns() {
+    const data = await request("/api/armis/reports/runs");
+    return data?.runs ?? [];
+  },
+  async getRun(runId) {
+    const data = await request(`/api/armis/reports/runs/${runId}`);
+    return data?.run ?? null;
+  },
+  async generate(reportCode, filters = {}) {
+    const data = await request(`/api/armis/reports/${reportCode}/generate`, {
+      method: "POST",
+      body: filters,
+      csrf: true,
+    });
+    return data?.run ?? null;
+  },
+  async createExport(runId, format) {
+    const data = await request(`/api/armis/reports/runs/${runId}/exports`, {
+      method: "POST",
+      body: { format },
+      csrf: true,
+    });
+    return data?.export ?? null;
+  },
+  async downloadExport(exportId, fileName) {
+    return documentApi.downloadFile(
+      `/api/armis/report-exports/${exportId}/download`,
+      fileName || `armis-report-export-${exportId}`,
+    );
+  },
+  async getAdministration() {
+    return request("/api/armis/administration");
+  },
 };
 
 export const cmsApi = {

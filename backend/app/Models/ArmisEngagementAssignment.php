@@ -5,31 +5,44 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/** Stores planned workload allocations independently from IAP and AEMS records. */
-class ArmisWorkloadAllocation extends Model
+/** Stores a versioned ARMIS resource assignment to an AEMS engagement. */
+class ArmisEngagementAssignment extends Model
 {
     use HasFactory, SoftDeletes;
 
     public const STATUSES = ['DRAFT', 'SUBMITTED', 'RETURNED', 'APPROVED', 'LOCKED'];
 
+    public const ROLES = ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'];
+
     protected $fillable = [
-        'workload_family_uuid', 'resource_profile_id', 'version_number', 'supersedes_id',
-        'is_current_revision', 'requirement_id', 'source_module', 'source_type', 'source_id',
-        'fiscal_year', 'planned_person_days', 'status', 'notes', 'created_by', 'updated_by',
-        'submitted_by', 'submitted_at', 'reviewed_by', 'reviewed_at', 'approved_by',
-        'approved_at', 'lock_version',
+        'assignment_family_uuid', 'audit_engagement_id', 'resource_profile_id', 'requirement_id',
+        'version_number', 'supersedes_id', 'is_current_revision', 'assignment_role_code',
+        'assigned_from', 'assigned_until', 'planned_person_days', 'status', 'notes',
+        'created_by', 'updated_by', 'submitted_by', 'submitted_at', 'reviewed_by',
+        'reviewed_at', 'approved_by', 'approved_at', 'lock_version',
     ];
 
     protected function casts(): array
     {
         return [
-            'version_number' => 'integer', 'is_current_revision' => 'boolean', 'fiscal_year' => 'integer',
+            'version_number' => 'integer',
+            'is_current_revision' => 'boolean',
+            'assigned_from' => 'date',
+            'assigned_until' => 'date',
             'planned_person_days' => 'decimal:2',
-            'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'approved_at' => 'datetime',
+            'submitted_at' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'approved_at' => 'datetime',
             'lock_version' => 'integer',
         ];
+    }
+
+    public function engagement(): BelongsTo
+    {
+        return $this->belongsTo(AuditEngagement::class, 'audit_engagement_id')->withTrashed();
     }
 
     public function resourceProfile(): BelongsTo
@@ -40,6 +53,11 @@ class ArmisWorkloadAllocation extends Model
     public function requirement(): BelongsTo
     {
         return $this->belongsTo(ArmisResourceRequirement::class, 'requirement_id');
+    }
+
+    public function competencies(): HasMany
+    {
+        return $this->hasMany(ArmisAssignmentCompetency::class, 'assignment_id');
     }
 
     public function supersedes(): BelongsTo
@@ -70,5 +88,10 @@ class ArmisWorkloadAllocation extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by')->withTrashed();
+    }
+
+    public function actualPersonDays(): HasMany
+    {
+        return $this->hasMany(ArmisActualPersonDay::class, 'assignment_id');
     }
 }

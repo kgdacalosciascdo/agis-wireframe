@@ -83,6 +83,11 @@ class ArmisResourceProfile extends Model
         return $this->hasMany(ArmisActualPersonDay::class, 'resource_profile_id');
     }
 
+    public function engagementAssignments(): HasMany
+    {
+        return $this->hasMany(ArmisEngagementAssignment::class, 'resource_profile_id');
+    }
+
     public function auditLogs(): MorphMany
     {
         return $this->morphMany(AuditLog::class, 'auditable');

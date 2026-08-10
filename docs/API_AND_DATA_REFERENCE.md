@@ -1147,6 +1147,144 @@ The browser presents only backend-authorized preparation, submission, review,
 and revision actions; it does not create public document URLs or bypass Core
 Document Version access controls.
 
+### 8.22 ARMIS-3A planning backend
+
+ARMIS-3A adds the backend planning ledger without switching the AEMS provider
+or modifying IAP planning records. Availability periods, annual capacity
+submissions, and planned workload allocations are office-scoped and use the
+shared `DRAFT -> SUBMITTED -> RETURNED/APPROVED -> LOCKED` workflow. Draft and
+Returned records may be edited with `lockVersion`; approved and locked records
+are immutable. Corrections to completed capacity or workload records create a
+new current revision and preserve `supersedes_id` and the version number.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/armis/planning/metadata` | `armis.availability.view` | Planning statuses, types, years, and workflow metadata |
+| GET | `/api/armis/availability` | `armis.availability.view` | Current scope-aware availability periods; `includeHistory=1` includes revisions |
+| POST | `/api/armis/availability` | `armis.availability.manage` | Create a Draft period; overlapping current periods are rejected |
+| GET/PUT | `/api/armis/availability/{availability}` | `armis.availability.view/manage` | Read or edit a current Draft/Returned period with optimistic locking |
+| POST | `/api/armis/availability/{availability}/submit` | `armis.availability.manage` | Submit a current period for independent review |
+| POST | `/api/armis/availability/{availability}/revisions` | `armis.availability.manage` | Create a new Draft correction from an approved or locked period |
+| POST | `/api/armis/availability/{availability}/review` | `armis.availability.review` | Approve or Return a submitted period |
+| POST | `/api/armis/availability/{availability}/lock` | `armis.availability.approve` | Lock an approved period |
+| GET/POST | `/api/armis/capacity` | `armis.capacity.view/manage` | List or create annual capacity versions |
+| GET/PUT | `/api/armis/capacity/{capacity}` | `armis.capacity.view/manage` | Read or edit a current Draft/Returned capacity version |
+| POST | `/api/armis/capacity/{capacity}/submit` | `armis.capacity.manage` | Submit capacity for review |
+| POST | `/api/armis/capacity/{capacity}/review` | `armis.capacity.review` | Approve or Return submitted capacity |
+| POST | `/api/armis/capacity/{capacity}/lock` | `armis.capacity.approve` | Lock approved capacity |
+| GET/POST | `/api/armis/workload` | `armis.workload.view/manage` | List or create planned workload allocations |
+| GET/PUT | `/api/armis/workload/{workload}` | `armis.workload.view/manage` | Read or edit a current Draft/Returned workload version |
+| POST | `/api/armis/workload/{workload}/submit` | `armis.workload.manage` | Submit workload for review |
+| POST | `/api/armis/workload/{workload}/review` | `armis.workload.review` | Approve or Return; approval requires capacity and cannot exceed it |
+| POST | `/api/armis/workload/{workload}/lock` | `armis.workload.approve` | Lock approved workload |
+| GET | `/api/armis/utilization?fiscalYear=YYYY` | `armis.capacity.view` | Scope-aware capacity, planned workload, availability, remaining days, and utilization summary |
+
+Every mutation records an ARMIS workflow event, Core Activity Log, and Audit
+Trail row, and review queues/outcomes create Core notifications after commit.
+The submitter and linked resource owner cannot independently review the same
+record. Utilization is a planning read model using only current approved or
+locked ARMIS capacity, workload, and availability; ARMIS-4A actual person-days
+remain a separate non-authoritative ledger. The ARMIS-3B React workspace consumes these
+contracts at `/audit-resource-management/planning`. It provides
+Overview/Utilization, Availability Calendar, Capacity, and Workload tabs with
+responsive tables, search and status filters, fiscal-year selection,
+permission-aware create/edit, submit, independent review, lock, and correction
+revision actions. It displays the IAP interim-provider boundary and does not
+expose actual person-days or public document URLs.
+
+### 8.23 ARMIS-4A assignments and actual person-days
+
+ARMIS-4A adds a separate assignment and actuals ledger linked to AEMS
+engagements and ARMIS resource profiles. It does not modify the existing AEMS
+`engagement_teams` rows or switch the `ResourcePlanningGateway` provider.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/armis/assignments/metadata` | `armis.assignment.view` | Assignment/actual statuses, roles, proficiency, and rule metadata |
+| GET | `/api/armis/assignments` | `armis.assignment.view` | Scope-aware current assignments; `includeHistory=1` includes revisions |
+| POST | `/api/armis/assignments` | `armis.assignment.manage` | Create a Draft engagement assignment and required-competency snapshot |
+| GET/PUT | `/api/armis/assignments/{assignment}` | `armis.assignment.view/manage` | Read or edit a current Draft/Returned assignment with optimistic locking |
+| POST | `/api/armis/assignments/{assignment}/submit` | `armis.assignment.manage` | Validate conflicts, capacity, and competencies before submission |
+| POST | `/api/armis/assignments/{assignment}/review` | `armis.assignment.review` | Independently Approve or Return a submitted assignment |
+| POST | `/api/armis/assignments/{assignment}/lock` | `armis.assignment.approve` | Lock an approved assignment |
+| POST | `/api/armis/assignments/{assignment}/revisions` | `armis.assignment.manage` | Create an immutable correction revision |
+| GET | `/api/armis/assignments/{assignment}/conflicts` | `armis.assignment.view` | Return overlap, availability, capacity, and competency conflicts |
+| GET | `/api/armis/actuals` | `armis.actuals.view` | Scope-aware actual person-day records; `includeHistory=1` includes revisions |
+| POST | `/api/armis/actuals` | `armis.actuals.record` | Create Draft actual person-days for an approved/locked assignment |
+| GET/PUT | `/api/armis/actuals/{actual}` | `armis.actuals.view/record` | Read or edit a current Draft/Returned actual record |
+| POST | `/api/armis/actuals/{actual}/submit` | `armis.actuals.record` | Submit actuals for independent review |
+| POST | `/api/armis/actuals/{actual}/review` | `armis.actuals.review` | Independently Approve or Return actuals |
+| POST | `/api/armis/actuals/{actual}/lock` | `armis.actuals.approve` | Lock approved actuals |
+| POST | `/api/armis/actuals/{actual}/revisions` | `armis.actuals.revise` | Create a correction revision; variance reasons are required for overruns |
+
+Assignment and actuals approval is atomic and row-locked. Current hard rules
+include active resource/profile and engagement-office checks, overlapping
+assignment prevention, approved-capacity enforcement, engagement planned-day
+limits, approved availability conflicts, current verified competency claims,
+assignment/actual date bounds, and optimistic-lock checks. The submitter and
+resource owner cannot independently review the same record. Every mutation
+records an ARMIS workflow event, Activity Log, Audit Trail, and review/outcome
+notification. ARMIS actuals remain non-authoritative for AEMS until a future
+explicit provider-switch phase.
+
+### 8.23.1 ARMIS-4B assignment and actuals workspace
+
+The React workspace is available at
+`/audit-resource-management/assignments`, protected by
+`armis.assignment.view`. It consumes the 8.23 APIs and provides separate
+Assignments and Actual Person-Days sections with permission-aware workflow
+actions, conflict inspection, revision controls, search, status filters, and
+responsive loading/empty/error states. The page does not make backend
+eligibility decisions and does not change AEMS team or provider data.
+
+### 8.24 ARMIS-5A reports and administration API
+
+ARMIS-5A provides a backend-only, scope-aware reporting boundary. Report runs
+pin visible resource and assignment identifiers, filters, the source-query
+version, result rows, and a SHA-256 checksum in immutable `armis_report_runs`
+records. Exports are immutable private artifacts in `armis_report_exports` and
+are served only through authenticated, permission-protected download routes.
+
+| Method | Route | Permission | Contract |
+| --- | --- | --- | --- |
+| GET | `/api/armis/reports` | `armis.report.view` | Report catalog, columns, filters, formats, scope, and provider status |
+| GET | `/api/armis/reports/runs` | `armis.report.view` | Scope-visible immutable report runs and export metadata |
+| GET | `/api/armis/reports/runs/{run}` | `armis.report.view` | One scope-rechecked report snapshot |
+| POST | `/api/armis/reports/{report}/generate` | `armis.report.view` | Generate a reproducible snapshot from visible ARMIS ledgers |
+| POST | `/api/armis/reports/runs/{run}/exports` | `armis.report.export` | Generate or reuse a protected CSV/PDF artifact |
+| GET | `/api/armis/report-exports/{export}/download` | `armis.report.export` | Authenticated private download with `X-AGIS-Checksum-SHA256` |
+| GET | `/api/armis/administration` | `armis.report.view` | Scope, workflow, notification, provider, and hardening status |
+
+The available report codes are `resource-utilization`, `assignment-register`,
+`capacity-workload`, and `competency-coverage`. Supported filters are
+`search`, `status`, `officeId`, and `fiscalYear` where applicable. CSV export
+mitigates spreadsheet formula injection by prefixing values beginning with
+`=`, `+`, `-`, or `@`; PDF/CSV files are generated by the backend and never
+expose a public document URL. Report runs and exports are immutable and every
+generation, export, and download records Core Activity Log and Audit Trail
+entries.
+
+ARMIS-5A does not switch the AEMS `ResourcePlanningGateway`; the administration
+contract explicitly reports `IAP_INTERIM_FALLBACK` and non-authoritative ARMIS
+provider status.
+
+### 8.24.1 ARMIS-5B reports and administration workspace
+
+The protected React route `/audit-resource-management/reports` consumes the
+8.24 contracts. Its Reports tab selects one of the four catalog definitions,
+sends supported filters to the backend, renders the immutable snapshot and
+run history, and requests CSV/PDF artifacts through the protected export
+routes. The Administration tab presents the provider status, scope,
+permissions, workflow status families, notification counts, and hardening
+flags returned by `GET /api/armis/administration`.
+
+The UI checks `armis.report.export` before presenting export actions and uses
+authenticated download requests. It does not make professional decisions,
+change provider authority, expose storage paths, or mutate report runs and
+exports. Focused desktop/mobile coverage is in
+`tests/e2e/armis-reports.spec.js`; provider authority, reconciliation, and
+AIS integration remain future ARMIS scope.
+
 ## 9. Reference/master-list codes
 
 Important configurable list families include:

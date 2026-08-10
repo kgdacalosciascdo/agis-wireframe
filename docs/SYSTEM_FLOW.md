@@ -389,10 +389,21 @@ IAP as a non-authoritative fallback. ARMIS-1A now provides a separate,
 scope-aware resource registry and normalized capacity/workload/actuals
 foundation, and ARMIS-2A adds the controlled competency/certification backend
 with exact Core Document Version evidence, independent verification, and
-immutable corrections. ARMIS is still not the provider. A later ARMIS adapter
-will supply authoritative availability, workload, competencies, and actual
-person-days through the same contract after reconciliation and an explicit
-authority gate.
+immutable corrections. ARMIS-3A now adds a separate, scope-aware planning
+ledger for availability periods, annual capacity, planned workload, and
+utilization; it is independently reviewed, optimistically locked, and
+audited. ARMIS-4A now adds a separate assignment and actual-person-day ledger
+with conflict, capacity, competency, and immutable revision rules. ARMIS-5A
+adds immutable scope-pinned operational reports, protected CSV/PDF exports,
+administration status, notification counts, and private checksumed downloads.
+ARMIS-5B adds the protected reports and administration React workspace, with
+backend-generated snapshots, permission-aware export controls, authenticated
+downloads, run history, provider status, workflow contracts, and responsive
+scope/hardening presentation. It remains read-only for administration and does
+not switch provider authority.
+ARMIS is still not the provider. A later ARMIS adapter will supply
+authoritative availability, workload, competencies, and actual person-days
+through the same contract after reconciliation and an explicit authority gate.
 
 Core services remain shared rather than copied into AEMS. Roles and scopes
 authorize access; Master Lists supply descriptive values; Core
@@ -557,7 +568,11 @@ Recommendation detail and dashboard payloads add backward-compatible,
 visibility-scoped validation summaries. CMS-5B adds the protected React
 validation workspace described below. Later CMS-6 through CMS-10 increments add
 extensions, escalation, closure, dispositions, and controlled reopening.
-Automation, reports/exports, AIS, and ARMIS remain deferred.
+Automation and reports/exports are implemented. AIS and ARMIS provider
+integration remain deferred; ARMIS-3A/3B planning, ARMIS-4A assignment/actuals,
+the ARMIS-4B assignment/actuals workspace, the ARMIS-5A report/export
+backend, and the ARMIS-5B reports/administration workspace are available as
+separate non-authoritative ledgers.
 
 ### 11.10 Runtime logo
 

@@ -119,6 +119,11 @@ const ArmisResourceRegistryPage = lazy(
 const ArmisCompetencyPage = lazy(
   () => import("./pages/ArmisCompetencyPage"),
 );
+const ArmisPlanningPage = lazy(() => import("./pages/ArmisPlanningPage"));
+const ArmisAssignmentsPage = lazy(
+  () => import("./pages/ArmisAssignmentsPage"),
+);
+const ArmisReportsPage = lazy(() => import("./pages/ArmisReportsPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -165,6 +170,9 @@ const implementedCorePaths = new Set([
   "/audit-resource-management",
   "/audit-resource-management/resources",
   "/audit-resource-management/competencies",
+  "/audit-resource-management/planning",
+  "/audit-resource-management/assignments",
+  "/audit-resource-management/reports",
 ]);
 
 function RouteLoading() {
@@ -814,6 +822,36 @@ export default function App() {
               <ProtectedPage permission="armis.competency.view">
                 <Suspense fallback={<RouteLoading />}>
                   <ArmisCompetencyPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/planning"
+            element={
+              <ProtectedPage permission="armis.availability.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisPlanningPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/assignments"
+            element={
+              <ProtectedPage permission="armis.assignment.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisAssignmentsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/reports"
+            element={
+              <ProtectedPage permission="armis.report.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisReportsPage />
                 </Suspense>
               </ProtectedPage>
             }

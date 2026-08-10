@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarCheck2,
   CalendarDays,
+  CalendarRange,
   ChartColumnBig,
   ChartNoAxesCombined,
   ClipboardCheck,
@@ -209,6 +210,24 @@ export const armisPages = [
     path: "/audit-resource-management/competencies",
     permission: "armis.competency.view",
     icon: BadgeCheck,
+  },
+  {
+    label: "Planning & Utilization",
+    path: "/audit-resource-management/planning",
+    permission: "armis.availability.view",
+    icon: CalendarRange,
+  },
+  {
+    label: "Assignments & Actuals",
+    path: "/audit-resource-management/assignments",
+    permission: "armis.assignment.view",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Reports & Administration",
+    path: "/audit-resource-management/reports",
+    permission: "armis.report.view",
+    icon: FileBarChart,
   },
 ];
 
@@ -437,6 +456,30 @@ export function pageForPath(pathname) {
       label: "ARMIS Competencies & Certifications",
       icon: BadgeCheck,
       permission: "armis.competency.view",
+    };
+  }
+
+  if (pathname === "/audit-resource-management/planning") {
+    return {
+      label: "ARMIS Planning & Utilization",
+      icon: CalendarRange,
+      permission: "armis.availability.view",
+    };
+  }
+
+  if (pathname === "/audit-resource-management/assignments") {
+    return {
+      label: "ARMIS Assignments & Actuals",
+      icon: ClipboardCheck,
+      permission: "armis.assignment.view",
+    };
+  }
+
+  if (pathname === "/audit-resource-management/reports") {
+    return {
+      label: "ARMIS Reports & Administration",
+      icon: FileBarChart,
+      permission: "armis.report.view",
     };
   }
 

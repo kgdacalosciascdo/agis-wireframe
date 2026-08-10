@@ -26,7 +26,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
 | CMS — Compliance Management | CMS-1 through CMS-7A documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plans, versioned progress, independent validation, target-date extensions, and the CMS-7A escalation backend are operational; the CMS-7B React workspace and closure remain deferred |
-| ARMIS — Audit Resource Management | ARMIS-0 through ARMIS-2A documented | Resource registry and competency/certification backend are operational; availability, capacity, workload, actuals, React competency workspace, and provider authority switch remain deferred |
+| ARMIS — Audit Resource Management | ARMIS-0 through ARMIS-5B documented | Resource registry, competency/certification, planning, assignment, conflict/capacity, actuals, immutable backend reports/exports, and responsive reports/administration workspace are operational; the interim IAP provider remains non-authoritative |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 
 Documentation must not describe placeholder modules as operational.
@@ -34,17 +34,27 @@ Documentation must not describe placeholder modules as operational.
 ARMIS current-state correction: [ARMIS Workflow and Implementation
 Checkpoint](ARMIS_WORKFLOW_DESIGN.md) records the verified interim provider
 boundary, ARMIS-1A resource foundation, ARMIS-1B resource registry workspace,
-ARMIS-2A competency/certification backend, and ARMIS-2B competency workspace.
+ARMIS-2A competency/certification backend, ARMIS-2B competency workspace,
+ARMIS-3A availability/capacity/workload planning backend, ARMIS-3B planning
+workspace, ARMIS-4A assignment/actuals backend, and ARMIS-4B assignment/actuals
+workspace.
 Competency claims now have controlled submission, independent verification,
 exact Core Document Version evidence, immutable revisions, Activity Log/Audit
 Trail records, Core notifications, and responsive registry/detail pages.
-Availability, capacity, workload, actuals review workflows, the ARMIS-owned
-provider, and AIS integration remain deferred. Existing `arms.view` and
-`arms.manage` compatibility permissions remain in place.
+ARMIS-3A now provides controlled availability, annual capacity, planned
+workload, utilization read models, revision lineage, independent review,
+locking, optimistic concurrency, notifications, and Core audit records.
+ARMIS-5A now provides immutable scope-pinned reports, protected CSV/PDF
+exports, administration status, notification counts, and operational
+hardening. ARMIS-5B now provides the protected responsive reports and
+administration workspace. The ARMIS-owned provider and AIS integration remain
+deferred. Existing
+`arms.view` and `arms.manage` compatibility permissions remain in place.
 
 CMS current-state correction: CMS-1 through CMS-12B are operational and
 verified. This supersedes the older CMS summary row above, which predates the
-CMS-7B through CMS-12B increments. AIS and ARMIS remain deferred.
+CMS-7B through CMS-12B increments. AIS and ARMIS provider integration remain
+deferred.
 
 ## Recommended reading order
 
@@ -101,8 +111,11 @@ resolution views. CMS-9A now adds the accepted-risk and no-longer-applicable
 disposition backend and CMS-9B React workspace. CMS-10A now adds the controlled
 reopening backend and CMS-10B now provides its protected React workspace.
 CMS-11A/B scheduled automation and the CMS-12A protected report/export backend
-are implemented; the CMS-12B React reports workspace remains deferred. AIS and
-ARMIS remain deferred.
+are implemented; the CMS-12B React reports workspace remains deferred. ARMIS
+resource, competency, ARMIS-3A planning backend, ARMIS-3B planning workspace,
+ARMIS-4A/4B assignment and actuals, ARMIS-5A report/export backend, and
+ARMIS-5B reports/administration workspace are operational; AIS and ARMIS
+provider integration remain deferred.
 
 ## Diagram rendering
 
@@ -115,14 +128,17 @@ review/decision actions, and closed-case read-only behavior. CMS-9A disposition
 backend controls accepted-risk and no-longer-applicable decisions. CMS-10A
 controlled reopening and its React workspace are backend/frontend verified;
 CMS-11A/B automation and the CMS-12A report/export backend are implemented;
-CMS-12B React reporting remains deferred. AIS and ARMIS remain deferred.
+CMS-12B React reporting remains deferred. ARMIS-3A/3B planning, ARMIS-4A
+assignment/actuals backend, ARMIS-4B assignment/actuals workspace,
+ARMIS-5A report/export backend, and the ARMIS-5B reports/administration
+workspace are implemented; AIS and ARMIS provider integration remain deferred.
 
 The workflow documents use Mermaid diagrams. GitHub and compatible Markdown
 viewers render them automatically. In a viewer without Mermaid support, the
 adjacent headings, tables, and numbered rules remain the authoritative text.
 # CMS-8A status
 
-Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B), CMS-9A/B dispositions, and CMS-10A/B controlled reopening workspace are implemented. Reopening is a separate authorized workflow; automatic closure, reporting, AIS, and ARMIS integrations remain deferred.
+Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B), CMS-9A/B dispositions, and CMS-10A/B controlled reopening workspace are implemented. Reopening is a separate authorized workflow; automatic closure, reporting, and AIS integrations remain deferred. ARMIS-3A/3B planning, ARMIS-4A assignment/actuals backend, ARMIS-4B assignment/actuals workspace, ARMIS-5A reports/exports, and the ARMIS-5B reports/administration workspace are operational while the ARMIS provider and AIS integrations remain deferred.
 
 CMS-8B frontend status
 
@@ -138,7 +154,10 @@ Recommendation Detail/dashboard contracts are implemented and backend-tested.
 CMS-10A controlled reopening and CMS-10B React workspace are implemented and
 verified. Scheduled automation and closure-readiness candidates are implemented;
 the CMS-12A report/export backend is implemented, while CMS-12B React reporting
-remains. AIS and ARMIS have not been started.
+remains. ARMIS-3A/3B planning, ARMIS-4A assignment/actuals backend, ARMIS-4B
+assignment/actuals workspace, ARMIS-5A reports/exports, and ARMIS-5B
+reports/administration workspace are implemented; AIS and ARMIS provider
+integration remain deferred.
 
 ## CMS-9B status
 
@@ -152,7 +171,7 @@ CMS dashboard-compatible backend metrics. The current CMS-9A Resource does not
 return historical versions; the UI does not fabricate them. CMS-10A reopening
 backend and CMS-10B reopening UI are implemented; CMS-11A/B automation and the
 CMS-12A report/export backend are implemented, with CMS-12B React reporting,
-AIS, and ARMIS still deferred.
+AIS and ARMIS provider integration remain deferred.
 
 CMS-11A adds scheduled reminder processing, closure-readiness detection,
 reviewable closure candidates, overdue escalation candidates, and versioned
@@ -164,4 +183,7 @@ build. Automated processing is deliberately limited to reminders and
 reviewable drafts; it cannot make final professional decisions or issue
 notices. CMS-12A provides the protected report/export backend and CMS-12B
 provides the protected React reports workspace; both are verified. AIS and
-ARMIS remain deferred.
+ARMIS-3A/3B planning, ARMIS-4A assignment/actuals backend, ARMIS-4B
+assignment/actuals workspace, ARMIS-5A reports/exports, and the ARMIS-5B
+reports/administration workspace are operational; ARMIS provider integration
+remains deferred.

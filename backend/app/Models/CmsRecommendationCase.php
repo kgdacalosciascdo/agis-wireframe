@@ -234,4 +234,28 @@ class CmsRecommendationCase extends Model
         return $this->hasOne(CmsReopeningRequest::class, 'cms_recommendation_case_id')
             ->whereNull('resolved_at');
     }
+
+    public function closureCandidates(): HasMany
+    {
+        return $this->hasMany(CmsClosureCandidate::class, 'cms_recommendation_case_id')
+            ->orderByDesc('detected_at');
+    }
+
+    public function openClosureCandidate(): HasOne
+    {
+        return $this->hasOne(CmsClosureCandidate::class, 'cms_recommendation_case_id')
+            ->whereIn('status_code', [CmsClosureCandidate::OPEN, CmsClosureCandidate::ACKNOWLEDGED]);
+    }
+
+    public function escalationCandidates(): HasMany
+    {
+        return $this->hasMany(CmsEscalationCandidate::class, 'cms_recommendation_case_id')
+            ->orderByDesc('detected_at');
+    }
+
+    public function openEscalationCandidate(): HasOne
+    {
+        return $this->hasOne(CmsEscalationCandidate::class, 'cms_recommendation_case_id')
+            ->whereIn('status_code', [CmsEscalationCandidate::OPEN, CmsEscalationCandidate::ACKNOWLEDGED]);
+    }
 }

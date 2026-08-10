@@ -155,6 +155,11 @@ class User extends Authenticatable
         return $this->hasMany(IapAuditorSkill::class);
     }
 
+    public function armisResourceProfiles(): HasMany
+    {
+        return $this->hasMany(ArmisResourceProfile::class);
+    }
+
     public function cmsRecommendationAssignments(): HasMany
     {
         return $this->hasMany(CmsRecommendationAssignment::class);

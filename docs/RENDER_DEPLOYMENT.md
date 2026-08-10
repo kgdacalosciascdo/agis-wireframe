@@ -158,7 +158,10 @@ test. Do not claim a Docker result when Docker is unavailable.
 
 ## Scope
 
-This deployment preparation does not change CMS workflows, statuses,
-permissions, professional controls, or business migrations. CMS-9B remains the
-latest implemented CMS phase. CMS-10A reopening, automation, reports, AIS, and
-ARMIS remain outside this deployment task.
+This deployment preparation does not change CMS workflows, statuses, or
+professional controls. CMS-12A adds the report-run/export migration and
+protected backend endpoints and the `/compliance-management/reports` React
+workspace; apply the migration and rerun the permission seeder before
+deployment. Report files use the same private local disk and are ephemeral on
+Render Free, so use durable private storage before operational report
+retention. AIS and ARMIS remain outside this deployment task.

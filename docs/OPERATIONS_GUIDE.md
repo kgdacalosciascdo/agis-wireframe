@@ -347,6 +347,11 @@ authenticated evidence controls. Verify with `npm.cmd run lint`,
 current backend resources do not compute `availableActions`, so Laravel 403
 responses remain the final authority for professional controls.
 
+CMS-8 through CMS-10 are now also deployed and verified: formal closure,
+Accepted-Risk and No-Longer-Applicable dispositions, and controlled reopening.
+The older CMS-5B through CMS-7B notes above are historical deployment gates.
+CMS-11 automation and CMS-12 reports/exports remain deferred.
+
 ## 11. Production checklist
 
 - `APP_ENV=production`;
@@ -633,3 +638,46 @@ The unauthenticated `GET /health` endpoint returns safe JSON and performs a
 lightweight database check. Render should use `/health` as its health-check
 path. A failing database check returns HTTP 503 without exposing credentials or
 debug details.
+
+## CMS-11A automation operations
+
+Run the normal scheduler/queue process after applying migrations and seeders.
+The daily `notifications:dispatch-reminders` command also executes active CMS
+automation rules. A manual run is available to users with
+`cms.automation.run`; it is idempotent for the rule and business date. Review
+users need `cms.automation.review` and may acknowledge or dismiss candidates,
+but cannot turn a candidate into a closure, disposition, reopening, or
+escalation notice. Inspect `/api/cms/automation/dashboard`, `/runs`, and
+`/candidates` when monitoring results. CMS-11B supplies the administrative UI;
+CMS-12 supplies reports and protected exports.
+
+## CMS-11B workspace verification
+
+Use an account with `cms.automation.view` to open the Automation & Candidate
+Review page. Confirm the summary cards, Automation rules, Candidate review,
+and Run history tabs. With the appropriate additional permissions, verify
+that rule editing, manual execution, acknowledgement, and dismissal controls
+appear only for authorized users. Candidate review must leave the
+recommendation case status unchanged. The focused desktop and mobile browser
+spec is `tests/e2e/cms-automation.spec.js`.
+
+CMS-11B stabilization gate (2026-08-10): the complete CMS browser regression
+completed 66/66 tests across desktop and mobile projects. Playwright starts the
+Laravel server with `APP_ENV=testing`, which uses a high test-only login-rate
+limit so isolated browser contexts can exercise the real sign-in flow. The
+production limiter, account lock rules, and authentication behavior are
+unchanged. The gate also passed the Feature suite (177 tests, 2,952
+assertions), frontend lint, and the production build.
+
+## CMS-12A backend verification
+
+Apply migration `2026_08_10_000000_create_cms_report_tables` and rerun
+`RolePermissionSeeder`. Verify the protected CMS report catalog and report
+codes with an account that has `cms.report.view`. Generate a run, confirm its
+scope snapshot, ordered rows, source-query version, and checksum, then create
+both CSV and PDF exports with `cms.report.export`. Confirm CSV formula
+neutralization, private storage, export version/checksum/size metadata,
+authenticated downloads, and scope/confidentiality revalidation. The focused
+backend specification is `tests/Feature/CmsReportTest.php`. The protected
+React workspace is `/compliance-management/reports`; its desktop/mobile
+contract is `tests/e2e/cms-reports.spec.js`. CMS-12B is now complete.

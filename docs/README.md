@@ -14,6 +14,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md) | Responsible offices, Compliance Monitors, validators, CIAS management, developers | Immutable intake, Action Plans, progress reporting, independent validation, professional conclusions, and future boundaries |
 | [API and Data Reference](API_AND_DATA_REFERENCE.md) | Frontend/backend developers and integrators | Endpoint families, request conventions, entities, relationships, lists, configuration keys |
 | [Operations Guide](OPERATIONS_GUIDE.md) | Developers, deployers, administrators | Setup, migrations, seeders, storage, SMTP, verification, production, backup, monitoring, troubleshooting |
+| [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md) | New users, testers, reviewers, and acceptance teams | Step-by-step Core, IAP, AEMS, CMS, security, integrity, responsive, and automated acceptance testing |
 | [Development Standards](DEVELOPMENT_STANDARDS.md) | Everyone changing the system | Security, integrity, UX, reliability, testing, and definition of done |
 
 ## Current module status
@@ -25,10 +26,25 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
 | CMS — Compliance Management | CMS-1 through CMS-7A documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plans, versioned progress, independent validation, target-date extensions, and the CMS-7A escalation backend are operational; the CMS-7B React workspace and closure remain deferred |
-| ARMIS — Audit Resource Management | Temporary capacity exists in IAP | Full module not implemented |
+| ARMIS — Audit Resource Management | ARMIS-0 through ARMIS-2A documented | Resource registry and competency/certification backend are operational; availability, capacity, workload, actuals, React competency workspace, and provider authority switch remain deferred |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 
 Documentation must not describe placeholder modules as operational.
+
+ARMIS current-state correction: [ARMIS Workflow and Implementation
+Checkpoint](ARMIS_WORKFLOW_DESIGN.md) records the verified interim provider
+boundary, ARMIS-1A resource foundation, ARMIS-1B resource registry workspace,
+ARMIS-2A competency/certification backend, and ARMIS-2B competency workspace.
+Competency claims now have controlled submission, independent verification,
+exact Core Document Version evidence, immutable revisions, Activity Log/Audit
+Trail records, Core notifications, and responsive registry/detail pages.
+Availability, capacity, workload, actuals review workflows, the ARMIS-owned
+provider, and AIS integration remain deferred. Existing `arms.view` and
+`arms.manage` compatibility permissions remain in place.
+
+CMS current-state correction: CMS-1 through CMS-12B are operational and
+verified. This supersedes the older CMS summary row above, which predates the
+CMS-7B through CMS-12B increments. AIS and ARMIS remain deferred.
 
 ## Recommended reading order
 
@@ -42,6 +58,8 @@ For a new developer:
 6. [API and Data Reference](API_AND_DATA_REFERENCE.md)
 7. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
 8. [Operations Guide](OPERATIONS_GUIDE.md)
+9. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
+10. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
 
 For a CIAS reviewer:
 
@@ -81,8 +99,10 @@ records; CMS-7B provides the protected recommendation-scoped React workspace,
 including notice, acknowledgement, response, evidence, follow-up, and
 resolution views. CMS-9A now adds the accepted-risk and no-longer-applicable
 disposition backend and CMS-9B React workspace. CMS-10A now adds the controlled
-reopening backend and CMS-10B now provides its protected React workspace. Reminders/
-automation, reporting, exports, AIS, and ARMIS remain deferred.
+reopening backend and CMS-10B now provides its protected React workspace.
+CMS-11A/B scheduled automation and the CMS-12A protected report/export backend
+are implemented; the CMS-12B React reports workspace remains deferred. AIS and
+ARMIS remain deferred.
 
 ## Diagram rendering
 
@@ -94,14 +114,15 @@ optimistic locking, immutable lineage, Core-version evidence links, controlled
 review/decision actions, and closed-case read-only behavior. CMS-9A disposition
 backend controls accepted-risk and no-longer-applicable decisions. CMS-10A
 controlled reopening and its React workspace are backend/frontend verified;
-reporting, exports, AIS, and ARMIS remain deferred.
+CMS-11A/B automation and the CMS-12A report/export backend are implemented;
+CMS-12B React reporting remains deferred. AIS and ARMIS remain deferred.
 
 The workflow documents use Mermaid diagrams. GitHub and compatible Markdown
 viewers render them automatically. In a viewer without Mermaid support, the
 adjacent headings, tables, and numbered rules remain the authoritative text.
 # CMS-8A status
 
-Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B) and CMS-9A disposition backend are implemented; reopening, automatic closure, reporting, AIS, and ARMIS integrations remain deferred.
+Recommendation Closure Request, independent review, final decision, immutable snapshots, Core evidence links, and closed-case guards are implemented in the backend. The React closure workspace (CMS-8B), CMS-9A/B dispositions, and CMS-10A/B controlled reopening workspace are implemented. Reopening is a separate authorized workflow; automatic closure, reporting, AIS, and ARMIS integrations remain deferred.
 
 CMS-8B frontend status
 
@@ -115,9 +136,9 @@ Document Version evidence links, readiness checks, case transitions,
 permissions, events, Activity Log/Audit Trail entries, notifications, APIs, and
 Recommendation Detail/dashboard contracts are implemented and backend-tested.
 CMS-10A controlled reopening and CMS-10B React workspace are implemented and
-verified. Scheduled automation,
-closure-readiness candidates, reports, exports, AIS, and ARMIS have not been
-started.
+verified. Scheduled automation and closure-readiness candidates are implemented;
+the CMS-12A report/export backend is implemented, while CMS-12B React reporting
+remains. AIS and ARMIS have not been started.
 
 ## CMS-9B status
 
@@ -129,5 +150,18 @@ protected Core-version evidence links/downloads, review and decision panels,
 returned revisions, terminal banners, Recommendation Detail integration, and
 CMS dashboard-compatible backend metrics. The current CMS-9A Resource does not
 return historical versions; the UI does not fabricate them. CMS-10A reopening
-backend and CMS-10B reopening UI are implemented; automation, reports/exports,
-AIS, and ARMIS remain deferred.
+backend and CMS-10B reopening UI are implemented; CMS-11A/B automation and the
+CMS-12A report/export backend are implemented, with CMS-12B React reporting,
+AIS, and ARMIS still deferred.
+
+CMS-11A adds scheduled reminder processing, closure-readiness detection,
+reviewable closure candidates, overdue escalation candidates, and versioned
+automation rules in the backend. CMS-11B adds the protected Automation &
+Candidate Review React workspace, including rule administration, run history,
+and candidate acknowledgement/dismissal. CMS-11B is verified with 66/66 CMS
+desktop/mobile browser tests, 177 Feature tests, lint, and the production
+build. Automated processing is deliberately limited to reminders and
+reviewable drafts; it cannot make final professional decisions or issue
+notices. CMS-12A provides the protected report/export backend and CMS-12B
+provides the protected React reports workspace; both are verified. AIS and
+ARMIS remain deferred.

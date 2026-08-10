@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             MasterListSeeder::class,
             OfficeSeeder::class,
             RolePermissionSeeder::class,
+            CmsAutomationRuleSeeder::class,
             WorkflowSeeder::class,
             AuditAreaSeeder::class,
             SystemConfigurationSeeder::class,

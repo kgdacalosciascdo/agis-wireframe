@@ -66,6 +66,22 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                 ]),
                 'originalResponsibleOffices' => $intake->responsible_office_snapshot,
             ],
+            'automationSummary' => $request->user()?->hasPermission('cms.automation.view') ? [
+                'closureCandidates' => $this->whenLoaded('closureCandidates', fn () => $this->closureCandidates->map(fn ($candidate): array => [
+                    'id' => $candidate->id,
+                    'statusCode' => $candidate->status_code,
+                    'detectedAt' => $candidate->detected_at?->toISOString(),
+                    'readiness' => $candidate->readiness_snapshot,
+                ])->values()),
+                'escalationCandidates' => $this->whenLoaded('escalationCandidates', fn () => $this->escalationCandidates->map(fn ($candidate): array => [
+                    'id' => $candidate->id,
+                    'statusCode' => $candidate->status_code,
+                    'triggerCode' => $candidate->trigger_code,
+                    'severityCode' => $candidate->severity_code,
+                    'reason' => $candidate->reason,
+                    'detectedAt' => $candidate->detected_at?->toISOString(),
+                ])->values()),
+            ] : null,
             'assignments' => CmsRecommendationAssignmentResource::collection(
                 $this->whenLoaded('assignments'),
             ),

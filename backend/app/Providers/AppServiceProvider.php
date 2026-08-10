@@ -74,6 +74,17 @@ class AppServiceProvider extends ServiceProvider
                 'message' => 'Too many sign-in attempts. Please wait one minute and try again.',
             ], 429);
 
+            // Browser regression tests authenticate many isolated contexts in a
+            // single worker. Keep the production controls unchanged while
+            // allowing the test server to exercise the actual login flow
+            // without exhausting the production-sized per-minute buckets.
+            if (filter_var(env('AGIS_E2E_BROWSER', false), FILTER_VALIDATE_BOOLEAN)) {
+                return [
+                    Limit::perMinute(1000)->by('login-test-user:'.$employeeId.'|'.$ipAddress),
+                    Limit::perMinute(1000)->by('login-test-ip:'.$ipAddress),
+                ];
+            }
+
             return [
                 Limit::perMinute($configuration->failedLoginLimit())
                     ->by('login-user:'.$employeeId.'|'.$ipAddress)

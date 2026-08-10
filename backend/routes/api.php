@@ -27,7 +27,11 @@ use App\Http\Controllers\Api\AemsReportController;
 use App\Http\Controllers\Api\AemsTeamController;
 use App\Http\Controllers\Api\AemsWorkingPaperController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ArmisResourceController;
+use App\Http\Controllers\Api\ArmisFoundationController;
+use App\Http\Controllers\Api\ArmisCompetencyController;
 use App\Http\Controllers\Api\CmsActionPlanController;
+use App\Http\Controllers\Api\CmsAutomationController;
 use App\Http\Controllers\Api\CmsClosureController;
 use App\Http\Controllers\Api\CmsDashboardController;
 use App\Http\Controllers\Api\CmsDispositionController;
@@ -35,6 +39,7 @@ use App\Http\Controllers\Api\CmsEscalationController;
 use App\Http\Controllers\Api\CmsProgressUpdateController;
 use App\Http\Controllers\Api\CmsRecommendationAssignmentController;
 use App\Http\Controllers\Api\CmsRecommendationController;
+use App\Http\Controllers\Api\CmsReportController;
 use App\Http\Controllers\Api\CmsReopeningController;
 use App\Http\Controllers\Api\CmsTargetDateExtensionController;
 use App\Http\Controllers\Api\CmsValidationController;
@@ -80,6 +85,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/cms/dashboard', CmsDashboardController::class)
         ->middleware('permission:cms.dashboard.view');
+    Route::get('/cms/reports', [CmsReportController::class, 'catalog'])
+        ->middleware('permission:cms.report.view');
+    Route::get('/cms/reports/runs', [CmsReportController::class, 'runs'])
+        ->middleware('permission:cms.report.view');
+    Route::get('/cms/reports/runs/{run}', [CmsReportController::class, 'show'])
+        ->middleware('permission:cms.report.view');
+    Route::post('/cms/reports/{report}/generate', [CmsReportController::class, 'generate'])
+        ->middleware('permission:cms.report.view');
+    Route::post('/cms/reports/runs/{run}/exports', [CmsReportController::class, 'export'])
+        ->middleware('permission:cms.report.export');
+    Route::get('/cms/report-exports/{export}/download', [CmsReportController::class, 'download'])
+        ->middleware('permission:cms.report.export');
     Route::get('/cms/recommendations', [CmsRecommendationController::class, 'index'])
         ->middleware('permission:cms.recommendation.view');
     Route::get('/cms/recommendations/{recommendation}', [CmsRecommendationController::class, 'show'])
@@ -298,6 +315,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cms/reopening-requests/{reopeningRequest}/versions/{version}/evidence', [CmsReopeningController::class, 'uploadEvidence'])->middleware('permission:cms.reopening-evidence.upload');
     Route::delete('/cms/reopening-evidence/{evidence}', [CmsReopeningController::class, 'removeEvidence'])->middleware('permission:cms.reopening-evidence.remove_draft');
     Route::get('/cms/reopening-evidence/{evidence}/download', [CmsReopeningController::class, 'downloadEvidence'])->middleware('permission:cms.reopening-evidence.download');
+
+    Route::get('/cms/automation/rules', [CmsAutomationController::class, 'rules'])->middleware('permission:cms.automation.view');
+    Route::post('/cms/automation/rules', [CmsAutomationController::class, 'storeRule'])->middleware('permission:cms.automation.manage');
+    Route::put('/cms/automation/rules/{rule}', [CmsAutomationController::class, 'updateRule'])->middleware('permission:cms.automation.manage');
+    Route::post('/cms/automation/run', [CmsAutomationController::class, 'run'])->middleware('permission:cms.automation.run');
+    Route::get('/cms/automation/runs', [CmsAutomationController::class, 'runs'])->middleware('permission:cms.automation.view');
+    Route::get('/cms/automation/dashboard', [CmsAutomationController::class, 'dashboard'])->middleware('permission:cms.automation.view');
+    Route::get('/cms/automation/candidates', [CmsAutomationController::class, 'candidates'])->middleware('permission:cms.automation.view');
+    Route::post('/cms/automation/closure-candidates/{candidate}/review', [CmsAutomationController::class, 'reviewClosureCandidate'])->middleware('permission:cms.automation.review');
+    Route::post('/cms/automation/escalation-candidates/{candidate}/review', [CmsAutomationController::class, 'reviewEscalationCandidate'])->middleware('permission:cms.automation.review');
+    Route::get('/cms/recommendations/{recommendation}/closure-readiness', [CmsAutomationController::class, 'readiness'])->middleware('permission:cms.automation.view');
 
     Route::get('/profile', [ProfileController::class, 'show'])
         ->middleware('permission:profile.view');
@@ -782,6 +810,46 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:iap.manage_engagements');
     Route::put('/iap/plans/{plan}/engagements/{engagement}/team', [IapEngagementController::class, 'updateTeam'])
         ->middleware('permission:iap.assign_team');
+
+    Route::get('/armis/metadata', [ArmisResourceController::class, 'metadata'])
+        ->middleware('permission:armis.resource.view');
+    Route::get('/armis/foundation', [ArmisFoundationController::class, 'index'])
+        ->middleware('permission:armis.resource.view');
+    Route::get('/armis/identities', [ArmisResourceController::class, 'identities'])
+        ->middleware('permission:armis.resource.view');
+    Route::get('/armis/resources', [ArmisResourceController::class, 'index'])
+        ->middleware('permission:armis.resource.view');
+    Route::post('/armis/resources', [ArmisResourceController::class, 'store'])
+        ->middleware('permission:armis.resource.create');
+    Route::get('/armis/resources/{profile}', [ArmisResourceController::class, 'show'])
+        ->middleware('permission:armis.resource.view');
+    Route::get('/armis/resources/{profile}/events', [ArmisResourceController::class, 'events'])
+        ->middleware('permission:armis.resource.view');
+    Route::put('/armis/resources/{profile}', [ArmisResourceController::class, 'update'])
+        ->middleware('permission:armis.resource.update');
+    Route::post('/armis/resources/{profile}/transition', [ArmisResourceController::class, 'transition'])
+        ->middleware('permission:armis.resource.update');
+    Route::post('/armis/resources/{profile}/restore', [ArmisResourceController::class, 'restore'])
+        ->middleware('permission:armis.resource.restore');
+
+    Route::get('/armis/competencies/metadata', [ArmisCompetencyController::class, 'metadata'])
+        ->middleware('permission:armis.competency.view');
+    Route::get('/armis/competencies', [ArmisCompetencyController::class, 'index'])
+        ->middleware('permission:armis.competency.view');
+    Route::post('/armis/competencies', [ArmisCompetencyController::class, 'store'])
+        ->middleware('permission:armis.competency.manage');
+    Route::get('/armis/competencies/{competency}', [ArmisCompetencyController::class, 'show'])
+        ->middleware('permission:armis.competency.view');
+    Route::get('/armis/competencies/{competency}/events', [ArmisCompetencyController::class, 'events'])
+        ->middleware('permission:armis.competency.view');
+    Route::put('/armis/competencies/{competency}', [ArmisCompetencyController::class, 'update'])
+        ->middleware('permission:armis.competency.manage');
+    Route::post('/armis/competencies/{competency}/submit', [ArmisCompetencyController::class, 'submit'])
+        ->middleware('permission:armis.competency.manage');
+    Route::post('/armis/competencies/{competency}/review', [ArmisCompetencyController::class, 'review'])
+        ->middleware('permission:armis.competency.verify');
+    Route::post('/armis/competencies/{competency}/revisions', [ArmisCompetencyController::class, 'revise'])
+        ->middleware('permission:armis.competency.manage');
 
     Route::get('/iap/audit-universe', [IapAuditUniverseController::class, 'index'])
         ->middleware('permission:iap.view');

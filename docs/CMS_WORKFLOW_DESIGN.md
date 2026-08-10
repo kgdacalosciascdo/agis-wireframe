@@ -28,11 +28,13 @@ Implemented as-built scope:
   four controlled conclusions, and authoritative implementation-state
   transitions.
 
-Target-date extensions and the CMS-7A escalation backend are operational.
-Due-soon configuration, reminders, closure, accepted risk,
-no-longer-applicable decisions, reopening, and CMS reports/exports remain
-staged increments. The CMS-5B React validation workspace is operational against the
-CMS-5A contracts and the scoped `validation-options` endpoint described in
+Target-date extensions, the CMS-7A/B escalation workflow, formal closure,
+accepted-risk and no-longer-applicable dispositions, and controlled reopening
+are operational through CMS-10B. CMS-11A adds backend scheduled reminders,
+automation, and closure-readiness/escalation candidates. The CMS-11B
+administrative workspace, CMS-12A report/export backend, and CMS-12B React
+reports workspace are operational. The CMS-5B React validation workspace is operational against
+the CMS-5A contracts and the scoped `validation-options` endpoint described in
 section 13.6.
 
 ## 2. Record lineage
@@ -713,6 +715,11 @@ permission/status visibility until that contract is enriched. Laravel remains
 authoritative. Automatic escalation, scheduled reminders, recommendation
 closure, accepted risk, no-longer-applicable decisions, reopening, reports,
 exports, AIS, and ARMIS remain deferred.
+> Historical boundary note: The CMS-7B and CMS-8 paragraphs above describe
+> their individual increments. CMS-9A/B later implemented alternative
+> dispositions and CMS-10A/B implemented controlled reopening; those features
+> are not deferred in the current as-built system.
+
 # CMS-8A formal recommendation closure
 
 CMS closure is a separate professional decision from management-reported completion and independent validation. A finalized validation conclusion of `IMPLEMENTED` is required before a Closure Request can be submitted; only an approved Closure Decision changes the case to `CLOSED`.
@@ -805,3 +812,70 @@ and its request-detail child route. The workspace treats backend readiness and
 protected, and shows the current active cycle alongside the preserved
 historical terminal decision. It never mutates case status directly or treats
 a request/review as a reopening.
+
+## CMS-11A scheduled automation and reviewable candidates
+
+CMS-11A adds the backend automation boundary. Versioned rules are stored in
+`cms_automation_rules` and `cms_automation_rule_versions`; each idempotent run
+and resulting action is recorded in `cms_automation_runs` and
+`cms_automation_actions`.
+
+The first rule family supports target-date reminders, closure-readiness
+detection, and overdue escalation candidates. Closure candidates are created
+only when the existing CMS closure gates pass: `IMPLEMENTED` case status,
+finalized `IMPLEMENTED` validation, no active validation, extension,
+escalation, closure, disposition, or reopening request. Escalation candidates
+are reviewable drafts only. Automation never closes a case, approves a
+disposition, reopens a recommendation, or issues an escalation notice.
+
+Candidates are scope- and confidentiality-filtered, deduplicated by a stable
+detection key, and reviewable through protected API endpoints. Acknowledge and
+dismiss actions record the reviewer, timestamp, note, Activity Log, Audit
+Trail, CMS event, and notification lineage. The existing CMS-8 closure review
+and approval workflow remains the only path to formal closure.
+
+The CMS dashboard and Recommendation Detail contract expose automation counts,
+candidate summaries, and per-case readiness. CMS-11A is backend-only; the
+administrative React workspace is CMS-11B. CMS reports/exports remain CMS-12,
+and AIS/ARMIS integrations remain deferred.
+
+## CMS-11B automation administration workspace
+
+CMS-11B provides the protected React workspace at
+`/compliance-management/automation`. The workspace presents active rule
+counts, open closure-readiness and escalation candidates, recent reminders,
+and the latest automation run. Authorized managers can create or revise a
+rule; each save creates a new immutable backend version. Authorized operators
+can run automation manually and inspect replay-safe run history.
+
+The Candidate Review tab separates closure-readiness candidates from overdue
+escalation candidates. Reviewers can acknowledge or dismiss a candidate with a
+note, while the UI explicitly preserves the recommendation case status and
+routes all final professional decisions to the existing CMS workflows. The
+route, navigation item, actions, and candidate records are permission- and
+scope-aware on both client and server. Desktop and mobile browser coverage is
+included; CMS-12 reports/exports and AIS/ARMIS remain outside this phase.
+
+## CMS-12A reports and protected exports
+
+CMS-12A adds backend-generated CMS report snapshots and private CSV/PDF
+artifacts. The report catalog currently includes `portfolio-status`,
+`implementation-progress`, `target-date-monitoring`, and `closure-readiness`.
+Each run applies the existing `CmsRecommendationScopeService`, including
+assignment/office visibility and recommendation confidentiality, then stores
+the authorized case IDs, validated filters, source-query version, ordered
+columns/rows, and SHA-256 result checksum in immutable `cms_report_runs`.
+
+CSV and PDF files are generated only from that immutable snapshot. CSV cells
+beginning with `=`, `+`, `-`, or `@` (including leading whitespace) receive a
+leading apostrophe to prevent spreadsheet formula execution. PDF and CSV
+artifacts are stored on the private local disk with a checksum, MIME type,
+size, filename, and immutable export version in `cms_report_exports`.
+
+The protected API exposes the catalog, run generation, run history, export
+generation, and authenticated downloads. Download authorization rechecks the
+current visible case set, so a report cannot be downloaded after its scope or
+confidentiality becomes unauthorized. Report generation and export/download
+actions create Activity Log and Audit Trail entries. CMS-12A/12B do not
+transfer, close, reopen, or otherwise change recommendation cases. AIS and
+ARMIS remain deferred.

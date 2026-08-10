@@ -176,6 +176,8 @@ class CmsRecommendationController extends Controller
             'reopeningRequests.currentVersion.activeEvidenceLinks.documentVersion',
             'reopeningRequests.sourceClosureDecision.version',
             'reopeningRequests.sourceDispositionDecision.version',
+            'closureCandidates.reviewer',
+            'escalationCandidates.reviewer',
         ];
     }
 

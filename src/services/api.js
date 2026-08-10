@@ -2368,10 +2368,198 @@ export const aemsReportApi = {
   },
 };
 
+export const armisApi = {
+  async getMetadata() {
+    return request("/api/armis/metadata");
+  },
+  async getFoundation() {
+    return request("/api/armis/foundation");
+  },
+  async getIdentities() {
+    return request("/api/armis/identities");
+  },
+  async getResources(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/resources${query ? `?${query}` : ""}`);
+  },
+  async getResource(profileId) {
+    return request(`/api/armis/resources/${profileId}`);
+  },
+  async getResourceEvents(profileId) {
+    return request(`/api/armis/resources/${profileId}/events`);
+  },
+  async createResource(payload) {
+    return request("/api/armis/resources", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateResource(profileId, payload) {
+    return request(`/api/armis/resources/${profileId}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async transitionResource(profileId, payload) {
+    return request(`/api/armis/resources/${profileId}/transition`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async restoreResource(profileId, lockVersion) {
+    return request(`/api/armis/resources/${profileId}/restore`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async getCompetencyMetadata() {
+    return request("/api/armis/competencies/metadata");
+  },
+  async getCompetencies(filters = {}) {
+    const query = queryFrom(filters).toString();
+    return request(`/api/armis/competencies${query ? `?${query}` : ""}`);
+  },
+  async getCompetency(competencyId) {
+    return request(`/api/armis/competencies/${competencyId}`);
+  },
+  async getCompetencyEvents(competencyId) {
+    return request(`/api/armis/competencies/${competencyId}/events`);
+  },
+  async createCompetency(payload) {
+    return request("/api/armis/competencies", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async updateCompetency(competencyId, payload) {
+    return request(`/api/armis/competencies/${competencyId}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async submitCompetency(competencyId, lockVersion) {
+    return request(`/api/armis/competencies/${competencyId}/submit`, {
+      method: "POST",
+      body: { lockVersion },
+      csrf: true,
+    });
+  },
+  async reviewCompetency(competencyId, payload) {
+    return request(`/api/armis/competencies/${competencyId}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+  async reviseCompetency(competencyId, payload) {
+    return request(`/api/armis/competencies/${competencyId}/revisions`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+  },
+};
+
 export const cmsApi = {
   async getDashboard(filters = {}) {
     const query = queryFrom(filters).toString();
     return request(`/api/cms/dashboard${query ? `?${query}` : ""}`);
+  },
+  async getReportCatalog() {
+    return request("/api/cms/reports");
+  },
+  async getReportRuns() {
+    const data = await request("/api/cms/reports/runs");
+    return data?.runs ?? [];
+  },
+  async getReportRun(runId) {
+    const data = await request(`/api/cms/reports/runs/${runId}`);
+    return data?.run ?? null;
+  },
+  async generateReport(reportCode, filters = {}) {
+    const data = await request(`/api/cms/reports/${reportCode}/generate`, {
+      method: "POST",
+      body: filters,
+      csrf: true,
+    });
+    return data?.run ?? null;
+  },
+  async createReportExport(runId, format) {
+    const data = await request(`/api/cms/reports/runs/${runId}/exports`, {
+      method: "POST",
+      body: { format },
+      csrf: true,
+    });
+    return data?.export ?? null;
+  },
+  async downloadReportExport(exportId, fileName) {
+    return documentApi.downloadFile(
+      `/api/cms/report-exports/${exportId}/download`,
+      fileName || `cms-report-export-${exportId}`,
+    );
+  },
+  async getAutomationDashboard() {
+    return request("/api/cms/automation/dashboard");
+  },
+  async getAutomationRules() {
+    const data = await request("/api/cms/automation/rules");
+    return data?.rules ?? [];
+  },
+  async createAutomationRule(payload) {
+    const data = await request("/api/cms/automation/rules", {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.rule ?? null;
+  },
+  async updateAutomationRule(ruleId, payload) {
+    const data = await request(`/api/cms/automation/rules/${ruleId}`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+    return data?.rule ?? null;
+  },
+  async runAutomation(ruleCode) {
+    const data = await request("/api/cms/automation/run", {
+      method: "POST",
+      body: ruleCode ? { ruleCode } : {},
+      csrf: true,
+    });
+    return data ?? {};
+  },
+  async getAutomationRuns() {
+    const data = await request("/api/cms/automation/runs");
+    return data?.runs ?? [];
+  },
+  async getAutomationCandidates() {
+    return request("/api/cms/automation/candidates");
+  },
+  async reviewClosureCandidate(candidateId, action, payload = {}) {
+    const data = await request(`/api/cms/automation/closure-candidates/${candidateId}/review`, {
+      method: "POST",
+      body: { ...payload, action },
+      csrf: true,
+    });
+    return data?.candidate ?? null;
+  },
+  async reviewEscalationCandidate(candidateId, action, payload = {}) {
+    const data = await request(`/api/cms/automation/escalation-candidates/${candidateId}/review`, {
+      method: "POST",
+      body: { ...payload, action },
+      csrf: true,
+    });
+    return data?.candidate ?? null;
+  },
+  async getAutomationReadiness(recommendationId) {
+    return request(`/api/cms/recommendations/${recommendationId}/closure-readiness`);
   },
   async getRecommendations(filters = {}) {
     const query = queryFrom(filters).toString();

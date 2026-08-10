@@ -111,6 +111,14 @@ const CmsEscalationsPage = lazy(() => import("./pages/CmsEscalationsPage"));
 const CmsClosureRequestsPage = lazy(() => import("./pages/CmsClosureRequestsPage"));
 const CmsDispositionsPage = lazy(() => import("./pages/CmsDispositionsPage"));
 const CmsReopeningPage = lazy(() => import("./pages/CmsReopeningPage"));
+const CmsAutomationPage = lazy(() => import("./pages/CmsAutomationPage"));
+const CmsReportsPage = lazy(() => import("./pages/CmsReportsPage"));
+const ArmisResourceRegistryPage = lazy(
+  () => import("./pages/ArmisResourceRegistryPage"),
+);
+const ArmisCompetencyPage = lazy(
+  () => import("./pages/ArmisCompetencyPage"),
+);
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -152,6 +160,11 @@ const implementedCorePaths = new Set([
   "/compliance-management",
   "/compliance-management/dashboard",
   "/compliance-management/recommendations",
+  "/compliance-management/automation",
+  "/compliance-management/reports",
+  "/audit-resource-management",
+  "/audit-resource-management/resources",
+  "/audit-resource-management/competencies",
 ]);
 
 function RouteLoading() {
@@ -606,6 +619,26 @@ export default function App() {
             }
           />
           <Route
+            path="compliance-management/automation"
+            element={
+              <ProtectedPage permission="cms.automation.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsAutomationPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/reports"
+            element={
+              <ProtectedPage permission="cms.report.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsReportsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
             path="compliance-management/recommendations/:recommendationId"
             element={
               <ProtectedPage permission="cms.recommendation.view">
@@ -761,6 +794,54 @@ export default function App() {
               <ProtectedPage permission="cms.reopening.view">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsReopeningPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/competencies"
+            element={
+              <ProtectedPage permission="armis.competency.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisCompetencyPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/competencies/:competencyId"
+            element={
+              <ProtectedPage permission="armis.competency.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisCompetencyPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/resources"
+            element={
+              <ProtectedPage permission="armis.resource.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisResourceRegistryPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management"
+            element={
+              <ProtectedPage permission="armis.resource.view">
+                <Navigate to="/audit-resource-management/resources" replace />
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/resources/:profileId"
+            element={
+              <ProtectedPage permission="armis.resource.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisResourceRegistryPage />
                 </Suspense>
               </ProtectedPage>
             }

@@ -8,6 +8,7 @@ use App\Models\ExitConference;
 use App\Models\IapPlanEngagement;
 use App\Models\User;
 use App\Models\WorkflowInstance;
+use App\Services\Cms\CmsAutomationService;
 use Illuminate\Support\Collection;
 
 /**
@@ -15,7 +16,10 @@ use Illuminate\Support\Collection;
  */
 class NotificationReminderService
 {
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly CmsAutomationService $cmsAutomation,
+    ) {}
 
     public function dispatch(): int
     {
@@ -92,6 +96,9 @@ class NotificationReminderService
         $delivered += $this->dispatchAemsProcedureReminders();
         $delivered += $this->dispatchAemsResponseReminders();
         $delivered += $this->dispatchAemsConferenceReminders();
+        // CMS automation creates reminders and reviewable candidates only; it
+        // never issues escalation notices or performs closure decisions.
+        $delivered += $this->cmsAutomation->run();
 
         return $delivered;
     }

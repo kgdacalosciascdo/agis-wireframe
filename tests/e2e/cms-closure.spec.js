@@ -77,6 +77,6 @@ test("closed case displays a read-only formal closure banner without reopening c
   await page.route(new RegExp(`/api/cms/recommendations/${caseId}/closure-options$`), (route) => json(route, { caseContext: context("CLOSED"), readiness: readiness(false), canCreate: false, initiatorTypes: [], reasons: ["The recommendation is already closed."] }));
   await page.goto(`/compliance-management/recommendations/${caseId}/closure-requests/${requestId}`);
   await expect(page.getByText("This recommendation is formally closed.", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Reopening is not implemented/i).first()).toBeVisible();
+  await expect(page.getByText(/Any reopening must use the separate controlled Reopening workspace/i).first()).toBeVisible();
   await expect(page.getByRole("button", { name: /reopen/i })).toHaveCount(0);
 });

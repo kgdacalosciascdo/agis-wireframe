@@ -462,7 +462,7 @@ class CmsProgressUpdateTest extends TestCase
             )
             ->assertJsonPath(
                 'data.dataLimitations.2',
-                'Automatic escalation, scheduled reminders, reporting, exports, AIS, and ARMIS remain deferred.',
+                'Automation identifies readiness, sends reminders, and prepares candidates; professional decisions and formal notices remain manual.',
             );
     }
 

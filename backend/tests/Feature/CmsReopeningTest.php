@@ -35,7 +35,7 @@ class CmsReopeningTest extends TestCase
 
         $this->assertSame(10, Permission::where('code', 'like', 'cms.reopening.%')->count());
         $this->assertSame(4, Permission::where('code', 'like', 'cms.reopening-evidence.%')->count());
-        $this->assertSame(118, Permission::where('code', 'like', 'cms.%')->count());
+        $this->assertSame(125, Permission::where('code', 'like', 'cms.%')->count());
         $this->assertTrue($this->user('auditee')->hasPermission('cms.reopening.request'));
         $this->assertTrue($this->user('departmenthead')->hasPermission('cms.reopening.approve'));
         $this->assertFalse($this->user('auditee')->hasPermission('cms.reopening.approve'));

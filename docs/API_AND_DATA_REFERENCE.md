@@ -1067,6 +1067,36 @@ reported as `IAP_INTERIM_FALLBACK` and non-authoritative. A future ARMIS adapter
 can replace the `ResourcePlanningGateway` binding without changing Audit Team
 or Engagement Tracker consumers.
 
+### 8.20 ARMIS-1A foundation API
+
+The ARMIS-1A backend exposes a protected, office-scoped resource registry and
+read snapshot. The profile API is the first ARMIS mutation boundary; it does
+not switch the AEMS provider or mutate IAP records.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/armis/metadata` | `armis.resource.view` | Lifecycle/category metadata and current provider status |
+| GET | `/api/armis/foundation` | `armis.resource.view` | Scope-aware profiles, competency, availability, capacity, requirement, workload, and actuals snapshot |
+| GET | `/api/armis/resources` | `armis.resource.view` | Filtered resource registry |
+| POST | `/api/armis/resources` | `armis.resource.create` | Create a draft resource profile linked to a Core user and office |
+| GET | `/api/armis/resources/{profile}` | `armis.resource.view` | Resource detail and loaded foundation records |
+| GET | `/api/armis/resources/{profile}/events` | `armis.resource.view` | Immutable ARMIS workflow timeline |
+| PUT | `/api/armis/resources/{profile}` | `armis.resource.update` | Optimistically locked profile update |
+| POST | `/api/armis/resources/{profile}/transition` | `armis.resource.update` | Draft/active/suspended/inactive/archive transition |
+| POST | `/api/armis/resources/{profile}/restore` | `armis.resource.restore` | Restore an archived profile as inactive |
+
+Mutation requests include `lockVersion`. A stale version returns `422` and no
+record is changed. Profile mutations create an Activity Log, Audit Trail row,
+and append-only `armis_workflow_events` record. Resource visibility follows
+the Core office scope; non-global users cannot access another office's profile.
+
+ARMIS-1A foundation tables are `armis_resource_profiles`,
+`armis_competencies`, `armis_availability_periods`,
+`armis_capacity_submissions`, `armis_resource_requirements`,
+`armis_requirement_competencies`, `armis_workload_allocations`,
+`armis_actual_person_days`, and `armis_workflow_events`. Competency evidence
+stores an exact `document_versions.id`, never a mutable document path.
+
 Core remains authoritative for Users, Offices, Roles, Permissions, Scopes,
 Audit Areas, Audit Focuses, Master Lists, private Documents and
 `DocumentVersion`s, reusable workflow infrastructure, Notifications, Activity
@@ -1078,6 +1108,44 @@ Conferences, and report review actions create deduplicated Core Notifications
 after the surrounding transaction commits. The scheduled reminder command also
 covers overdue procedures, Management Response deadlines, and upcoming Exit
 Conferences.
+
+### 8.21 ARMIS-2A competency and certification API
+
+ARMIS-2A adds the controlled certification ledger on top of the ARMIS-1A
+competency foundation. Competency catalogue items come from the Core
+`IAP_AUDITOR_SPECIALIZATION` list (and may later come from
+`ARMIS_COMPETENCY`). Evidence is pinned to an exact active Core
+`document_versions` row.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/armis/competencies/metadata` | `armis.competency.view` | Status, proficiency, and Core catalogue metadata |
+| GET | `/api/armis/competencies` | `armis.competency.view` | Scope-aware current claims; `includeHistory=1` includes revisions |
+| POST | `/api/armis/competencies` | `armis.competency.manage` | Create a Draft claim for a resource profile |
+| GET | `/api/armis/competencies/{competency}` | `armis.competency.view` | Read a claim and exact evidence metadata |
+| GET | `/api/armis/competencies/{competency}/events` | `armis.competency.view` | Read the immutable competency event timeline |
+| PUT | `/api/armis/competencies/{competency}` | `armis.competency.manage` | Edit a Draft or Returned claim with optimistic locking |
+| POST | `/api/armis/competencies/{competency}/submit` | `armis.competency.manage` | Submit a current claim for independent verification |
+| POST | `/api/armis/competencies/{competency}/review` | `armis.competency.verify` | Verify, Return, or Revoke a claim |
+| POST | `/api/armis/competencies/{competency}/revisions` | `armis.competency.manage` | Create a new Draft correction from a Verified version |
+
+The lifecycle is `DRAFT/RETURNED -> PENDING_VERIFICATION -> VERIFIED`, with
+controlled `EXPIRED` and `REVOKED` outcomes. Verified data cannot be edited in
+place. `competency_family_uuid`, `version_number`, `supersedes_id`, and
+`is_current_revision` preserve lineage; a PostgreSQL partial unique index and
+row-locking service transaction enforce one current claim per resource and Core
+catalogue item. Submitters and resource owners are barred from independent
+review. All create, update, submit, review, and revision actions write Core
+Activity Log, Audit Trail, and ARMIS workflow-event records. Notifications are
+generated for verification queues and review outcomes. ARMIS remains
+non-authoritative for AEMS; this phase does not alter IAP records or the
+`ResourcePlanningGateway` binding.
+
+The ARMIS-2B React workspace consumes these contracts at
+`/audit-resource-management/competencies` and its competency detail route.
+The browser presents only backend-authorized preparation, submission, review,
+and revision actions; it does not create public document URLs or bypass Core
+Document Version access controls.
 
 ## 9. Reference/master-list codes
 
@@ -1266,6 +1334,13 @@ adds those computed actions, the UI combines exact status and seeded permission
 visibility while Laravel remains authoritative for every mutation. Automatic
 escalation, scheduled reminders, recommendation closure, accepted risk,
 reopening, reports, exports, AIS, and ARMIS remain unimplemented.
+> Historical boundary note: The CMS-7A API description above predates the
+> CMS-8 through CMS-10 increments. Formal closure, Accepted-Risk,
+> No-Longer-Applicable, and controlled reopening APIs are implemented below;
+> Historical boundary note: scheduled automation was deferred at the CMS-7A
+> checkpoint; CMS-11A automation endpoints are documented below. CMS reports/
+> exports remain deferred to CMS-12.
+
 # CMS-8A closure API
 
 Closure endpoints are available under `/api/cms/recommendations/{recommendation}/closure-requests`, `/closure-options`, and `/api/cms/closure-requests/{closureRequest}`. Version transitions are exposed through `submit`, `start-review`, `return`, `recommend`, `approve`, `reject`, and `revisions` routes. The backend selects and pins the finalized Validation, accepted Action Plan, and recorded Progress Update lineage; clients cannot submit source IDs or case statuses.
@@ -1377,3 +1452,73 @@ CMS-10B consumes these routes through the existing same-origin `cmsApi` client;
 no alternate API client, public document URL, or frontend-only endpoint is
 introduced. Direct refresh and deep links require the existing authenticated
 route guard and `cms.reopening.view`.
+
+# CMS-11A automation API and data
+
+Protected CMS automation endpoints are available to authorized users:
+
+```text
+GET    /api/cms/automation/rules
+POST   /api/cms/automation/rules
+PUT    /api/cms/automation/rules/{rule}
+POST   /api/cms/automation/run
+GET    /api/cms/automation/runs
+GET    /api/cms/automation/dashboard
+GET    /api/cms/automation/candidates
+POST   /api/cms/automation/closure-candidates/{candidate}/review
+POST   /api/cms/automation/escalation-candidates/{candidate}/review
+GET    /api/cms/recommendations/{recommendation}/closure-readiness
+```
+
+The `cms.automation.view`, `manage`, `run`, `review`, and `dismiss`
+permissions are scope-aware. Rule versions are immutable. Runs and actions
+are idempotent and preserve dedupe keys; closure and escalation candidates
+retain readiness/trigger snapshots and can only be acknowledged or dismissed
+from this increment. Automation may send reminders and candidate notifications,
+but cannot close recommendations, approve dispositions, reopen cases, or issue
+escalation notices. CMS-11B consumes these contracts; reports and protected
+CSV/PDF exports remain CMS-12.
+
+## CMS-11B React workspace contract
+
+The React workspace uses the CMS-11A endpoints through the existing same-origin
+`cmsApi` client. It does not create a second API or reproduce backend
+eligibility rules. The protected navigation route is
+`/compliance-management/automation` and requires `cms.automation.view`.
+Rule editing requires `cms.automation.manage`; manual execution requires
+`cms.automation.run`; candidate acknowledgement requires
+`cms.automation.review`; dismissal additionally requires
+`cms.automation.dismiss`. The workspace renders backend scope, status,
+readiness, run, and candidate data as authoritative and never exposes a
+professional final-decision control.
+
+## CMS-12A report and export API
+
+CMS-12A adds `cms_report_runs` and `cms_report_exports`. Runs are immutable
+scope-pinned snapshots; exports are immutable private file versions derived
+only from one run. The `cms.report.view` permission is required for report
+catalog, generation, run history, and run detail. `cms.report.export` is
+required to generate or download CSV/PDF files.
+
+```text
+GET    /api/cms/reports
+GET    /api/cms/reports/runs
+GET    /api/cms/reports/runs/{run}
+POST   /api/cms/reports/{report}/generate
+POST   /api/cms/reports/runs/{run}/exports       { format: csv|pdf }
+GET    /api/cms/report-exports/{export}/download
+```
+
+The supported report codes are `portfolio-status`, `implementation-progress`,
+`target-date-monitoring`, and `closure-readiness`. Generation accepts
+`search`, `status`, `officeId`, `riskCode`, `dateFrom`, and `dateTo`; the
+backend validates filters and applies the same CMS scope and confidentiality
+rules as the Recommendation Registry. Responses include report columns,
+ordered rows, source-query version, row count, and a result checksum. Export
+responses include only filename, MIME type, size, checksum, version, and an
+authenticated download endpoint; private storage paths and public URLs are
+never exposed. The CMS-12B React workspace is available at
+`/compliance-management/reports`, requires `cms.report.view`, and renders the
+backend columns, rows, checksums, scope summary, run history, and export
+metadata without recreating eligibility rules. CSV/PDF generation and download
+remain protected by `cms.report.export`. AIS and ARMIS remain deferred.

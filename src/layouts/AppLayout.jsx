@@ -33,6 +33,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
     iap: location.pathname.startsWith("/internal-audit-planning"),
     aem: location.pathname.startsWith("/audit-engagement-management"),
     cms: location.pathname.startsWith("/compliance-management"),
+    arms: location.pathname.startsWith("/audit-resource-management"),
   }));
   const items = visibleFor(user, section.items);
 

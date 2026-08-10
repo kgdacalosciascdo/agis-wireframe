@@ -2,9 +2,14 @@
 
 namespace App\Services\Cms;
 
+use App\Models\CmsAutomationAction;
+use App\Models\CmsAutomationRule;
+use App\Models\CmsAutomationRun;
+use App\Models\CmsClosureCandidate;
 use App\Models\CmsClosureRequestVersion;
 use App\Models\CmsDispositionRequestVersion;
 use App\Models\CmsEscalation;
+use App\Models\CmsEscalationCandidate;
 use App\Models\CmsEscalationNoticeVersion;
 use App\Models\CmsEscalationResponseVersion;
 use App\Models\CmsProgressUpdate;
@@ -184,6 +189,11 @@ class CmsDashboardService
             'rejectedReopeningRequests' => CmsReopeningRequestVersion::query()->where('status_code', CmsReopeningRequestVersion::REJECTED)->whereHas('request', fn (Builder $query) => $query->whereIn('cms_recommendation_case_id', $visibleCaseIds))->count(),
             'recentlyReopenedRecommendations' => (clone $portfolio)->whereNotNull('cms_recommendation_cases.last_reopened_at')->where('cms_recommendation_cases.last_reopened_at', '>=', $now->copy()->subDays(30))->count(),
             'recentlyClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->where('closed_at', '>=', $now->copy()->subDays(30))->count(),
+            'openClosureCandidates' => CmsClosureCandidate::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->whereIn('status_code', [CmsClosureCandidate::OPEN, CmsClosureCandidate::ACKNOWLEDGED])->count(),
+            'openEscalationCandidates' => CmsEscalationCandidate::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->whereIn('status_code', [CmsEscalationCandidate::OPEN, CmsEscalationCandidate::ACKNOWLEDGED])->count(),
+            'recentAutomationReminders' => CmsAutomationAction::query()->whereIn('cms_recommendation_case_id', $visibleCaseIds)->where('action_type', 'REMINDER')->where('created_at', '>=', $now->copy()->subDays(7))->count(),
+            'activeAutomationRules' => CmsAutomationRule::query()->where('status_code', CmsAutomationRule::ACTIVE)->count(),
+            'lastAutomationRunAt' => CmsAutomationRun::query()->latest('finished_at')->value('finished_at'),
             'totalClosedRecommendations' => CmsRecommendationCase::query()->whereIn('id', $visibleCaseIds)->where('status_code', CmsRecommendationCase::STATUS_CLOSED)->count(),
             'finalizedValidationConclusions' => collect([
                 'NOT_IMPLEMENTED',
@@ -271,7 +281,7 @@ class CmsDashboardService
             'dataLimitations' => [
                 'Due-soon metrics require an approved runtime threshold.',
                 'Progress metrics remain management-reported until a separate Validation Review is finalized.',
-                'Automatic escalation, scheduled reminders, reporting, exports, AIS, and ARMIS remain deferred.',
+                'Automation identifies readiness, sends reminders, and prepares candidates; professional decisions and formal notices remain manual.',
             ],
         ];
     }

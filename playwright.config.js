@@ -44,6 +44,8 @@ export default defineConfig({
       cwd: "./backend",
       env: {
         ...env,
+        APP_ENV: "testing",
+        AGIS_E2E_BROWSER: "true",
         APP_URL: backendUrl,
         SANCTUM_STATEFUL_DOMAINS: `127.0.0.1:${frontendPort},localhost:${frontendPort},127.0.0.1,localhost`,
       },

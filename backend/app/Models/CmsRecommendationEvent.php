@@ -162,6 +162,10 @@ class CmsRecommendationEvent extends Model
 
     public const EVENT_ACTIVE_CYCLE_STARTED = 'ACTIVE_CYCLE_STARTED';
 
+    public const EVENT_AUTOMATION_CLOSURE_CANDIDATE = 'AUTOMATION_CLOSURE_CANDIDATE';
+
+    public const EVENT_AUTOMATION_ESCALATION_CANDIDATE = 'AUTOMATION_ESCALATION_CANDIDATE';
+
     protected $fillable = [
         'cms_recommendation_case_id',
         'cms_recommendation_id',

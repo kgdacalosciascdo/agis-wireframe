@@ -385,8 +385,14 @@ same source-matching intake. A conflicting immutable identity is rejected.
 Formally excluded AEMS recommendations create no CMS intake, case, or event.
 The resource contract currently reads IAP capacity, unavailability, skills,
 requirements, and AEMS-held person-days. Its provider status explicitly marks
-IAP as a non-authoritative fallback; ARMIS will later supply availability,
-workload, competencies, and actual person-days through the same contract.
+IAP as a non-authoritative fallback. ARMIS-1A now provides a separate,
+scope-aware resource registry and normalized capacity/workload/actuals
+foundation, and ARMIS-2A adds the controlled competency/certification backend
+with exact Core Document Version evidence, independent verification, and
+immutable corrections. ARMIS is still not the provider. A later ARMIS adapter
+will supply authoritative availability, workload, competencies, and actual
+person-days through the same contract after reconciliation and an explicit
+authority gate.
 
 Core services remain shared rather than copied into AEMS. Roles and scopes
 authorize access; Master Lists supply descriptive values; Core
@@ -549,8 +555,9 @@ Trail, and after-commit notifications. `IMPLEMENTED` never means `CLOSED`.
 
 Recommendation detail and dashboard payloads add backward-compatible,
 visibility-scoped validation summaries. CMS-5B adds the protected React
-validation workspace described below. Extensions, escalation, closure,
-reopening, reports, AIS, and ARMIS remain deferred.
+validation workspace described below. Later CMS-6 through CMS-10 increments add
+extensions, escalation, closure, dispositions, and controlled reopening.
+Automation, reports/exports, AIS, and ARMIS remain deferred.
 
 ### 11.10 Runtime logo
 
@@ -839,8 +846,9 @@ never mutates the recommendation implementation status; resolving an
 escalation does not close the recommendation. CMS-7B provides the protected
 recommendation-scoped React list/detail workspace, immutable version views,
 evidence controls, acknowledgement, response, follow-up, and resolution
-presentation. Automatic creation, reminders, closure, accepted risk,
-reopening, reporting, exports, AIS, and ARMIS remain deferred.
+presentation. Automatic creation, reminders, reporting, exports, AIS, and ARMIS
+remain deferred; controlled closure, dispositions, and reopening are covered by
+the later CMS-8 through CMS-10 flows.
 # CMS closure boundary
 
 CMS now distinguishes `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED`. Management completion, accepted progress, extension approval, escalation resolution, and validation drafts do not close a recommendation. An independent finalized `IMPLEMENTED` validation supports a Closure Request; an independent review assessment and CIAS Management Closure Decision are required for formal closure.
@@ -856,9 +864,9 @@ assessment, and a different CIAS Management actor records the final decision.
 Submission and decision are transactional case transitions; automation and the
 browser cannot make the professional decision. Exact Core document versions,
 CMS events, Activity Logs, Audit Trail entries, and after-commit notifications
-are captured for every transition. CMS-9B will provide the React workspace;
-reopening, automation, reports/exports, AIS, and ARMIS remain outside this
-phase.
+are captured for every transition. CMS-9B provides the React workspace.
+Reopening is implemented by CMS-10A/B; automation, reports/exports, AIS, and
+ARMIS remain outside this phase.
 
 ## CMS-9B disposition workspace flow
 
@@ -887,5 +895,52 @@ Reopening Decision. A request, review, or rejection never reactivates a case;
 only an approved decision starts a new active cycle at `FOR_ACTION_PLAN` or
 `MONITORING`. Stale locks offer an authoritative reload, protected downloads
 remain authenticated, and scope-safe 403/404 responses do not disclose hidden
-records. Automation, reminders, reports, exports, AIS, and ARMIS are not part
-of this flow.
+records. CMS-11A adds scheduled, idempotent reminders and reviewable
+closure-readiness/escalation candidates. It does not make professional final
+decisions, directly close or reopen cases, or issue escalation notices. The
+CMS-11B workspace and CMS-12 reports/exports remain separate phases; AIS and
+ARMIS are deferred.
+
+## CMS-11A automation flow
+
+The daily scheduler loads active, versioned rules and creates one run per
+rule/day. Target-date rules send deduplicated, scope-aware reminders. The
+closure-readiness rule evaluates the CMS-8 gates and creates an immutable
+candidate snapshot only when all blocking checks pass. The escalation rule
+creates an overdue candidate draft without issuing a notice. Every run,
+action, candidate, notification, event, Activity Log, and Audit Trail entry is
+retained for review and replay-safe auditing.
+
+## CMS-11B automation administration flow
+
+Authorized users open `/compliance-management/automation` to inspect the
+automation summary, versioned rules, candidate queues, and run history. A
+manager edits a rule through the protected API, which creates an immutable
+version. An operator may run the active rules; a reviewer acknowledges or
+dismisses a candidate with a note. The React workspace keeps candidate review
+separate from closure, disposition, reopening, and escalation notice
+decisions. Scope and confidentiality remain backend-enforced, including on
+direct refresh and mobile layouts.
+
+## CMS-12A report and export flow
+
+An authorized CMS report request loads visible recommendation cases through
+`CmsRecommendationScopeService`, applies validated filters, orders the rows
+deterministically, and persists one immutable `CmsReportRun` containing the
+scope case IDs, filter set, query version, result snapshot, and SHA-256
+checksum. CSV/PDF generation reads only that snapshot. CSV formula-like cells
+are neutralized before writing; Dompdf renders the PDF from the same rows.
+
+Each private artifact is stored under the local disk, recorded as an
+immutable `CmsReportExport` version with MIME type, byte size, filename, and
+checksum, and streamed only through the authenticated download route. The
+download path rechecks current CMS scope and confidentiality before reading
+the file. Generation, export, and download actions create both Activity Log
+and Audit Trail records. The flow is read-only with respect to recommendation
+cases and does not perform CMS transfer, closure, reopening, AIS, or ARMIS
+operations.
+
+The CMS-12B React workspace at `/compliance-management/reports` consumes the
+catalog, run, export, and download contracts through `cmsApi`. It displays the
+backend result snapshot and authorized scope, delegates filters and eligibility
+to Laravel, and never calculates scope or creates public file URLs.

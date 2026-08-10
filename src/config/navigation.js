@@ -1,6 +1,8 @@
 import {
   Activity,
+  BadgeCheck,
   Bell,
+  Bot,
   Blocks,
   BriefcaseBusiness,
   Building2,
@@ -181,6 +183,33 @@ export const cmsPages = [
     permission: "cms.recommendation.view",
     icon: ClipboardCheck,
   },
+  {
+    label: "Automation & Candidates",
+    path: "/compliance-management/automation",
+    permission: "cms.automation.view",
+    icon: Bot,
+  },
+  {
+    label: "Reports & Exports",
+    path: "/compliance-management/reports",
+    permission: "cms.report.view",
+    icon: FileBarChart,
+  },
+];
+
+export const armisPages = [
+  {
+    label: "Resource Registry",
+    path: "/audit-resource-management/resources",
+    permission: "armis.resource.view",
+    icon: UsersRound,
+  },
+  {
+    label: "Competencies & Certifications",
+    path: "/audit-resource-management/competencies",
+    permission: "armis.competency.view",
+    icon: BadgeCheck,
+  },
 ];
 
 export const modules = [
@@ -244,12 +273,13 @@ export const modules = [
     key: "arms",
     code: "ARMIS",
     label: "Audit Resource Management",
-    path: "/audit-resource-management",
-    permission: "arms.view",
+    path: "/audit-resource-management/resources",
+    permission: "armis.resource.view",
     icon: UsersRound,
     value: 12,
     note: "Active Auditors",
     tone: "teal",
+    children: armisPages,
   },
   {
     key: "ais",
@@ -402,6 +432,22 @@ export function visibleFor(user, items) {
 }
 
 export function pageForPath(pathname) {
+  if (/^\/audit-resource-management\/competencies(?:\/\d+)?$/.test(pathname)) {
+    return {
+      label: "ARMIS Competencies & Certifications",
+      icon: BadgeCheck,
+      permission: "armis.competency.view",
+    };
+  }
+
+  if (/^\/audit-resource-management\/resources(?:\/\d+)?$/.test(pathname)) {
+    return {
+      label: "ARMIS Resource Registry",
+      icon: UsersRound,
+      permission: "armis.resource.view",
+    };
+  }
+
   if (/^\/internal-audit-planning\/\d+$/.test(pathname)) {
     return {
       label: "Annual Audit Plan",

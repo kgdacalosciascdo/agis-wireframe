@@ -149,6 +149,8 @@ class CmsRecommendationApiTest extends TestCase
             'cms.reopening-evidence.upload',
             'cms.reopening-evidence.download',
             'cms.reopening-evidence.remove_draft',
+            'cms.report.view',
+            'cms.report.export',
             'cms.disposition.view',
             'cms.disposition.request',
             'cms.disposition.update',
@@ -163,6 +165,11 @@ class CmsRecommendationApiTest extends TestCase
             'cms.disposition-evidence.upload',
             'cms.disposition-evidence.download',
             'cms.disposition-evidence.remove_draft',
+            'cms.automation.view',
+            'cms.automation.manage',
+            'cms.automation.run',
+            'cms.automation.review',
+            'cms.automation.dismiss',
         ], Permission::query()->where('code', 'like', 'cms.%')->pluck('code')->all());
 
         $management = $this->user('departmenthead');

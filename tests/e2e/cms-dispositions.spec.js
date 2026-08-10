@@ -121,7 +121,8 @@ test("renders an approved Accepted-Risk terminal banner without reopening contro
   await page.route(new RegExp(`/api/cms/disposition-requests/${requestId}$`), (route) => json(route, { request: approved, caseContext: context("ACCEPTED_RISK") }));
   await mockOptions(page, { status: "ACCEPTED_RISK", eligible: false, canCreate: false, reasons: ["The recommendation already has a final disposition."] });
   await page.goto(`/compliance-management/recommendations/${caseId}/dispositions/${requestId}`);
-  await expect(page.getByText("Accepted Risk — not implemented").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Final Decision" }).click();
+  await expect(page.getByText("Accepted Risk approved").first()).toBeVisible();
   await expect(page.getByText(/Residual risk was formally accepted/i).first()).toBeVisible();
   await expect(page.getByRole("button", { name: /reopen/i })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Approve/i })).toHaveCount(0);

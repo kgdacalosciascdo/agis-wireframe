@@ -11,6 +11,10 @@ Detailed business specifications are in:
 
 - [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
 - [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
+- [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
+- [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
+- [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
+- [API and Data Reference](API_AND_DATA_REFERENCE.md)
 
 ## 2. System context
 
@@ -293,8 +297,9 @@ independently revalidates the issued report, exact locked version, included
 current finalized Finding, non-archived Recommendation, finalized office/target
 source, and existing AEMS issuance authority. Each new immutable intake
 initializes one separate `CmsRecommendationCase` in `TRANSFERRED` and one
-append-only `INTAKE_CREATED` event. The case is the future operational root; its
-CMS monitoring workflow is not implemented yet.
+append-only `INTAKE_CREATED` event. The case is the operational root for CMS
+monitoring, automation, dispositions, reopening, closure, and reporting. Each
+later CMS workflow preserves the immutable intake and source snapshots.
 
 The aggregate lifecycle is now enforced by
 `AemsEngagementTransitionService`. A client sends an action and current
@@ -370,7 +375,7 @@ flowchart LR
     CMSI --> CMSC[CMS case initialized as TRANSFERRED]
     CMSC --> CMSE[Append-only INTAKE_CREATED event]
     IAPRES[IAP interim resource data] --> RG[ResourcePlanningGateway]
-    ARMIS[Future ARMIS] -. replaces provider .-> RG
+    ARMIS[ARMIS provider adapter] -. gated provider mode .-> RG
     RG --> AEMS
     AEMS -->|Assignments, workflow events, deadlines, issuance| NOTIFY[Core Notifications]
 ```
@@ -573,11 +578,11 @@ Recommendation detail and dashboard payloads add backward-compatible,
 visibility-scoped validation summaries. CMS-5B adds the protected React
 validation workspace described below. Later CMS-6 through CMS-10 increments add
 extensions, escalation, closure, dispositions, and controlled reopening.
-Automation and reports/exports are implemented. AIS and ARMIS provider
-integration remain deferred; ARMIS-3A/3B planning, ARMIS-4A assignment/actuals,
-the ARMIS-4B assignment/actuals workspace, the ARMIS-5A report/export
-backend, and the ARMIS-5B reports/administration workspace are available as
-separate non-authoritative ledgers.
+Automation and reports/exports are implemented. AIS is not implemented. ARMIS
+planning, assignments, reports, provider reconciliation, monitoring, and the
+responsive workspaces are available as separate operational ledgers; AEMS still
+uses the IAP fallback provider by default until an explicit ARMIS authority gate
+activates another mode.
 
 ### 11.10 Runtime logo
 
@@ -866,10 +871,11 @@ never mutates the recommendation implementation status; resolving an
 escalation does not close the recommendation. CMS-7B provides the protected
 recommendation-scoped React list/detail workspace, immutable version views,
 evidence controls, acknowledgement, response, follow-up, and resolution
-presentation. Automatic creation, reminders, reporting, exports, AIS, and ARMIS
-remain deferred; controlled closure, dispositions, and reopening are covered by
-the later CMS-8 through CMS-10 flows.
-# CMS closure boundary
+presentation. At the CMS-7B checkpoint, automatic creation, reminders,
+reporting, and exports were later phases. CMS-8 through CMS-12B now provide
+those capabilities; AIS remains unimplemented and ARMIS is a separate gated
+provider boundary.
+## CMS closure boundary
 
 CMS now distinguishes `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED`. Management completion, accepted progress, extension approval, escalation resolution, and validation drafts do not close a recommendation. An independent finalized `IMPLEMENTED` validation supports a Closure Request; an independent review assessment and CIAS Management Closure Decision are required for formal closure.
 
@@ -918,8 +924,9 @@ remain authenticated, and scope-safe 403/404 responses do not disclose hidden
 records. CMS-11A adds scheduled, idempotent reminders and reviewable
 closure-readiness/escalation candidates. It does not make professional final
 decisions, directly close or reopen cases, or issue escalation notices. The
-CMS-11B workspace and CMS-12 reports/exports remain separate phases; AIS and
-ARMIS are deferred.
+CMS-11B workspace and CMS-12 reports/exports are separate completed phases;
+AIS is not implemented and
+ARMIS remains outside the CMS provider boundary.
 
 ## CMS-11A automation flow
 

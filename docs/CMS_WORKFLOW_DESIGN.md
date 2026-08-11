@@ -37,6 +37,19 @@ reports workspace are operational. The CMS-5B React validation workspace is oper
 the CMS-5A contracts and the scoped `validation-options` endpoint described in
 section 13.6.
 
+### Current CMS status
+
+CMS is operational through CMS-12B. The current surface includes protected
+dashboard, registry, recommendation detail, Action Plan, Progress Update,
+Validation, target-date extension, escalation, closure, disposition, reopening,
+automation administration, candidate review, report, CSV, and PDF workspaces.
+All final professional decisions remain explicit human actions. CMS automation
+creates reminders and reviewable candidates only; it cannot close, reopen,
+dispose, or issue an escalation notice. CMS report generation is backend-owned,
+scope/confidentiality-aware, reproducible from immutable snapshots, and served
+through authenticated downloads. AIS integration is not implemented, and ARMIS
+provider authority remains a separate gated boundary.
+
 ## 2. Record lineage
 
 ```text
@@ -581,9 +594,11 @@ after-commit notifications cover creation, assignment/replacement, updates,
 evidence links/removal, submission, supervisory review, return, revision, and
 finalization.
 
-Explicitly deferred: automated reminders, escalation React workspace (CMS-7B),
-closure request/approval, accepted risk, no-longer-applicable decisions,
-reopening, recurrence analysis, reports, exports, AIS, and ARMIS integration.
+At the CMS-5A/B checkpoint, automated reminders, the escalation React workspace
+(CMS-7B), closure request/approval, Accepted-Risk, No-Longer-Applicable,
+reopening, recurrence analysis, reports, and exports were later phases. Those
+CMS capabilities are now implemented in CMS-7B through CMS-12B. AIS integration
+is not implemented, and ARMIS provider authority remains a separate boundary.
 
 ### 13.6 CMS-5B React validation workspace
 
@@ -613,9 +628,9 @@ lock versions and reload after conflicts. Protected validator-evidence downloads
 use authenticated Core document routes. A finalized `IMPLEMENTED` conclusion is
 displayed as independently validated while closure remains pending; the React
 workspace does not create closure, extensions, reminders, escalation, reopening,
-reports, exports, or CMS/AIS/ARMIS integrations. CMS-7A now provides the
-backend escalation workflow; the CMS-7B React escalation workspace remains
-deferred.
+reports, exports, or CMS/AIS/ARMIS integrations. Those capabilities were added
+in later, separate increments; the following sections describe each later
+checkpoint in sequence.
 
 ## CMS-6A target-date extensions
 
@@ -638,9 +653,10 @@ history are append-only; stale lock versions and changed source snapshots are
 rejected.
 
 CMS-6A exposes the extension API and dashboard/detail aggregates. CMS-6B adds
-the recommendation-scoped React extension list and detail workspace. Automated reminders, escalation,
-closure, accepted-risk, no-longer-applicable, reopening, recurrence, reports,
-exports, AIS, and ARMIS integrations remain outside this increment.
+the recommendation-scoped React extension list and detail workspace. Automated
+reminders, escalation, closure, accepted-risk, no-longer-applicable, reopening,
+recurrence, reports, exports, AIS, and ARMIS integrations were outside this
+increment and are documented in the later CMS sections.
 
 ## CMS-6B React workspace
 
@@ -712,23 +728,29 @@ and the CMS dashboard link to the workspace and display live CMS-7A metrics.
 The CMS-7A Resources currently do not populate per-record `availableActions`;
 the frontend uses returned actions when present and falls back to existing
 permission/status visibility until that contract is enriched. Laravel remains
-authoritative. Automatic escalation, scheduled reminders, recommendation
-closure, accepted risk, no-longer-applicable decisions, reopening, reports,
-exports, AIS, and ARMIS remain deferred.
-> Historical boundary note: The CMS-7B and CMS-8 paragraphs above describe
-> their individual increments. CMS-9A/B later implemented alternative
-> dispositions and CMS-10A/B implemented controlled reopening; those features
-> are not deferred in the current as-built system.
+authoritative. At the CMS-7B checkpoint, automatic escalation, scheduled
+reminders, recommendation closure, dispositions, reopening, reports, and
+exports were still later increments. CMS-8 through CMS-12B now provide those
+capabilities; AIS integration remains unimplemented and ARMIS provider
+authority remains separately gated.
 
-# CMS-8A formal recommendation closure
+## CMS-8A formal recommendation closure
+
+> Historical checkpoint note: this section records the CMS-8A gate as it stood
+> before CMS-9A/B dispositions and CMS-10A/B reopening. Statements below that
+> describe those later workflows as unavailable are historical, not current.
 
 CMS closure is a separate professional decision from management-reported completion and independent validation. A finalized validation conclusion of `IMPLEMENTED` is required before a Closure Request can be submitted; only an approved Closure Decision changes the case to `CLOSED`.
 
-Closure Requests are immutable versioned families (`DRAFT → SUBMITTED → UNDER_REVIEW → RETURNED/FOR_DECISION → APPROVED/REJECTED`). Submission moves `IMPLEMENTED` to `FOR_CLOSURE`; rejection returns it to `IMPLEMENTED`; approval atomically records the decision and moves it to terminal `CLOSED`. Closed cases remain read-only and reopening, accepted-risk, and no-longer-applicable workflows are not implemented.
+Closure Requests are immutable versioned families (`DRAFT → SUBMITTED → UNDER_REVIEW → RETURNED/FOR_DECISION → APPROVED/REJECTED`). Submission moves `IMPLEMENTED` to `FOR_CLOSURE`; rejection returns it to `IMPLEMENTED`; approval atomically records the decision and moves it to terminal `CLOSED`. Closed cases remain read-only. Reopening and alternative dispositions were added in CMS-9A/10A and are described below.
 
 CMS-8A adds an authoritative readiness checklist, source-lineage and final snapshots, independent review assessment, CIAS Management decision authority, restrictive evidence links to Core document versions, separation-of-duties checks, and closure permissions (`cms.closure.*`, `cms.closure-evidence.*`).
 
-CMS-8B now provides recommendation-scoped Closure Request list and detail routes at `/compliance-management/recommendations/{id}/closure-requests` and `/closure-requests/{requestId}`. The client renders the backend readiness checklist, immutable source lineage, evidence links, assessment, decision, version history, draft editing, and available backend actions. `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED` remain distinct in the UI; reopening and alternative dispositions remain unavailable.
+CMS-8B provides recommendation-scoped Closure Request list and detail routes at `/compliance-management/recommendations/{id}/closure-requests` and `/closure-requests/{requestId}`. The client renders the backend readiness checklist, immutable source lineage, evidence links, assessment, decision, version history, draft editing, and available backend actions. `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED` remain distinct in the UI. Reopening and alternative dispositions are separate workspaces implemented by CMS-9B and CMS-10B.
+
+> Current-state correction: reopening and alternative dispositions are available
+> through the separate CMS-9B and CMS-10B protected workspaces. They do not
+> alter the CMS-8 closure controls or make closed records editable in place.
 
 ## CMS-9A accepted-risk and no-longer-applicable dispositions
 
@@ -835,9 +857,10 @@ Trail, CMS event, and notification lineage. The existing CMS-8 closure review
 and approval workflow remains the only path to formal closure.
 
 The CMS dashboard and Recommendation Detail contract expose automation counts,
-candidate summaries, and per-case readiness. CMS-11A is backend-only; the
-administrative React workspace is CMS-11B. CMS reports/exports remain CMS-12,
-and AIS/ARMIS integrations remain deferred.
+candidate summaries, and per-case readiness. CMS-11A is the backend contract and
+CMS-11B is the administrative React workspace. CMS-12A/12B provide the report
+and export backend/workspace. AIS integration is not implemented; ARMIS remains
+a separate provider boundary rather than a CMS dependency.
 
 ## CMS-11B automation administration workspace
 
@@ -876,6 +899,6 @@ The protected API exposes the catalog, run generation, run history, export
 generation, and authenticated downloads. Download authorization rechecks the
 current visible case set, so a report cannot be downloaded after its scope or
 confidentiality becomes unauthorized. Report generation and export/download
-actions create Activity Log and Audit Trail entries. CMS-12A/12B do not
-transfer, close, reopen, or otherwise change recommendation cases. AIS and
-ARMIS remain deferred.
+actions create Activity Log and Audit Trail entries. CMS-12A/12B do not transfer,
+close, reopen, or otherwise change recommendation cases. AIS is not implemented,
+and ARMIS provider integration is outside the CMS boundary.

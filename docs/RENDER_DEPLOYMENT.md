@@ -193,10 +193,10 @@ change provider authority.
 ## Scope
 
 This deployment preparation does not change CMS workflows, statuses, or
-professional controls. CMS-12A adds the report-run/export migration and
-protected backend endpoints and the `/compliance-management/reports` React
+professional controls. CMS-12A/12B provide the report-run/export migration,
+protected backend endpoints, and the `/compliance-management/reports` React
 workspace; apply the migration and rerun the permission seeder before
 deployment. Report files use the same private local disk and are ephemeral on
 Render Free, so use durable private storage before operational report
-retention. AIS integration and ARMIS provider authority changes remain
-outside this deployment task; ARMIS-7B only hardens and verifies startup.
+retention. AIS integration and ARMIS provider authority changes remain outside
+this deployment task; ARMIS-7B/7C only harden and verify startup/deployment.

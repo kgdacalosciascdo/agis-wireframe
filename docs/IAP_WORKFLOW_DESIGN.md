@@ -48,9 +48,11 @@ The following IAP capabilities are implemented:
 | Supporting records and comments | Implemented in annual-plan workspace | Annual-plan detail route |
 | Reports and exports | Implemented | `/internal-audit-planning/reports` |
 
-ARMS/ARMIS remains a separate future operational module. Until it becomes the
-authoritative resource source, IAP uses its temporary annual-capacity,
-unavailability, skill, and workload records.
+ARMIS is implemented as a separate operational module. IAP continues to own the
+interim annual-capacity, unavailability, skill, and workload records while
+`IAP_INTERIM_FALLBACK` remains the default AEMS provider. An ARMIS shadow or
+authoritative mode is selected only through the documented reconciliation and
+authority gate; IAP history is never migrated or overwritten.
 
 ## 3. Navigation behavior
 
@@ -452,7 +454,8 @@ The page supports table and calendar views.
 
 ## 11. Temporary capacity integration
 
-Until ARMIS becomes authoritative, IAP maintains:
+IAP maintains the interim planning ledger and remains the default source for
+planning calculations while ARMIS is not authoritative. The ledger contains:
 
 - annual auditor capacity;
 - available person-days;
@@ -464,9 +467,11 @@ Until ARMIS becomes authoritative, IAP maintains:
 `iap_default_annual_person_days` supplies a fallback for an active eligible
 auditor without an explicit capacity record.
 
-When ARMIS is implemented, these interfaces should remain stable while the
-capacity service changes its source of truth. Historical IAP capacity snapshots
-must remain unchanged.
+ARMIS is now implemented as a separate resource and allocation module. These
+interfaces remain stable while `ConfigurableResourcePlanningGateway` selects the
+IAP interim provider, ARMIS shadow provider, or explicitly activated ARMIS
+authoritative provider. Historical IAP capacity snapshots remain unchanged, and
+no IAP risk or capacity records are migrated by the provider boundary.
 
 ## 12. Supporting records and management comments
 

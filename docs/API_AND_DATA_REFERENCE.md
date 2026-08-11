@@ -32,6 +32,17 @@ Validation error envelope:
 Identifiers in URLs are database IDs. Business codes such as `CIAS`,
 `DOC-2026-00001`, or `IAP-2027` are returned in resource data and reports.
 
+## Current API coverage
+
+The route inventory in this document covers the current operational Core, IAP,
+AEMS, CMS, and ARMIS surfaces. CMS is implemented through CMS-12B, including
+protected report and CSV/PDF export routes. ARMIS is implemented through
+ARMIS-7C, including provider monitoring and deployment-verification controls;
+the ARMIS deployment command and Render smoke script are operator tools rather
+than public API routes. AFR and AIS remain placeholders. AIS integration is not
+implemented, and ARMIS provider authority is activated only through its separate
+reconciliation gate.
+
 ## 2. Public/session endpoints
 
 | Method | Endpoint | Purpose |
@@ -371,10 +382,11 @@ metrics and per-engagement progress from those records.
 actions and cross-workflow gates to `CLOSURE_REVIEW`, and executes the guarded
 atomic `CLOSED` transition for the implemented formal Completion Assessment and
 Engagement Closure aggregate.
-The full CMS case-management module remains pending. CMS-1 now provides a
-hardened immutable intake foundation: every valid AEMS transfer creates one
-source envelope, one separate operational case initialized in `TRANSFERRED`,
-and one append-only intake event.
+CMS is operational through CMS-12B. CMS-1 provides the hardened immutable
+intake foundation: every valid AEMS transfer creates one source envelope, one
+separate operational case initialized in `TRANSFERRED`, and one append-only
+intake event. Later CMS records preserve that lineage through monitoring,
+professional decisions, closure/dispositions, automation, and reporting.
 
 | Entity | Main relationships |
 | --- | --- |
@@ -1225,8 +1237,9 @@ limits, approved availability conflicts, current verified competency claims,
 assignment/actual date bounds, and optimistic-lock checks. The submitter and
 resource owner cannot independently review the same record. Every mutation
 records an ARMIS workflow event, Activity Log, Audit Trail, and review/outcome
-notification. ARMIS actuals remain non-authoritative for AEMS until a future
-explicit provider-switch phase.
+notification. ARMIS actuals remain non-authoritative for AEMS while the default
+provider is `IAP_INTERIM_FALLBACK`; an explicit ARMIS authority decision is
+required before AEMS consumes them authoritatively.
 
 ### 8.23.1 ARMIS-4B assignment and actuals workspace
 
@@ -1285,7 +1298,8 @@ authenticated download requests. It does not make professional decisions,
 change provider authority, expose storage paths, or mutate report runs and
 exports. Focused desktop/mobile coverage is in
 `tests/e2e/armis-reports.spec.js`; provider authority, reconciliation, and
-AIS integration remain future ARMIS scope.
+AIS integration remains out of scope; provider authority, reconciliation,
+monitoring, and deployment hardening are documented in ARMIS-6B through ARMIS-7C.
 
 ### 8.25 ARMIS-6A provider adapter and mode contract
 
@@ -1342,6 +1356,59 @@ activation route. The gateway fails closed to IAP when an authoritative value
 has no matching latest activation decision. All generation, reviews,
 activation, and rollback operations emit ARMIS workflow events, Core Activity
 Log/Audit Trail records, and in-app notifications.
+
+### 8.27 ARMIS-6C reconciliation and authority workspace
+
+The protected React route `/audit-resource-management/provider-reconciliation`
+consumes the
+provider status, reconciliation list/detail, review, activation, and rollback
+contracts above. It renders immutable snapshot rows and discrepancy decisions,
+keeps provider status and authority history read-only, and exposes mutation
+dialogs only when the backend returns the required `availableActions`. The
+workspace does not calculate discrepancy eligibility or write provider mode
+through the generic configuration endpoint. Desktop and mobile coverage is
+provided by `tests/e2e/armis-provider-reconciliation.spec.js`.
+
+### 8.28 ARMIS-6D provider monitoring API
+
+Provider health and cutover verification are separate immutable monitoring
+records:
+
+| Method | Route | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/armis/provider/monitoring/status` | `armis.provider.view` | Current provider health, authority, and latest-check summary |
+| GET | `/api/armis/provider/monitoring/checks` | `armis.provider.view` | Scope-filtered monitoring and cutover-check history |
+| POST | `/api/armis/provider/monitoring/checks` | `armis.provider.monitor` | Run and record one provider health/cutover check |
+| GET | `/api/armis/provider/monitoring/checks/{check}` | `armis.provider.view` | View an immutable check and its evidence |
+
+Monitoring checks record provider mode, expected/observed values, pass/fail
+result, source snapshot, checksum, actor, and timestamps. Failures create Core
+notifications and Activity Log/Audit Trail records. Monitoring does not activate,
+roll back, or otherwise change provider authority.
+
+### 8.29 ARMIS-7 verification and deployment tools
+
+ARMIS-7A is a security/regression gate over protected ARMIS routes and
+workspaces. ARMIS-7B adds the read-only Laravel preflight command:
+
+```text
+php artisan armis:deployment-check
+php artisan armis:deployment-check --strict
+```
+
+The strict command verifies migrations, PostgreSQL, provider mode and authority
+lineage, HTTPS/application configuration, debug state, writable runtime paths,
+and private document storage. ARMIS-7C adds the operator-invoked PowerShell
+smoke verifier:
+
+```powershell
+scripts/verify-armis-render.ps1 -BaseUrl https://<service>.onrender.com
+```
+
+The smoke verifier checks `/health`, the compiled SPA shell, nested ARMIS route
+fallback, anonymous ARMIS API rejection, and deployment security headers. Both
+tools are read-only; neither bypasses authentication, performs migrations, or
+changes provider authority.
 
 ## 9. Reference/master-list codes
 
@@ -1525,11 +1592,10 @@ rendered read-only and corrections use revision endpoints. The frontend keeps
 source snapshots separate from current recommendation context and does not
 change recommendation status or closure state.
 
-The current CMS-7A resources leave `availableActions` empty; until the backend
-adds those computed actions, the UI combines exact status and seeded permission
-visibility while Laravel remains authoritative for every mutation. Automatic
-escalation, scheduled reminders, recommendation closure, accepted risk,
-reopening, reports, exports, AIS, and ARMIS remain unimplemented.
+At the CMS-7A checkpoint, the resources left `availableActions` empty; until the
+backend added those computed actions, the UI combined exact status and seeded
+permission visibility while Laravel remained authoritative for every mutation.
+The following historical boundary note records the later increments.
 > Historical boundary note: The CMS-7A API description above predates the
 > CMS-8 through CMS-10 increments. Formal closure, Accepted-Risk,
 > No-Longer-Applicable, and controlled reopening APIs are implemented below;
@@ -1537,7 +1603,13 @@ reopening, reports, exports, AIS, and ARMIS remain unimplemented.
 > checkpoint; CMS-11A automation endpoints are documented below. CMS reports/
 > exports remain deferred to CMS-12.
 
-# CMS-8A closure API
+> Current-state correction: the preceding paragraph is the CMS-7A checkpoint
+> contract. CMS-8 through CMS-12B now provide closure, dispositions, reopening,
+> automation, reports, and protected CSV/PDF exports. AIS is not implemented;
+> ARMIS is documented separately and its provider authority is independently
+> gated.
+
+## CMS-8A closure API
 
 Closure endpoints are available under `/api/cms/recommendations/{recommendation}/closure-requests`, `/closure-options`, and `/api/cms/closure-requests/{closureRequest}`. Version transitions are exposed through `submit`, `start-review`, `return`, `recommend`, `approve`, `reject`, and `revisions` routes. The backend selects and pins the finalized Validation, accepted Action Plan, and recorded Progress Update lineage; clients cannot submit source IDs or case statuses.
 
@@ -1649,7 +1721,7 @@ no alternate API client, public document URL, or frontend-only endpoint is
 introduced. Direct refresh and deep links require the existing authenticated
 route guard and `cms.reopening.view`.
 
-# CMS-11A automation API and data
+## CMS-11A automation API and data
 
 Protected CMS automation endpoints are available to authorized users:
 
@@ -1717,4 +1789,5 @@ never exposed. The CMS-12B React workspace is available at
 `/compliance-management/reports`, requires `cms.report.view`, and renders the
 backend columns, rows, checksums, scope summary, run history, and export
 metadata without recreating eligibility rules. CSV/PDF generation and download
-remain protected by `cms.report.export`. AIS and ARMIS remain deferred.
+remain protected by `cms.report.export`. AIS is not implemented, and ARMIS
+provider integration is outside the CMS boundary.

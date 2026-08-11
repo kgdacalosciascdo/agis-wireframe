@@ -1,8 +1,8 @@
 # AGIS End-to-End User Acceptance Testing Guide
 
 This guide is for a new tester who wants to exercise the implemented AGIS
-system from login through Core, IAP, AEMS, and CMS. It is a manual acceptance
-guide; the source code and feature tests remain the final authority.
+system from login through Core, IAP, AEMS, CMS, and ARMIS. It is a manual
+acceptance guide; the source code and feature tests remain the final authority.
 
 ## 1. Know what is currently testable
 
@@ -19,11 +19,16 @@ testing:
   Completion Assessment, Closure, Dashboard, and controlled reopening;
 - CMS: recommendation intake, assignments, Action Plans, Progress Updates,
   Validation, target-date extensions, Escalations, Closure, dispositions, and
-  controlled reopening.
+  controlled reopening, automation/candidate review, reports, and protected
+  CSV/PDF exports;
+- ARMIS: resource registry, competencies/certifications, planning/utilization,
+  assignments/actuals, reports/exports, provider reconciliation and authority,
+  provider monitoring, and deployment/security checks.
 
-AFR, AIS, and the full ARMIS module are not operational modules. AEMS uses an
-interim resource provider, and CMS automation/reporting/export roadmap items
-remain outside the current acceptance scope.
+AFR and AIS remain placeholder modules. AEMS uses the configurable resource
+provider and defaults to the IAP interim provider; ARMIS shadow/authoritative
+provider modes require the documented reconciliation gate. CMS automation cannot
+make final professional decisions or issue escalation notices automatically.
 
 ## 2. Read these documents first
 
@@ -380,7 +385,9 @@ Miscellaneous checks:
 #### Resource Capacity
 
 **Purpose:** Maintain the interim IAP capacity, availability, competency, and
-engagement-requirement data used before the future ARMIS integration.
+engagement-requirement data used while `IAP_INTERIM_FALLBACK` remains the default
+provider for AEMS. ARMIS has its own resource, planning, assignment, and actuals
+workspaces in section 6.4.
 
 What to do:
 
@@ -400,7 +407,8 @@ Miscellaneous checks:
 - engagement requirements follow the Annual Plan editability rules;
 - allocations must agree with Audit Scheduling;
 - over-capacity and unavailable assignments should be clearly flagged;
-- treat this data as an interim IAP source, not as a completed ARMIS module.
+- treat this data as the IAP interim source; do not confuse it with ARMIS-owned
+  records or assume it changes the ARMIS provider authority.
 
 #### IAP Reports
 
@@ -888,6 +896,102 @@ Miscellaneous checks:
 - after issuance, finish the Completion Assessment, formal Closure, retention,
   Document Index, and lessons in Engagement Detail.
 
+### 6.4 Audit Resource Management pages
+
+ARMIS is a protected operational module. Use a resource administrator, planner,
+independent reviewer, and provider-authority approver as separate accounts. Do
+not use one account for every action: ARMIS enforces scope, optimistic locking,
+immutable versions, and separation of duties.
+
+#### ARMIS Dashboard and module context
+
+Open `/audit-resource-management`. Confirm that the module redirects to the
+Resource Registry and that only pages permitted by `armis.*` permissions appear.
+Check that the provider banner identifies `IAP_INTERIM_FALLBACK` as the default,
+and that no page claims ARMIS is authoritative before an authority decision.
+
+#### Resource Registry
+
+Open `/audit-resource-management/resources` and create a resource profile as a
+draft. Verify identity, office scope, employment/status fields, search and
+filters, optimistic-lock conflict handling, lifecycle submission, archive, and
+restore. A second office-scoped user must not see the record. A reviewer must
+approve a submitted profile independently; corrections use a new revision rather
+than editing an approved version.
+
+#### Competencies and Certifications
+
+Open `/audit-resource-management/competencies`. Create a competency claim from
+the allowed Core catalogue and link evidence to one exact Core
+`document_versions` record. Upload/download through the protected controller,
+submit for verification, and approve it with a different account. Confirm that
+the evidence checksum, MIME type, size, confidentiality, actor, and dates are
+visible and that verified records are read-only. Test returned revision,
+expiry/revocation, and scope-safe access.
+
+#### Planning and Utilization
+
+Open `/audit-resource-management/planning`. Create availability, annual
+capacity, and planned-workload records for a fiscal year. Submit, independently
+review, return/revise, and lock each record. Confirm date-overlap validation,
+annual capacity and utilization calculations, IAP demand lineage, optimistic
+locking, and notifications. The utilization cards and calendar are read-only
+projections of approved/current records; they must not silently rewrite IAP data.
+
+#### Assignments and Actuals
+
+Open `/audit-resource-management/assignments`. Create an engagement assignment
+with role, required competency, planned person-days, dates, and office scope.
+Confirm missing-role, competency, date-overlap, and capacity warnings. Submit,
+independently review, and lock the assignment. Record actual person-days through
+the separate actuals workflow, submit/review/lock them, and use a revision for a
+correction. Verify that planned and actual ledgers remain separate and that
+assignment conflicts cannot be bypassed by the browser.
+
+#### Provider Reconciliation
+
+Open `/audit-resource-management/provider-reconciliation`. Check provider
+status, generate an IAP-versus-ARMIS shadow snapshot, inspect normalized rows
+and checksum, and record discrepancy decisions as an independent reviewer.
+Activation requires every discrepancy to be explicitly accepted, global scope,
+and a different actor from the generator and reviewer. Verify that activation
+changes the provider only through the dedicated route and that rollback requires
+an independent reason and creates immutable authority history. A read-only
+provider viewer must not be able to generate, review, activate, or roll back.
+
+#### Provider Monitoring
+
+Open `/audit-resource-management/provider-monitoring`. Run a health/cutover
+check with the monitoring permission and inspect the immutable result, expected
+versus observed values, source snapshot, checksum, and notification on failure.
+Monitoring must never activate or roll back provider authority.
+
+#### Reports and Administration
+
+Open `/audit-resource-management/reports`. Generate a scope-aware ARMIS report,
+inspect its immutable rows, query version, scope summary, and checksum, then
+create CSV and PDF exports with `armis.report.export`. Confirm formula-injection
+neutralization, private storage, MIME/size/checksum metadata, authenticated
+downloads, and scope/confidentiality revalidation. The Administration tab is
+read-only status and hardening information; it must not expose storage paths or
+provider write controls.
+
+#### ARMIS deployment checks
+
+After a deployment, run the read-only preflight and Render smoke verifier from
+the repository root. The strict preflight is appropriate for PostgreSQL/HTTPS
+deployment; the non-strict command is suitable for local development.
+
+```powershell
+php artisan armis:deployment-check
+php artisan armis:deployment-check --strict
+./scripts/verify-armis-render.ps1 -BaseUrl https://<service>.onrender.com
+```
+
+The smoke verifier checks `/health`, the compiled SPA, nested ARMIS route
+fallback, anonymous ARMIS API rejection, and security headers. It does not sign
+in, mutate data, run migrations, or change provider authority.
+
 ## 7. Full business-journey test sequence
 
 ### CORE-01 — Login and account security
@@ -1010,6 +1114,46 @@ actions return an authorization error and do not change data.
     implementation and ordinary closure.
 11. Test controlled reopening and confirm the original closure/disposition
     decision remains immutable.
+
+### CMS-02 - Automation, reports, and protected exports
+
+1. Open `/compliance-management/automation` with `cms.automation.view` and
+   confirm rules, recent runs, reminders, closure-readiness candidates, and
+   escalation candidates are scope-filtered.
+2. As an authorized manager, create or revise a rule and confirm each save
+   creates an immutable rule version.
+3. As an authorized operator, run automation twice for the same business date
+   and confirm replay-safe deduplication. Verify reminders are generated only
+   for eligible cases.
+4. Acknowledge or dismiss a candidate with a note and confirm the case status,
+   closure state, disposition, reopening state, and escalation notice remain
+   unchanged.
+5. Open `/compliance-management/reports`, generate each supported report, and
+   verify scope, confidentiality, deterministic rows, query version, and
+   checksum.
+6. Export CSV and PDF with `cms.report.export`. Confirm formula-like CSV cells
+   are neutralized, artifacts are private, and downloads require authentication
+   plus current scope/confidentiality.
+
+### ARMIS-01 - Resource planning, authority, and monitoring
+
+1. Complete the ARMIS page-by-page tests in section 6.4 with separate resource,
+   reviewer, planner, and provider-authority accounts.
+2. Verify an approved IAP engagement or requirement is visible as source demand
+   without modifying the IAP record.
+3. Create and approve resources, competencies, availability, capacity,
+   workloads, assignments, and actual person-days; verify revisions are
+   immutable and all evidence uses protected Core document versions.
+4. Generate an IAP-versus-ARMIS shadow reconciliation, review every discrepancy
+   independently, activate only after all authority gates pass, and verify the
+   immutable authority decision. Test rollback separately.
+5. Run provider monitoring and confirm failed checks create notifications but do
+   not switch authority.
+6. Generate ARMIS reports and protected CSV/PDF exports and verify scope,
+   confidentiality, checksums, and authenticated downloads.
+7. Run `php artisan armis:deployment-check --strict` in the deployment
+   environment and the Render smoke verifier after deployment. Record the
+   output with the release evidence.
 
 ## 8. Cross-cutting security and integrity checks
 

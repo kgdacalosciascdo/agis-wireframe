@@ -347,10 +347,12 @@ authenticated evidence controls. Verify with `npm.cmd run lint`,
 current backend resources do not compute `availableActions`, so Laravel 403
 responses remain the final authority for professional controls.
 
-CMS-8 through CMS-10 are now also deployed and verified: formal closure,
-Accepted-Risk and No-Longer-Applicable dispositions, and controlled reopening.
-The older CMS-5B through CMS-7B notes above are historical deployment gates.
-CMS-11 automation and CMS-12 reports/exports remain deferred.
+CMS-8 through CMS-12 are now also deployed and verified: formal closure,
+Accepted-Risk and No-Longer-Applicable dispositions, controlled reopening,
+scheduled automation/candidates, and protected reports/CSV/PDF exports. The
+older CMS-5B through CMS-7B notes above are historical deployment gates. ARMIS
+is operational through ARMIS-7C; its provider authority remains a separate
+reconciliation decision and AIS is not implemented.
 
 ## 11. Production checklist
 
@@ -493,7 +495,7 @@ The current CMS-5B regression verification completed successfully on 2026-07-31:
   assertions.
 - `php artisan test --testsuite=Feature` — 163 tests, 2,795 assertions.
 - `git diff --check` — passed.
-# CMS-8A deployment notes
+## CMS-8A deployment notes
 
 Run the additive `2026_08_05_000000_create_cms_closure_tables` migration and reseed `RolePermissionSeeder` when deploying CMS-8A. The migration preserves existing CMS history and adds closure tables, case closure lineage, and the `FOR_CLOSURE`/`CLOSED` statuses. Verify permissions, PostgreSQL constraints, Core document access, and immutable decision records before enabling a future CMS-8B client.
 
@@ -597,8 +599,10 @@ npx.cmd playwright test tests/e2e/cms-reopening.spec.js --project=desktop-chrome
 
 The Playwright spec uses mocked CMS-10A responses for frontend contract checks.
 If the local Laravel/Vite web server cannot start, report that as an
-environment failure rather than a passing browser test. CMS-11 automation and
-reminders, CMS-12 reports/exports, AIS, and ARMIS remain deferred.
+environment failure rather than a passing browser test. At the CMS-10B
+checkpoint, CMS-11 automation and CMS-12 reports/exports were later phases;
+they are now deployed and verified in the sections below. AIS is not
+implemented, and ARMIS is documented separately.
 
 CMS-10B verification gate (2026-08-04): the focused reopening specification
 completed all 6 tests across desktop and mobile after one mobile login-throttle
@@ -608,7 +612,28 @@ deterministic desktop and mobile groups were run instead: desktop 34/34 and
 mobile 34/34 passed, including independent reruns of throttle-affected tests.
 The backend Feature suite passed 174 tests and 2,928 assertions. No Render
 infrastructure files were changed.
-# Render Free deployment operations
+## Current module operations status
+
+The normal application startup applies additive migrations, runs approved
+seeders, caches Laravel configuration/views, and serves the compiled React SPA.
+The current operational modules are Core, IAP, AEMS, CMS through CMS-12B, and
+ARMIS through ARMIS-7C. AFR and AIS are placeholders. CMS and AEMS professional
+decisions remain human-controlled; scheduled automation only produces reminders
+or reviewable candidates. ARMIS provider authority is never changed by startup,
+the scheduler, or a generic configuration write.
+
+Use the focused gates in this guide after a targeted deployment, then run the
+complete Feature suite, frontend lint/build, and applicable desktop/mobile
+browser specifications before sign-off. Render-specific preflight and smoke
+checks are read-only and are described in [Render Deployment](RENDER_DEPLOYMENT.md).
+
+Latest repository verification baseline: `php artisan test --testsuite=Feature`
+passes 220 tests with 3,575 assertions; `php artisan test --filter=Armis`
+passes 38 tests with 570 assertions; `npm.cmd run lint`, `npm.cmd run build`, and
+`git diff --check` pass. Browser specifications remain environment-dependent
+and must be run against the appropriate local or deployed service.
+
+## Render Free deployment operations
 
 The Render Free image is a same-origin demonstration deployment. Follow
 [`RENDER_DEPLOYMENT.md`](RENDER_DEPLOYMENT.md) for the Docker image, Render

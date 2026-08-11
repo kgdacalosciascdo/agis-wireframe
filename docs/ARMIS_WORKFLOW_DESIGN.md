@@ -29,8 +29,8 @@ IAP or AEMS workflow behavior, switch the provider, or start AIS integration.
 
 | Area | Current state | Evidence |
 | --- | --- | --- |
-| Navigation | ARMIS exposes Resource Registry, Competencies & Certifications, Planning & Utilization, and Assignments & Actuals pages | `src/config/navigation.js` |
-| Workspace/API | Protected resource, competency, planning, and assignment/actuals React workspaces consume dedicated ARMIS APIs | `src/App.jsx`, `backend/routes/api.php` |
+| Navigation | ARMIS exposes Resource Registry, Competencies & Certifications, Planning & Utilization, Assignments & Actuals, Provider Reconciliation, Provider Monitoring, and Reports & Administration pages | `src/config/navigation.js` |
+| Workspace/API | Protected resource, competency, planning, assignment/actuals, provider reconciliation, provider monitoring, and reports/administration React workspaces consume dedicated ARMIS APIs | `src/App.jsx`, `backend/routes/api.php` |
 | Permissions | Granular `armis.*` permissions govern registry, competency, planning, actuals, reports, and exports; compatibility permissions remain | `RolePermissionSeeder` |
 | Resource data | Temporary capacity, unavailability, skills, and IAP requirements are stored by IAP | IAP resource migrations/models/controller |
 | AEMS consumption | AEMS reads a replaceable `ResourcePlanningGateway` | `ResourcePlanningGateway`, `ConfigurableResourcePlanningGateway` |
@@ -38,6 +38,8 @@ IAP or AEMS workflow behavior, switch the provider, or start AIS integration.
 | ARMIS adapter | Approved/current ARMIS capacity, availability, competency, requirement, assignment, and actual ledgers are exposed in the AEMS gateway shape | `ArmisResourcePlanningGateway` |
 | Reports/API | ARMIS-5A provides immutable scope-pinned report runs, protected CSV/PDF exports, private downloads, administration status, and hardening flags | `ArmisReportService`, `ArmisReportController`, `armis_report_runs`, `armis_report_exports` |
 | Reconciliation and authority | Immutable comparison snapshots, independent discrepancy review, atomic activation, rollback, and provider status | `ArmisProviderReconciliationService`, provider routes, ARMIS-6B tests |
+| Provider monitoring | Immutable health and cutover checks, failure notifications, protected history, and read-only monitoring workspace | `ArmisProviderMonitoringController`, `armis_provider_monitoring_checks`, `tests/e2e/armis-provider-monitoring.spec.js` |
+| Security and deployment | Full protected-route regression, migration/provider preflight, private-disk and security-header hardening, and Render smoke verification | ARMIS-7A/7B/7C tests, `ArmisDeploymentCheckCommand`, `scripts/verify-armis-render.ps1` |
 | Tests | ARMIS foundation, competency, planning, assignment, report, resource, provider adapter, reconciliation, and desktop/mobile workspace tests protect the module | `backend/tests/Feature/Armis*Test.php`, `tests/e2e/armis-*.spec.js` |
 
 ### Fully implemented before ARMIS-1A
@@ -61,13 +63,13 @@ Audit Trail, and ARMIS workflow events. ARMIS records are now available through
 the ARMIS-6A adapter, but AEMS remains on the IAP interim provider in both
 supported modes.
 
-### Partially implemented
+### Historical ARMIS-0 baseline: partially implemented
 
 Temporary IAP resource records support AEMS planning but are not a complete
 resource registry. They have no ARMIS-owned lifecycle, independent approval,
 versioned actuals, utilization reporting, or ARMIS scope model.
 
-### Missing
+### Historical ARMIS-0 baseline: missing at that checkpoint
 
 AIS integration remains future scope. ARMIS-3A/3B, ARMIS-4A/4B, ARMIS-5A/5B,
 ARMIS-6A, and ARMIS-6B provide planning, assignment, actuals, conflict,
@@ -158,8 +160,8 @@ default.
 5. Reconcile ARMIS and IAP results before any authority switch.
 6. Transfer actual-person-day ownership only through an explicit, tested gate.
 
-CMS remains independent. AIS integration is out of scope until ARMIS is stable
-and authoritative.
+CMS remains independent. AIS integration remains out of scope; completing ARMIS
+does not implicitly enable or authorize an AIS integration.
 
 ## ARMIS roadmap
 
@@ -261,9 +263,10 @@ perform the independent review. Each mutation records an Activity Log, Audit
 Trail entry, and immutable ARMIS workflow event; submission and review changes
 also generate deduplicated in-app notifications through Core.
 
-ARMIS-2A does not add a React workspace. Competency and certification screens
-are the ARMIS-2B scope. Availability, capacity, workload, actuals, provider
-switching, and AIS integration remain deferred.
+ARMIS-2A did not add a React workspace; competency and certification screens
+were the ARMIS-2B scope. Availability, capacity, workload, actuals, provider
+switching, and AIS integration were later phases. ARMIS-3 through ARMIS-7C are
+now implemented; AIS integration remains out of scope.
 
 ## ARMIS-2B competency workspace checkpoint
 
@@ -426,10 +429,11 @@ operational view; it cannot switch providers, approve assignments, change
 workflow decisions, or alter report snapshots. The page is responsive and
 keeps report tables horizontally scrollable on narrow screens.
 
-Focused browser coverage is in `tests/e2e/armis-reports.spec.js`. ARMIS-5B
-does not switch the AEMS `ResourcePlanningGateway`; AIS integration, provider
-authority, shadow reconciliation, rollback, and future ARMIS-owned actuals
-remain ARMIS-6 scope.
+Focused browser coverage is in `tests/e2e/armis-reports.spec.js`. At the ARMIS-5B
+checkpoint, the workspace did not switch the AEMS `ResourcePlanningGateway`;
+provider authority, shadow reconciliation, rollback, and ARMIS-owned actuals
+were later ARMIS-6 scope and are now implemented. AIS integration remains out
+of scope.
 
 ## ARMIS-6A provider adapter checkpoint
 
@@ -649,3 +653,8 @@ data operation. It is intended to run after each Render deploy and after
 changing environment variables. A successful smoke run complements the
 server-side `armis:deployment-check --strict` preflight; it does not replace
 the full backend and browser regression suites.
+
+The current repository regression baseline is 38 focused ARMIS tests with 570
+assertions and 220 full Feature tests with 3,575 assertions. Frontend lint and
+production build pass, and `git diff --check` reports no whitespace errors
+(only the repository's normal line-ending conversion warnings).

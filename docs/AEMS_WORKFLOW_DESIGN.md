@@ -26,11 +26,19 @@ flowchart LR
     CMS --> CLOSE[Engagement Closure]
 ```
 
-Design status: **workflow design, database foundation, permissions, Engagement
-Registry, Audit Team, AEO, AEP, Audit Program, Working Paper, Audit Evidence,
-Issue, Finding, Management Response, Auditor Rejoinder, and Recommendation
-API/screens implemented; Exit Conference management implemented; downstream
-reporting workflows pending**.
+Design status: **operational through the complete child-record workflow and
+engagement closure boundary**. Engagement Registry, Audit Team, AEO, AEP, Audit
+Program, Working Papers, Audit Evidence, Issues, Findings, Recommendations,
+Auditee Responses, Entry/Exit Conferences, Audit Reports, Completion Assessment,
+formal Closure, retention/final-index metadata, dashboard progress, and
+controlled reopening are implemented with scoped APIs, protected React pages,
+immutable versions, audit/activity records, notifications, and tests.
+
+The aggregate engagement transition service and the formal engagement closure
+workflow are implemented in the current as-built system. CMS transfer is
+idempotent and AIS remains a placeholder module. ARMIS is available through the
+replaceable provider boundary, but `IAP_INTERIM_FALLBACK` remains the default
+until an explicit reconciliation and authority decision activates another mode.**
 
 The sidebar exposes AEMS as a collapsible module, consistent with IAP:
 
@@ -709,8 +717,12 @@ editing the approved IAP version.
 
 ### ARMIS
 
-Until ARMIS is implemented, AEMS may read temporary IAP capacity and skill data
-behind a service boundary. Historical AEMS assignment snapshots remain stable.
+ARMIS is implemented as a standalone resource and allocation module. AEMS reads
+capacity, competency, requirement, assignment, and actual-person-day data through
+the replaceable `ResourcePlanningGateway`. The default provider remains the
+IAP-backed interim boundary; shadow and authoritative ARMIS modes are available
+only through the documented reconciliation, independent review, and authority
+gate. Historical AEMS assignment snapshots remain stable.
 
 ### CMS
 
@@ -866,8 +878,8 @@ Assignments are recoverable soft-deleted records. `engagement_team_history`
 preserves assignment, update, reassignment-from, reassignment-to, and ending
 events with actor, reason, and old/new snapshots.
 
-Until ARMIS is implemented, the workspace uses IAP's temporary resource data
-to warn about:
+With the default IAP-backed provider, the workspace uses the interim resource
+data to warn about:
 
 - missing required team roles;
 - assigned versus required person-day differences;

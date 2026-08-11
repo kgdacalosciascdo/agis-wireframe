@@ -177,7 +177,7 @@ export default function CmsRecommendationRegistryPage() {
   );
 
   return (
-    <div className="min-w-0">
+    <main className="min-w-0 p-4 sm:p-5 lg:p-6">
       <RegistryHeader
         actions={
           <button
@@ -199,7 +199,7 @@ export default function CmsRecommendationRegistryPage() {
         title="Recommendation Registry"
       />
 
-      <section className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="mb-5 min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="relative">
           <Search
             aria-hidden="true"
@@ -497,13 +497,13 @@ export default function CmsRecommendationRegistryPage() {
           </footer>
         )}
       </section>
-    </div>
+    </main>
   );
 }
 
 function FilterSelect({ label, value, options = [], onChange }) {
   return (
-    <label className="text-xs font-semibold text-slate-600">
+    <label className="min-w-0 text-xs font-semibold text-slate-600">
       {label}
       <select
         className={`${inputClass} mt-1`}
@@ -537,7 +537,7 @@ function TriStateFilter({
   onChange,
 }) {
   return (
-    <label className="text-xs font-semibold text-slate-600">
+    <label className="min-w-0 text-xs font-semibold text-slate-600">
       {label}
       <select
         className={`${inputClass} mt-1`}
@@ -554,7 +554,7 @@ function TriStateFilter({
 
 function DateFilter({ label, name, value, onChange }) {
   return (
-    <label className="text-xs font-semibold text-slate-600">
+    <label className="min-w-0 text-xs font-semibold text-slate-600">
       {label}
       <input
         className={`${inputClass} mt-1`}

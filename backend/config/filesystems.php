@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Private evidence and report files are served only by authorized
+            // controllers, never by a framework-generated disk URL.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

@@ -26,7 +26,7 @@ and Internal Audit Planning modules and the approved design baseline for AEMS.
 | AEMS — Audit Engagement Monitoring System | As-built workflow, data, access, integration, Completion Assessment, Closure, retention, final-index, reopening, notification, and test boundaries documented | Operational through formal approved Completion Assessment, authoritative Closure review, atomic `CLOSED`, immutable final document index, interim retention/custody metadata, lessons learned, and exceptional controlled reopening |
 | AFR — Audit Findings and Recommendations | Placeholder routes only | Not implemented |
 | CMS — Compliance Management | CMS-1 through CMS-7A documented | Immutable intake, scoped React dashboard/registry/detail, monitor assignment, Action Plans, versioned progress, independent validation, target-date extensions, and the CMS-7A escalation backend are operational; the CMS-7B React workspace and closure remain deferred |
-| ARMIS — Audit Resource Management | ARMIS-0 through ARMIS-5B documented | Resource registry, competency/certification, planning, assignment, conflict/capacity, actuals, immutable backend reports/exports, and responsive reports/administration workspace are operational; the interim IAP provider remains non-authoritative |
+| ARMIS — Audit Resource Management | ARMIS-0 through ARMIS-6B documented | Resource registry, competency/certification, planning, assignment, conflict/capacity, actuals, immutable reports/exports, responsive reports/administration workspace, provider adapter, immutable reconciliation, independent review, authority activation, and rollback are operational; AIS integration remains deferred |
 | AIS — Audit Intelligence System | Placeholder routes only | Not implemented |
 
 Documentation must not describe placeholder modules as operational.
@@ -47,9 +47,16 @@ locking, optimistic concurrency, notifications, and Core audit records.
 ARMIS-5A now provides immutable scope-pinned reports, protected CSV/PDF
 exports, administration status, notification counts, and operational
 hardening. ARMIS-5B now provides the protected responsive reports and
-administration workspace. The ARMIS-owned provider and AIS integration remain
-deferred. Existing
+administration workspace. ARMIS-6A provides the read-only ARMIS provider
+adapter and fallback/shadow boundary. ARMIS-6B provides immutable provider
+reconciliation, independent review, authority activation, and rollback. AIS
+integration remains deferred. Existing
 `arms.view` and `arms.manage` compatibility permissions remain in place.
+
+ARMIS-7A and ARMIS-7B are also verified: ARMIS-7A covers the complete
+backend/browser security gate, and ARMIS-7B covers read-only migration
+preflight and Render deployment hardening. ARMIS-7C adds the read-only
+post-deployment Render smoke verifier. AIS integration remains deferred.
 
 CMS current-state correction: CMS-1 through CMS-12B are operational and
 verified. This supersedes the older CMS summary row above, which predates the
@@ -113,9 +120,10 @@ reopening backend and CMS-10B now provides its protected React workspace.
 CMS-11A/B scheduled automation and the CMS-12A protected report/export backend
 are implemented; the CMS-12B React reports workspace remains deferred. ARMIS
 resource, competency, ARMIS-3A planning backend, ARMIS-3B planning workspace,
-ARMIS-4A/4B assignment and actuals, ARMIS-5A report/export backend, and
-ARMIS-5B reports/administration workspace are operational; AIS and ARMIS
-provider integration remain deferred.
+ARMIS-4A/4B assignment and actuals, ARMIS-5A report/export backend,
+ARMIS-5B reports/administration workspace, ARMIS-6A provider adapter, and
+ARMIS-6B reconciliation/authority gate are operational; AIS integration remains
+deferred.
 
 ## Diagram rendering
 

@@ -8,6 +8,8 @@ use App\Contracts\Aems\IapEngagementGateway;
 use App\Contracts\Aems\ResourcePlanningGateway;
 use App\Integrations\Aems\DatabaseCmsRecommendationGateway;
 use App\Integrations\Aems\DatabaseIapEngagementGateway;
+use App\Integrations\Aems\ArmisResourcePlanningGateway;
+use App\Integrations\Aems\ConfigurableResourcePlanningGateway;
 use App\Integrations\Aems\InterimAemsRetentionProvider;
 use App\Integrations\Aems\InterimIapResourcePlanningGateway;
 use App\Models\AuditEngagement;
@@ -46,7 +48,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(IapEngagementGateway::class, DatabaseIapEngagementGateway::class);
         $this->app->bind(CmsRecommendationGateway::class, DatabaseCmsRecommendationGateway::class);
-        $this->app->bind(ResourcePlanningGateway::class, InterimIapResourcePlanningGateway::class);
+        $this->app->singleton(ArmisResourcePlanningGateway::class);
+        $this->app->singleton(InterimIapResourcePlanningGateway::class);
+        $this->app->bind(ResourcePlanningGateway::class, ConfigurableResourcePlanningGateway::class);
         $this->app->bind(EngagementRetentionProvider::class, InterimAemsRetentionProvider::class);
     }
 

@@ -33,6 +33,8 @@ use App\Http\Controllers\Api\ArmisCompetencyController;
 use App\Http\Controllers\Api\ArmisAssignmentController;
 use App\Http\Controllers\Api\ArmisPlanningController;
 use App\Http\Controllers\Api\ArmisReportController;
+use App\Http\Controllers\Api\ArmisProviderController;
+use App\Http\Controllers\Api\ArmisProviderMonitoringController;
 use App\Http\Controllers\Api\CmsActionPlanController;
 use App\Http\Controllers\Api\CmsAutomationController;
 use App\Http\Controllers\Api\CmsClosureController;
@@ -957,6 +959,28 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:armis.report.export');
     Route::get('/armis/administration', [ArmisReportController::class, 'administration'])
         ->middleware('permission:armis.report.view');
+    Route::get('/armis/provider/status', [ArmisProviderController::class, 'status'])
+        ->middleware('permission:armis.provider.view');
+    Route::get('/armis/provider/reconciliations', [ArmisProviderController::class, 'index'])
+        ->middleware('permission:armis.provider.view');
+    Route::post('/armis/provider/reconciliations', [ArmisProviderController::class, 'store'])
+        ->middleware('permission:armis.provider.reconcile');
+    Route::get('/armis/provider/reconciliations/{run}', [ArmisProviderController::class, 'show'])
+        ->middleware('permission:armis.provider.view');
+    Route::post('/armis/provider/reconciliations/{run}/review', [ArmisProviderController::class, 'review'])
+        ->middleware('permission:armis.provider.review');
+    Route::post('/armis/provider/reconciliations/{run}/activate', [ArmisProviderController::class, 'activate'])
+        ->middleware('permission:armis.provider.switch');
+    Route::post('/armis/provider/rollback', [ArmisProviderController::class, 'rollback'])
+        ->middleware('permission:armis.provider.rollback');
+    Route::get('/armis/provider/monitoring/status', [ArmisProviderMonitoringController::class, 'status'])
+        ->middleware('permission:armis.provider.view');
+    Route::get('/armis/provider/monitoring/checks', [ArmisProviderMonitoringController::class, 'index'])
+        ->middleware('permission:armis.provider.view');
+    Route::post('/armis/provider/monitoring/checks', [ArmisProviderMonitoringController::class, 'store'])
+        ->middleware('permission:armis.provider.monitor');
+    Route::get('/armis/provider/monitoring/checks/{check}', [ArmisProviderMonitoringController::class, 'show'])
+        ->middleware('permission:armis.provider.view');
 
     Route::get('/iap/audit-universe', [IapAuditUniverseController::class, 'index'])
         ->middleware('permission:iap.view');

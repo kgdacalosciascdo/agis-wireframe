@@ -401,9 +401,14 @@ backend-generated snapshots, permission-aware export controls, authenticated
 downloads, run history, provider status, workflow contracts, and responsive
 scope/hardening presentation. It remains read-only for administration and does
 not switch provider authority.
-ARMIS is still not the provider. A later ARMIS adapter will supply
-authoritative availability, workload, competencies, and actual person-days
-through the same contract after reconciliation and an explicit authority gate.
+ARMIS-6A adds the read-only `ArmisResourcePlanningGateway` and the
+`ConfigurableResourcePlanningGateway` mode boundary. `IAP_INTERIM_FALLBACK`
+remains the default; `ARMIS_SHADOW` prepares ARMIS for comparison while AEMS
+continues using IAP. ARMIS is still not authoritative. Reconciliation,
+authority switching, and rollback are now controlled by ARMIS-6B. ARMIS-6B
+generates immutable IAP-versus-ARMIS snapshots, requires independent review of
+every discrepancy, and changes provider authority only through an atomic,
+audited decision. AIS integration remains a later gate.
 
 Core services remain shared rather than copied into AEMS. Roles and scopes
 authorize access; Master Lists supply descriptive values; Core

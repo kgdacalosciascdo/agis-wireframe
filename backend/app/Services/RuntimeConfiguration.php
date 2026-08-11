@@ -16,6 +16,12 @@ class RuntimeConfiguration
 {
     public const CACHE_KEY = 'agis.runtime_configuration.v1';
 
+    public const ARMIS_PROVIDER_MODES = [
+        'IAP_INTERIM_FALLBACK',
+        'ARMIS_SHADOW',
+        'ARMIS_AUTHORITATIVE',
+    ];
+
     /**
      * Safe fallbacks keep authentication and public branding usable before the
      * configuration table is migrated, during tests, or while the DB recovers.
@@ -47,6 +53,7 @@ class RuntimeConfiguration
         'default_workflow_sla_hours' => 72,
         'workflow_mapping_core' => 'CORE_DOCUMENT_REVIEW',
         'workflow_mapping_iap' => 'IAP_ANNUAL_PLAN_APPROVAL',
+        'armis_provider_mode' => 'IAP_INTERIM_FALLBACK',
         'logo_url' => '/logo.png',
         'mail_enabled' => false,
         'mail_mailer' => 'smtp',
@@ -199,6 +206,15 @@ class RuntimeConfiguration
         return $now->month >= $startMonth ? $now->year : $now->year - 1;
     }
 
+    public function armisProviderMode(): string
+    {
+        $mode = strtoupper(trim($this->string('armis_provider_mode')));
+
+        return in_array($mode, self::ARMIS_PROVIDER_MODES, true)
+            ? $mode
+            : 'IAP_INTERIM_FALLBACK';
+    }
+
     public function apply(): void
     {
         // Laravel services read these config keys at runtime. Reapplying them
@@ -240,6 +256,7 @@ class RuntimeConfiguration
             'logoUrl' => $this->string('logo_url') ?: '/logo.png',
             'defaultRiskLevelCode' => $this->string('default_risk_level_code'),
             'defaultWorkflowSlaHours' => max(1, $this->integer('default_workflow_sla_hours')),
+            'armisProviderMode' => $this->armisProviderMode(),
             'mailEnabled' => $this->boolean('mail_enabled'),
         ];
     }
@@ -276,6 +293,11 @@ class RuntimeConfiguration
             'default_workflow_sla_hours' => ['rules' => ['required', 'integer', 'min:1', 'max:8760'], 'min' => 1, 'max' => 8760, 'runtimeEffect' => 'Default deadline for workflow steps without a specific SLA'],
             'workflow_mapping_core' => ['rules' => ['nullable', 'string', 'max:80'], 'runtimeEffect' => 'Default published workflow for Core records'],
             'workflow_mapping_iap' => ['rules' => ['nullable', 'string', 'max:80'], 'runtimeEffect' => 'Default published workflow for IAP records'],
+            'armis_provider_mode' => [
+                'rules' => ['required', 'string', 'in:IAP_INTERIM_FALLBACK,ARMIS_SHADOW'],
+                'options' => ['IAP_INTERIM_FALLBACK', 'ARMIS_SHADOW'],
+                'runtimeEffect' => 'ARMIS provider mode; shadow mode keeps AEMS on the IAP provider until reconciliation and authority approval are complete',
+            ],
             'logo_url' => ['rules' => ['required', 'string', 'max:500'], 'runtimeEffect' => 'Application, login, and sidebar logo'],
             'mail_enabled' => ['rules' => ['required', 'boolean'], 'options' => [true, false], 'runtimeEffect' => 'Delivery of configured outbound email'],
             'mail_mailer' => ['rules' => ['required', 'string', 'in:smtp,log'], 'options' => ['smtp', 'log'], 'runtimeEffect' => 'Outbound mail transport'],

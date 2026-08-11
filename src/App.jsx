@@ -124,6 +124,12 @@ const ArmisAssignmentsPage = lazy(
   () => import("./pages/ArmisAssignmentsPage"),
 );
 const ArmisReportsPage = lazy(() => import("./pages/ArmisReportsPage"));
+const ArmisProviderReconciliationPage = lazy(
+  () => import("./pages/ArmisProviderReconciliationPage"),
+);
+const ArmisProviderMonitoringPage = lazy(
+  () => import("./pages/ArmisProviderMonitoringPage"),
+);
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const implementedCorePaths = new Set([
@@ -173,6 +179,8 @@ const implementedCorePaths = new Set([
   "/audit-resource-management/planning",
   "/audit-resource-management/assignments",
   "/audit-resource-management/reports",
+  "/audit-resource-management/provider-reconciliation",
+  "/audit-resource-management/provider-monitoring",
 ]);
 
 function RouteLoading() {
@@ -852,6 +860,26 @@ export default function App() {
               <ProtectedPage permission="armis.report.view">
                 <Suspense fallback={<RouteLoading />}>
                   <ArmisReportsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/provider-reconciliation"
+            element={
+              <ProtectedPage permission="armis.provider.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisProviderReconciliationPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-resource-management/provider-monitoring"
+            element={
+              <ProtectedPage permission="armis.provider.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <ArmisProviderMonitoringPage />
                 </Suspense>
               </ProtectedPage>
             }

@@ -63,6 +63,7 @@ RUN_FULL_DEMO_SEEDERS=true
 DEMO_ACCOUNTS_ENABLED=true
 DEMO_DEFAULT_PASSWORD=<temporary strong demo password>
 BOOTSTRAP_ADMIN_ENABLED=false
+ARMIS_DEPLOYMENT_CHECK=true
 ```
 
 The first controlled demo deployment runs both the idempotent production
@@ -106,8 +107,10 @@ variables immediately after the first successful bootstrap.
 5. optionally runs `Database\\Seeders\\RenderDemoSeeder` when
    `RUN_FULL_DEMO_SEEDERS=true`;
 6. optionally runs the guarded administrator bootstrap;
-7. caches configuration and views; and
-8. starts Apache with `exec` on Render's `${PORT:-10000}`.
+7. caches configuration and views;
+8. optionally runs `armis:deployment-check --strict` when
+   `ARMIS_DEPLOYMENT_CHECK=true`; and
+9. starts Apache with `exec` on Render's `${PORT:-10000}`.
 
 The production seeder contains only idempotent roles, permissions, offices,
 controlled reference data, workflows, audit areas, and runtime configuration.
@@ -133,6 +136,22 @@ users to create through the application. Seeders also create no physical
 document/evidence fixture files; Render Free's local uploads remain ephemeral
 and private.
 
+### ARMIS-7B deployment hardening
+
+Set `ARMIS_DEPLOYMENT_CHECK=true` after the PostgreSQL database and approved
+production seeders are configured. The strict preflight is read-only and
+blocks startup when any ARMIS migration is missing, PostgreSQL is not active,
+the provider authority ledger is inconsistent, `APP_DEBUG` is enabled, the
+application URL is not HTTPS, the default disk is public, or Laravel runtime
+directories are not writable. It confirms all eight ARMIS migrations through
+ARMIS-6D; it does not create or rewrite ARMIS records.
+
+Private evidence and report files use the local private disk with framework
+disk serving disabled. Downloads remain authenticated controller responses.
+The Apache image also emits baseline browser security headers. Do not run
+`php artisan storage:link` for this deployment, and use a durable private
+object store before treating Render Free as an operational retention system.
+
 ## Local image check
 
 With Docker installed, from the repository root:
@@ -156,6 +175,21 @@ The image must not use the Vite development server. Verify `/health`, `/`, a
 nested React route, and `/api/...` against a database configured for the local
 test. Do not claim a Docker result when Docker is unavailable.
 
+### ARMIS-7C post-deployment smoke verification
+
+After a successful Render deploy, run the read-only smoke verifier from a
+PowerShell terminal:
+
+```powershell
+./scripts/verify-armis-render.ps1 -BaseUrl https://<service>.onrender.com
+```
+
+It checks `/health`, the compiled root and nested ARMIS SPA fallback, anonymous
+ARMIS API rejection, and the `nosniff`, framing, referrer, and permissions
+security headers. The command requires HTTPS and exits with code `1` if any
+check fails. It does not sign in, upload, mutate data, execute migrations, or
+change provider authority.
+
 ## Scope
 
 This deployment preparation does not change CMS workflows, statuses, or
@@ -164,4 +198,5 @@ protected backend endpoints and the `/compliance-management/reports` React
 workspace; apply the migration and rerun the permission seeder before
 deployment. Report files use the same private local disk and are ephemeral on
 Render Free, so use durable private storage before operational report
-retention. AIS and ARMIS remain outside this deployment task.
+retention. AIS integration and ARMIS provider authority changes remain
+outside this deployment task; ARMIS-7B only hardens and verifies startup.

@@ -38,6 +38,7 @@ class SystemConfigurationSeeder extends Seeder
             ['default_workflow_sla_hours', 'Default Workflow Deadline', 72, 'integer', 'workflow', 'Default number of hours allowed for workflow steps without an explicit SLA.'],
             ['workflow_mapping_core', 'Core Default Workflow', 'CORE_DOCUMENT_REVIEW', 'string', 'workflow', 'Published workflow used by default for Core records.'],
             ['workflow_mapping_iap', 'IAP Default Workflow', 'IAP_ANNUAL_PLAN_APPROVAL', 'string', 'workflow', 'Published workflow used by default for IAP records.'],
+            ['armis_provider_mode', 'ARMIS Provider Mode', 'IAP_INTERIM_FALLBACK', 'string', 'integrations', 'ARMIS-6A provider mode. Shadow mode preserves IAP as the active AEMS provider until reconciliation and an explicit authority gate are complete.'],
             ['logo_url', 'Runtime Logo', '/logo.png', 'string', 'branding', 'Current AGIS logo URL. Use the upload control to replace it safely.'],
             ['mail_enabled', 'Enable Outbound Email', false, 'boolean', 'email', 'Allow AGIS to send notification and test email through the selected mail transport.'],
             ['mail_mailer', 'Mail Transport', 'smtp', 'string', 'email', 'Use SMTP for production delivery or Log for safe local verification.'],

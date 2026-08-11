@@ -7,7 +7,8 @@ use App\Contracts\Aems\IapEngagementGateway;
 use App\Contracts\Aems\ResourcePlanningGateway;
 use App\Integrations\Aems\DatabaseCmsRecommendationGateway;
 use App\Integrations\Aems\DatabaseIapEngagementGateway;
-use App\Integrations\Aems\InterimIapResourcePlanningGateway;
+use App\Integrations\Aems\ArmisResourcePlanningGateway;
+use App\Integrations\Aems\ConfigurableResourcePlanningGateway;
 use App\Models\User;
 use App\Services\AemsIntegrationStatusService;
 use Database\Seeders\DatabaseSeeder;
@@ -36,8 +37,12 @@ class AemsIntegrationBoundaryTest extends TestCase
             app(CmsRecommendationGateway::class),
         );
         $this->assertInstanceOf(
-            InterimIapResourcePlanningGateway::class,
+            ConfigurableResourcePlanningGateway::class,
             app(ResourcePlanningGateway::class),
+        );
+        $this->assertInstanceOf(
+            ArmisResourcePlanningGateway::class,
+            app(ArmisResourcePlanningGateway::class),
         );
 
         $management = User::query()->where('username', 'departmenthead')->firstOrFail();
@@ -52,7 +57,8 @@ class AemsIntegrationBoundaryTest extends TestCase
         $this->assertSame(0, $status['cms']['operationalCases']);
         $this->assertTrue($status['cms']['caseCoverageComplete']);
         $this->assertFalse($status['armis']['authoritative']);
-        $this->assertSame('AEMS_UNTIL_ARMIS', $status['armis']['actualPersonDaysOwner']);
+        $this->assertSame('IAP_INTERIM_FALLBACK', $status['armis']['mode']);
+        $this->assertSame('AEMS_UNTIL_ARMIS_AUTHORITY_GATE', $status['armis']['actualPersonDaysOwner']);
         $this->assertSame('ARMIS', $status['armis']['futureAuthoritativeProvider']);
     }
 }

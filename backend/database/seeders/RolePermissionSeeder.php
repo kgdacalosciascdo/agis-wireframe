@@ -125,6 +125,7 @@ class RolePermissionSeeder extends Seeder
             'assignment.view', 'assignment.manage', 'assignment.review', 'assignment.approve',
             'actuals.view', 'actuals.record', 'actuals.review', 'actuals.approve', 'actuals.revise',
             'report.view', 'report.export',
+            'provider.view', 'provider.monitor', 'provider.reconcile', 'provider.review', 'provider.switch', 'provider.rollback',
         ],
         'ais' => ['view', 'export'],
         'documents' => [
@@ -192,6 +193,7 @@ class RolePermissionSeeder extends Seeder
                          || str_starts_with($code, 'cms.reopening-evidence.')
                          || str_starts_with($code, 'cms.automation.')
                          || str_starts_with($code, 'cms.report.')
+                         || str_starts_with($code, 'armis.provider.')
                         || in_array($code, [
                             'cms.dashboard.view',
                             'cms.recommendation.view',
@@ -210,6 +212,7 @@ class RolePermissionSeeder extends Seeder
                         'aems.closure.view',
                         'aems.document-index.view',
                         'aems.retention.view',
+                        'armis.provider.view',
                     ])
                     ->all(),
             ],
@@ -236,7 +239,10 @@ class RolePermissionSeeder extends Seeder
                     'cms.administration.monitor',
                     'cms.automation.view', 'cms.automation.manage', 'cms.automation.run',
                     'cms.report.view', 'cms.report.export',
-                    ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'armis.'))->all(),
+                    ...collect(array_keys($permissionIds))
+                        ->reject(fn (string $code): bool => str_starts_with($code, 'armis.provider.'))
+                        ->filter(fn (string $code): bool => str_starts_with($code, 'armis.'))->all(),
+                    'armis.provider.view', 'armis.provider.monitor',
                     'aems.engagement.view', 'aems.team.view', 'aems.report.view_issued',
                     'aems.completion-assessment.view', 'aems.closure.view',
                     'aems.document-index.view', 'aems.retention.view',
@@ -466,6 +472,7 @@ class RolePermissionSeeder extends Seeder
                     'cms.report.view', 'cms.report.export',
                     'armis.resource.view', 'armis.competency.view', 'armis.availability.view',
                     'armis.capacity.view', 'armis.workload.view', 'armis.assignment.view', 'armis.actuals.view',
+                    'armis.provider.view',
                     'aems.report.view_issued',
                     'arms.view', 'ais.view', 'documents.view', 'notifications.view',
                     'administrative_reports.view',

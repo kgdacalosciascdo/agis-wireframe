@@ -192,17 +192,18 @@ function AdministrationPanel({ administration }) {
   const hardening = administration?.hardening || {};
   const notifications = administration?.notifications || {};
   const provider = administration?.provider || {};
+  const authoritative = provider.authoritative || provider.mode === "ARMIS_AUTHORITATIVE";
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="grid min-w-0 gap-5">
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <section className={`rounded-xl border p-5 shadow-sm ${authoritative ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 shrink-0 text-amber-700" size={21} />
+            {authoritative ? <ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={21} /> : <AlertTriangle className="mt-0.5 shrink-0 text-amber-700" size={21} />}
             <div>
-              <h2 className="font-bold text-amber-950">Provider authority</h2>
-              <p className="mt-1 text-sm leading-6 text-amber-900">ARMIS currently uses the IAP interim planning provider. Availability and workload values remain informational until the authoritative ARMIS provider is enabled.</p>
-              <StatusBadge tone="warning">{provider.mode || "IAP_INTERIM_FALLBACK"}</StatusBadge>
+              <h2 className={`font-bold ${authoritative ? "text-emerald-950" : "text-amber-950"}`}>Provider authority</h2>
+              <p className={`mt-1 text-sm leading-6 ${authoritative ? "text-emerald-900" : "text-amber-900"}`}>{authoritative ? "ARMIS is the active authoritative resource provider. Use the protected authority gate to roll back to IAP if required." : "AEMS currently uses the IAP interim planning provider. ARMIS remains available for shadow comparison until an accepted reconciliation is explicitly approved."}</p>
+              <StatusBadge tone={authoritative ? "success" : "warning"}>{provider.mode || "IAP_INTERIM_FALLBACK"}</StatusBadge>
             </div>
           </div>
         </section>

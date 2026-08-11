@@ -16,6 +16,7 @@ import {
   FileText,
   Files,
   FileBarChart,
+  GitCompareArrows,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -222,6 +223,18 @@ export const armisPages = [
     path: "/audit-resource-management/assignments",
     permission: "armis.assignment.view",
     icon: ClipboardCheck,
+  },
+  {
+    label: "Provider Reconciliation",
+    path: "/audit-resource-management/provider-reconciliation",
+    permission: "armis.provider.view",
+    icon: GitCompareArrows,
+  },
+  {
+    label: "Provider Monitoring",
+    path: "/audit-resource-management/provider-monitoring",
+    permission: "armis.provider.view",
+    icon: Activity,
   },
   {
     label: "Reports & Administration",
@@ -480,6 +493,22 @@ export function pageForPath(pathname) {
       label: "ARMIS Reports & Administration",
       icon: FileBarChart,
       permission: "armis.report.view",
+    };
+  }
+
+  if (pathname === "/audit-resource-management/provider-reconciliation") {
+    return {
+      label: "ARMIS Provider Reconciliation",
+      icon: GitCompareArrows,
+      permission: "armis.provider.view",
+    };
+  }
+
+  if (pathname === "/audit-resource-management/provider-monitoring") {
+    return {
+      label: "ARMIS Provider Monitoring",
+      icon: Activity,
+      permission: "armis.provider.view",
     };
   }
 

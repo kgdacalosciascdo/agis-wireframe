@@ -71,14 +71,14 @@ The production build includes `public/.htaccess`, which sends unknown Apache pat
 
 Demo accounts are seeded with hashed passwords. Their clickable credentials are returned by `/api/demo-accounts` only when `DEMO_ACCOUNTS_ENABLED=true`. Disable that setting outside local/demo environments.
 
-| Role                    | Employee ID         | Default local password |
-| ----------------------- | ------------------- | ---------------------- |
-| Platform Administrator  | `AGIS-PLATFORM-001` | `lala`                 |
-| AGIS Administrator      | `AGIS-ADMIN-001`    | `lala`                 |
-| CIAS Management         | `CIAS-HEAD-001`     | `lala`                 |
-| AGIS User               | `CIAS-AUD-001`      | `lala`                 |
+| Role                   | Employee ID         | Default local password |
+| ---------------------- | ------------------- | ---------------------- |
+| Platform Administrator | `AGIS-PLATFORM-001` | `lala`                 |
+| AGIS Administrator     | `AGIS-ADMIN-001`    | `lala`                 |
+| CIAS Management        | `CIAS-HEAD-001`     | `lala`                 |
+| AGIS User              | `CIAS-AUD-001`      | `lala`                 |
 | Auditee Representative | `AUDITEE-001`       | `lala`                 |
-| Read Only User          | `MAYOR-001`         | `lala`                 |
+| Read Only User         | `MAYOR-001`         | `lala`                 |
 
 Change these through `backend/.env` before seeding any shared environment.
 

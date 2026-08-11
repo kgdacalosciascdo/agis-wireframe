@@ -2740,6 +2740,74 @@ export const armisReportApi = {
   },
 };
 
+export const armisProviderApi = {
+  async getStatus() {
+    return request("/api/armis/provider/status");
+  },
+  async getRuns() {
+    const data = await request("/api/armis/provider/reconciliations");
+    return data?.runs ?? [];
+  },
+  async getRun(runId) {
+    const data = await request(`/api/armis/provider/reconciliations/${runId}`);
+    return data?.run ?? null;
+  },
+  async generate(fiscalYear) {
+    const data = await request("/api/armis/provider/reconciliations", {
+      method: "POST",
+      body: fiscalYear ? { fiscalYear: Number(fiscalYear) } : {},
+      csrf: true,
+    });
+    return data?.run ?? null;
+  },
+  async review(runId, payload) {
+    const data = await request(`/api/armis/provider/reconciliations/${runId}/review`, {
+      method: "POST",
+      body: payload,
+      csrf: true,
+    });
+    return data?.review ?? null;
+  },
+  async activate(runId, reason) {
+    const data = await request(`/api/armis/provider/reconciliations/${runId}/activate`, {
+      method: "POST",
+      body: { reason },
+      csrf: true,
+    });
+    return data?.decision ?? null;
+  },
+  async rollback(reason) {
+    const data = await request("/api/armis/provider/rollback", {
+      method: "POST",
+      body: { reason },
+      csrf: true,
+    });
+    return data?.decision ?? null;
+  },
+};
+
+export const armisProviderMonitoringApi = {
+  async getStatus() {
+    return request("/api/armis/provider/monitoring/status");
+  },
+  async getChecks() {
+    const data = await request("/api/armis/provider/monitoring/checks");
+    return data?.checks ?? [];
+  },
+  async getCheck(checkId) {
+    const data = await request(`/api/armis/provider/monitoring/checks/${checkId}`);
+    return data?.check ?? null;
+  },
+  async runCheck() {
+    const data = await request("/api/armis/provider/monitoring/checks", {
+      method: "POST",
+      body: {},
+      csrf: true,
+    });
+    return data?.check ?? null;
+  },
+};
+
 export const cmsApi = {
   async getDashboard(filters = {}) {
     const query = queryFrom(filters).toString();

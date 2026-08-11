@@ -2,14 +2,22 @@
 
 ## Current implementation checkpoint
 
-ARMIS-1A/1B, ARMIS-2A/2B, ARMIS-3A/3B, ARMIS-4A, ARMIS-4B, and ARMIS-5A are verified. ARMIS-3A
+ARMIS-1A/1B, ARMIS-2A/2B, ARMIS-3A/3B, ARMIS-4A/4B, ARMIS-5A/5B, ARMIS-6A,
+ARMIS-6B, ARMIS-6C, ARMIS-6D, ARMIS-7A, and ARMIS-7B are verified. ARMIS-7C
+is now the final post-deployment smoke-verification checkpoint. ARMIS-3A
 provides the backend planning ledger for availability, annual capacity,
 planned workload, and utilization; ARMIS-3B provides its protected React
 workspace. ARMIS-4A provides separate assignment and actual-person-day
-ledgers with conflict and capacity rules. The existing
-`InterimIapResourcePlanningGateway` remains the only
-provider used by AEMS; ARMIS is not authoritative and no IAP records were
-migrated or changed.
+ledgers with conflict and capacity rules. The mode-aware
+`ConfigurableResourcePlanningGateway` now protects the replaceable boundary.
+`IAP_INTERIM_FALLBACK` remains the default, and `ARMIS_SHADOW` is available for
+non-authoritative preparation. ARMIS-6B adds immutable IAP-versus-ARMIS
+reconciliation snapshots, independent review, and an explicit authority gate;
+ARMIS authority can only be activated through an accepted shadow review and can
+be rolled back to IAP with an immutable decision. No IAP records were migrated
+or changed. ARMIS-6C provides the protected React reconciliation workspace for
+snapshot history, discrepancy review, and authority decisions. ARMIS-6D adds
+read-only post-authority monitoring and immutable cutover-verification checks.
 
 ## ARMIS-0 scope
 
@@ -25,10 +33,12 @@ IAP or AEMS workflow behavior, switch the provider, or start AIS integration.
 | Workspace/API | Protected resource, competency, planning, and assignment/actuals React workspaces consume dedicated ARMIS APIs | `src/App.jsx`, `backend/routes/api.php` |
 | Permissions | Granular `armis.*` permissions govern registry, competency, planning, actuals, reports, and exports; compatibility permissions remain | `RolePermissionSeeder` |
 | Resource data | Temporary capacity, unavailability, skills, and IAP requirements are stored by IAP | IAP resource migrations/models/controller |
-| AEMS consumption | AEMS reads a replaceable `ResourcePlanningGateway` | `ResourcePlanningGateway`, `InterimIapResourcePlanningGateway` |
-| Provider mode | `IAP_INTERIM_FALLBACK`, available but non-authoritative; ARMIS-4A writes remain outside the AEMS provider | integration status service and boundary tests |
+| AEMS consumption | AEMS reads a replaceable `ResourcePlanningGateway` | `ResourcePlanningGateway`, `ConfigurableResourcePlanningGateway` |
+| Provider mode | `IAP_INTERIM_FALLBACK` (default), `ARMIS_SHADOW`, or gated `ARMIS_AUTHORITATIVE` | `ConfigurableResourcePlanningGateway`, authority gate, and ARMIS-6B tests |
+| ARMIS adapter | Approved/current ARMIS capacity, availability, competency, requirement, assignment, and actual ledgers are exposed in the AEMS gateway shape | `ArmisResourcePlanningGateway` |
 | Reports/API | ARMIS-5A provides immutable scope-pinned report runs, protected CSV/PDF exports, private downloads, administration status, and hardening flags | `ArmisReportService`, `ArmisReportController`, `armis_report_runs`, `armis_report_exports` |
-| Tests | ARMIS foundation, competency, planning, assignment, report, resource, and desktop/mobile workspace tests protect the module and interim provider boundary | `backend/tests/Feature/Armis*Test.php`, `tests/e2e/armis-*.spec.js` |
+| Reconciliation and authority | Immutable comparison snapshots, independent discrepancy review, atomic activation, rollback, and provider status | `ArmisProviderReconciliationService`, provider routes, ARMIS-6B tests |
+| Tests | ARMIS foundation, competency, planning, assignment, report, resource, provider adapter, reconciliation, and desktop/mobile workspace tests protect the module | `backend/tests/Feature/Armis*Test.php`, `tests/e2e/armis-*.spec.js` |
 
 ### Fully implemented before ARMIS-1A
 
@@ -47,9 +57,9 @@ to an exact immutable Core `document_versions` record.
 The profile registry API is protected by granular `armis.resource.*`
 permissions and supports optimistic locking, draft-to-active lifecycle
 transitions, soft archive/restore, office scope filtering, Activity Log,
-Audit Trail, and ARMIS workflow events. ARMIS records are intentionally not
-read by AEMS yet; the existing `ResourcePlanningGateway` remains bound to the
-IAP interim provider.
+Audit Trail, and ARMIS workflow events. ARMIS records are now available through
+the ARMIS-6A adapter, but AEMS remains on the IAP interim provider in both
+supported modes.
 
 ### Partially implemented
 
@@ -59,11 +69,11 @@ versioned actuals, utilization reporting, or ARMIS scope model.
 
 ### Missing
 
-The ARMIS reports React workspace and ARMIS-owned provider remain future phases.
-ARMIS-3A/3B, ARMIS-4A/4B, and ARMIS-5A provide planning, assignment, actuals,
-conflict, notifications, administration status, protected report snapshots,
-private exports, and audit records but do not change the provider or IAP/AEMS
-authority boundary.
+AIS integration remains future scope. ARMIS-3A/3B, ARMIS-4A/4B, ARMIS-5A/5B,
+ARMIS-6A, and ARMIS-6B provide planning, assignment, actuals, conflict,
+notifications, administration status, protected report snapshots, private
+exports, adapter reads, reconciliation, authority decisions, and rollback.
+The authority boundary is changed only by the explicit ARMIS-6B gate.
 
 ## Existing interim data and ownership
 
@@ -94,10 +104,11 @@ unavailability
 status
 ```
 
-`InterimIapResourcePlanningGateway` is the current binding. A future ARMIS
-adapter must implement this read contract without changing AEMS consumers.
-ARMIS writes and approvals should use separate authorized services; the read
-gateway must not become an untracked write path.
+`ConfigurableResourcePlanningGateway` is the current binding. It delegates
+active AEMS reads to `InterimIapResourcePlanningGateway` in both supported
+ARMIS-6A modes and exposes `ArmisResourcePlanningGateway` as the shadow
+adapter for reconciliation. ARMIS writes and approvals use separate
+authorized services; the read gateway is not an untracked write path.
 
 ## ARMIS-1A design checkpoint
 
@@ -143,7 +154,7 @@ default.
 1. Build ARMIS records and APIs without changing IAP/AEMS behavior.
 2. Reference approved IAP demand with source and snapshot lineage.
 3. Add an ARMIS adapter implementing the existing read gateway.
-4. Expose interim, shadow, and authoritative provider modes.
+4. Expose interim, shadow, and gated authoritative provider modes.
 5. Reconcile ARMIS and IAP results before any authority switch.
 6. Transfer actual-person-day ownership only through an explicit, tested gate.
 
@@ -167,7 +178,27 @@ and authoritative.
 - ARMIS-5A: immutable scope-aware reports, protected CSV/PDF exports, notification
   and administration status, checksum controls, and operational hardening.
 - ARMIS-5B: ARMIS reports and administration React workspace.
-- ARMIS-6: IAP/AEMS adapter, shadow reconciliation, authority switch, and rollback verification.
+- ARMIS-6A: IAP/AEMS adapter and controlled fallback/shadow provider boundary.
+- ARMIS-6B: immutable shadow reconciliation, independent review, authority
+  activation, atomic rollback, permissions, audit, notifications, and APIs.
+- ARMIS-6C: protected reconciliation and provider-authority React workspace,
+  responsive discrepancy review, separation-of-duties controls, activation and
+  rollback dialogs, and browser regression coverage.
+- ARMIS-6D: immutable provider health and cutover-verification checks, protected
+  monitoring APIs, failure notifications, and a responsive monitoring
+  workspace.
+- ARMIS-7A: full ARMIS backend/browser regression coverage, route and
+  permission security review, immutable-record and protected-download checks,
+  and documentation of the verification gate. This phase does not change
+  operational workflow behavior, add migrations, or begin deployment
+  hardening.
+- ARMIS-7B: read-only migration/deployment preflight, Render startup
+  hardening, private-disk protection, security headers, and deployment
+  regression coverage. This phase does not change ARMIS business workflows or
+  provider authority.
+- ARMIS-7C: operator-invoked Render smoke verification for health, compiled
+  SPA fallback, anonymous ARMIS API rejection, and deployment security
+  headers. This phase is read-only and does not bypass authentication.
 
 ## ARMIS-1A acceptance
 
@@ -399,3 +430,222 @@ Focused browser coverage is in `tests/e2e/armis-reports.spec.js`. ARMIS-5B
 does not switch the AEMS `ResourcePlanningGateway`; AIS integration, provider
 authority, shadow reconciliation, rollback, and future ARMIS-owned actuals
 remain ARMIS-6 scope.
+
+## ARMIS-6A provider adapter checkpoint
+
+ARMIS-6A adds the backend provider adapter and controlled mode boundary. The
+`ArmisResourcePlanningGateway` reads only approved/current ARMIS capacity,
+availability, competency, requirement, assignment, and actual-person-day
+records and maps them to the stable AEMS `ResourcePlanningGateway` contract.
+
+`ConfigurableResourcePlanningGateway` is now the container binding used by
+AEMS. The supported runtime modes are:
+
+- `IAP_INTERIM_FALLBACK` — the default; AEMS reads IAP and ARMIS remains a
+  separately available adapter;
+- `ARMIS_SHADOW` — ARMIS is prepared for comparison, but AEMS still reads IAP.
+
+The runtime configuration key is `armis_provider_mode` and is restricted to
+those two values. `ARMIS_AUTHORITATIVE` is intentionally unavailable in
+ARMIS-6A. The integration status reports the active provider, shadow adapter,
+supported modes, authority-gate blocker, and actual-person-day ownership.
+Configuration changes use the existing protected Core System Configuration
+endpoint, so Activity Log and Audit Trail entries are preserved.
+
+ARMIS-6A does not reconcile records, transfer ownership, switch AEMS authority,
+or add AIS integration. Those actions require the later reconciliation and
+authority-gate phases. Focused backend coverage is in
+`backend/tests/Feature/ArmisProviderAdapterTest.php`.
+
+## ARMIS-6B reconciliation and authority-gate checkpoint
+
+ARMIS-6B adds the protected provider integration API. A reconciliation run
+compares the IAP interim provider with the approved/current ARMIS adapter for
+capacity, skills, unavailability, requirements, engagement actuals, and
+assignment actuals. The run stores the exact filters, authorized office and
+engagement scope, normalized result rows, discrepancy keys, and SHA-256
+checksum in an immutable `armis_provider_reconciliation_runs` record.
+
+The workflow is:
+
+```text
+ARMIS_SHADOW
+  → Generate immutable reconciliation snapshot
+  → Independent review (every discrepancy explicitly accepted or rejected)
+  → Authority approval
+  → ARMIS_AUTHORITATIVE
+  → Explicit rollback decision
+  → IAP_INTERIM_FALLBACK
+```
+
+Reviews and provider authority decisions are separate immutable records. The
+run generator cannot review its own snapshot, the reviewer cannot activate
+authority, and provider authority actions require global office scope and the
+dedicated `armis.provider.*` permissions. Direct updates to
+`armis_provider_mode` through the generic Core configuration endpoint cannot
+set `ARMIS_AUTHORITATIVE`.
+
+The protected routes are:
+
+- `GET /api/armis/provider/status`
+- `GET /api/armis/provider/reconciliations`
+- `POST /api/armis/provider/reconciliations`
+- `GET /api/armis/provider/reconciliations/{run}`
+- `POST /api/armis/provider/reconciliations/{run}/review`
+- `POST /api/armis/provider/reconciliations/{run}/activate`
+- `POST /api/armis/provider/rollback`
+
+Generation and decisions write ARMIS workflow events, Core Activity Log and
+Audit Trail records, and in-app notifications. The provider gateway fails
+closed to IAP if an authoritative configuration exists without a matching
+latest activation decision. ARMIS-6B does not add AIS integration, automate a
+professional decision, mutate IAP/AEMS ledgers, or provide a browser-side
+authority shortcut. Focused coverage is in
+`backend/tests/Feature/ArmisProviderReconciliationTest.php`.
+
+## ARMIS-6C reconciliation and authority React checkpoint
+
+ARMIS-6C adds the protected workspace at
+`/audit-resource-management/provider-reconciliation`. It consumes only the
+ARMIS-6B provider routes and does not add a second provider-switch path. The
+workspace provides:
+
+- current provider mode, active provider, latest reconciliation, and authority
+  eligibility status;
+- immutable reconciliation history scoped by the backend;
+- fiscal-year snapshot generation for users with `armis.provider.reconcile`;
+- discrepancy comparison of IAP and ARMIS values, including subject context;
+- an independent review dialog that requires an overall decision, a comment,
+  and an explicit ACCEPT or REJECT value for every discrepancy;
+- an authority activation dialog available only after the backend confirms an
+  accepted shadow review and the user has `armis.provider.switch`;
+- a rollback dialog available only in authoritative mode to users with
+  `armis.provider.rollback`;
+- visible separation-of-duties messaging and immutable decision history; and
+- responsive layouts that retain horizontal comparison tables without
+  exposing public or unprotected endpoints.
+
+The UI disables controls for users without the matching permission, prevents
+the displayed generator or reviewer from using the same run for a later
+decision where that identity is available, and leaves final enforcement to the
+ARMIS-6B service. Activation, rollback, review, and generation remain
+authenticated CSRF-protected mutations that write the existing ARMIS workflow,
+Core Activity Log, Audit Trail, and notification records. ARMIS-6C does not add
+AIS integration, change provider behavior, mutate IAP/AEMS ledgers, or permit
+direct runtime-configuration authority changes. Browser coverage is in
+`tests/e2e/armis-provider-reconciliation.spec.js`.
+
+## ARMIS-6D provider monitoring and cutover-verification checkpoint
+
+ARMIS-6D adds a read-only operational monitoring boundary at
+`/audit-resource-management/provider-monitoring`. It verifies the effective
+provider mode against runtime configuration, confirms the AEMS active read
+path, checks authority-decision consistency, reports reconciliation freshness,
+and confirms ARMIS adapter availability. A check is `HEALTHY` when all checks
+pass, `DEGRADED` when only freshness warnings exist, and `FAILED` when a
+provider or authority consistency check fails.
+
+Every requested check is an immutable, scope-pinned
+`armis_provider_monitoring_checks` snapshot with its source query version,
+provider/configuration snapshot, diagnostic observations, SHA-256 checksum,
+actor, and timestamp. A failed or degraded check sends a protected ARMIS
+notification to monitoring users. Checks create ARMIS workflow events and Core
+Activity Log/Audit Trail entries, but they never mutate IAP or ARMIS ledgers,
+runtime configuration, provider authority, or professional decisions.
+
+The protected routes are:
+
+- `GET /api/armis/provider/monitoring/status`
+- `GET /api/armis/provider/monitoring/checks`
+- `POST /api/armis/provider/monitoring/checks`
+- `GET /api/armis/provider/monitoring/checks/{check}`
+
+Viewing uses `armis.provider.view`; running a check requires the new
+`armis.provider.monitor` permission and global office scope. Authority
+activation and rollback remain exclusively in ARMIS-6B and the separate
+reconciliation workspace. ARMIS-6D does not schedule automated decisions,
+switch providers, add AIS integration, or expose public monitoring URLs.
+Focused backend coverage is in
+`backend/tests/Feature/ArmisProviderMonitoringTest.php`, with desktop/mobile
+browser coverage in `tests/e2e/armis-provider-monitoring.spec.js`.
+
+## ARMIS-7A full testing and security review checkpoint
+
+ARMIS-7A is a verification-only gate for the completed ARMIS operational
+surface. Every `/api/armis/*` route is required to carry both Sanctum
+authentication and a granular `permission:armis.*` middleware. Focused security
+coverage also verifies that anonymous callers are rejected and that a role
+limited to `armis.provider.view` cannot create resource or monitoring records
+or request provider rollback. Provider monitoring and provider-authority
+permissions remain separate, preserving the separation of duties established
+in ARMIS-6B/6D.
+
+The ARMIS regression gate covers the resource registry, competencies,
+planning/utilization, assignments and actuals, reports and protected exports,
+provider reconciliation, and provider monitoring workspaces. Backend tests
+continue to protect scope filtering, optimistic locking, immutable snapshots
+and versions, Core document/checksum lineage, audit/activity records,
+notifications, protected downloads, and authority/rollback controls. Desktop
+and mobile browser suites exercise the corresponding protected workspaces.
+
+ARMIS-7A does not modify operational workflow behavior, add or alter database
+migrations, switch the active provider, or start AIS/ARMIS deployment
+integration. Deployment hardening and any migration execution remain a later,
+explicitly approved phase.
+
+The ARMIS-7A verification result was 79 protected ARMIS API routes, 35 backend
+ARMIS tests with 554 assertions, 217 Feature tests with 3,559 assertions, 15/15
+desktop browser tests, 15/15 mobile browser tests, a passing frontend lint,
+a passing production build, and a clean `git diff --check` (with only the
+repository's existing line-ending warnings).
+
+## ARMIS-7B migration and deployment-hardening checkpoint
+
+ARMIS-7B hardens deployment without introducing another business migration or
+changing any ARMIS workflow. The existing ARMIS-1A through ARMIS-6D migrations
+remain additive and are applied by the normal `php artisan migrate --force`
+startup step. The new read-only `armis:deployment-check --strict` command
+verifies that all eight ARMIS migrations are recorded, PostgreSQL is active,
+the provider mode is valid, authoritative mode has an immutable activation
+decision when applicable, the application key and HTTPS URL are configured,
+debug output is disabled, runtime directories are writable, and the default
+document disk is private.
+
+Render startup runs the strict preflight only when
+`ARMIS_DEPLOYMENT_CHECK=true`, after migration, approved seeders, and Laravel
+configuration/view caching. Local Docker checks remain opt-in and can use the
+non-strict command with SQLite and an HTTP URL. The private local disk no
+longer enables framework-generated serving routes; evidence and report files
+continue to use authenticated, scope-aware Laravel download controllers.
+Apache adds baseline `nosniff`, same-origin framing, referrer-policy, and
+permissions-policy headers. No public document URL or `storage:link` is
+created by the Render image.
+
+ARMIS-7B does not switch provider authority, rewrite ARMIS/IAP records, add
+AIS integration, or add a background worker/scheduler. Deployment operators
+must still use durable private object storage before retaining evidence or
+reports operationally on Render Free.
+
+ARMIS-7B verification passed with 38 ARMIS tests and 567 assertions, 220 full
+Feature tests and 3,572 assertions, frontend lint, production build, PHP
+syntax checks, and `git diff --check`. The ARMIS report/export browser contract
+passed on desktop and mobile after a one-minute test-server login-rate-limit
+cooldown; the isolated mobile protected-workspace check passed 1/1. Docker
+image execution could not be run because the local Docker daemon was
+unavailable.
+
+## ARMIS-7C post-deployment smoke-verification checkpoint
+
+ARMIS-7C adds the operator-invoked
+`scripts/verify-armis-render.ps1 -BaseUrl https://<service>.onrender.com`
+smoke gate. It verifies the unauthenticated `/health` response, the compiled
+AGIS root shell, a nested ARMIS React route through the Apache SPA fallback,
+anonymous rejection of `/api/armis/provider/status`, and the four baseline
+browser security headers. The script requires an HTTPS base URL, reports each
+check independently, and exits non-zero when any check fails.
+
+The smoke gate performs no login, write, migration, provider, authority, or
+data operation. It is intended to run after each Render deploy and after
+changing environment variables. A successful smoke run complements the
+server-side `armis:deployment-check --strict` preflight; it does not replace
+the full backend and browser regression suites.

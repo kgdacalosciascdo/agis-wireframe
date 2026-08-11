@@ -335,6 +335,7 @@ class ArmisReportService
                 'armis.resource.view', 'armis.competency.view',
                 'armis.capacity.view', 'armis.workload.view',
                 'armis.assignment.view', 'armis.actuals.view',
+                'armis.provider.view',
             ])->mapWithKeys(fn (string $permission): array => [$permission => $user->hasPermission($permission)]),
             'workflows' => [
                 'planning' => ['DRAFT', 'SUBMITTED', 'RETURNED', 'APPROVED', 'LOCKED'],
@@ -355,7 +356,7 @@ class ArmisReportService
                 'privateDownloads' => true,
                 'checksumHeaders' => true,
                 'csvFormulaMitigation' => true,
-                'providerAuthority' => 'IAP_INTERIM_FALLBACK',
+                'providerAuthority' => $this->provider->status()['mode'] ?? 'IAP_INTERIM_FALLBACK',
             ],
         ];
     }

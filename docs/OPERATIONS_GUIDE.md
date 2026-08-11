@@ -681,3 +681,43 @@ authenticated downloads, and scope/confidentiality revalidation. The focused
 backend specification is `tests/Feature/CmsReportTest.php`. The protected
 React workspace is `/compliance-management/reports`; its desktop/mobile
 contract is `tests/e2e/cms-reports.spec.js`. CMS-12B is now complete.
+
+## ARMIS-7B deployment and migration hardening
+
+ARMIS-7B adds a read-only deployment preflight without adding another business
+migration. The normal Render startup continues to run `php artisan migrate
+--force`; the eight ARMIS migrations through provider monitoring are expected
+to be recorded before the strict gate runs. Set `ARMIS_DEPLOYMENT_CHECK=true`
+on the Render web service to run:
+
+```text
+php artisan armis:deployment-check --strict
+```
+
+The command blocks startup when PostgreSQL, all ARMIS migrations, the provider
+authority decision lineage, `APP_KEY`, HTTPS `APP_URL`, private storage, debug
+settings, writable runtime directories, or Laravel configuration caching are
+not ready. It never updates runtime configuration, provider authority, ARMIS
+records, or migration state.
+
+The Render image keeps evidence and report files on the private local disk,
+does not create `public/storage`, and serves files only through authenticated
+controllers. Apache emits baseline browser security headers. Render Free
+storage remains ephemeral; use a durable private object store before
+operational retention. Local Docker startup leaves the strict gate disabled by
+default so SQLite/HTTP development checks remain available.
+
+## ARMIS-7C post-deployment smoke verification
+
+After each Render deployment, run the read-only PowerShell smoke gate from the
+repository root:
+
+```powershell
+./scripts/verify-armis-render.ps1 -BaseUrl https://<service>.onrender.com
+```
+
+The script confirms the health response, compiled React shell, nested ARMIS
+SPA fallback, anonymous ARMIS API rejection, and baseline browser security
+headers. It requires HTTPS and returns a non-zero exit code on failure. It
+does not sign in, upload, mutate records, run migrations, or change provider
+authority.

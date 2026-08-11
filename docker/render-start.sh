@@ -42,6 +42,12 @@ fi
 php artisan config:cache
 php artisan view:cache
 
+# Keep the deployment gate explicit so local Docker checks can continue to use
+# SQLite and an HTTP URL. Render production should set ARMIS_DEPLOYMENT_CHECK=true.
+if [[ "${ARMIS_DEPLOYMENT_CHECK:-false}" == "true" ]]; then
+    php artisan armis:deployment-check --strict
+fi
+
 sed -ri "s/^Listen [0-9]+$/Listen ${PORT_VALUE}/" /etc/apache2/ports.conf
 sed -ri "s#<VirtualHost \*:[0-9]+>#<VirtualHost *:${PORT_VALUE}>#" /etc/apache2/sites-available/000-default.conf
 

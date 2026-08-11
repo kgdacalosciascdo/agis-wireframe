@@ -1058,14 +1058,15 @@ Cross-module operations resolve through container-bound contracts:
 | --- | --- | --- |
 | `IapEngagementGateway` | `DatabaseIapEngagementGateway` | Lists and locks only approved/active IAP engagement sources, then preserves the imported source link |
 | `CmsRecommendationGateway` | `DatabaseCmsRecommendationGateway` | Thin adapter to `CmsIntakeService`; creates one immutable intake/case/event per eligible issued recommendation and returns the same source-matching record on retry |
-| `ResourcePlanningGateway` | `InterimIapResourcePlanningGateway` | Supplies capacity, availability, workload inputs, competencies, and person-days through an ARMIS-replaceable API |
+| `ResourcePlanningGateway` | `ConfigurableResourcePlanningGateway` | Supplies capacity, availability, workload inputs, competencies, and person-days through the controlled IAP/ARMIS provider boundary |
 | `EngagementRetentionProvider` | `InterimAemsRetentionProvider` | Preserves approved AEMS retention/custody snapshots behind a Core Records Management-replaceable boundary; never destroys records |
 
 The dashboard response includes `integrations.core`, `integrations.iap`,
-`integrations.cms`, and `integrations.armis`. The ARMIS entry is intentionally
-reported as `IAP_INTERIM_FALLBACK` and non-authoritative. A future ARMIS adapter
-can replace the `ResourcePlanningGateway` binding without changing Audit Team
-or Engagement Tracker consumers.
+`integrations.cms`, and `integrations.armis`. ARMIS-6A reports the configured
+`IAP_INTERIM_FALLBACK` or `ARMIS_SHADOW` mode, the active IAP provider, the
+available ARMIS shadow adapter, supported modes, and the authority-gate
+blocker. In both modes the ARMIS entry is non-authoritative and AEMS continues
+using IAP.
 
 ### 8.20 ARMIS-1A foundation API
 
@@ -1264,9 +1265,10 @@ expose a public document URL. Report runs and exports are immutable and every
 generation, export, and download records Core Activity Log and Audit Trail
 entries.
 
-ARMIS-5A does not switch the AEMS `ResourcePlanningGateway`; the administration
-contract explicitly reports `IAP_INTERIM_FALLBACK` and non-authoritative ARMIS
-provider status.
+ARMIS-5A does not switch the AEMS `ResourcePlanningGateway`; ARMIS-6A now
+exposes the controlled `IAP_INTERIM_FALLBACK` and `ARMIS_SHADOW` modes. The
+administration contract reports the active IAP provider, available ARMIS
+adapter, non-authoritative status, and authority-gate blocker.
 
 ### 8.24.1 ARMIS-5B reports and administration workspace
 
@@ -1284,6 +1286,62 @@ change provider authority, expose storage paths, or mutate report runs and
 exports. Focused desktop/mobile coverage is in
 `tests/e2e/armis-reports.spec.js`; provider authority, reconciliation, and
 AIS integration remain future ARMIS scope.
+
+### 8.25 ARMIS-6A provider adapter and mode contract
+
+ARMIS-6A adds no new public route. The existing AEMS dashboard and ARMIS
+metadata, foundation, planning, reports, and administration responses consume
+the mode-aware `ResourcePlanningGateway` status. The status includes:
+
+- `mode`: `IAP_INTERIM_FALLBACK` or `ARMIS_SHADOW`;
+- `configuredMode`: the normalized runtime setting;
+- `activeProvider`: the IAP interim provider used by AEMS;
+- `shadowProvider`: the ARMIS adapter class;
+- `shadowAvailable`: whether the ARMIS adapter can be resolved;
+- `supportedModes`: the modes available before reconciliation; and
+- `authoritySwitchAllowed`: `false` during ARMIS-6A.
+
+The protected Core endpoint `PUT /api/system-configurations` accepts the
+`armis_provider_mode` setting for users with `system_configuration.manage`.
+Only `IAP_INTERIM_FALLBACK` and `ARMIS_SHADOW` are valid. Configuration
+changes retain the existing Core Activity Log and Audit Trail behavior.
+
+`ArmisResourcePlanningGateway` reads approved/current ARMIS records and maps
+capacity, availability, competency, requirement, assignment actuals, and
+engagement actuals to the AEMS gateway shape. It is read-only and does not
+modify IAP, AEMS, CMS, or ARMIS ledgers.
+
+### 8.26 ARMIS-6B reconciliation and authority gate
+
+ARMIS-6B adds protected provider integration routes:
+
+| Method | Route | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/armis/provider/status` | `armis.provider.view` | Active provider, reconciliation, and authority-gate status |
+| GET | `/api/armis/provider/reconciliations` | `armis.provider.view` | Scope-filtered immutable reconciliation runs |
+| POST | `/api/armis/provider/reconciliations` | `armis.provider.reconcile` | Generate an IAP-versus-ARMIS snapshot for a fiscal year |
+| GET | `/api/armis/provider/reconciliations/{run}` | `armis.provider.view` | View exact snapshot rows, checksum, review, and authority history |
+| POST | `/api/armis/provider/reconciliations/{run}/review` | `armis.provider.review` | Record one immutable independent review and discrepancy decisions |
+| POST | `/api/armis/provider/reconciliations/{run}/activate` | `armis.provider.switch` | Atomically activate ARMIS after an accepted shadow review |
+| POST | `/api/armis/provider/rollback` | `armis.provider.rollback` | Atomically return authority to IAP with a reason |
+
+`armis_provider_reconciliation_runs` stores the source query version, fiscal
+year, provider mode, authorized scope, normalized comparison rows, summary,
+and SHA-256 checksum. Each row compares the IAP interim provider with the
+approved/current ARMIS adapter for capacity, skills, unavailability,
+requirements, engagement actuals, or assignment actuals. Runs cannot be
+updated or deleted. `armis_provider_reconciliation_reviews` and
+`armis_provider_authority_decisions` are separate immutable records.
+
+Activation requires a run generated in `ARMIS_SHADOW`, an independent review
+with every discrepancy explicitly accepted, global office scope, and a
+different actor from both the generator and reviewer. The generic Core
+`PUT /api/system-configurations` endpoint accepts only `IAP_INTERIM_FALLBACK`
+and `ARMIS_SHADOW`; `ARMIS_AUTHORITATIVE` can only be written by the dedicated
+activation route. The gateway fails closed to IAP when an authoritative value
+has no matching latest activation decision. All generation, reviews,
+activation, and rollback operations emit ARMIS workflow events, Core Activity
+Log/Audit Trail records, and in-app notifications.
 
 ## 9. Reference/master-list codes
 

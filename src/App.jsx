@@ -71,17 +71,29 @@ const AemsDashboardPage = lazy(() => import("./pages/AemsDashboardPage"));
 const AemsTeamPage = lazy(() => import("./pages/AemsTeamPage"));
 const AemsAeoPage = lazy(() => import("./pages/AemsAeoPage"));
 const AemsAepPage = lazy(() => import("./pages/AemsAepPage"));
+const AemsPlanningPackagePage = lazy(
+  () => import("./pages/AemsPlanningPackagePage"),
+);
 const AemsAuditProgramPage = lazy(
   () => import("./pages/AemsAuditProgramPage"),
 );
+const AemsExecutionWorkspacePage = lazy(
+  () => import("./pages/AemsExecutionWorkspacePage"),
+);
 const AemsWorkingPapersPage = lazy(
   () => import("./pages/AemsWorkingPapersPage"),
+);
+const AemsEvidenceManagementPage = lazy(
+  () => import("./pages/AemsEvidenceManagementPage"),
 );
 const AemsFindingsPage = lazy(() => import("./pages/AemsFindingsPage"));
 const AemsIssuesPage = lazy(() => import("./pages/AemsIssuesPage"));
 const AemsResponsesPage = lazy(() => import("./pages/AemsResponsesPage"));
 const AemsExitConferencesPage = lazy(
   () => import("./pages/AemsExitConferencesPage"),
+);
+const AemsConferenceDialoguePage = lazy(
+  () => import("./pages/AemsConferenceDialoguePage"),
 );
 const AemsReportsPage = lazy(() => import("./pages/AemsReportsPage"));
 const AemsEngagementDetailPage = lazy(
@@ -160,9 +172,13 @@ const implementedCorePaths = new Set([
   "/audit-engagement-management/team",
   "/audit-engagement-management/aeo",
   "/audit-engagement-management/aep",
+  "/audit-engagement-management/planning-package",
   "/audit-engagement-management/audit-program",
+  "/audit-engagement-management/execution",
   "/audit-engagement-management/entry-conferences",
+  "/audit-engagement-management/conferences",
   "/audit-engagement-management/working-papers",
+  "/audit-engagement-management/evidence",
   "/audit-engagement-management/issues",
   "/audit-engagement-management/findings",
   "/audit-engagement-management/auditee-responses",
@@ -495,6 +511,16 @@ export default function App() {
             }
           />
           <Route
+            path="audit-engagement-management/planning-package"
+            element={
+              <ProtectedPage permission="aems.planning-package.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsPlanningPackagePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
             path="audit-engagement-management/audit-program"
             element={
               <ProtectedPage permission="aems.program.view">
@@ -505,11 +531,31 @@ export default function App() {
             }
           />
           <Route
+            path="audit-engagement-management/execution"
+            element={
+              <ProtectedPage permission="aems.fieldwork.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsExecutionWorkspacePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
             path="audit-engagement-management/working-papers"
             element={
               <ProtectedPage permission="aems.working-paper.view">
                 <Suspense fallback={<RouteLoading />}>
                   <AemsWorkingPapersPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/evidence"
+            element={
+              <ProtectedPage permission="aems.evidence-request.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsEvidenceManagementPage />
                 </Suspense>
               </ProtectedPage>
             }
@@ -550,6 +596,16 @@ export default function App() {
               <ProtectedPage permission="aems.conference.view">
                 <Suspense fallback={<RouteLoading />}>
                   <AemsExitConferencesPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/conferences"
+            element={
+              <ProtectedPage permission="aems.conference.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsConferenceDialoguePage />
                 </Suspense>
               </ProtectedPage>
             }

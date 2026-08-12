@@ -12,6 +12,7 @@ Detailed business specifications are in:
 - [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
 - [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
 - [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
+- [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md)
 - [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
 - [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
 - [API and Data Reference](API_AND_DATA_REFERENCE.md)
@@ -320,7 +321,8 @@ flowchart LR
     R --> I[ISSUED]
     I --> CR[CLOSURE_REVIEW]
     CR --> CA[Completion Assessment APPROVED]
-    CA --> CO[Formal Closure APPROVED]
+    CA --> CT[CMS transfer manifest + effort reconciled]
+    CT --> CO[Formal Closure APPROVED]
     CO --> CL[CLOSED atomically]
 ```
 
@@ -352,11 +354,21 @@ No tracker-owned workflow state is written. Filters and pagination affect the
 engagement list; the cards remain totals for the complete visible portfolio.
 Pre-closure readiness covers the Entry Conference, enforceable child-work,
 issuance, recipient, CMS-transfer, person-day, and review gates. It is advisory.
-The formal Completion Assessment and Closure workflows separately evaluate
-delivery, generate an authoritative checklist, preserve an exact final document
-index, approve retention/custody metadata, record lessons, and authorize the
-final `CLOSED` transition. The backend locks and re-evaluates the complete
+The formal Completion Assessment, Completion & Transfer, and Closure workflows
+separately evaluate delivery, reconcile the issued report and ARMIS/IAP effort,
+generate an authoritative checklist, preserve an exact final document index,
+approve retention/custody metadata, record lessons, and authorize the final
+`CLOSED` transition. CMS transfer retries are idempotent; approved transfer and
+effort snapshots are immutable. The backend locks and re-evaluates the complete
 aggregate in one transaction; a 100% tracker value cannot close an engagement.
+
+The AEMS-1B React shell presents the engagement registry and SCR-220 workspace
+through grouped sidebar navigation. Engagement tabs deep-link to the existing
+team, AEO, AEP, Audit Program, Working Paper, Issues, Findings, Response,
+Conference, and Report workspaces while retaining the engagement identifier.
+The shell displays the AEMS-1A phase, administrative status, canonical office,
+and legacy multi-office warning; it does not authorize transitions or replace
+backend scope checks.
 
 The final document index references exact existing private
 `DocumentVersion`s—it does not duplicate files. A replaceable
@@ -380,8 +392,10 @@ flowchart LR
     AEMS -->|Assignments, workflow events, deadlines, issuance| NOTIFY[Core Notifications]
 ```
 
-The IAP adapter owns eligibility, locking, and lineage updates; AEMS never
-edits approved planning content. The CMS adapter delegates to
+The IAP adapter owns eligibility and locking; AEMS owns the resulting lineage
+relationship and immutable source snapshot. The adapter never writes an
+approved IAP source row (the legacy IAP link is a computed compatibility
+projection). The CMS adapter delegates to
 `CmsIntakeService`, which owns source eligibility, the unique transfer key,
 conflict-safe create-once intake, case initialization, intake event, and AEMS
 lineage synchronization. Unique database keys plus insert-ignore/re-query
@@ -413,7 +427,17 @@ continues using IAP. ARMIS is still not authoritative. Reconciliation,
 authority switching, and rollback are now controlled by ARMIS-6B. ARMIS-6B
 generates immutable IAP-versus-ARMIS snapshots, requires independent review of
 every discrepancy, and changes provider authority only through an atomic,
-audited decision. AIS integration remains a later gate.
+audited decision. AEMS-3A consumes that boundary for team safeguards: the
+explicit IAP fallback remains visible, shadow mode cannot approve a team, and
+authoritative AEMS gates block missing/stale ARMIS resources, competency,
+capacity, availability, independence, or person-day reconciliation. AIS
+integration remains a later gate.
+
+AEMS-11 exposes the protected `/api/aems/integrations/status` contract for
+operational and security review. It reports Core provider ownership, read-only
+IAP lineage, ARMIS fallback/provider state, CMS immutable-intake provenance,
+and referential-health checks without exposing global counts to scoped users.
+No AIS provider or route is included.
 
 Core services remain shared rather than copied into AEMS. Roles and scopes
 authorize access; Master Lists supply descriptive values; Core
@@ -971,3 +995,82 @@ The CMS-12B React workspace at `/compliance-management/reports` consumes the
 catalog, run, export, and download contracts through `cmsApi`. It displays the
 backend result snapshot and authorized scope, delegates filters and eligibility
 to Laravel, and never calculates scope or creates public file URLs.
+
+## AEMS planning-package gate
+
+After an issued AEO, approved AEP, and approved Audit Program are available,
+AEMS stores planning-specific work in its own Planning Package. IAP identifiers
+and the original source snapshot are copied into immutable package-version
+lineage; IAP rows are never edited by AEMS. The package combines the
+preliminary survey, process flows, objectives, risk matrix, and controlled
+links to program procedures, working-paper references, and exact Core document
+versions. Independent review and a separate CIAS approval create the approved
+baseline. The aggregate lifecycle reads that baseline and rejects
+`START_FIELDWORK` until the current package version is approved and unchanged.
+
+## AEMS execution workspace flow
+
+The AEMS-4B Execution Workspace reads the authorized fieldwork workspace for a
+selected engagement. It presents active Audit Program procedures and their
+Fieldwork Records, then keeps `engagementId`, `procedureId`, and `recordId` in
+the navigation context while linking to Working Papers/Evidence and Issues.
+Record creation, revision, workflow transitions, traceability, procedure
+completion, scope, and separation-of-duties remain backend decisions on the
+AEMS-4A endpoints. The UI may capture related task assignees/due dates, surface
+overdue or incomplete traceability blockers, and prepare an Issue from a
+record's exact Working Paper/Evidence IDs, but it cannot finalize a record or
+close an Issue on the client's authority.
+
+## AEMS-5A Evidence Request and assessment flow
+
+Evidence collection uses a separate Evidence Request record rather than
+overloading the Audit Evidence status. An authorized audit-team user creates
+the request and its immutable version, submits it, sends it to the custodian,
+records partial or complete receipt, and links each received item to the exact
+current `audit_evidence` row and Core `document_versions` row:
+
+```text
+DRAFT -> SUBMITTED -> SENT -> PARTIALLY_RECEIVED -> RECEIVED -> ASSESSED -> CLOSED
+```
+
+An assessor records an immutable assessment version for each received exact
+document. The assessment includes the professional sufficiency,
+appropriateness, relevance, reliability, competence, accuracy, completeness,
+corroboration, contradiction, authenticity, integrity, confidentiality,
+restriction, limitation, and evidence-gap attributes. A request cannot be
+assessed until all received links have current eligible assessments.
+
+Evidence uploaded through the AEMS service is marked as requiring assessment.
+When a Finding is independently validated, the backend requires a current
+assessment tied to the exact evidence `DocumentVersion`. Restricted or
+access-restricted evidence is rejected unless a separately authorized,
+independently performed exception approval is recorded. The assessor cannot
+approve that exception, and automation cannot make either professional
+decision. All actions are engagement-scope checked, optimistic-lock checked,
+evented, written to Activity Log and Audit Trail, and sent through protected
+Core notifications. Files remain behind authenticated Core document download
+endpoints; no public URLs are exposed.
+
+## AEMS-10 Dashboard and operational queue flow
+
+The AEMS Dashboard reads active engagements through the authenticated
+`visibleTo` scope and derives all cards, phase counts, work queues, and closure
+readiness from the existing AEMS records. The client receives only protected
+record references and may navigate to a queue item; it cannot calculate or
+broaden the scope itself:
+
+```text
+Visible engagements
+  -> phase/status aggregates
+  -> overdue, review, evidence, response, conference, report, CMS, task,
+     Review Note, escalation, and closure queues
+  -> responsive cards, needs-attention panels, and protected exports
+```
+
+The notification panel is scoped to the signed-in actor's Core notifications.
+The scheduled reminder command applies the administrator-managed AEMS runtime
+windows and creates only deduplicated reminders or reviewable escalation
+candidates. It never approves, finalizes, closes, transfers, or issues a
+professional record. Progress and queue CSV downloads require the export
+permission, recheck authorization at request time, prefix spreadsheet formula
+values, and create Activity Log/Audit Trail records.

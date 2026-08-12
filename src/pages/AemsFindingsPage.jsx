@@ -4,14 +4,17 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Download,
+  GitMerge,
   FileWarning,
   History,
   MessageSquareText,
   Plus,
+  RotateCcw,
   RefreshCw,
   Search,
   Send,
   ShieldCheck,
+  Slash,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -40,11 +43,16 @@ const findingBlank = {
   condition: "",
   cause: "",
   effect: "",
+  conclusion: "",
+  significanceClassification: "",
+  effectClassification: "",
   noRecommendationReason: "",
   responsibleOfficeId: "",
   riskRatingId: "",
   workingPaperVersionIds: [],
   evidenceIds: [],
+  fieldworkRecordIds: [],
+  fieldworkRecordVersionIds: [],
 };
 const recommendationBlank = {
   recommendation: "",
@@ -163,6 +171,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
     recipients: "",
     dueDate: "",
     confidentiality: "INTERNAL",
+    mergedIntoIssueId: "",
+    referredTo: "",
+    resolutionDetails: "",
+    revisionAction: "CORRECT",
   });
   const [responseContext, setResponseContext] = useState(null);
   const [attachmentContext, setAttachmentContext] = useState(null);
@@ -171,8 +183,14 @@ export default function AemsFindingsPage({ section = "findings" }) {
   const canIssueValidate = hasPermission(user, "aems.issue.validate");
   const canIssueDismiss = hasPermission(user, "aems.issue.dismiss");
   const canIssueConvert = hasPermission(user, "aems.issue.convert");
+  const canIssueMerge = hasPermission(user, "aems.issue.merge");
+  const canIssueResolve = hasPermission(user, "aems.issue.resolve");
+  const canIssueObserve = hasPermission(user, "aems.issue.observe");
+  const canIssueRefer = hasPermission(user, "aems.issue.refer");
+  const canIssueClose = hasPermission(user, "aems.issue.close_without_finding");
   const canFindingCreate = hasPermission(user, "aems.finding.create");
   const canFindingValidate = hasPermission(user, "aems.finding.validate");
+  const canFindingRevise = hasPermission(user, "aems.finding.revise");
   const canCommunicate = hasPermission(user, "aems.finding.communicate");
   const canFinalize = hasPermission(user, "aems.finding.finalize");
   const canRespond = hasPermission(user, "aems.management-response.submit");
@@ -325,6 +343,9 @@ export default function AemsFindingsPage({ section = "findings" }) {
             condition: finding.condition,
             cause: finding.cause,
             effect: finding.effect,
+            conclusion: finding.conclusion ?? "",
+            significanceClassification: finding.significanceClassification ?? "",
+            effectClassification: finding.effectClassification ?? "",
             noRecommendationReason: finding.noRecommendationReason ?? "",
             responsibleOfficeId: finding.responsibleOfficeId,
             riskRatingId: finding.riskRatingId,
@@ -332,6 +353,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
               (item) => item.id,
             ),
             evidenceIds: finding.evidence.map((item) => item.id),
+            fieldworkRecordIds: finding.fieldworkRecords.map((item) => item.id),
+            fieldworkRecordVersionIds: finding.fieldworkRecords.map(
+              (item) => item.versionId,
+            ),
           }
         : findingBlank,
     );
@@ -364,6 +389,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
       recipients: "",
       dueDate: "",
       confidentiality: "INTERNAL",
+      mergedIntoIssueId: "",
+      referredTo: "",
+      resolutionDetails: "",
+      revisionAction: "CORRECT",
     });
     setModal("action");
   }
@@ -559,6 +588,11 @@ export default function AemsFindingsPage({ section = "findings" }) {
       "VALIDATE_ISSUE",
       "DISMISS",
       "CONVERT",
+      "MERGE",
+      "RESOLVE",
+      "OBSERVE",
+      "REFER",
+      "CLOSE_WITHOUT_FINDING",
     ];
     let operation;
     if (issueActions.includes(action)) {
@@ -571,6 +605,9 @@ export default function AemsFindingsPage({ section = "findings" }) {
             action: issueAction,
             lockVersion: selectedIssue.lockVersion,
             comment: actionForm.comment || undefined,
+            mergedIntoIssueId: actionForm.mergedIntoIssueId || undefined,
+            referredTo: actionForm.referredTo || undefined,
+            resolutionDetails: actionForm.resolutionDetails || undefined,
           },
         );
     } else if (findingActions.includes(action)) {
@@ -612,6 +649,17 @@ export default function AemsFindingsPage({ section = "findings" }) {
           {
             responseLockVersion: responseContext.response.lockVersion,
             lockVersion: responseContext.rejoinder.lockVersion,
+          },
+        );
+    } else if (action === "REVISE_FINDING") {
+      operation = () =>
+        aemsFindingApi.reviseFinding(
+          engagementId,
+          selectedFinding.id,
+          {
+            action: actionForm.revisionAction,
+            reason: actionForm.comment,
+            lockVersion: selectedFinding.lockVersion,
           },
         );
     } else {
@@ -822,6 +870,12 @@ export default function AemsFindingsPage({ section = "findings" }) {
                 canValidate={canIssueValidate}
                 canDismiss={canIssueDismiss}
                 canConvert={canIssueConvert}
+                canMerge={canIssueMerge}
+                canResolve={canIssueResolve}
+                canObserve={canIssueObserve}
+                canRefer={canIssueRefer}
+                canClose={canIssueClose}
+                currentUserId={Number(user?.id ?? 0)}
                 terminal={terminalIssue}
                 onEdit={() => openIssue(selectedIssue)}
                 onAction={openAction}
@@ -836,12 +890,14 @@ export default function AemsFindingsPage({ section = "findings" }) {
                 finding={selectedFinding}
                 canCreate={canFindingCreate}
                 canValidate={canFindingValidate}
+                canRevise={canFindingRevise}
                 canCommunicate={canCommunicate}
                 canFinalize={canFinalize}
                 canRespond={canRespond}
                 canReviewResponse={canReviewResponse}
                 canRejoin={canRejoin}
                 canFinalizeRejoinder={canFinalizeRejoinder}
+                currentUserId={Number(user?.id ?? 0)}
                 currentResponse={currentResponse}
                 onEdit={() => openFinding(selectedFinding)}
                 onRecommendation={openRecommendation}
@@ -882,6 +938,7 @@ export default function AemsFindingsPage({ section = "findings" }) {
         saving={saving}
         options={options}
         workspace={workspace}
+        selectedIssueId={selectedIssueId}
         action={action}
         actionForm={actionForm}
         setActionForm={setActionForm}
@@ -904,6 +961,12 @@ function IssueDetail({
   canValidate,
   canDismiss,
   canConvert,
+  canMerge,
+  canResolve,
+  canObserve,
+  canRefer,
+  canClose,
+  currentUserId,
   terminal,
   onEdit,
   onAction,
@@ -912,6 +975,8 @@ function IssueDetail({
   if (!issue) {
     return <EmptyDetail text="Select an issue to review its support and history." />;
   }
+  const authorIsCurrentUser = currentUserId && Number(issue.raisedBy?.id) === currentUserId;
+  const dispositioned = Boolean(issue.disposition);
   return (
     <div className="space-y-4">
       <Section
@@ -931,19 +996,44 @@ function IssueDetail({
               </ActionButton>
             </>
           )}
-          {canValidate && issue.status === "SUBMITTED" && (
+          {canValidate && issue.status === "SUBMITTED" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("VALIDATE_ISSUE")} tone="green">
               Validate
             </ActionButton>
           )}
-          {canDismiss && issue.status === "VALIDATED" && (
+          {canDismiss && issue.status === "VALIDATED" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("DISMISS")} tone="red">
               Dismiss
             </ActionButton>
           )}
-          {canConvert && issue.status === "VALIDATED" && (
+          {canConvert && issue.status === "VALIDATED" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("CONVERT")} tone="blue">
               Convert to finding
+            </ActionButton>
+          )}
+          {canMerge && issue.status === "VALIDATED" && !authorIsCurrentUser && (
+            <ActionButton onClick={() => onAction("MERGE")} tone="amber">
+              <GitMerge size={15} /> Merge
+            </ActionButton>
+          )}
+          {canResolve && issue.status === "VALIDATED" && !authorIsCurrentUser && (
+            <ActionButton onClick={() => onAction("RESOLVE")} tone="amber">
+              Resolve during audit
+            </ActionButton>
+          )}
+          {canObserve && issue.status === "VALIDATED" && !authorIsCurrentUser && (
+            <ActionButton onClick={() => onAction("OBSERVE")}>
+              Record observation
+            </ActionButton>
+          )}
+          {canRefer && issue.status === "VALIDATED" && !authorIsCurrentUser && (
+            <ActionButton onClick={() => onAction("REFER")}>
+              Refer
+            </ActionButton>
+          )}
+          {canClose && issue.status === "VALIDATED" && !authorIsCurrentUser && (
+            <ActionButton onClick={() => onAction("CLOSE_WITHOUT_FINDING")} tone="red">
+              Close without finding
             </ActionButton>
           )}
           {issue.findingId && (
@@ -952,7 +1042,28 @@ function IssueDetail({
             </ActionButton>
           )}
         </div>
+        {authorIsCurrentUser && issue.status === "SUBMITTED" && (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Separation of duties: the issue author cannot validate or disposition this issue.
+          </p>
+        )}
       </Section>
+      {dispositioned && (
+        <Section title="Disposition decision" action={<StatusBadge label="Immutable disposition" tone="inactive" />}>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <Info label="Disposition" value={label(issue.disposition)} />
+            <Info label="Recorded by" value={issue.dispositionRecordedBy?.name} />
+            <Info label="Recorded at" value={date(issue.dispositionRecordedAt, true)} />
+            <Info label="Referral / merge target" value={issue.referredTo || (issue.mergedIntoIssueId ? `Issue #${issue.mergedIntoIssueId}` : null)} />
+          </dl>
+          {issue.dispositionReason && (
+            <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{issue.dispositionReason}</p>
+          )}
+          {issue.resolutionDetails && (
+            <p className="mt-3 whitespace-pre-wrap rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"><strong>Resolution details:</strong> {issue.resolutionDetails}</p>
+          )}
+        </Section>
+      )}
       <Section title="Classification">
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
           <Info label="Risk rating" value={issue.riskRating?.label} />
@@ -974,12 +1085,14 @@ function FindingDetail({
   finding,
   canCreate,
   canValidate,
+  canRevise,
   canCommunicate,
   canFinalize,
   canRespond,
   canReviewResponse,
   canRejoin,
   canFinalizeRejoinder,
+  currentUserId,
   currentResponse,
   onEdit,
   onRecommendation,
@@ -995,6 +1108,8 @@ function FindingDetail({
   if (!finding) {
     return <EmptyDetail text="Select a finding to review its criteria, dialogue, and recommendations." />;
   }
+  const immutable = ["FINALIZED", "WITHDRAWN", "SUPERSEDED"].includes(finding.status);
+  const authorIsCurrentUser = currentUserId && Number(finding.authoredBy?.id) === currentUserId;
   return (
     <div className="space-y-4">
       <Section
@@ -1011,22 +1126,22 @@ function FindingDetail({
               </ActionButton>
             </>
           )}
-          {canValidate && finding.status === "PENDING_REVIEW" && (
+          {canValidate && finding.status === "PENDING_REVIEW" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("VALIDATE_FINDING")} tone="green">
               Validate
             </ActionButton>
           )}
-          {canCommunicate && finding.status === "VALIDATED" && (
+          {canCommunicate && finding.status === "VALIDATED" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("COMMUNICATE")} tone="blue">
               Communicate
             </ActionButton>
           )}
-          {canCommunicate && finding.status === "COMMUNICATED" && (
+          {canCommunicate && finding.status === "COMMUNICATED" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("REQUEST_RESPONSE")} tone="blue">
               Request response
             </ActionButton>
           )}
-          {canReviewResponse &&
+          {canReviewResponse && !authorIsCurrentUser &&
             finding.status === "AWAITING_MANAGEMENT_RESPONSE" && (
               <ActionButton
                 onClick={() => onAction("RECORD_NON_RESPONSE")}
@@ -1035,19 +1150,40 @@ function FindingDetail({
                 Record non-response
               </ActionButton>
             )}
-          {canFinalize && finding.status === "UNDER_DIALOGUE" && (
+          {canFinalize && finding.status === "UNDER_DIALOGUE" && !authorIsCurrentUser && (
             <ActionButton onClick={() => onAction("FINALIZE_FINDING")} tone="green">
               Finalize finding
             </ActionButton>
           )}
+          {canRevise && finding.isCurrentRevision !== false && !["WITHDRAWN", "SUPERSEDED"].includes(finding.status) && (
+            <ActionButton onClick={() => onAction("REVISE_FINDING")} tone="amber">
+              <RotateCcw size={15} /> Create revision
+            </ActionButton>
+          )}
+          {immutable && (
+            <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500">
+              <Slash size={15} /> Locked after {label(finding.status).toLowerCase()}
+            </span>
+          )}
         </div>
+        {authorIsCurrentUser && finding.status !== "DRAFT" && (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Separation of duties: the finding author cannot perform review, communication, or finalization actions on this finding.
+          </p>
+        )}
       </Section>
+      {immutable && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <strong>Immutable snapshot:</strong> This finding cannot be overwritten. Any correction, amendment, supersession, or withdrawal must be recorded as a new revision with a reason.
+        </div>
+      )}
       {!dialogueOnly && <Section title="Finding elements">
         <div className="grid gap-4 lg:grid-cols-2">
           {[
             ["Criteria", finding.criteria],
             ["Condition", finding.condition],
             ["Cause", finding.cause],
+            ["Conclusion", finding.conclusion],
             ["Effect", finding.effect],
           ].map(([title, value]) => (
             <div className="rounded-lg bg-slate-50 p-3" key={title}>
@@ -1062,17 +1198,32 @@ function FindingDetail({
         </div>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <Info label="Risk rating" value={finding.riskRating?.label} />
+          <Info label="Significance" value={finding.significanceClassification} />
+          <Info label="Effect classification" value={finding.effectClassification} />
           <Info label="Responsible office" value={finding.responsibleOffice?.name} />
           <Info label="Management response due" value={date(finding.managementResponseDueDate)} />
           <Info label="Finalized" value={date(finding.finalizedAt, true)} />
         </dl>
       </Section>}
+      {!dialogueOnly && <Section title="Fieldwork traceability">
+        {finding.fieldworkRecords?.length ? (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {finding.fieldworkRecords.map((record) => (
+              <li className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm" key={record.versionId ?? record.id}>
+                <p className="font-bold text-slate-800">{record.recordCode || `Record #${record.id}`}</p>
+                <p className="mt-1 text-xs text-slate-500">Version {record.versionNumber} · {label(record.executionStatus || record.status)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-slate-500">No fieldwork execution record is linked.</p>}
+      </Section>}
       {!dialogueOnly && <Support papers={finding.workingPaperVersions} evidence={finding.evidence} />}
+      {!dialogueOnly && <RevisionHistory finding={finding} />}
       {!dialogueOnly && <Section
         title="Recommendations"
         action={
           canCreate &&
-          finding.status !== "FINALIZED" && (
+          !immutable && (
             <ActionButton onClick={() => onRecommendation()}>
               <Plus size={15} /> Add
             </ActionButton>
@@ -1101,7 +1252,7 @@ function FindingDetail({
                 {recommendation.responsibleOffice?.name} · Target{" "}
                 {date(recommendation.targetImplementationDate)}
               </p>
-              {canCreate && recommendation.status === "DRAFT" && (
+              {canCreate && recommendation.status === "DRAFT" && !immutable && (
                 <div className="mt-3 flex gap-2">
                   <ActionButton onClick={() => onRecommendation(recommendation)}>
                     Edit
@@ -1382,6 +1533,33 @@ function HistoryList({ history }) {
   );
 }
 
+function RevisionHistory({ finding }) {
+  const revisions = finding.revisions ?? [];
+  return (
+    <Section title="Immutable revision history">
+      {revisions.length === 0 ? (
+        <p className="text-sm text-slate-500">This is the original finding revision.</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <strong>Current revision:</strong> v{finding.revisionNumber} · {label(finding.revisionType)}
+            {finding.revisionReason && <span> · {finding.revisionReason}</span>}
+          </div>
+          {revisions.map((revision) => (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-sm" key={revision.id}>
+              <div>
+                <p className="font-bold text-slate-700">Revision {revision.revisionNumber} · {label(revision.revisionType)}</p>
+                <p className="text-xs text-slate-500">{revision.revisionReason || "No reason recorded"} · {date(revision.createdAt, true)}</p>
+              </div>
+              <StatusBadge label={revision.isCurrentRevision ? "Current" : label(revision.status)} tone={revision.isCurrentRevision ? "success" : "inactive"} />
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function Info({ label: title, value }) {
   return (
     <div>
@@ -1410,6 +1588,7 @@ function RecordModal({
   saving,
   options,
   workspace,
+  selectedIssueId,
   action,
   actionForm,
   setActionForm,
@@ -1481,6 +1660,15 @@ function RecordModal({
               <textarea className={textAreaClass} value={form[field]} onChange={(event) => set(field, event.target.value)} />
             </Field>
           ))}
+          <Field name="Conclusion" errors={errors.conclusion} wide>
+            <textarea className={textAreaClass} value={form.conclusion} onChange={(event) => set("conclusion", event.target.value)} />
+          </Field>
+          <Field name="Significance classification" errors={errors.significanceClassification}>
+            <input className={inputClass} value={form.significanceClassification} onChange={(event) => set("significanceClassification", event.target.value)} placeholder="Material / significant / low" />
+          </Field>
+          <Field name="Effect classification" errors={errors.effectClassification}>
+            <input className={inputClass} value={form.effectClassification} onChange={(event) => set("effectClassification", event.target.value)} placeholder="Financial / operational / compliance" />
+          </Field>
           <Field name="Responsible office" errors={errors.responsibleOfficeId}>
             <SearchableSelect options={options.offices} value={form.responsibleOfficeId} onChange={(value) => set("responsibleOfficeId", value)} />
           </Field>
@@ -1570,7 +1758,17 @@ function RecordModal({
     );
   }
   if (modal !== "action") return null;
-  const needsComment = ["DISMISS", "RECORD_NON_RESPONSE", "REQUEST_CLARIFICATION"].includes(action);
+  const needsComment = [
+    "DISMISS",
+    "MERGE",
+    "RESOLVE",
+    "OBSERVE",
+    "REFER",
+    "CLOSE_WITHOUT_FINDING",
+    "RECORD_NON_RESPONSE",
+    "REQUEST_CLARIFICATION",
+    "REVISE_FINDING",
+  ].includes(action);
   return (
     <Modal
       open
@@ -1580,6 +1778,41 @@ function RecordModal({
       footer={footer(onAction, "Confirm action")}
     >
       <div className="space-y-4">
+        {action === "MERGE" && (
+          <Field name="Merge into issue" errors={errors.mergedIntoIssueId}>
+            <SearchableSelect
+              options={(workspace?.issues ?? [])
+                .filter((item) => String(item.id) !== String(selectedIssueId))
+                .filter((item) => !["DISMISSED", "CONVERTED_TO_FINDING"].includes(item.status))
+                .map((item) => ({ value: item.id, label: `${item.issueCode} — ${item.title}` }))}
+              value={actionForm.mergedIntoIssueId}
+              onChange={(value) => setActionForm((current) => ({ ...current, mergedIntoIssueId: value }))}
+              placeholder="Select an active issue"
+            />
+          </Field>
+        )}
+        {action === "REFER" && (
+          <Field name="Referral destination" errors={errors.referredTo}>
+            <input className={inputClass} value={actionForm.referredTo} onChange={(event) => setActionForm((current) => ({ ...current, referredTo: event.target.value }))} placeholder="Office, committee, or external authority" />
+          </Field>
+        )}
+        {action === "RESOLVE" && (
+          <Field name="Resolution details" errors={errors.resolutionDetails}>
+            <textarea className={textAreaClass} value={actionForm.resolutionDetails} onChange={(event) => setActionForm((current) => ({ ...current, resolutionDetails: event.target.value }))} />
+          </Field>
+        )}
+        {action === "REVISE_FINDING" && (
+          <Field name="Revision type" errors={errors.revisionAction}>
+            <select className={inputClass} value={actionForm.revisionAction} onChange={(event) => setActionForm((current) => ({ ...current, revisionAction: event.target.value }))}>
+              {[
+                ["CORRECT", "Correction"],
+                ["AMEND", "Amendment"],
+                ["SUPERSEDE", "Supersession"],
+                ["WITHDRAW", "Withdrawal"],
+              ].map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+            </select>
+          </Field>
+        )}
         {action === "COMMUNICATE" && (
           <>
             <Field name="Recipients" errors={errors.recipients} hint="Comma-separated names or offices">

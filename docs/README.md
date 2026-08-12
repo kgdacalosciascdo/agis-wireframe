@@ -14,6 +14,8 @@ interfaces, operations, and acceptance procedures.
 | [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md) | Core administrators, analysts, developers | Authentication, registries, roles/scopes, master lists, documents, workflows, notifications, logs, and configuration |
 | [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) | CIAS management, auditors, analysts, developers | Strategic planning, Audit Universe, coexisting risk systems, prioritization, annual plans, schedules, capacity, approvals, and reports |
 | [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md) | CIAS management, auditors, auditee representatives, developers | Engagement authorization, planning, fieldwork, evidence, findings, responses, conferences, reporting, transfer, closure, and reopening |
+| [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md) | Product owners, architects, developers, reviewers | AEMS-0 through AEMS-10A/10B baseline, planning/team safeguard contracts, linked fieldwork execution workspace, Evidence Management workspace, evidence-request/assessment contract, procedure and finding traceability gates, target gaps, cross-module boundaries, migration rules, and phase gates |
+| [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md) | Architects, security reviewers, Core/IAP/ARMIS/CMS integrators | AEMS-11 ownership, read-only IAP lineage, ARMIS provider modes, CMS immutable intake provenance, scope/security controls, and verification contract |
 | [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md) | Responsible offices, Compliance Monitors, validators, CIAS management, developers | Immutable intake, Action Plans, progress, validation, extensions, escalations, closure, dispositions, reopening, automation, reports, and exports |
 | [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md) | Resource administrators, planners, auditors, developers, deployers | Resource registry, competencies, planning, assignments, actuals, reports, provider boundary, reconciliation, monitoring, security, and deployment gates |
 | [API and Data Reference](API_AND_DATA_REFERENCE.md) | Frontend/backend developers and integrators | Endpoint families, request conventions, entities, relationships, permissions, configuration, and protected downloads |
@@ -32,7 +34,7 @@ feature inventory unless they are explicitly marked as current.
 | --- | --- | --- |
 | AGIS Core | Authentication, users/offices, roles and scoped permissions, audit areas/focuses, master lists, documents and immutable versions, workflows, notifications, runtime configuration, Activity Log, Audit Trail, soft deletion, and optimistic locking | Complete in [Core Workflow Design](CORE_WORKFLOW_DESIGN.md), [API and Data Reference](API_AND_DATA_REFERENCE.md), [System Flow](SYSTEM_FLOW.md), and [Operations Guide](OPERATIONS_GUIDE.md) |
 | IAP | Strategic plan, Audit Universe, both coexisting risk-assessment systems, prioritization, annual plan, scheduling, capacity, reports, approvals, imports, and scope/history controls | Complete in [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md), with API, testing, and operations references |
-| AEMS | Engagement Registry, Audit Team, AEO, AEP, Audit Program, Entry Conference, fieldwork, Working Papers and Evidence, Issues, Findings and Recommendations, Auditee Responses, Exit Conference, Audit Reports, CMS transfer, Completion Assessment, Closure, retention/final index, dashboard, and controlled reopening | Complete in [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md), with API, testing, and system-flow references |
+| AEMS | Operational engagement authorization, planning, AEMS-2A/2B Planning Package artifacts and workspace, AEMS-3A/3B team safeguards and ARMIS provider gate, AEMS-4A/4B fieldwork execution, AEMS-5A/5B Evidence Requests and immutable evidence assessments, Working Papers/Evidence, Issues, Findings, responses, conferences, interim/final reporting and distribution, CMS transfer, completion, closure, retention/index, controlled reopening, AEMS-10A/10B scope-aware dashboard, work queues, protected exports, notification monitoring, configurable reminder rules, and AEMS-11 cross-module ownership/security hardening are implemented. AIS integration remains outside the current scope. | As-built behavior in [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md), [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md), and [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md), with API, testing, and system-flow references |
 | CMS | CMS-1 through CMS-12B: intake, registry/detail, assignments, Action Plans, Progress Updates, Validation, extensions, escalations, closure, Accepted-Risk, No-Longer-Applicable, controlled reopening, automation/candidates, reports, and protected CSV/PDF exports | Complete in [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md), [API and Data Reference](API_AND_DATA_REFERENCE.md), [Operations Guide](OPERATIONS_GUIDE.md), and the end-to-end guide |
 | ARMIS | ARMIS-0 through ARMIS-7C: resource registry, competencies/certifications, planning/utilization, assignments/actuals, reports/exports, provider adapter, reconciliation/authority gate, monitoring, security regression, deployment preflight, and Render smoke verification | Complete in [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md), with API, operations, Render, and acceptance-testing references |
 | AFR | Placeholder navigation/routes only; AEMS currently owns its implemented Findings and Recommendations workspace | Explicitly documented as not implemented |
@@ -63,11 +65,13 @@ For a new developer:
 3. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
 4. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
 5. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
-6. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
-7. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
-8. [API and Data Reference](API_AND_DATA_REFERENCE.md)
-9. [Operations Guide](OPERATIONS_GUIDE.md)
-10. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
+6. [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md)
+7. [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md)
+8. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
+9. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
+10. [API and Data Reference](API_AND_DATA_REFERENCE.md)
+11. [Operations Guide](OPERATIONS_GUIDE.md)
+12. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
 
 For a CIAS reviewer:
 

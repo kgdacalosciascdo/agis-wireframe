@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   ClipboardCheck,
   FileInput,
+  LayoutDashboard,
   Plus,
   RotateCcw,
   Search,
@@ -68,6 +69,61 @@ const statusTones = {
   CANCELLED: "danger",
 };
 
+const phaseLabels = {
+  FOUNDATION: "Foundation",
+  PLANNING: "Planning",
+  EXECUTION: "Execution",
+  ISSUES_AFR: "Issues & AFR",
+  CONFERENCES: "Conferences",
+  REPORTING: "Reporting",
+  COMPLETION_TRANSFER: "Completion & Transfer",
+  CLOSURE: "Closure",
+};
+
+const phaseByStatus = {
+  DRAFT: "FOUNDATION",
+  AUTHORIZATION_PREPARATION: "FOUNDATION",
+  RETURNED_FOR_REVISION: "FOUNDATION",
+  AUTHORIZED: "FOUNDATION",
+  ENGAGEMENT_PLANNING: "PLANNING",
+  ENTRY_CONFERENCE: "CONFERENCES",
+  FIELDWORK: "EXECUTION",
+  FINDINGS_COMMUNICATION: "ISSUES_AFR",
+  REPORTING: "REPORTING",
+  ISSUED: "REPORTING",
+  CLOSURE_REVIEW: "COMPLETION_TRANSFER",
+  CLOSED: "CLOSURE",
+  SUSPENDED: "FOUNDATION",
+  CANCELLED: "CLOSURE",
+};
+
+const administrativeLabels = {
+  DRAFT: "Draft",
+  ACTIVE: "Active",
+  RETURNED: "Returned",
+  ISSUED: "Issued",
+  SUSPENDED: "Suspended",
+  CANCELLED: "Cancelled",
+  CLOSED: "Closed",
+  ARCHIVED: "Archived",
+};
+
+function phaseFor(engagement) {
+  return engagement.phase ?? phaseByStatus[engagement.status] ?? "FOUNDATION";
+}
+
+function administrativeStatusFor(engagement) {
+  if (engagement.administrativeStatus) return engagement.administrativeStatus;
+  if (engagement.isArchived) return "ARCHIVED";
+  if (engagement.status === "DRAFT") return "DRAFT";
+  if (engagement.status === "ISSUED") return "ISSUED";
+  if (engagement.status === "CLOSED") return "CLOSED";
+  if (engagement.status === "SUSPENDED") return "SUSPENDED";
+  if (engagement.status === "CANCELLED") return "CANCELLED";
+  if (engagement.status === "RETURNED_FOR_REVISION") return "RETURNED";
+  return "ACTIVE";
+}
+
 function date(value) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("en-PH", {
@@ -100,6 +156,8 @@ export default function AemsEngagementRegistryPage() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [phaseFilter, setPhaseFilter] = useState("");
+  const [administrativeFilter, setAdministrativeFilter] = useState("");
   const [officeFilter, setOfficeFilter] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState("iap");
@@ -195,14 +253,33 @@ export default function AemsEngagementRegistryPage() {
         (statusFilter === "ARCHIVED"
           ? engagement.isArchived
           : !engagement.isArchived && engagement.status === statusFilter);
+      const matchesPhase = !phaseFilter || phaseFor(engagement) === phaseFilter;
+      const matchesAdministrativeStatus =
+        !administrativeFilter ||
+        administrativeStatusFor(engagement) === administrativeFilter;
       const matchesOffice =
         !officeFilter ||
         engagement.offices.some(
           (office) => String(office.id) === String(officeFilter),
         );
-      return matchesSearch && matchesSource && matchesStatus && matchesOffice;
+      return (
+        matchesSearch &&
+        matchesSource &&
+        matchesStatus &&
+        matchesPhase &&
+        matchesAdministrativeStatus &&
+        matchesOffice
+      );
     });
-  }, [engagements, officeFilter, search, sourceFilter, statusFilter]);
+  }, [
+    administrativeFilter,
+    engagements,
+    officeFilter,
+    phaseFilter,
+    search,
+    sourceFilter,
+    statusFilter,
+  ]);
 
   const columns = [
     {
@@ -244,6 +321,11 @@ export default function AemsEngagementRegistryPage() {
           {engagement.offices
             .map((office) => `${office.code} — ${office.name}`)
             .join(", ") || "—"}
+          {engagement.officeRule?.state === "LEGACY_MULTI_OFFICE" && (
+            <span className="mt-1 block font-semibold text-amber-700">
+              Legacy multi-office scope
+            </span>
+          )}
         </span>
       ),
     },
@@ -271,17 +353,24 @@ export default function AemsEngagementRegistryPage() {
       key: "status",
       label: "Status",
       render: (engagement) => (
-        <StatusBadge
-          tone={
-            engagement.isArchived
-              ? "inactive"
-              : (statusTones[engagement.status] ?? "info")
-          }
-        >
-          {engagement.isArchived
-            ? "Archived"
-            : (statusLabels[engagement.status] ?? engagement.status)}
-        </StatusBadge>
+        <div className="flex min-w-[8.5rem] flex-col items-start gap-1.5">
+          <StatusBadge
+            tone={
+              engagement.isArchived
+                ? "inactive"
+                : (statusTones[engagement.status] ?? "info")
+            }
+          >
+            {engagement.isArchived
+              ? "Archived"
+              : (statusLabels[engagement.status] ?? engagement.status)}
+          </StatusBadge>
+          <span className="text-[11px] font-semibold text-slate-500">
+            {phaseLabels[phaseFor(engagement)] ?? phaseFor(engagement)} ·{" "}
+            {administrativeLabels[administrativeStatusFor(engagement)] ??
+              administrativeStatusFor(engagement)}
+          </span>
+        </div>
       ),
     },
     {
@@ -391,27 +480,42 @@ export default function AemsEngagementRegistryPage() {
   }
 
   const hasFilters = Boolean(
-    search || sourceFilter || statusFilter || officeFilter,
+    search ||
+      sourceFilter ||
+      statusFilter ||
+      phaseFilter ||
+      administrativeFilter ||
+      officeFilter,
   );
 
   return (
     <main className="min-w-0 p-4 sm:p-5">
       <RegistryHeader
         actions={
-          canCreate && (
+          <>
             <button
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-lg"
-              onClick={() => {
-                setErrors({});
-                setCreateMode("iap");
-                setCreateOpen(true);
-              }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-sky-300 bg-white px-4 text-sm font-bold text-sky-700 shadow-sm transition hover:bg-sky-50"
+              onClick={() => navigate("/audit-engagement-management/dashboard")}
               type="button"
             >
-              <Plus size={18} />
-              Create engagement
+              <LayoutDashboard size={17} />
+              AEMS Dashboard
             </button>
-          )
+            {canCreate && (
+              <button
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-lg"
+                onClick={() => {
+                  setErrors({});
+                  setCreateMode("iap");
+                  setCreateOpen(true);
+                }}
+                type="button"
+              >
+                <Plus size={18} />
+                Create engagement
+              </button>
+            )}
+          </>
         }
         description="Create engagements from approved IAP items or separately authorized special audits while preserving complete source lineage."
         icon={BriefcaseBusiness}
@@ -453,7 +557,7 @@ export default function AemsEngagementRegistryPage() {
       )}
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-2 border-b border-slate-200 p-4 xl:grid-cols-[minmax(18rem,1fr)_13rem_15rem_16rem_auto]">
+        <div className="grid gap-2 border-b border-slate-200 p-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[minmax(18rem,1fr)_13rem_15rem_14rem_13rem_13rem_auto]">
           <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
             <Search className="text-slate-400" size={18} />
             <input
@@ -487,6 +591,23 @@ export default function AemsEngagementRegistryPage() {
             value={statusFilter}
           />
           <SearchableSelect
+            onChange={setPhaseFilter}
+            options={Object.entries(phaseLabels).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+            placeholder="Filter by phase"
+            value={phaseFilter}
+          />
+          <SearchableSelect
+            onChange={setAdministrativeFilter}
+            options={Object.entries(administrativeLabels).map(
+              ([value, label]) => ({ value, label }),
+            )}
+            placeholder="Filter by administrative status"
+            value={administrativeFilter}
+          />
+          <SearchableSelect
             onChange={setOfficeFilter}
             options={officeOptions}
             placeholder="Filter by office"
@@ -499,6 +620,8 @@ export default function AemsEngagementRegistryPage() {
               setSearch("");
               setSourceFilter("");
               setStatusFilter("");
+              setPhaseFilter("");
+              setAdministrativeFilter("");
               setOfficeFilter("");
             }}
             type="button"

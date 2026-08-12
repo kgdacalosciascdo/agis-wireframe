@@ -522,6 +522,25 @@ Miscellaneous checks:
 - the formal Closure service, not a general transition button, must produce
   `CLOSED`.
 
+AEMS-1B shell and registry checks:
+
+1. Open the AEMS sidebar and confirm implemented screens are grouped under
+   Portfolio, Foundation, Planning, Execution, Issues & AFR, Conferences, and
+   Reporting. Confirm reference-only screens are not exposed as broken links.
+2. Open an engagement detail and verify the engagement-centered tabs: Overview,
+   Planning, Execution, Audit Issues, AFRs, Conferences, Audit Reports,
+   Completion & Transfer, and Activity.
+3. Follow Planning, Execution, Issues, AFR, Conference, and Report tabs and
+   confirm the selected engagement is retained in the destination workspace.
+4. In Engagement Registry, filter by lifecycle phase and administrative status.
+   Verify the table displays the detailed workflow status together with its
+   phase/admin projection and canonical office.
+5. Use a historical multi-office fixture, if available, and verify the warning
+   is visible while the record remains read-only from the foundation contract.
+6. Repeat the checks at desktop and mobile widths. The grouped sidebar must
+   remain scrollable, the workspace tabs must be horizontally usable, and no
+   page may introduce horizontal document overflow.
+
 #### Audit Team
 
 **Purpose:** Establish who may work on and see the engagement and record the
@@ -547,6 +566,114 @@ Miscellaneous checks:
   source of that access;
 - person-days should reconcile with the IAP plan while remaining an AEMS
   historical assignment record.
+
+#### Team safeguards and ARMIS readiness (AEMS-3A/AEMS-3B)
+
+After the four core roles are assigned, also test the optional `SPECIALIST` and
+`AUTHORIZED_PARTICIPANT` roles. Open the Team Safeguards workspace/API and, as
+each assigned resource, submit separate Objectivity, Conflict-of-Interest, and
+Independence declarations. Use `CLEAR` for an uncomplicated case; use
+`DISCLOSED` without a mitigation plan and `CONFLICT` to confirm that readiness
+is blocked. Attach an exact Core Document Version when evidence is required.
+
+As a different reviewer, accept or return each declaration. A preparer must not
+review their own declaration. After an accepted declaration, attempt a
+correction without `revisionReason` (it must fail), then submit the correction
+with a reason and confirm that the original version remains immutable.
+
+Record a pending safeguard assessment as a reviewer, then approve it as a
+different CIAS Management authority. Confirm that the approved assessment is
+immutable and that notifications, Activity Log, Audit Trail, and engagement
+events contain actor, version, provider mode, and reconciliation metadata.
+
+Verify provider modes separately:
+
+1. `IAP_INTERIM_FALLBACK`: the response is usable but visibly
+   non-authoritative; stale ARMIS reconciliation is a warning.
+2. `ARMIS_SHADOW`: the provider is comparison-only and cannot approve a team.
+3. `ARMIS_AUTHORITATIVE`: remove the active ARMIS profile, approved capacity,
+   verified competency, fresh accepted reconciliation, or independence
+   declaration one at a time. Each omission must block assessment approval and
+   the aggregate AEO/fieldwork gate. Restore the data and confirm readiness.
+
+In the Audit Team page, confirm that the provider card, planned-versus-actual
+cards, competency/workload matrix, declaration status, readiness blockers, and
+approval panel display the same values as the API response. Use the resolver
+text on each blocker to verify that the interface identifies who must act next.
+Submit a declaration from the form, review it as another actor, and confirm
+that returned declarations can be revised while accepted versions remain
+visible in history. Record an assessment and approve it from the separate
+approval action; verify that the assessor and approver are visibly distinct.
+
+Finally, create an approved ARMIS actual-person-day record and compare it with
+the AEMS team and engagement totals. A variance must be recorded and block an
+authoritative assessment until reconciled. These checks are protected by
+`AemsTeamSafeguardTest`, `AemsTeamAeoTest`, `ArmisAssignmentTest`, and
+`ArmisProviderReconciliationTest`.
+
+#### Fieldwork Records and Execution Workspace (AEMS-4A/AEMS-4B)
+
+**Purpose:** Record and independently review the execution of every Audit
+Program procedure with immutable, evidence-backed traceability.
+
+1. Open an engagement in active fieldwork and confirm its current active Audit
+   Program and procedure list are visible.
+2. Create one draft for each supported type: Interview, Observation,
+   Walkthrough, Inspection, Testing, Sampling, and Analysis. For every record,
+   enter the performed date/location, objective, procedure performed,
+   population/sample, result, conclusion, participants, Audit Area and Focus,
+   related tasks/records, at least one Working Paper version, and at least one
+   Evidence record linked to an exact Core Document Version.
+3. Attempt to submit an incomplete or in-progress record. Confirm the server
+   rejects it until execution is `COMPLETED`, participants exist, and both
+   Working Paper and Evidence traceability are present.
+4. Submit a complete record as its preparer. As a different authorized
+   reviewer, record an independent review. Confirm the preparer cannot review
+   or return their own record.
+5. Return the submitted record with a reason, edit it as a new version, and
+   resubmit. Confirm the prior version, return reason, actor, and timestamp
+   remain visible and immutable.
+6. Attempt finalization with an unapproved Working Paper, unverified Evidence,
+   or the independent reviewer as finalizer. Each attempt must be blocked.
+   Finalize as a different authorized authority after all links are approved or
+   verified/locked. Confirm the record is locked and the procedure fields show
+   completed execution, results, conclusion, reviewer state, related items,
+   and completion actor/time.
+7. Attempt to progress a separate procedure directly to `COMPLETED` without a
+   finalized Fieldwork Record. Confirm the API returns a fieldwork validation
+   error. After finalizing a linked record, repeat the progress action and
+   confirm it succeeds with optimistic lock versions refreshed.
+8. Start a formal correction on a finalized record. Confirm it creates a new
+   draft version, resets the procedure fieldwork state to in progress, and
+   leaves the finalized snapshot untouched.
+
+Verify the Fieldwork Record events, Activity Log, Audit Trail, notifications,
+engagement scope, and stale lock-version errors. The protected backend gate is
+covered by `AemsFieldworkRecordTest`.
+
+The AEMS-4B browser acceptance flow is:
+
+1. Open **Execution Workspace** from the AEMS sidebar or from an engagement's
+   Execution tab. Select an engagement and confirm the selected engagement,
+   active procedures, target dates, and Fieldwork Records remain in context.
+2. Select a procedure and verify its Audit Program status, results/conclusion,
+   task list, overdue state, and links to Working Papers/Evidence and Issues.
+3. Select a Fieldwork Record and verify its immutable version number, execution
+   narrative, participants, reviewer notes, linked Working Paper/Evidence
+   versions, and event timeline. Use the record-type filter and record search.
+4. Create or edit a draft, enter task assignee/due date, and save. Confirm the
+   server response creates a new version on correction and that finalized
+   records are not edited in place.
+5. Use Submit, Record Review, Return for Revision, Resubmit, Finalize, and
+   Start Correction only with the appropriate role. Confirm the UI surfaces
+   server blockers, separation-of-duties failures, stale lock conflicts, and
+   traceability requirements rather than bypassing them.
+6. Use **Create issue** from a record with linked Working Paper/Evidence and
+   verify the draft issue opens with exact linked version IDs. Complete the
+   Issue workflow on the Issues page independently.
+
+The focused browser contract for this flow is
+`tests/e2e/aems-execution.spec.js`.
 
 #### Engagement Orders
 
@@ -724,6 +851,73 @@ Miscellaneous checks:
 - altered-file/checksum validation must fail;
 - confidentiality must control discovery and download;
 - voiding retains the file/version/history but prevents future reliance.
+
+#### Evidence Requests and professional assessment (AEMS-5A)
+
+Use an assigned auditor and an independent reviewer for this acceptance flow:
+
+1. Create an Evidence Request and confirm version 1 is immutable. Edit the
+   draft once and verify a new request version and lock version are created.
+2. Submit and send the request. Record one exact current Evidence/Core
+   `DocumentVersion` as partially received, then mark the request received.
+3. Attempt **Assess** before recording an assessment and confirm the backend
+   rejects the request. Assess the received evidence with the complete
+   sufficiency/appropriateness/relevance/reliability/competence/accuracy/
+   completeness/corroboration/contradiction/authenticity/integrity and
+   confidentiality contract. Confirm the assessment cites the exact document
+   version and is immutable.
+4. Create a corrected assessment and verify the prior assessment is retained
+   as a superseded version. Attempt to assess a replaced, voided, draft, or
+   mismatched document version and confirm rejection.
+5. Mark the evidence restricted or add access restrictions. Confirm the
+   assessment and Finding validation report it as ineligible until a separate
+   authorized user approves the exception with a reason. Confirm the assessor
+   cannot approve their own exception.
+6. Approve the exception, re-run Finding validation, and confirm the exact
+   assessment/document version is now eligible. Verify events, Activity Log,
+   Audit Trail, lock versions, and Core notifications for request transitions,
+   assessment, and exception decision.
+7. Close the request with a reason only after it is assessed. Verify protected
+   downloads still require authenticated engagement scope and no public URL is
+   returned.
+
+Focused backend checks:
+
+```text
+cd backend
+php artisan test --filter=AemsEvidenceRequestTest --testdox
+php artisan test --filter='Aems' --testdox --no-coverage
+```
+
+Expected AEMS-5A checkpoint: `AemsEvidenceRequestTest` passes 2 tests and 21
+assertions; the AEMS regression passes 51 tests and 877 assertions. New
+evidence uploaded through the AEMS service is marked `assessment_required`.
+Historical evidence rows created before AEMS-5A retain `false` for compatibility
+and continue to use their existing verification/locking gate.
+
+Browser acceptance for AEMS-5B:
+
+1. Open **Evidence Management** from the AEMS Execution navigation and select
+   an authorized engagement.
+2. In **Evidence Requests**, inspect the register, lifecycle stepper, due date,
+   requested items, immutable request versions, and receipt notes. Record
+   partial and complete receipt only through the server actions.
+3. Open **Evidence Register** and confirm each record distinguishes requested,
+   received, assessed, restricted, insufficient/gapped, and accepted-for-
+   reporting states. Inspect the exact Core Document Version, custody actor,
+   checksum, file size, MIME type, and version comparison.
+4. Use **Assess evidence** to record the professional assessment attributes.
+   Confirm evidence gaps, limitations, and restricted access are visually
+   prominent. Restricted evidence must show that reporting use is blocked until
+   an independent exception approval is recorded.
+5. Use the linked context actions to navigate to Working Papers, Fieldwork,
+   Issues, Findings, and Reports while retaining the engagement ID.
+
+Focused browser check:
+
+```text
+npx.cmd playwright test tests/e2e/aems-evidence-management.spec.js --project=desktop-chrome
+```
 
 #### Audit Issues
 
@@ -1097,6 +1291,19 @@ actions return an authorization error and do not change data.
     version, approve it, implement it, and confirm the original closure remains
     immutable history.
 
+11. Open the engagement's **Completion & Transfer** tab. Reconcile the CMS
+    transfer manifest and ARMIS/IAP effort snapshot. Confirm the issued report
+    version, Core Document checksum, transferred/excluded counts, provider
+    mode, and planned-versus-actual variance are visible.
+12. Reconcile a second time and confirm the same manifest and CMS transfer
+    keys are reused (no duplicate CMS case). Introduce an incomplete transfer,
+    confirm an open exception blocks Closure, resolve the source record, and
+    reconcile again.
+13. Have an independent CIAS/reviewer account approve the reconciled manifest
+    and effort snapshot. Confirm the generator cannot approve, lock versions
+    cannot be edited, and the formal Closure checklist shows the three new
+    transfer/effort checks as passed only when their server conditions hold.
+
 ### CMS-01 — Monitor a transferred recommendation
 
 1. Open the CMS Dashboard and Recommendation Registry with a scoped account.
@@ -1198,6 +1405,8 @@ npx.cmd playwright test tests/e2e/aems-responsive.spec.js
 npx.cmd playwright test tests/e2e/cms-responsive.spec.js
 npx.cmd playwright test tests/e2e/cms-dispositions.spec.js
 npx.cmd playwright test tests/e2e/cms-reopening.spec.js
+npx.cmd playwright test tests/e2e/aems-shell.spec.js tests/e2e/aems-planning-package.spec.js tests/e2e/aems-execution.spec.js tests/e2e/aems-evidence-management.spec.js tests/e2e/aems-issues-findings.spec.js tests/e2e/aems-conference-dialogue.spec.js tests/e2e/aems-reporting.spec.js tests/e2e/aems-responsive.spec.js
+npx.cmd playwright test tests/e2e/aems-error-sanitization.spec.js
 ```
 
 `npm.cmd run test:e2e` starts the Laravel and Vite servers through
@@ -1209,6 +1418,13 @@ across the desktop and mobile projects. The Playwright backend server uses
 `APP_ENV=testing`, so isolated contexts can sign in repeatedly without
 exhausting the production-sized login-rate buckets. This is test-server-only;
 production authentication limits and account-lock behavior remain unchanged.
+
+The AEMS final verification gate also runs `php artisan migrate:fresh --seed`
+against the explicitly configured local/testing database before the regression
+suite. Never run that destructive command against a deployment database. The
+browser API boundary redacts SQLSTATE, PDO, and database-driver diagnostics;
+the error-sanitization test protects the requirement that SQL errors are not
+shown to users.
 
 ## 11. Sign-off checklist
 
@@ -1222,3 +1438,61 @@ production authentication limits and account-lock behavior remain unchanged.
 - [ ] Desktop and mobile checks passed
 - [ ] Automated lint, build, backend, and browser verification passed
 - [ ] Known deferred modules/features were recorded separately
+
+## AEMS-2A planning-package acceptance
+
+1. Open an authorized engagement after AEO, AEP, and Audit Program preparation.
+2. Create a Planning Package and confirm the response preserves IAP lineage;
+   create a second package and confirm the duplicate is rejected.
+3. Enter survey, objectives, process flows, risk matrix/items, and links to a
+   current Audit Program procedure and working-paper reference. Confirm the
+   readiness response identifies incomplete checks before submission.
+4. Submit, review as a different user, and approve as a separate authority.
+   Confirm the approved version/checksum and review decision are visible.
+5. Attempt to edit an approved version and confirm it is rejected; start a
+   formal revision and confirm the previous approved version remains intact.
+6. Attempt aggregate `START_FIELDWORK` without an approved package and confirm
+   a planning-package blocker. Approve the package and confirm the gate passes.
+
+## AEMS-2B planning-package workspace acceptance
+
+1. Open the Planning Package route from an authorized engagement and confirm the
+   shared engagement navigation remains visible while the planning sections
+   change in place.
+2. Create a draft, add objectives, complete the preliminary survey, add a
+   process flow, risk matrix, risk item, and objective/procedure/working-paper
+   links. Save and confirm a new immutable version is shown.
+3. Open Readiness & Review and confirm the checklist is sourced from the API;
+   submit, record an independent review as a different user, return the package,
+   revise the content, and resubmit it.
+4. Approve as a separate authority, open Versions, inspect the approved
+   snapshot, and compare two versions. Confirm approved fields and risk-item
+   detail are read-only and that the approved version remains intact after a
+ formal revision.
+
+## AEMS-10A/10B dashboard and queue acceptance
+
+1. Sign in as management and as an assigned auditor. Open AEMS Dashboard and
+   confirm the same endpoint returns different engagement counts and queue
+   rows according to each user's scope; confirm the browser source contains no
+   dashboard fixture/mock records.
+2. Apply Planning, Fieldwork, Reporting, Closure, status, office, and search
+   filters. Confirm both the tracker and phase counts are recalculated by the
+   backend and that an unauthorized engagement never appears.
+3. Create or use records for an overdue procedure, submitted Working Paper,
+   sent Evidence Request, evidence assessment gap, pending finding, upcoming
+   conference, pending report, open transfer exception, draft Review Note,
+   open task, and escalation candidate. Confirm each appears in its queue and
+   deep link, while an empty queue has an explicit empty state.
+4. Confirm metric cards hover and auto-fit the row on desktop and reflow without
+   clipping on mobile. Verify loading, error/retry, unauthorized, and no-result
+   states.
+5. As an authorized exporter, download Progress CSV and Work Queues CSV;
+   verify authentication, scope filtering, Activity Log/Audit Trail entries,
+   preserved protected downloads, and formula-prefixing for values beginning
+   with `=`, `+`, `-`, or `@`. Confirm a user without
+   `aems.engagement.export` receives 403.
+6. Change the Core notification settings for the AEMS reminder switch and due
+   windows. Run `php artisan notifications:dispatch-reminders` and confirm
+   reminders follow the configured windows, remain deduplicated, and never
+   approve, close, transfer, or issue a record.

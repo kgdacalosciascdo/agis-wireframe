@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   ArrowRight,
   BriefcaseBusiness,
-  CalendarCheck2,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -11,15 +10,22 @@ import {
   Download,
   FileCheck2,
   FileClock,
+  FileInput,
+  FileWarning,
   Gauge,
   ListChecks,
+  ListTodo,
   MessageSquareWarning,
   Network,
   PlugZap,
   RefreshCw,
   Search,
+  SearchCheck,
   ShieldCheck,
+  ShieldAlert,
   TimerOff,
+  BellRing,
+  CalendarClock,
   X,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -64,20 +70,6 @@ const cardDefinitions = [
     tone: "amber",
   },
   {
-    key: "findingsAwaitingResponse",
-    label: "Findings awaiting response",
-    note: "Formally communicated",
-    icon: MessageSquareWarning,
-    tone: "orange",
-  },
-  {
-    key: "upcomingExitConferences",
-    label: "Upcoming conferences",
-    note: "Next 30 days",
-    icon: CalendarCheck2,
-    tone: "violet",
-  },
-  {
     key: "reportsPendingApproval",
     label: "Reports pending approval",
     note: "In review queue",
@@ -91,6 +83,69 @@ const cardDefinitions = [
     icon: CheckCircle2,
     tone: "emerald",
   },
+  {
+    key: "evidenceRequestsAwaitingResponse",
+    label: "Evidence requests",
+    note: "Awaiting response",
+    icon: FileInput,
+    tone: "teal",
+  },
+  {
+    key: "evidenceGaps",
+    label: "Evidence gaps",
+    note: "Restricted or limited",
+    icon: FileWarning,
+    tone: "fuchsia",
+  },
+  {
+    key: "findingsAwaitingReview",
+    label: "Findings awaiting review",
+    note: "Pending or resubmitted",
+    icon: SearchCheck,
+    tone: "purple",
+  },
+  {
+    key: "findingsAwaitingManagementResponse",
+    label: "Findings awaiting response",
+    note: "Management dialogue",
+    icon: MessageSquareWarning,
+    tone: "orange",
+  },
+  {
+    key: "upcomingConferences",
+    label: "Upcoming conferences",
+    note: "Entry and exit · 30 days",
+    icon: CalendarClock,
+    tone: "violet",
+  },
+  {
+    key: "cmsTransferExceptions",
+    label: "CMS transfer exceptions",
+    note: "Open reconciliation items",
+    icon: ShieldAlert,
+    tone: "red",
+  },
+  {
+    key: "reviewNotesAwaitingReview",
+    label: "Review Notes",
+    note: "Draft notes",
+    icon: ListChecks,
+    tone: "slate",
+  },
+  {
+    key: "openTasks",
+    label: "Open tasks",
+    note: "Due and in progress",
+    icon: ListTodo,
+    tone: "lime",
+  },
+  {
+    key: "escalationCandidates",
+    label: "Escalation candidates",
+    note: "Reviewable signals",
+    icon: BellRing,
+    tone: "yellow",
+  },
 ];
 
 const toneClasses = {
@@ -103,6 +158,13 @@ const toneClasses = {
   violet: "border-violet-200 bg-violet-50 text-violet-700",
   blue: "border-blue-200 bg-blue-50 text-blue-700",
   emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  teal: "border-teal-200 bg-teal-50 text-teal-700",
+  fuchsia: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
+  purple: "border-purple-200 bg-purple-50 text-purple-700",
+  red: "border-red-200 bg-red-50 text-red-700",
+  slate: "border-slate-200 bg-slate-50 text-slate-700",
+  lime: "border-lime-200 bg-lime-50 text-lime-700",
+  yellow: "border-yellow-200 bg-yellow-50 text-yellow-700",
 };
 
 const statusTones = {
@@ -169,6 +231,128 @@ function MetricCard({ definition, value, loading }) {
         </span>
       </div>
     </article>
+  );
+}
+
+function queueItemUrl(queue, item) {
+  if (item.route) return item.route;
+  if (!queue.route) return "#";
+  return item.engagement?.id
+    ? `${queue.route}${queue.route.includes("?") ? "&" : "?"}engagementId=${item.engagement.id}`
+    : queue.route;
+}
+
+function WorkQueuePanel({ queue, loading }) {
+  if (loading) {
+    return (
+      <div className="animate-pulse rounded-xl border border-slate-200 bg-white p-4">
+        <div className="h-4 w-1/2 rounded bg-slate-200" />
+        <div className="mt-4 h-10 rounded bg-slate-100" />
+        <div className="mt-2 h-10 rounded bg-slate-100" />
+      </div>
+    );
+  }
+
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">{queue.label}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            {queue.count} item{queue.count === 1 ? "" : "s"} in your scope
+          </p>
+        </div>
+        <span className={`grid h-9 min-w-9 place-items-center rounded-lg text-sm font-extrabold ${queue.count > 0 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+          {queue.count}
+        </span>
+      </div>
+      {queue.items?.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          {queue.items.slice(0, 3).map((item) => (
+            <Link
+              className="block rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 transition hover:border-sky-200 hover:bg-sky-50"
+              key={`${queue.key}-${item.id}`}
+              to={queueItemUrl(queue, item)}
+            >
+              <span className="block truncate text-xs font-bold text-slate-800">
+                {item.code || item.title || "Queue item"}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                {item.engagement?.code || item.title || item.status || "Open"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-lg bg-slate-50 px-3 py-3 text-xs text-slate-500">
+          Nothing needs attention here.
+        </p>
+      )}
+      {queue.count > 0 && queue.route && (
+        <Link className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-700 hover:text-sky-900" to={queue.route}>
+          Open queue <ArrowRight size={13} />
+        </Link>
+      )}
+    </article>
+  );
+}
+
+function PhaseSummary({ phases, loading }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-bold text-slate-900">Engagements by phase</h2>
+          <p className="mt-1 text-xs text-slate-500">Scope-aware portfolio distribution.</p>
+        </div>
+        <Network className="text-sky-600" size={18} />
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {(loading ? Array.from({ length: 5 }, (_, index) => ({ key: index, label: "Loading", count: "—" })) : phases).map((phase) => (
+          <div className="rounded-lg bg-slate-50 px-3 py-3" key={phase.key}>
+            <strong className="block text-xl text-slate-900">{phase.count}</strong>
+            <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{phase.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NotificationPanel({ notifications, loading }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-bold text-slate-900">Notification monitoring</h2>
+          <p className="mt-1 text-xs text-slate-500">Your actionable AEMS and system notifications.</p>
+        </div>
+        <Link className="inline-flex items-center gap-1 text-xs font-bold text-sky-700" to="/notifications">
+          Open notifications <ArrowRight size={13} />
+        </Link>
+      </div>
+      {loading ? (
+        <div className="mt-4 h-16 animate-pulse rounded-lg bg-slate-100" />
+      ) : (
+        <>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg bg-sky-50 px-3 py-3"><strong className="block text-lg text-sky-800">{notifications.unread ?? 0}</strong><span className="text-xs font-bold text-sky-700">Unread</span></div>
+            <div className="rounded-lg bg-indigo-50 px-3 py-3"><strong className="block text-lg text-indigo-800">{notifications.aemsUnread ?? 0}</strong><span className="text-xs font-bold text-indigo-700">AEMS unread</span></div>
+            <div className="rounded-lg bg-rose-50 px-3 py-3"><strong className="block text-lg text-rose-800">{notifications.overdue ?? 0}</strong><span className="text-xs font-bold text-rose-700">Overdue</span></div>
+          </div>
+          {notifications.recent?.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {notifications.recent.slice(0, 3).map((notification) => (
+                <Link className="block rounded-lg border border-slate-100 px-3 py-2 hover:bg-slate-50" key={notification.id} to={notification.actionUrl || "/notifications"}>
+                  <span className="block truncate text-xs font-bold text-slate-800">{notification.title}</span>
+                  <span className="mt-0.5 block truncate text-[11px] text-slate-500">{notification.message}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -472,11 +656,16 @@ export default function AemsDashboardPage() {
     filters: { statuses: [], offices: [] },
     integrations: {},
     capabilities: { canExport: false },
+    phaseCounts: [],
+    workQueues: {},
+    notifications: { unread: 0, aemsUnread: 0, overdue: 0, recent: [] },
+    reminderRules: {},
   });
   const [filters, setFilters] = useState({
     search: "",
     status: "",
     officeId: "",
+    phase: "",
     page: 1,
     perPage: 10,
   });
@@ -484,15 +673,19 @@ export default function AemsDashboardPage() {
     search: "",
     status: "",
     officeId: "",
+    phase: "",
   });
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingQueues, setExportingQueues] = useState(false);
   const [error, setError] = useState("");
+  const [unauthorized, setUnauthorized] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setUnauthorized(false);
     try {
       const data = await aemsDashboardApi.show(filters);
       setDashboard({
@@ -508,10 +701,17 @@ export default function AemsDashboardPage() {
         filters: data?.filters ?? { statuses: [], offices: [] },
         integrations: data?.integrations ?? {},
         capabilities: data?.capabilities ?? { canExport: false },
+        phaseCounts: Array.isArray(data?.phaseCounts) ? data.phaseCounts : [],
+        workQueues: data?.workQueues ?? {},
+        notifications: data?.notifications ?? { unread: 0, aemsUnread: 0, overdue: 0, recent: [] },
+        reminderRules: data?.reminderRules ?? {},
       });
     } catch (requestError) {
+      setUnauthorized([401, 403].includes(requestError?.status));
       setError(
-        requestError instanceof Error
+        [401, 403].includes(requestError?.status)
+          ? "You are not authorized to view the AEMS dashboard in this scope."
+          : requestError instanceof Error
           ? requestError.message
           : "Unable to load the engagement tracker.",
       );
@@ -526,7 +726,7 @@ export default function AemsDashboardPage() {
   }, [load]);
 
   const filtersActive = useMemo(
-    () => Boolean(filters.search || filters.status || filters.officeId),
+    () => Boolean(filters.search || filters.status || filters.officeId || filters.phase),
     [filters],
   );
 
@@ -540,7 +740,7 @@ export default function AemsDashboardPage() {
   }
 
   function clearFilters() {
-    const cleared = { search: "", status: "", officeId: "" };
+    const cleared = { search: "", status: "", officeId: "", phase: "" };
     setDraftFilters(cleared);
     setFilters((current) => ({ ...current, ...cleared, page: 1 }));
   }
@@ -574,6 +774,27 @@ export default function AemsDashboardPage() {
     }
   }
 
+  async function exportQueues() {
+    setExportingQueues(true);
+    setError("");
+    try {
+      await aemsDashboardApi.exportQueues({
+        search: filters.search,
+        status: filters.status,
+        phase: filters.phase,
+        officeId: filters.officeId,
+      });
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to export the AEMS work queues.",
+      );
+    } finally {
+      setExportingQueues(false);
+    }
+  }
+
   return (
     <main className="min-w-0 p-4 sm:p-5 lg:p-6">
       <RegistryHeader
@@ -583,15 +804,26 @@ export default function AemsDashboardPage() {
         actions={
           <>
             {dashboard.capabilities.canExport && (
-              <button
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
-                disabled={exporting}
-                onClick={exportReport}
-                type="button"
-              >
-                <Download size={17} />
-                {exporting ? "Exporting..." : "Export Progress CSV"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                  disabled={exporting}
+                  onClick={exportReport}
+                  type="button"
+                >
+                  <Download size={17} />
+                  {exporting ? "Exporting..." : "Export Progress CSV"}
+                </button>
+                <button
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                  disabled={exportingQueues}
+                  onClick={exportQueues}
+                  type="button"
+                >
+                  <ListChecks size={17} />
+                  {exportingQueues ? "Exporting..." : "Export Queues CSV"}
+                </button>
+              </div>
             )}
             <Link
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-800 hover:shadow-md"
@@ -605,7 +837,7 @@ export default function AemsDashboardPage() {
       />
 
       {error && (
-        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`mb-4 flex flex-col gap-3 rounded-xl border p-4 text-sm font-semibold sm:flex-row sm:items-center sm:justify-between ${unauthorized ? "border-amber-200 bg-amber-50 text-amber-800" : "border-red-200 bg-red-50 text-red-700"}`}>
           <span>{error}</span>
           <button
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2"
@@ -618,7 +850,7 @@ export default function AemsDashboardPage() {
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         {cardDefinitions.map((definition) => (
           <MetricCard
             definition={definition}
@@ -633,6 +865,31 @@ export default function AemsDashboardPage() {
         integrations={dashboard.integrations}
         loading={loading}
       />
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.8fr)]">
+        <PhaseSummary loading={loading} phases={dashboard.phaseCounts} />
+        <NotificationPanel loading={loading} notifications={dashboard.notifications} />
+      </div>
+
+      <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
+          <div>
+            <h2 className="font-bold text-slate-900">Needs attention</h2>
+            <p className="mt-1 text-xs text-slate-500">Operational work queues calculated from your authorized AEMS scope.</p>
+          </div>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"><PlugZap size={14} /> Live workflow data</span>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {Object.values(dashboard.workQueues).map((queue) => (
+            <WorkQueuePanel key={queue.key} loading={loading} queue={queue} />
+          ))}
+          {!loading && Object.keys(dashboard.workQueues).length === 0 && (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+              No work queues are available for this account.
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-4 sm:p-5">
@@ -659,7 +916,7 @@ export default function AemsDashboardPage() {
           </div>
 
           <form
-            className="mt-4 grid gap-3 md:grid-cols-[minmax(12rem,1fr)_12rem_14rem_auto]"
+            className="mt-4 grid gap-3 md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_14rem_auto]"
             onSubmit={applyFilters}
           >
             <label className="relative min-w-0">
@@ -716,6 +973,26 @@ export default function AemsDashboardPage() {
                 {dashboard.filters.offices.map((office) => (
                   <option key={office.id} value={office.id}>
                     {office.code} · {office.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">Engagement phase</span>
+              <select
+                className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    phase: event.target.value,
+                  }))
+                }
+                value={draftFilters.phase}
+              >
+                <option value="">All phases</option>
+                {(dashboard.filters.phases ?? []).map((phase) => (
+                  <option key={phase} value={phase}>
+                    {titleCase(phase)}
                   </option>
                 ))}
               </select>

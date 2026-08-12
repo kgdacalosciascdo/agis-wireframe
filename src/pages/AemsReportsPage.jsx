@@ -58,6 +58,8 @@ function statusTone(status) {
     RESUBMITTED: "warning",
     APPROVED: "success",
     ISSUED: "active",
+    SUPERSEDED: "inactive",
+    WITHDRAWN: "danger",
   }[status] ?? "inactive";
 }
 
@@ -105,6 +107,12 @@ function emptyContent(defaultConfidentiality = "") {
     approvingAuthority: "",
     recipients: [],
     changeReason: "",
+    qualityChecklist: [
+      { code: "FINDINGS", label: "Only eligible findings are included", completed: false },
+      { code: "EVIDENCE", label: "Evidence and traceability reviewed", completed: false },
+      { code: "CONFIDENTIALITY", label: "Confidentiality and recipients verified", completed: false },
+      { code: "QUALITY", label: "Quality review completed", completed: false },
+    ],
   };
 }
 
@@ -113,6 +121,15 @@ export default function AemsReportsPage() {
   const { user } = useAuth();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
+  const requestedStage = params.get("stage");
+  const selectedStage = [
+    "INTERIM_REPORT",
+    "DRAFT_REPORT",
+    "FINAL_REPORT",
+    "DISTRIBUTION",
+  ].includes(requestedStage)
+    ? requestedStage
+    : "";
   const [engagements, setEngagements] = useState([]);
   const [engagementId, setEngagementId] = useState(
     params.get("engagementId") ?? "",
@@ -131,11 +148,17 @@ export default function AemsReportsPage() {
     comment: "",
     issuanceDate: "",
   });
+  const [compareVersion, setCompareVersion] = useState(null);
 
   const canCreate = hasPermission(user, "aems.report.create");
   const canReview = hasPermission(user, "aems.report.review");
   const canApprove = hasPermission(user, "aems.report.approve");
   const canIssue = hasPermission(user, "aems.report.issue");
+  const canDistribute = hasPermission(user, "aems.report.distribute");
+  const canAcknowledge = hasPermission(user, "aems.report.acknowledge");
+  const canAmend = hasPermission(user, "aems.report.amend");
+  const canWithdraw = hasPermission(user, "aems.report.withdraw");
+  const canSupersede = hasPermission(user, "aems.report.supersede");
 
   const loadEngagements = useCallback(async () => {
     setLoading(true);
@@ -178,7 +201,16 @@ export default function AemsReportsPage() {
   }, [loadWorkspace]);
 
   useEffect(() => {
-    if (engagementId) setParams({ engagementId }, { replace: true });
+    if (engagementId) {
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set("engagementId", engagementId);
+          return next;
+        },
+        { replace: true },
+      );
+    }
   }, [engagementId, setParams]);
 
   const report = workspace?.report ?? null;
@@ -239,6 +271,7 @@ export default function AemsReportsPage() {
                   }))
                 : [],
             changeReason: "",
+            qualityChecklist: snapshot.qualityChecklist ?? emptyContent(defaultConfidentiality).qualityChecklist,
           }
         : emptyContent(defaultConfidentiality),
     );
@@ -259,6 +292,8 @@ export default function AemsReportsPage() {
       };
       if (generationMode === "create") {
         await aemsReportApi.create(engagementId, payload);
+      } else if (generationMode === "interim") {
+        await aemsReportApi.createInterim(engagementId, payload);
       } else if (generationMode === "final") {
         await aemsReportApi.createFinal(engagementId, report.id, payload);
       } else {
@@ -268,6 +303,8 @@ export default function AemsReportsPage() {
       await refresh(
         generationMode === "final"
           ? "Final Report draft generated."
+          : generationMode === "interim"
+            ? "Interim Audit Report generated."
           : "Immutable report version generated.",
       );
     } catch (requestError) {
@@ -322,21 +359,48 @@ export default function AemsReportsPage() {
     }
   }
 
+  async function recordDistribution(version, recipient, decision) {
+    setSaving(true);
+    try {
+      await aemsReportApi.distributionDecision(engagementId, report.id, version.id, recipient.id, { decision });
+      await refresh("Distribution decision recorded.");
+    } catch (requestError) {
+      showError(requestError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function controlledReportAction(type) {
+    const reason = window.prompt(`${label(type)} reason`);
+    if (!reason) return;
+    setSaving(true);
+    try {
+      if (type === "WITHDRAW") {
+        await aemsReportApi.withdraw(engagementId, report.id, { lockVersion: report.lockVersion, reason });
+      } else {
+        await aemsReportApi.successor(engagementId, report.id, { action: type, lockVersion: report.lockVersion, reason });
+      }
+      await refresh(`Report ${label(type).toLowerCase()} decision recorded.`);
+    } catch (requestError) {
+      showError(requestError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="min-w-0 p-4 sm:p-5">
       <RegistryHeader
-        description="Generate immutable Draft and Final Report PDFs, preserve review history, issue to controlled recipients, and transfer recommendations once."
+        description="Assemble Interim, Draft, and Final Audit Reports, preserve review history, issue to controlled recipients, and transfer recommendations once."
         icon={FileCheck2}
-        title="Audit Reports"
+        title="Audit Reporting Workspace"
         actions={
           canCreate && workspace && !report ? (
-            <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800"
-              onClick={() => openGeneration("create")}
-              type="button"
-            >
-              <FilePlus2 size={17} /> Generate Draft Report
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-sky-300 bg-white px-4 text-sm font-bold text-sky-700 hover:bg-sky-50" onClick={() => openGeneration("interim")} type="button"><FileClock size={17} /> Interim Report</button>
+              <button className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800" onClick={() => openGeneration("create")} type="button"><FilePlus2 size={17} /> Generate Draft Report</button>
+            </div>
           ) : null
         }
       />
@@ -366,6 +430,16 @@ export default function AemsReportsPage() {
           tone="slate"
           value={report?.cmsTransfers?.length ?? 0}
         />
+      </section>
+
+      <section className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {["INTERIM_REPORT", "DRAFT_REPORT", "FINAL_REPORT", "DISTRIBUTION"].map((stage) => (
+          <div className={`rounded-xl border p-4 shadow-sm ${report?.reportStage === stage || selectedStage === stage ? "border-sky-300 bg-sky-50" : "border-slate-200 bg-white"}`} key={stage}>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Reporting workspace</p>
+            <p className="mt-1 font-bold text-slate-800">{label(stage)}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{stage === "INTERIM_REPORT" ? "Progress communication and quality review." : stage === "DRAFT_REPORT" ? "Assemble sections and prepare for review." : stage === "FINAL_REPORT" ? "Finalized findings and controlled issuance." : "Recipient decisions, delivery, and acknowledgement."}</p>
+          </div>
+        ))}
       </section>
 
       <section className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(20rem,1fr)_auto]">
@@ -460,7 +534,7 @@ export default function AemsReportsPage() {
                     </ActionButton>
                   )}
                 {canCreate &&
-                  report.reportStage === "DRAFT_REPORT" &&
+                  ["INTERIM_REPORT", "DRAFT_REPORT"].includes(report.reportStage) &&
                   report.status === "APPROVED" && (
                     <ActionButton onClick={() => openGeneration("final")} tone="green">
                       <FileCheck2 size={15} /> Generate Final Report
@@ -478,6 +552,9 @@ export default function AemsReportsPage() {
                     <RefreshCw size={15} /> Sync CMS transfer
                   </ActionButton>
                 )}
+                {canAmend && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={() => controlledReportAction("AMEND")}><FilePlus2 size={15} /> Amend</ActionButton>}
+                {canSupersede && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={() => controlledReportAction("SUPERSEDE")} tone="amber"><FileCheck2 size={15} /> Supersede</ActionButton>}
+                {canWithdraw && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={() => controlledReportAction("WITHDRAW")} tone="red"><Undo2 size={15} /> Withdraw</ActionButton>}
               </div>
             </div>
 
@@ -517,10 +594,17 @@ export default function AemsReportsPage() {
                       .download(engagementId, report.id, version)
                       .catch(showError)
                   }
+                  canAcknowledge={canAcknowledge}
+                  canDistribute={canDistribute}
                   version={version}
+                  onCompare={() => setCompareVersion(version)}
+                  onDecision={(recipient, decision) => recordDistribution(version, recipient, decision)}
                 />
               ))}
             </div>
+            {compareVersion && currentVersion && compareVersion.id !== currentVersion.id && (
+              <div className="mt-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700"><div className="flex items-center justify-between gap-3"><h4 className="font-bold">Version comparison: v{compareVersion.versionNumber} → v{currentVersion.versionNumber}</h4><button className="text-xs font-bold text-sky-700" onClick={() => setCompareVersion(null)} type="button">Close</button></div><p className="mt-2"><strong>Executive summary:</strong> {compareVersion.contentSnapshot?.executiveSummary === currentVersion.contentSnapshot?.executiveSummary ? "Unchanged" : "Changed"}</p><p className="mt-1"><strong>Sections:</strong> {compareVersion.contentSnapshot?.sections?.length ?? 0} → {currentVersion.contentSnapshot?.sections?.length ?? 0}; <strong>Findings:</strong> {compareVersion.findings?.length ?? 0} → {currentVersion.findings?.length ?? 0}</p></div>
+            )}
           </section>
         </div>
       )}
@@ -602,7 +686,7 @@ function Meta({ title, children }) {
   );
 }
 
-function VersionCard({ version, onDownload, canDownload }) {
+function VersionCard({ version, onDownload, canDownload, onCompare, onDecision, canAcknowledge, canDistribute }) {
   const snapshot = version.contentSnapshot;
   return (
     <article className="rounded-xl border border-slate-200 p-4">
@@ -625,11 +709,10 @@ function VersionCard({ version, onDownload, canDownload }) {
             {bytes(version.fileSize)}
           </p>
         </div>
-        {canDownload && (
-          <ActionButton onClick={onDownload}>
-            <Download size={15} /> PDF
-          </ActionButton>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {onCompare && <ActionButton onClick={onCompare}><FileClock size={15} /> Compare</ActionButton>}
+          {canDownload && <ActionButton onClick={onDownload}><Download size={15} /> Protected PDF</ActionButton>}
+        </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         {snapshot.executiveSummary}
@@ -675,15 +758,18 @@ function VersionCard({ version, onDownload, canDownload }) {
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {version.recipients.map((recipient) => (
+              <div className="flex flex-wrap items-center gap-1.5" key={recipient.id}>
               <span
                 className="rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600"
-                key={recipient.id}
               >
                 {recipient.user?.name ||
                   recipient.office?.name ||
                   recipient.externalName}{" "}
                 · {label(recipient.deliveryStatus)}
               </span>
+              {version.isLocked && canDistribute && <ActionButton onClick={() => onDecision(recipient, "DELIVERED")}><Send size={13} /> Delivered</ActionButton>}
+              {version.isLocked && canAcknowledge && <ActionButton onClick={() => onDecision(recipient, "ACKNOWLEDGED")} tone="green"><BadgeCheck size={13} /> Acknowledge</ActionButton>}
+              </div>
             ))}
           </div>
         </div>
@@ -755,6 +841,8 @@ function GenerationModal({
       title={
         mode === "create"
           ? "Generate Draft Report"
+          : mode === "interim"
+            ? "Generate Interim Audit Report"
           : mode === "final"
             ? "Generate Final Report Draft"
             : "Generate Report Revision"
@@ -816,6 +904,18 @@ function GenerationModal({
           />
         </Field>
       </div>
+
+      <section className="mt-6">
+        <h3 className="mb-3 font-bold text-slate-800">Quality checklist</h3>
+        <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+          {(form.qualityChecklist ?? []).map((item, index) => (
+            <label className="flex items-start gap-2 text-sm text-slate-700" key={item.code}>
+              <input checked={Boolean(item.completed)} onChange={(event) => onChange((current) => ({ ...current, qualityChecklist: current.qualityChecklist.map((check, position) => position === index ? { ...check, completed: event.target.checked } : check) }))} type="checkbox" />
+              <span>{item.label}</span>
+            </label>
+          ))}
+        </div>
+      </section>
 
       <section className="mt-6">
         <div className="flex items-center justify-between gap-3">

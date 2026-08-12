@@ -19,10 +19,12 @@ import { useAuth } from "../auth/auth-context";
 import AemsEntryConferenceWorkspace from "../components/aems/AemsEntryConferenceWorkspace";
 import AemsLifecycleWorkspace from "../components/aems/AemsLifecycleWorkspace";
 import AemsCompletionAssessmentWorkspace from "../components/aems/AemsCompletionAssessmentWorkspace";
+import AemsCompletionTransferWorkspace from "../components/aems/AemsCompletionTransferWorkspace";
 import AemsClosureWorkspace from "../components/aems/AemsClosureWorkspace";
 import AemsDocumentIndexWorkspace from "../components/aems/AemsDocumentIndexWorkspace";
 import AemsLessonsWorkspace from "../components/aems/AemsLessonsWorkspace";
 import AemsRetentionWorkspace from "../components/aems/AemsRetentionWorkspace";
+import AemsEngagementWorkspaceNav from "../components/aems/AemsEngagementWorkspaceNav";
 import RegistryHeader from "../components/ui/RegistryHeader";
 import StatusBadge from "../components/ui/StatusBadge";
 import { hasPermission } from "../config/navigation";
@@ -45,6 +47,61 @@ const labels = {
   SUSPENDED: "Suspended",
   CANCELLED: "Cancelled",
 };
+
+const phaseLabels = {
+  FOUNDATION: "Foundation",
+  PLANNING: "Planning",
+  EXECUTION: "Execution",
+  ISSUES_AFR: "Issues & AFR",
+  CONFERENCES: "Conferences",
+  REPORTING: "Reporting",
+  COMPLETION_TRANSFER: "Completion & Transfer",
+  CLOSURE: "Closure",
+};
+
+const administrativeLabels = {
+  DRAFT: "Draft",
+  ACTIVE: "Active",
+  RETURNED: "Returned",
+  ISSUED: "Issued",
+  SUSPENDED: "Suspended",
+  CANCELLED: "Cancelled",
+  CLOSED: "Closed",
+  ARCHIVED: "Archived",
+};
+
+const phaseByStatus = {
+  DRAFT: "FOUNDATION",
+  AUTHORIZATION_PREPARATION: "FOUNDATION",
+  RETURNED_FOR_REVISION: "FOUNDATION",
+  AUTHORIZED: "FOUNDATION",
+  ENGAGEMENT_PLANNING: "PLANNING",
+  ENTRY_CONFERENCE: "CONFERENCES",
+  FIELDWORK: "EXECUTION",
+  FINDINGS_COMMUNICATION: "ISSUES_AFR",
+  REPORTING: "REPORTING",
+  ISSUED: "REPORTING",
+  CLOSURE_REVIEW: "COMPLETION_TRANSFER",
+  CLOSED: "CLOSURE",
+  SUSPENDED: "FOUNDATION",
+  CANCELLED: "CLOSURE",
+};
+
+function phaseFor(engagement) {
+  return engagement.phase ?? phaseByStatus[engagement.status] ?? "FOUNDATION";
+}
+
+function administrativeStatusFor(engagement) {
+  if (engagement.administrativeStatus) return engagement.administrativeStatus;
+  if (engagement.isArchived) return "ARCHIVED";
+  if (engagement.status === "DRAFT") return "DRAFT";
+  if (engagement.status === "ISSUED") return "ISSUED";
+  if (engagement.status === "CLOSED") return "CLOSED";
+  if (engagement.status === "SUSPENDED") return "SUSPENDED";
+  if (engagement.status === "CANCELLED") return "CANCELLED";
+  if (engagement.status === "RETURNED_FOR_REVISION") return "RETURNED";
+  return "ACTIVE";
+}
 
 function date(value, withTime = false) {
   if (!value) return "—";
@@ -156,6 +213,9 @@ export default function AemsEngagementDetailPage() {
     ...(hasPermission(user, "aems.completion-assessment.view")
       ? [["completion-assessment", "Completion Assessment"]]
       : []),
+    ...(hasPermission(user, "aems.completion-transfer.view")
+      ? [["completion-transfer", "Completion & Transfer"]]
+      : []),
     ...(hasPermission(user, "aems.closure.view")
       ? [["closure", "Closure"]]
       : []),
@@ -260,6 +320,8 @@ export default function AemsEngagementDetailPage() {
         }
       />
 
+      <AemsEngagementWorkspaceNav engagementId={engagement.id} />
+
       <nav
         aria-label="Engagement workspace sections"
         className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
@@ -291,6 +353,9 @@ export default function AemsEngagementDetailPage() {
       ) : activeTab === "completion-assessment" &&
         hasPermission(user, "aems.completion-assessment.view") ? (
         <AemsCompletionAssessmentWorkspace engagementId={engagement.id} />
+      ) : activeTab === "completion-transfer" &&
+        hasPermission(user, "aems.completion-transfer.view") ? (
+        <AemsCompletionTransferWorkspace engagementId={engagement.id} />
       ) : activeTab === "closure" &&
         hasPermission(user, "aems.closure.view") ? (
         <AemsClosureWorkspace engagementId={engagement.id} />
@@ -305,7 +370,7 @@ export default function AemsEngagementDetailPage() {
         <AemsLessonsWorkspace engagementId={engagement.id} />
       ) : (
         <>
-      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Detail label="Status">
           <StatusBadge tone={engagement.isArchived ? "inactive" : "info"}>
             {engagement.isArchived
@@ -323,6 +388,48 @@ export default function AemsEngagementDetailPage() {
         <Detail label="Planned effort">
           {engagement.plannedPersonDays} person-days
         </Detail>
+        <Detail label="Lifecycle phase">
+          <StatusBadge tone="info">
+            {phaseLabels[phaseFor(engagement)] ?? phaseFor(engagement)}
+          </StatusBadge>
+        </Detail>
+        <Detail label="Administrative status">
+          <StatusBadge
+            tone={
+              administrativeStatusFor(engagement) === "ARCHIVED"
+                ? "inactive"
+                : administrativeStatusFor(engagement) === "SUSPENDED" ||
+                    administrativeStatusFor(engagement) === "CANCELLED"
+                  ? "danger"
+                  : "success"
+            }
+          >
+            {administrativeLabels[administrativeStatusFor(engagement)] ??
+              administrativeStatusFor(engagement)}
+          </StatusBadge>
+        </Detail>
+      </section>
+
+      <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs">
+        <div className="flex min-w-0 items-center gap-2 text-sky-900">
+          <Building2 className="shrink-0" size={16} />
+          <span className="truncate">
+            Engagement office: {engagement.offices?.[0]?.code ?? "Not assigned"}
+            {engagement.offices?.[0]?.name
+              ? ` · ${engagement.offices[0].name}`
+              : ""}
+          </span>
+        </div>
+        {engagement.officeRule?.state === "LEGACY_MULTI_OFFICE" && (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 font-bold text-amber-800 ring-1 ring-amber-300">
+            Legacy multi-office record · review required
+          </span>
+        )}
+        {engagement.officeRule?.state === "VALID" && (
+          <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-800 ring-1 ring-emerald-300">
+            Foundation scope valid
+          </span>
+        )}
       </section>
 
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,.65fr)]">

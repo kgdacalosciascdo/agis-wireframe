@@ -17,10 +17,12 @@ import Modal from "../components/ui/Modal";
 import RegistryHeader from "../components/ui/RegistryHeader";
 import SearchableSelect from "../components/ui/SearchableSelect";
 import SummaryCard from "../components/ui/SummaryCard";
+import AemsTeamSafeguardsPanel from "../components/aems/AemsTeamSafeguardsPanel";
 import { hasPermission } from "../config/navigation";
 import {
   aemsEngagementApi,
   aemsTeamApi,
+  aemsTeamSafeguardApi,
   ApiError,
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
@@ -63,6 +65,7 @@ export default function AemsTeamPage() {
     searchParams.get("engagementId") ?? "",
   );
   const [overview, setOverview] = useState(null);
+  const [safeguards, setSafeguards] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,17 +101,34 @@ export default function AemsTeamPage() {
   const loadTeam = useCallback(async () => {
     if (!selectedId) {
       setOverview(null);
+      setSafeguards(null);
       return;
     }
     setLoading(true);
     setError("");
     try {
-      setOverview(await aemsTeamApi.show(selectedId));
+      const [teamResult, safeguardResult] = await Promise.allSettled([
+        aemsTeamApi.show(selectedId),
+        aemsTeamSafeguardApi.show(selectedId),
+      ]);
+      if (teamResult.status === "rejected") throw teamResult.reason;
+      setOverview(teamResult.value);
+      setSafeguards(safeguardResult.status === "fulfilled" ? safeguardResult.value : null);
     } catch (requestError) {
       setError(requestError.message);
       setOverview(null);
+      setSafeguards(null);
     } finally {
       setLoading(false);
+    }
+  }, [selectedId]);
+
+  const refreshSafeguards = useCallback(async () => {
+    if (!selectedId) return;
+    try {
+      setSafeguards(await aemsTeamSafeguardApi.show(selectedId));
+    } catch (requestError) {
+      setError(requestError.message);
     }
   }, [selectedId]);
 
@@ -467,6 +487,15 @@ export default function AemsTeamPage() {
               )}
             </div>
           </section>
+
+          {safeguards && (
+            <AemsTeamSafeguardsPanel
+              engagementId={selectedId}
+              loading={loading}
+              onRefresh={refreshSafeguards}
+              overview={safeguards}
+            />
+          )}
         </>
       )}
 

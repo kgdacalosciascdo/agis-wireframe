@@ -26,6 +26,41 @@ import { notificationApi } from "../services/api";
 import { useToast } from "../ui/toast-context";
 import { formatConfiguredDate } from "../utils/date-format";
 
+function groupedNavigationItems(items) {
+  const groups = [];
+  const byGroup = new Map();
+
+  items.forEach((item) => {
+    const key = item.group ?? "__ungrouped";
+    if (!byGroup.has(key)) {
+      const group = { key, label: item.group ?? null, items: [] };
+      byGroup.set(key, group);
+      groups.push(group);
+    }
+    byGroup.get(key).items.push(item);
+  });
+
+  return groups;
+}
+
+function navigationItemActive(item, location) {
+  const target = item.href ?? item.path;
+  const [targetPath, targetQuery = ""] = target.split("?");
+  const isPathMatch = item.end
+    ? location.pathname === targetPath
+    : location.pathname === targetPath ||
+      location.pathname.startsWith(`${targetPath}/`);
+
+  if (!isPathMatch) return false;
+  if (!targetQuery) return true;
+
+  const expected = new URLSearchParams(targetQuery);
+  const current = new URLSearchParams(location.search);
+  return [...expected.entries()].every(
+    ([key, value]) => current.get(key) === value,
+  );
+}
+
 function NavigationSection({ section, user, collapsed, onNavigate }) {
   const [expanded, setExpanded] = useState(true);
   const location = useLocation();
@@ -61,6 +96,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
           {items.map((item) => {
             const ItemIcon = item.icon;
             const childItems = visibleFor(user, item.children ?? []);
+            const childGroups = groupedNavigationItems(childItems);
             const childExpanded =
               expandedItems[item.key] ??
               location.pathname.startsWith(item.path);
@@ -127,27 +163,40 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                     aria-label={`${item.label} pages`}
                     className="ml-4 grid gap-1 border-l border-blue-200/30 pl-3"
                   >
-                    {childItems.map((child) => {
-                      const ChildIcon = child.icon;
-                      return (
-                        <NavLink
-                          className={({ isActive }) =>
-                            `flex min-h-9 items-center gap-2 rounded-md px-2.5 text-[12px] font-medium transition ${
-                              isActive
-                                ? "bg-white/18 text-white shadow-sm"
-                                : "text-blue-100 hover:bg-white/10 hover:text-white"
-                            }`
-                          }
-                          end={Boolean(child.end)}
-                          key={child.path}
-                          onClick={onNavigate}
-                          to={child.path}
-                        >
-                          <ChildIcon className="shrink-0" size={15} />
-                          <span className="truncate">{child.label}</span>
-                        </NavLink>
-                      );
-                    })}
+                    {childGroups.map((group) => (
+                      <div className="grid gap-1" key={group.key}>
+                        {group.label && (
+                          <p className="px-2.5 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-[0.08em] text-blue-200/75 first:pt-0">
+                            {group.label}
+                          </p>
+                        )}
+                        {group.items.map((child) => {
+                          const ChildIcon = child.icon;
+                          const childActive = navigationItemActive(
+                            child,
+                            location,
+                          );
+                          return (
+                            <NavLink
+                              className={({ isActive }) =>
+                                `flex min-h-9 items-center gap-2 rounded-md px-2.5 text-[12px] font-medium transition ${
+                                  isActive || childActive
+                                    ? "bg-white/18 text-white shadow-sm"
+                                    : "text-blue-100 hover:bg-white/10 hover:text-white"
+                                }`
+                              }
+                              end={Boolean(child.end)}
+                              key={child.screenId ?? child.href ?? child.path}
+                              onClick={onNavigate}
+                              to={child.href ?? child.path}
+                            >
+                              <ChildIcon className="shrink-0" size={15} />
+                              <span className="truncate">{child.label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </nav>
                 )}
               </div>

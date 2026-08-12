@@ -408,8 +408,8 @@ professional decisions, closure/dispositions, automation, and reporting.
 | `WorkingPaper` | engagement/procedure family with reviewer and immutable versions |
 | `WorkingPaperVersion` | objective, work performed, population/sample, result, conclusion, cross-references, and exact cited evidence versions |
 | `AuditEvidence` | immutable version family pinned to Core DocumentVersion, checksum, type, source, custodian, and confidentiality; many working-paper versions/issues/findings |
-| `AuditIssue` | engagement exception linked to working-paper versions and evidence; optional one Finding |
-| `AuditFinding` | engagement/issue revision with criteria, condition, cause, effect, evidence, recommendations, responses |
+| `AuditIssue` | engagement exception linked to working-paper versions and evidence; optional one Finding; structured terminal disposition metadata |
+| `AuditFinding` | engagement/issue revision with criteria, condition, cause, effect, conclusion, significance/effect classification, exact fieldwork versions, evidence, recommendations, responses, and immutable revision snapshots |
 | `AuditRecommendation` | finding + responsible office/target date + idempotent CMS transfer lineage |
 | `ManagementResponse` | versioned auditee response to a communicated Finding |
 | `AuditorRejoinder` | auditor disposition and response dialogue conclusion |
@@ -774,10 +774,38 @@ engagement's planning baseline.
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/aems/engagements/{engagement}/team` | Current team, candidates, history, resource summary, and warnings |
-| `POST` | `/api/aems/engagements/{engagement}/team` | Assign a Supervisor, Team Leader, Auditor, or Reviewer |
+| `POST` | `/api/aems/engagements/{engagement}/team` | Assign a Supervisor, Team Leader, Auditor, Reviewer, Specialist, or Authorized Participant |
 | `PUT` | `/api/aems/engagements/{engagement}/team/{member}` | Update role, effort, dates, or notes |
 | `POST` | `/api/aems/engagements/{engagement}/team/{member}/reassign` | End the old assignment and create a replacement with linked history |
 | `DELETE` | `/api/aems/engagements/{engagement}/team/{member}` | End and soft-delete an assignment with a required reason |
+
+### 8.3.1 Team safeguards and ARMIS readiness endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/team/safeguards` | Provider status, ARMIS reconciliation freshness, competency/capacity/availability checks, person-day reconciliation, declarations, and assessment history |
+| `POST` | `/api/aems/engagements/{engagement}/team/safeguards/assess` | Record an immutable pending provider and independence assessment for separate decision |
+| `POST` | `/api/aems/engagements/{engagement}/team/safeguards/approve` | Independently approve a blocker-free assessment and create an immutable approved baseline |
+| `POST` | `/api/aems/engagements/{engagement}/team/{member}/safeguards/declarations` | Submit a versioned Objectivity, Conflict-of-Interest, or Independence declaration |
+| `POST` | `/api/aems/engagements/{engagement}/team/{member}/safeguards/declarations/{declaration}/review` | Independently accept or return a current declaration |
+
+Safeguard declaration payloads require `declarationType`, `outcome`, and a
+statement. `DISCLOSED` outcomes require a mitigation plan before assessment;
+`CONFLICT` remains a blocker. An accepted declaration cannot be overwritten;
+submitting a correction requires `revisionReason` and creates a new version.
+Optional `evidenceDocumentVersionId` values must reference an exact Core
+`document_versions` row. Assessments capture the resolved provider mode,
+reconciliation snapshot, checks, blockers, warnings, and actor decisions.
+
+The permission codes are `aems.team.safeguard_view`,
+`aems.team.safeguard_declare`, `aems.team.safeguard_review`, and
+`aems.team.safeguard_approve`. Approval is CIAS Management-only and is
+separate from the reviewer/assessor. `IAP_INTERIM_FALLBACK` is explicit and
+non-authoritative; `ARMIS_SHADOW` cannot approve; `ARMIS_AUTHORITATIVE`
+requires an accepted, fresh (30-day) reconciliation and blocks on missing or
+stale provider data, competency/capacity/leave/workload conflicts, unresolved
+declarations, or unreconciled person-days. The aggregate AEMS authorization and
+fieldwork gates consume the same blockers.
 
 ### 8.4 Audit Engagement Order endpoints
 
@@ -856,16 +884,64 @@ Working Paper approval changes cited `VERIFIED` evidence to `LOCKED`. Locked
 evidence cannot be voided, while replacement creates a new `DRAFT` current
 version and preserves the locked historical row.
 
+### 8.8A Evidence Request and evidence assessment endpoints (AEMS-5A)
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/aems/engagements/{engagement}/evidence-requests` | Scoped Evidence Request, received-link, assessment, and eligible-evidence workspace |
+| `POST` | `/api/aems/engagements/{engagement}/evidence-requests` | Create an immutable-versioned `DRAFT` Evidence Request |
+| `PUT` | `/api/aems/engagements/{engagement}/evidence-requests/{evidenceRequest}` | Save a new draft request version with optimistic locking |
+| `POST` | `/api/aems/engagements/{engagement}/evidence-requests/{evidenceRequest}/transition` | Submit, send, mark partial/received, assess, or close the request |
+| `POST` | `/api/aems/engagements/{engagement}/evidence-requests/{evidenceRequest}/evidence` | Receive and pin an exact Evidence/Core `DocumentVersion` |
+| `POST` | `/api/aems/engagements/{engagement}/evidence-assessments` | Create an immutable assessment version for the exact current evidence version |
+| `POST` | `/api/aems/engagements/{engagement}/evidence-assessments/{assessment}/approve-exception` | Record the separate authorized exception decision for restricted evidence |
+
+The request lifecycle is `DRAFT -> SUBMITTED -> SENT -> PARTIALLY_RECEIVED ->
+RECEIVED -> ASSESSED -> CLOSED`. Each request version is retained in
+`aems_evidence_request_versions`; each received link is retained in
+`aems_evidence_request_evidence` with `document_version_id` and cannot point to
+a replaced or voided evidence version.
+
+`aems_evidence_assessments` stores immutable versions with sufficiency,
+appropriateness, relevance, reliability, competence, accuracy, completeness,
+corroboration, contradiction, authenticity, integrity, confidentiality,
+access restrictions, limitations, evidence gaps, and exception decision
+metadata. Assessment corrections create a new version and supersede the old
+one. A request cannot be assessed until every received exact version has a
+current eligible assessment. New uploads are marked `audit_evidence.assessment_required`;
+Finding validation requires their assessment to cite the exact current Core
+Document Version. Restricted/access-restricted evidence also requires a
+separate approved exception. The assessor cannot approve that exception.
+Historical evidence rows created before AEMS-5A retain `assessment_required =
+false` for compatibility and remain governed by their existing verification
+and locking rules.
+
+Permissions are engagement-scoped: `aems.evidence-request.view/create/update/
+submit/send/receive/assess/close`, `aems.evidence.assess`, and
+`aems.evidence.exception_approve`. Request assessment, exception approval, and
+closure are separated by role. All mutations enforce scope and optimistic
+locking and emit AEMS events, Core Activity Log, Audit Trail, and protected
+notifications. No endpoint returns a public document URL.
+
+The AEMS-5B React workspace is `/audit-engagement-management/evidence`. It
+uses the same engagement query parameter as the other AEMS workspaces and
+supports request register/detail, receipt tracking, assessment and gap views,
+restricted-evidence status, exact custody/checksum metadata, family-version
+comparison, and links to Working Papers, Fieldwork, Issues, Findings, and
+Reports. It is a presentation client; the server response remains the source
+of truth for reporting eligibility.
+
 ### 8.9 Issue endpoints
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/aems/engagements/{engagement}/issues` | Create a supported draft issue |
 | `PUT` | `/api/aems/engagements/{engagement}/issues/{issue}` | Update a draft issue and its exact support links |
-| `POST` | `/api/aems/engagements/{engagement}/issues/{issue}/transition` | Submit, independently validate, dismiss with reason, or idempotently convert |
+| `POST` | `/api/aems/engagements/{engagement}/issues/{issue}/transition` | Submit, independently validate, or apply a terminal disposition (dismiss, merge, resolve, observe, refer, close without finding, convert) |
 
 The implemented issue states are `DRAFT`, `SUBMITTED`, `VALIDATED`,
-`DISMISSED`, and `CONVERTED_TO_FINDING`. Submission requires a Working Paper
+`DISMISSED`, and `CONVERTED_TO_FINDING`; the `disposition` field carries the
+professional terminal outcome. Submission requires a Working Paper
 version or evidence link. Validation requires approved Working Papers and
 verified/locked evidence. Terminal issues cannot be edited or deleted.
 
@@ -878,10 +954,12 @@ verified/locked evidence. Terminal issues cannot be edited or deleted.
 | `POST` | `/api/aems/engagements/{engagement}/findings` | Create a draft criteria-condition-cause-effect Finding |
 | `PUT` | `/api/aems/engagements/{engagement}/findings/{finding}` | Update draft content and exact support links |
 | `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/transition` | Submit, validate, communicate, request response, record non-response, or finalize |
+| `POST` | `/api/aems/engagements/{engagement}/findings/{finding}/revisions` | Create a correction, amendment, supersession, or withdrawal revision with a mandatory reason |
 
 Finding validation requires independent authority, approved Working Paper
 versions, verified evidence, and a recommendation or documented reason for
-none. Validation locks cited evidence. Communication records an immutable
+none. Direct Fieldwork Record version links are returned and, when supplied,
+must reference finalized execution records at validation. Validation locks cited evidence. Communication records an immutable
 snapshot containing the finding elements, recommendations, recipients,
 confidentiality, due date, and exact supporting IDs. Finalized findings are
 immutable.
@@ -898,6 +976,12 @@ Recommendations remain editable while their Finding is not finalized. Finding
 finalization stores a recommendation snapshot, changes every draft
 recommendation to `FINALIZED`, and prevents content mutation. CMS lineage fields
 remain reserved for an idempotent later transfer.
+
+Finding revisions preserve the prior row, exact Working Paper/evidence/
+Fieldwork links, recommendation content, and a `revisionSnapshot`. A withdrawal
+creates a terminal `WITHDRAWN` revision; correction, amendment, and supersession
+create an editable `DRAFT` successor. The prior finalized Finding and any
+finalized recommendation snapshots are never overwritten.
 
 ### 8.12 Management Response endpoints
 
@@ -1072,6 +1156,20 @@ Cross-module operations resolve through container-bound contracts:
 | `CmsRecommendationGateway` | `DatabaseCmsRecommendationGateway` | Thin adapter to `CmsIntakeService`; creates one immutable intake/case/event per eligible issued recommendation and returns the same source-matching record on retry |
 | `ResourcePlanningGateway` | `ConfigurableResourcePlanningGateway` | Supplies capacity, availability, workload inputs, competencies, and person-days through the controlled IAP/ARMIS provider boundary |
 | `EngagementRetentionProvider` | `InterimAemsRetentionProvider` | Preserves approved AEMS retention/custody snapshots behind a Core Records Management-replaceable boundary; never destroys records |
+
+The protected integration contract is also available directly:
+
+| Method | Endpoint | Permission | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/aems/integrations/status` | `aems.engagement.view` | Return scope-safe Core/IAP/ARMIS/CMS provider status, lineage/health checks, ownership, and security flags |
+
+The IAP provider is strictly read-only. Import lineage is owned by the AEMS
+`audit_engagements.iap_plan_engagement_id` relationship and immutable
+`source_snapshot`; the legacy IAP `aem_engagement_id` value is a computed
+compatibility projection and is not written by AEMS. The active-source unique
+index and transactional lock prevent duplicate imports. CMS intake remains
+idempotent and its source envelope contains AEMS lineage and the source
+snapshot hash. AIS is intentionally absent from this contract.
 
 The dashboard response includes `integrations.core`, `integrations.iap`,
 `integrations.cms`, and `integrations.armis`. ARMIS-6A reports the configured
@@ -1791,3 +1889,340 @@ backend columns, rows, checksums, scope summary, run history, and export
 metadata without recreating eligibility rules. CSV/PDF generation and download
 remain protected by `cms.report.export`. AIS is not implemented, and ARMIS
 provider integration is outside the CMS boundary.
+
+## AEMS-1A foundation contract
+
+The AEMS engagement response now includes `phase`, `administrativeStatus`, and
+`engagementOfficeId` alongside the legacy detailed `status`. The projections are
+server-maintained and cannot be submitted as arbitrary client status values.
+
+The supported lifecycle phases are:
+
+```text
+FOUNDATION, PLANNING, EXECUTION, ISSUES_AFR, CONFERENCES, REPORTING,
+COMPLETION_TRANSFER, CLOSURE
+```
+
+The supported administrative statuses are:
+
+```text
+DRAFT, ACTIVE, RETURNED, ISSUED, SUSPENDED, CANCELLED, CLOSED, ARCHIVED
+```
+
+New AEMS registry creates and updates require exactly one `officeIds` value.
+The existing `audit_engagement_offices` pivot remains available for historical
+compatibility; `engagement_office_id` identifies the canonical office and the
+response exposes an `officeRule` summary when the office relation is loaded.
+
+The AEMS-1A foundation permissions are `aems.foundation.view`,
+`aems.foundation.manage_scope`, and `aems.foundation.reconcile`. Existing
+`aem.*` compatibility permissions remain available.
+
+## AEMS-1B React shell and SCR navigation
+
+The frontend route inventory is exported from `src/config/navigation.js` as
+`aemsScreenRegistry`. Each entry records a stable screen identifier, canonical
+portfolio route, navigation group, parent engagement tab, and required view
+permission. The registry is not an authorization source; backend policies and
+scope services remain authoritative.
+
+The engagement detail workspace exposes the SCR-220 navigation contract:
+Overview, Planning, Execution, Audit Issues, AFRs, Conferences, Audit Reports,
+Completion & Transfer, and Activity. Existing portfolio pages remain valid
+deep links and receive the engagement context through their established
+`engagementId` query parameter.
+
+The Engagement Registry renders `phase`, `administrativeStatus`,
+`engagementOfficeId`, and `officeRule` from the AEMS-1A response. Phase and
+administrative-status filters are presentation filters over the authorized API
+result; they do not permit client-side status changes.
+
+## AEMS-2A Planning Package API
+
+The planning package endpoints are engagement-scoped and require the matching
+`aems.planning-package.*` permission:
+
+```text
+GET  /api/aems/engagements/{engagement}/planning-package
+POST /api/aems/engagements/{engagement}/planning-package
+PUT  /api/aems/engagements/{engagement}/planning-package/{package}
+POST /api/aems/engagements/{engagement}/planning-package/{package}/transition
+POST /api/aems/engagements/{engagement}/planning-package/{package}/revise
+```
+
+Transition actions are `SUBMIT`, `REVIEW`, `RETURN`, `RESUBMIT`, and
+`APPROVE`; every write includes the package `lockVersion`. The workspace
+response includes lineage, the current immutable version, survey, objectives,
+process flows, risk matrix/items and links, reviews, readiness checks,
+available capabilities, and current-program procedures. Requests can reference
+only exact existing Core `DocumentVersion` records, procedures and working
+papers from the same engagement.
+
+The additive migration `2026_08_12_000000_create_aems_planning_package_tables`
+creates package/version, objective, process-flow, risk-matrix/item, review,
+and relationship tables. Version and review rows are append-only; package
+metadata carries workflow state, optimistic locking, IAP identifiers, and
+approved-version identity. The new permissions are
+`aems.planning-package.view/create/update/review/approve/revise`.
+
+### AEMS-2B Planning Package frontend contract
+
+The React route `/audit-engagement-management/planning-package` consumes the
+workspace response above and keeps `engagementId` in the URL so the shared AEMS
+engagement navigation remains in context. The workspace sections are Overview,
+Preliminary Survey, Process Flows, Risk Matrix, Traceability, Readiness & Review,
+and Versions. Editors submit the same versioned payload through `POST`/`PUT`;
+workflow buttons call the transition and revision endpoints with the current
+`lockVersion`. The UI treats `readiness.checks`, `capabilities`, and package
+status as server-authoritative, renders approved versions read-only, and uses
+the `versions` array for immutable inspection and comparison. No public document
+URLs are introduced; survey and process-flow references remain exact Core
+`DocumentVersion` IDs.
+
+## AEMS-4A Fieldwork Records API and data contract
+
+Fieldwork execution is exposed through the engagement-scoped routes below:
+
+```text
+GET  /api/aems/engagements/{engagement}/fieldwork
+POST /api/aems/engagements/{engagement}/fieldwork
+PUT  /api/aems/engagements/{engagement}/fieldwork/{record}
+POST /api/aems/engagements/{engagement}/fieldwork/{record}/transition
+```
+
+The workspace response includes the authorized engagement, current active
+procedures, Audit Areas and Focuses, record type/execution-state catalogues,
+Fieldwork Records, immutable versions, participants, Working Paper links,
+Evidence links, events, and a procedure traceability summary. Create/update
+requests carry `recordType`, `procedureId`, `auditAreaId`, `auditFocusId`,
+`performedOn`, execution narrative (`procedurePerformed`, `result`,
+`conclusion`, and optional population/sample/analysis fields), participants,
+`workingPaperIds` or versioned `workingPaperLinks`, required `evidenceIds`,
+related tasks/records, and optimistic `lockVersion` on updates.
+
+Transition requests carry `action`, `lockVersion`, and an optional comment.
+Supported actions are `SUBMIT`, `REVIEW`, `RETURN`, `RESUBMIT`, `FINALIZE`,
+and `REVISE`. Submission requires completed execution and Working Paper and
+Evidence traceability. Review/return are independent of the preparer;
+finalization additionally requires a different finalizer, approved linked
+Working Papers, and verified or locked Evidence. `REVISE` starts a new draft
+version from a finalized record and preserves the finalized snapshot.
+
+The additive migration
+`2026_08_21_000000_create_aems_fieldwork_record_tables` adds the procedure
+execution fields and the `aems_fieldwork_records`, immutable version,
+participant, Working Paper-link, and Evidence-link tables. Evidence links
+retain the exact `audit_evidence.document_version_id`, so Core document
+versions remain the integrity boundary. All writes are engagement-scope and
+permission checked (`aems.fieldwork.view/create/review/finalize`), use
+optimistic locking, and append engagement events, Activity Log, Audit Trail,
+and controlled notifications. Audit Program procedure progress to `COMPLETED`
+is rejected unless a finalized Fieldwork Record references that procedure.
+
+### AEMS-4B Execution Workspace frontend contract
+
+The React route `/audit-engagement-management/execution` consumes the
+engagement-scoped Fieldwork workspace response above. It keeps `engagementId`,
+`procedureId`, and `recordId` in the URL and exposes linked navigation to the
+Audit Program, Working Papers/Evidence, and Issues pages. The frontend API
+client is `aemsFieldworkApi` with `show`, `create`, `update`, and `transition`
+methods; all writes use the existing protected routes and optimistic
+`lockVersion` contract.
+
+The workspace presents active procedures, target/overdue state, execution
+blockers, Fieldwork Record versions, participants, reviewer notes, related
+tasks/due dates, event timeline, and exact Working Paper/Evidence links. The
+Create-Issue-from-Fieldwork action sends `workingPaperVersionIds` and
+`evidenceIds` to the existing issue endpoint, while responsible office, risk,
+issue readiness, and all issue workflow decisions remain server validated.
+
+## AEMS-6B Issues and AFR frontend contract
+
+`/audit-engagement-management/issues` and
+`/audit-engagement-management/findings` consume the existing
+`aemsFindingApi.show()` workspace contract. The Issues page remains distinct
+from Findings & Recommendations and renders the issue disposition metadata
+(`disposition`, `dispositionReason`, `dispositionRecordedBy`,
+`dispositionRecordedAt`, `mergedIntoIssueId`, `referredTo`, and
+`resolutionDetails`). It submits the existing transition payload with
+`action`, `lockVersion`, `comment`, and, when applicable,
+`mergedIntoIssueId`, `referredTo`, or `resolutionDetails`.
+
+The Findings page consumes `conclusion`, `significanceClassification`,
+`effectClassification`, `fieldworkRecords`, `revisions`, `revisionType`,
+`revisionReason`, and immutable/finalization fields in `findingData`. It uses
+the existing recommendation, management-response, rejoinder, attachment,
+and lifecycle endpoints. Finding revisions call:
+
+```text
+POST /api/aems/engagements/{engagement}/findings/{finding}/revisions
+body: { action: CORRECT|AMEND|SUPERSEDE|WITHDRAW,
+        reason: string, lockVersion: integer }
+```
+
+The React action surface is advisory only. Laravel remains authoritative for
+permissions, engagement scope, status transitions, author/reviewer
+separation, immutable snapshots, exact support links, and optimistic-lock
+conflicts. No public finding, evidence, Working Paper, or dialogue download
+URL is introduced.
+
+### AEMS-7A Work Queue and Dialogue API
+
+The engagement-scoped Work Queue endpoint returns server-authoritative tasks,
+review notes, due-process exchanges, escalation candidates, and status
+catalogues. Task `dueState` is one of `NO_DUE_DATE`, `ON_TRACK`, `DUE_SOON`,
+`OVERDUE`, `COMPLETED`, or `CANCELLED`. Completed and cancelled tasks are
+immutable; reopening is an explicit permissioned transition and increments
+the lock version.
+
+Review Notes use a family UUID and immutable version numbers. A draft can be
+edited by its author, finalized by an independent reviewer, and revised only
+through a new draft revision that preserves the finalized source. Attachments
+store the exact Core `document_version_id` and cannot be replaced or deleted.
+
+Due-process event types are `REMINDER`, `NOTICE_SENT`,
+`CLARIFICATION_REQUESTED`, `FINAL_NON_RESPONSE`, and
+`ESCALATION_RECOMMENDED`. The finding `RECORD_NON_RESPONSE` transition creates
+the exchange in the same transaction as the finding status change. Candidate
+review is explicit and never issues notices or makes closure/finalization
+decisions automatically.
+
+The new permission families are `aems.task.*`, `aems.review-note.*`,
+`aems.due-process.*`, and `aems.escalation-candidate.*`. They are evaluated by
+`AemsAccessService` against role, engagement assignment, scope, and existing
+separation-of-duties rules. Existing conference, Management Response,
+Auditor Rejoinder, notification, Activity Log, Audit Trail, and protected Core
+document routes are unchanged.
+
+### AEMS-7B Conference and dialogue workspace
+
+The protected React route `/audit-engagement-management/conferences` is an
+aggregate workspace over the existing engagement-scoped endpoints:
+
+```text
+GET /api/aems/entry-conference-workspaces
+GET /api/aems/engagements/{engagement}/entry-conference
+GET /api/aems/exit-conference-workspaces
+GET /api/aems/engagements/{engagement}/exit-conferences
+GET /api/aems/findings-workspaces
+GET /api/aems/engagements/{engagement}/findings-workspace
+GET /api/aems/engagements/{engagement}/work-queue
+GET /api/notifications/recent
+```
+
+The page exposes an engagement timeline, Entry/Exit Conference summaries,
+participant and acknowledgement counts, agreements/disagreements, response
+and rejoinder history, clarification history, overdue response and task
+queues, escalation candidates, and recent AEMS notifications. Links to the
+existing detailed conference and dialogue pages remain the action surface for
+writes; no new workflow mutation endpoint is introduced by AEMS-7B.
+
+The backend response remains authoritative for permission, engagement scope,
+finding communication status, and office visibility. Auditee responses are
+therefore limited to findings formally communicated to the auditee's office by
+the existing `AemsFindingService::workspace` scope query. The frontend does
+not filter in a way that could broaden that result, and shows an empty state
+when no formally communicated findings are returned. Protected authenticated
+notification and document routes are preserved; no public URLs are emitted.
+
+### AEMS-8 Reporting API additions
+
+The existing report endpoints remain the reporting contract. AEMS-8 adds:
+
+```text
+POST /api/aems/engagements/{engagement}/reports/interim
+POST /api/aems/engagements/{engagement}/reports/{report}/successors
+POST /api/aems/engagements/{engagement}/reports/{report}/withdraw
+POST /api/aems/engagements/{engagement}/reports/{report}/versions/{version}/recipients/{recipient}/decision
+```
+
+Interim requests use the same assembly payload as Draft Reports and preserve
+`sections[].sequenceNumber`, `executiveSummary`, `qualityChecklist`, exact
+Finding IDs, confidentiality, and generated Core Document Version metadata.
+The Final Report endpoint accepts only an approved Interim or Draft Report and
+still rejects any Finding that is not current and `FINALIZED`.
+
+Distribution decisions are `DELIVERED`, `ACKNOWLEDGED`, or `REJECTED` and are
+append-only, version-bound, actor-bound, and timestamped. The recipient or
+covered office may acknowledge; authorized internal distribution staff may
+record delivery. `AMEND` and `SUPERSEDE` reopen the existing report family in
+a controlled draft state and create a new immutable successor version linked
+through `contentSnapshot.supersedesVersionId`. `WITHDRAW` retires the report
+family without changing the issued version. All operations use report lock
+versions and write Core
+Activity Log, Audit Trail, and Engagement Events. Downloads continue to use
+the protected authenticated report-version endpoint; no public PDF URL is
+returned.
+
+### AEMS-9A Completion and transfer API/data contract
+
+The completion-transfer workspace is engagement-scoped and permission
+protected:
+
+```text
+GET  /api/aems/engagements/{engagement}/completion-transfer
+POST /api/aems/engagements/{engagement}/completion-transfer/reconcile
+POST /api/aems/engagements/{engagement}/completion-transfer/{type}/{id}/approve
+```
+
+`type` is `MANIFEST` or `EFFORT`. Approval requires `lockVersion`, a comment
+of at least ten characters, `aems.completion-transfer.approve`, and an actor
+different from the snapshot generator. The response includes `manifest`,
+`effortReconciliation`, `provider`, and permitted actions.
+
+The additive tables are:
+
+| Table | Purpose | Immutability boundary |
+| --- | --- | --- |
+| `aems_completion_transfer_manifests` | Issued report/version lineage and per-recommendation CMS outcomes | Approved rows cannot be updated or deleted |
+| `aems_completion_transfer_exceptions` | Derived open transfer gaps and resolution context | Rebuilt only by controlled reconciliation |
+| `aems_effort_reconciliations` | Versioned planned/AEMS/provider actuals and variance | Approved rows cannot be updated or deleted |
+
+Manifest snapshots preserve the exact report `document_version_id` and
+`checksum_sha256`. Recommendation transfer delegates to the existing CMS
+gateway, which reuses the existing transfer key on retry. Effort snapshots
+record provider mode and source status; fallback is explicit, while ARMIS
+shadow/authoritative modes require a reconciled provider actual before the
+closure checklist passes. The Closure Checklist derives the blocking
+`CMS_TRANSFER_MANIFEST`, `CMS_TRANSFER_EXCEPTIONS`, and
+`EFFORT_RECONCILIATION` items from these records.
+
+### AEMS-10A/10B dashboard and work-queue contract
+
+The protected dashboard endpoints are:
+
+```text
+GET /api/aems/dashboard
+GET /api/aems/dashboard/export
+GET /api/aems/dashboard/queues/export
+```
+
+The dashboard requires `aems.engagement.view`; both exports additionally
+require `aems.engagement.export`. Query parameters are `search`, `status`,
+`phase` (`planning`, `fieldwork`, `reporting`, `closure`, or `other`),
+`officeId`, `sortBy`, `sortDirection`, `page`, and `perPage`.
+
+The response adds these server-calculated contracts alongside the existing
+cards and engagement tracker:
+
+| Property | Source and scope |
+| --- | --- |
+| `phaseCounts` | Active visible engagements grouped by lifecycle phase |
+| `workQueues` | Limited queue items plus total counts for overdue procedures, Working Papers, Evidence Requests, evidence gaps, findings, conferences, reports, CMS transfer exceptions, Review Notes, tasks, and escalation candidates |
+| `notifications` | Current user's unread, AEMS-unread, overdue, and recent Core notifications |
+| `reminderRules` | Effective AEMS runtime reminder settings |
+
+Queue rows contain only protected record references and engagement codes. The
+backend applies `visibleTo`/engagement scope before counting or returning any
+row. CSV values beginning with `=`, `+`, `-`, or `@` are prefixed before being
+written to mitigate spreadsheet formula injection. The export is streamed only
+after authentication and permission checks and is recorded in both Activity
+Log and Audit Trail.
+
+Runtime configuration keys used by AEMS reminder dispatch are:
+`aems_reminders_enabled` (boolean, default `true`),
+`aems_reminder_due_hours` (integer, default `48`),
+`aems_response_reminder_days` (integer, default `3`), and
+`aems_conference_reminder_days` (integer, default `7`). They are maintained by
+the existing Core System Configuration endpoint and do not permit automated
+approval, closure, CMS transfer, or other final professional decisions.

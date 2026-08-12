@@ -83,6 +83,7 @@ class AemsEngagementTransitionService
     public function __construct(
         private readonly AemsSupport $support,
         private readonly AemsNotificationService $notifications,
+        private readonly AemsTeamSafeguardService $teamSafeguards,
     ) {}
 
     /** @return array<string, mixed> */
@@ -118,6 +119,8 @@ class AemsEngagementTransitionService
                 'engagementCode' => $engagement->engagement_code,
                 'title' => $engagement->title,
                 'status' => $engagement->status,
+                'phase' => $engagement->phase,
+                'administrativeStatus' => $engagement->administrative_status,
                 'lockVersion' => $engagement->lock_version,
                 'returnedFromStatus' => $engagement->returned_from_status,
                 'returnToStatus' => $engagement->return_to_status,
@@ -200,8 +203,13 @@ class AemsEngagementTransitionService
             }
 
             $before = $this->snapshot($locked);
+            $projection = AuditEngagement::lifecycleProjectionForStatus(
+                $to,
+                $to === 'SUSPENDED' ? $from : $locked->suspended_from_status,
+            );
             $changes = [
                 'status' => $to,
+                ...$projection,
                 'status_reason' => $details['comment'] ?? null,
                 'transitioned_by' => $request->user()->id,
                 'transitioned_at' => now(),
@@ -405,6 +413,7 @@ class AemsEngagementTransitionService
             ])->save();
             $lockedEngagement->forceFill([
                 'status' => 'CLOSED',
+                ...AuditEngagement::lifecycleProjectionForStatus('CLOSED'),
                 'status_reason' => 'Formal Completion Assessment and Engagement Closure approved.',
                 'actual_end_date' => $lockedEngagement->actual_end_date ?? today(),
                 'closed_by' => $request->user()->id,
@@ -508,6 +517,11 @@ class AemsEngagementTransitionService
             ->first();
         $approvedProgram = $currentProgram
             && in_array($currentProgram->status, ['APPROVED', 'ACTIVE', 'COMPLETED'], true);
+        $planningPackage = $engagement->planningPackage;
+        $approvedPlanningPackage = $planningPackage
+            && $planningPackage->status === 'APPROVED'
+            && (int) $planningPackage->current_version_number === (int) $planningPackage->approved_version_number;
+        $teamSafeguardGates = $this->teamSafeguards->aggregateGate($engagement);
 
         return match ($action) {
             'PREPARE_AUTHORIZATION' => [
@@ -535,6 +549,7 @@ class AemsEngagementTransitionService
                     $this->validAeoSeparation($engagement),
                     'aeo',
                 ),
+                ...$teamSafeguardGates,
             ],
             'START_PLANNING' => [
                 $this->gate('issuedAeo', 'Issued AEO exists', $issuedAeo, 'aeo'),
@@ -554,7 +569,9 @@ class AemsEngagementTransitionService
                 ),
                 $this->gate('approvedAep', 'Current AEP remains approved', $approvedAep, 'aep'),
                 $this->gate('approvedProgram', 'Current Audit Program remains approved', (bool) $approvedProgram, 'audit-program'),
+                $this->gate('planningPackage', 'Approved Planning Package is required before fieldwork', (bool) $approvedPlanningPackage, 'planning-package'),
                 $this->gate('teamRoles', 'Required team roles remain active', $requiredRoles->diff($teamRoles)->isEmpty(), 'team'),
+                ...$teamSafeguardGates,
             ],
             'END_FIELDWORK', 'START_FINDINGS_COMMUNICATION' => [
                 $this->gate(
@@ -775,6 +792,7 @@ class AemsEngagementTransitionService
             'teamMembers.user:id,name',
             'engagementOrder',
             'engagementPlan',
+            'planningPackage',
             'programs.procedures',
             'workingPapers',
             'issues',
@@ -831,6 +849,7 @@ class AemsEngagementTransitionService
             ['label' => 'Audit Team', 'path' => "/audit-engagement-management/team?engagementId={$id}"],
             ['label' => 'AEO', 'path' => "/audit-engagement-management/aeo?engagementId={$id}"],
             ['label' => 'AEP', 'path' => "/audit-engagement-management/aep?engagementId={$id}"],
+            ['label' => 'Planning Package', 'path' => "/audit-engagement-management/planning-package?engagementId={$id}"],
             ['label' => 'Audit Program', 'path' => "/audit-engagement-management/audit-program?engagementId={$id}"],
             ['label' => 'Working Papers', 'path' => "/audit-engagement-management/working-papers?engagementId={$id}"],
             ['label' => 'Findings', 'path' => "/audit-engagement-management/findings?engagementId={$id}"],
@@ -883,6 +902,8 @@ class AemsEngagementTransitionService
     {
         return [
             'status' => $engagement->status,
+            'phase' => $engagement->phase,
+            'administrativeStatus' => $engagement->administrative_status,
             'returnedFromStatus' => $engagement->returned_from_status,
             'returnToStatus' => $engagement->return_to_status,
             'suspendedFromStatus' => $engagement->suspended_from_status,

@@ -21,6 +21,7 @@ class AemsEngagementRegistryService
     public function __construct(
         private readonly AemsSupport $support,
         private readonly IapEngagementGateway $iap,
+        private readonly AemsAccessService $access,
     ) {}
 
     /** @return Collection<int, IapPlanEngagement> */
@@ -48,6 +49,9 @@ class AemsEngagementRegistryService
                 ]);
             }
 
+            $officeIds = $source->offices->pluck('id')->map(fn ($id): int => (int) $id)->values();
+            $this->assertSingleEngagementOffice($officeIds->all(), 'IAP engagement');
+            $projection = AuditEngagement::lifecycleProjectionForStatus('DRAFT');
             $snapshot = $this->sourceSnapshot($source, $request->user());
             $engagement = AuditEngagement::query()->create([
                 'engagement_code' => $requestedCode ?: $this->nextCode(
@@ -61,6 +65,7 @@ class AemsEngagementRegistryService
                 'iap_risk_assessment_id' => $source->universe_risk_assessment_id,
                 'iap_audit_universe_item_id' => $source->audit_universe_item_id,
                 'source_snapshot' => $snapshot,
+                'engagement_office_id' => $officeIds->first(),
                 'audit_type_id' => $source->engagement_type_id,
                 'engagement_approach_id' => $source->audit_approach_id,
                 'background' => $source->background,
@@ -72,19 +77,14 @@ class AemsEngagementRegistryService
                 'expected_report_date' => $source->expected_report_date,
                 'planned_person_days' => $source->estimated_person_days,
                 'status' => 'DRAFT',
+                ...$projection,
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
                 'lock_version' => 1,
                 'is_active' => true,
             ]);
 
-            $engagement->offices()->attach(
-                $source->offices->mapWithKeys(
-                    fn ($office, int $index): array => [
-                        $office->id => ['is_primary' => $index === 0],
-                    ],
-                )->all(),
-            );
+            $engagement->offices()->attach($officeIds->first(), ['is_primary' => true]);
             $engagement->auditAreas()->sync($source->auditAreas->pluck('id')->all());
             $engagement->auditFocuses()->sync($source->auditFocuses->pluck('id')->all());
             $this->iap->markImported($source, $engagement->id);
@@ -125,6 +125,7 @@ class AemsEngagementRegistryService
                 ]);
             }
             $this->validateCoverage($validated);
+            $projection = AuditEngagement::lifecycleProjectionForStatus('AUTHORIZED');
             $year = (int) substr((string) $validated['specialAuthorityDate'], 0, 4);
             $engagement = AuditEngagement::query()->create([
                 ...$this->mutableAttributes($validated),
@@ -147,6 +148,8 @@ class AemsEngagementRegistryService
                     ],
                 ],
                 'status' => 'AUTHORIZED',
+                ...$projection,
+                'engagement_office_id' => (int) $validated['officeIds'][0],
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
                 'lock_version' => 1,
@@ -197,6 +200,11 @@ class AemsEngagementRegistryService
                     'status' => ['Engagement registry details are frozen after fieldwork begins.'],
                 ]);
             }
+            $this->access->authorizeEngagementAction(
+                $request->user(),
+                $locked,
+                'aems.foundation.manage_scope',
+            );
             $this->validateCoverage($validated);
             $oldValues = $this->auditSnapshot($locked);
             $attributes = $this->mutableAttributes($validated);
@@ -291,6 +299,7 @@ class AemsEngagementRegistryService
     private function validateCoverage(array $validated): void
     {
         $officeIds = collect($validated['officeIds'])->map(fn ($id): int => (int) $id);
+        $this->assertSingleEngagementOffice($officeIds->all());
         $areaIds = collect($validated['auditAreaIds'])->map(fn ($id): int => (int) $id);
         $coveredAreaIds = DB::table('audit_area_office')
             ->whereIn('office_id', $officeIds)
@@ -319,12 +328,10 @@ class AemsEngagementRegistryService
     /** @param array<string, mixed> $validated */
     private function syncCoverage(AuditEngagement $engagement, array $validated): void
     {
+        $officeId = $this->assertSingleEngagementOffice($validated['officeIds']);
+        $engagement->forceFill(['engagement_office_id' => $officeId])->save();
         $engagement->offices()->sync(
-            collect($validated['officeIds'])->mapWithKeys(
-                fn ($officeId, int $index): array => [
-                    (int) $officeId => ['is_primary' => $index === 0],
-                ],
-            )->all(),
+            [$officeId => ['is_primary' => true]],
         );
         $engagement->auditAreas()->sync($validated['auditAreaIds']);
         $engagement->auditFocuses()->sync($validated['auditFocusIds'] ?? []);
@@ -430,6 +437,8 @@ class AemsEngagementRegistryService
             'title' => $engagement->title,
             'sourceType' => $engagement->source_type,
             'status' => $engagement->status,
+            'phase' => $engagement->phase,
+            'administrativeStatus' => $engagement->administrative_status,
             'objectives' => $engagement->objectives,
             'scope' => $engagement->scope,
             'plannedStartDate' => $engagement->planned_start_date?->toDateString(),
@@ -437,11 +446,30 @@ class AemsEngagementRegistryService
             'expectedReportDate' => $engagement->expected_report_date?->toDateString(),
             'plannedPersonDays' => (float) $engagement->planned_person_days,
             'officeIds' => $engagement->offices->pluck('id')->all(),
+            'engagementOfficeId' => $engagement->engagement_office_id,
             'auditAreaIds' => $engagement->auditAreas->pluck('id')->all(),
             'auditFocusIds' => $engagement->auditFocuses->pluck('id')->all(),
             'lockVersion' => $engagement->lock_version,
             'isActive' => $engagement->is_active,
         ];
+    }
+
+    /** @param list<int|string> $officeIds */
+    private function assertSingleEngagementOffice(array $officeIds, string $label = 'Engagement'): int
+    {
+        $officeIds = collect($officeIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($officeIds->count() !== 1) {
+            throw ValidationException::withMessages([
+                'officeIds' => ["{$label} must contain exactly one Engagement Office."],
+            ]);
+        }
+
+        return (int) $officeIds->first();
     }
 
     private function nextCode(int $year): string

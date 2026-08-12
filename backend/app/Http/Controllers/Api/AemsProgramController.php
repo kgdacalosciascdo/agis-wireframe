@@ -162,6 +162,13 @@ class AemsProgramController extends Controller
             'status' => ['required', Rule::in(AuditProgramProcedure::STATUSES)],
             'workingPaperReference' => ['nullable', 'string', 'max:120'],
             'waiverReason' => ['nullable', 'string', 'max:4000'],
+            'results' => ['nullable', 'string', 'max:20000'],
+            'conclusion' => ['nullable', 'string', 'max:20000'],
+            'reviewState' => ['nullable', 'string', 'max:40'],
+            'relatedTasks' => ['sometimes', 'array', 'max:100'],
+            'relatedTasks.*' => ['string', 'max:255'],
+            'relatedRecords' => ['sometimes', 'array', 'max:100'],
+            'relatedRecords.*' => ['string', 'max:255'],
             'comment' => ['nullable', 'string', 'max:4000'],
         ]);
         $procedure = $this->programs->progressProcedure(

@@ -27,6 +27,16 @@ class AuditIssue extends Model
         'CONVERTED_TO_FINDING',
     ];
 
+    public const DISPOSITIONS = [
+        'CONVERTED_TO_FINDING',
+        'MERGED',
+        'RESOLVED_DURING_AUDIT',
+        'OBSERVATION',
+        'REFERRED',
+        'CLOSED_WITHOUT_FINDING',
+        'DISMISSED',
+    ];
+
     protected $fillable = [
         'audit_engagement_id',
         'issue_code',
@@ -35,6 +45,13 @@ class AuditIssue extends Model
         'responsible_office_id',
         'risk_rating_id',
         'status',
+        'disposition',
+        'disposition_reason',
+        'disposition_recorded_by',
+        'disposition_recorded_at',
+        'merged_into_issue_id',
+        'referred_to',
+        'resolution_details',
         'raised_by',
         'reviewer_id',
         'submitted_at',
@@ -55,6 +72,7 @@ class AuditIssue extends Model
             'validated_at' => 'datetime',
             'dismissed_at' => 'datetime',
             'converted_at' => 'datetime',
+            'disposition_recorded_at' => 'datetime',
             'lock_version' => 'integer',
         ];
     }
@@ -105,6 +123,16 @@ class AuditIssue extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewer_id')->withTrashed();
+    }
+
+    public function dispositionRecorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'disposition_recorded_by')->withTrashed();
+    }
+
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_issue_id')->withTrashed();
     }
 
     public function workingPaperVersions(): BelongsToMany

@@ -150,6 +150,7 @@ class AemsEvidenceService
                     'document_version_id' => $documentVersion->id,
                     'checksum_sha256' => $stored['checksum_sha256'],
                     'status' => 'DRAFT',
+                    'assessment_required' => true,
                     'uploaded_by' => $request->user()->id,
                     'lock_version' => 1,
                 ]);
@@ -296,6 +297,7 @@ class AemsEvidenceService
                     'document_version_id' => $documentVersion->id,
                     'checksum_sha256' => $stored['checksum_sha256'],
                     'status' => 'DRAFT',
+                    'assessment_required' => true,
                     'uploaded_by' => $request->user()->id,
                     'lock_version' => 1,
                 ]);

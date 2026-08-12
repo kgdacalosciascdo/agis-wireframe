@@ -19,7 +19,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AemsTeamService
 {
-    public const ROLES = ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'];
+    public const ROLES = [
+        'SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER',
+        'SPECIALIST', 'AUTHORIZED_PARTICIPANT',
+    ];
 
     public function __construct(
         private readonly AemsSupport $support,

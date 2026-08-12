@@ -70,7 +70,11 @@ class AemsEngagementRequest extends FormRequest
             'plannedEndDate' => ['required', 'date', 'after_or_equal:plannedStartDate'],
             'expectedReportDate' => ['nullable', 'date', 'after_or_equal:plannedEndDate'],
             'plannedPersonDays' => ['required', 'numeric', 'gt:0', 'max:999999.99'],
-            'officeIds' => ['required', 'array', 'min:1'],
+            'officeIds' => [
+                'required',
+                'array',
+                'size:1',
+            ],
             'officeIds.*' => [
                 'integer',
                 'distinct',

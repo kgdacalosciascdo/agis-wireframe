@@ -318,7 +318,21 @@ class CmsIntakeService
         $finding->loadMissing(['riskRating', 'responsibleOffice']);
         $recommendation->loadMissing('responsibleOffice');
         $report->loadMissing(['confidentialityLevel', 'issuer']);
-        $engagement->loadMissing('offices');
+        $engagement->loadMissing([
+            'offices',
+            'sourcePlanEngagement',
+            'sourcePlan',
+            'sourcePrioritizationItem',
+            'sourceRiskAssessment',
+            'sourceAuditUniverseItem',
+        ]);
+
+        $sourceSnapshotHash = $engagement->source_snapshot === null
+            ? null
+            : hash(
+                'sha256',
+                json_encode($engagement->source_snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            );
 
         $leadOffice = $this->officeSnapshot($recommendation->responsibleOffice, true);
         $responsibleOffices = $leadOffice ? [$leadOffice] : [];
@@ -334,6 +348,18 @@ class CmsIntakeService
                         ...$this->officeSnapshot($office),
                         'isPrimary' => (bool) $office->pivot?->is_primary,
                     ])->values()->all(),
+                // AEMS source lineage is copied into the immutable CMS
+                // envelope.  CMS can audit where the issued recommendation
+                // originated without querying or mutating IAP records.
+                'sourceLineage' => [
+                    'sourceType' => $engagement->source_type,
+                    'iapPlanEngagementId' => $engagement->iap_plan_engagement_id,
+                    'iapPlanId' => $engagement->iap_plan_id,
+                    'iapPrioritizationItemId' => $engagement->iap_prioritization_item_id,
+                    'iapRiskAssessmentId' => $engagement->iap_risk_assessment_id,
+                    'iapAuditUniverseItemId' => $engagement->iap_audit_universe_item_id,
+                    'sourceSnapshotHash' => $sourceSnapshotHash,
+                ],
             ],
             'finding' => [
                 'id' => $finding->id,
@@ -501,6 +527,7 @@ class CmsIntakeService
     ): array {
         return [
             'engagementId' => $source['engagement']['id'],
+            'aemsSourceLineage' => $source['engagement']['sourceLineage'] ?? null,
             'reportId' => $source['report']['id'],
             'reportVersionId' => $source['report']['versionId'],
             'findingId' => $source['finding']['id'],

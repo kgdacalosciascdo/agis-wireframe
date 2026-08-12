@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditEngagement;
 use App\Models\AuditFinding;
+use App\Models\AuditIssue;
 use App\Models\AuditReport;
 use App\Models\AuditReportVersion;
 use App\Models\CompletionAssessment;
@@ -14,6 +15,8 @@ use App\Models\EntryConference;
 use App\Models\ExitConference;
 use App\Models\User;
 use App\Models\WorkingPaper;
+use App\Models\AemsTeamSafeguardAssessment;
+use App\Models\AemsTeamSafeguardDeclaration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +56,187 @@ class AemsNotificationService
                 'teamMemberId' => $member->id,
                 'assignmentRoleCode' => $member->assignment_role_code,
             ],
+        ]));
+    }
+
+    public function teamSafeguard(
+        Request $request,
+        AuditEngagement $engagement,
+        EngagementTeam $member,
+        string $action,
+        AemsTeamSafeguardDeclaration $declaration,
+    ): void {
+        $recipientIds = $action === 'SUBMITTED'
+            ? $this->reviewers($engagement, 'aems.team.safeguard_review')
+            : collect([$declaration->user_id]);
+        $recipientIds = $recipientIds
+            ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
+            ->unique()->values();
+        $actorId = $request->user()->id;
+        $label = str($declaration->declaration_type)->replace('_', ' ')->title();
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_TEAM_SAFEGUARD_'.$action,
+            'category' => 'WORKFLOW',
+            'priority' => 'HIGH',
+            'moduleCode' => 'AEMS',
+            'title' => "{$engagement->engagement_code}: {$label} declaration {$action}",
+            'message' => "The {$label} declaration for {$engagement->title} was {$action}.",
+            'actionUrl' => "/audit-engagement-management/team?engagementId={$engagement->id}&tab=safeguards",
+            'actionLabel' => 'Open Team Safeguards',
+            'subjectType' => AemsTeamSafeguardDeclaration::class,
+            'subjectId' => $declaration->id,
+            'subjectCode' => $declaration->declaration_family_uuid,
+            'dedupeKey' => "aems:team-safeguard:declaration:{$declaration->id}:{$action}:{$declaration->lock_version}",
+            'metadata' => [
+                'engagementId' => $engagement->id,
+                'teamMemberId' => $member->id,
+                'declarationType' => $declaration->declaration_type,
+                'versionNumber' => $declaration->version_number,
+            ],
+        ]));
+    }
+
+    public function teamSafeguardDecision(
+        Request $request,
+        AuditEngagement $engagement,
+        AemsTeamSafeguardAssessment $assessment,
+    ): void {
+        $recipientIds = $engagement->teamMembers()
+            ->where('is_active', true)
+            ->whereNull('ended_at')
+            ->pluck('user_id')
+            ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
+            ->unique()->values();
+        $actorId = $request->user()->id;
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_TEAM_SAFEGUARD_APPROVED',
+            'category' => 'WORKFLOW',
+            'priority' => 'HIGH',
+            'moduleCode' => 'AEMS',
+            'title' => "{$engagement->engagement_code}: team safeguards approved",
+            'message' => "The provider and independence safeguards for {$engagement->title} were approved.",
+            'actionUrl' => "/audit-engagement-management/team?engagementId={$engagement->id}&tab=safeguards",
+            'actionLabel' => 'Open Team Safeguards',
+            'subjectType' => AemsTeamSafeguardAssessment::class,
+            'subjectId' => $assessment->id,
+            'subjectCode' => $assessment->assessment_uuid,
+            'dedupeKey' => "aems:team-safeguard:assessment:{$assessment->id}:approved",
+            'metadata' => [
+                'engagementId' => $engagement->id,
+                'assessmentVersion' => $assessment->version_number,
+                'providerMode' => $assessment->provider_mode,
+            ],
+        ]));
+    }
+
+    public function fieldworkTransition(
+        Request $request,
+        AuditEngagement $engagement,
+        \App\Models\AemsFieldworkRecord $record,
+        string $action,
+        int $versionNumber,
+        ?string $comment,
+    ): void {
+        if (! in_array($action, ['SUBMIT', 'RESUBMIT', 'REVIEW', 'RETURN', 'FINALIZE'], true)) {
+            return;
+        }
+        $recipientIds = in_array($action, ['SUBMIT', 'RESUBMIT'], true)
+            ? $this->reviewers($engagement, 'aems.fieldwork.review')
+            : collect([$record->prepared_by, $record->submitted_by, $record->reviewer_id])->filter();
+        $recipientIds = $recipientIds->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)->unique()->values();
+        $verb = match ($action) {
+            'SUBMIT' => 'submitted for review',
+            'RESUBMIT' => 'resubmitted for review',
+            'REVIEW' => 'independently reviewed',
+            'RETURN' => 'returned for revision',
+            'FINALIZE' => 'finalized',
+        };
+        $actorId = $request->user()->id;
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_FIELDWORK_'.$action,
+            'category' => 'WORKFLOW',
+            'priority' => $action === 'FINALIZE' ? 'NORMAL' : 'HIGH',
+            'moduleCode' => 'AEMS',
+            'title' => "{$record->record_code}: Fieldwork Record {$verb}",
+            'message' => "Fieldwork Record version {$versionNumber} for {$engagement->title} was {$verb}.".($comment ? " {$comment}" : ''),
+            'actionUrl' => "/audit-engagement-management/audit-program?engagementId={$engagement->id}",
+            'actionLabel' => 'Open Fieldwork Records',
+            'subjectType' => \App\Models\AemsFieldworkRecord::class,
+            'subjectId' => $record->id,
+            'subjectCode' => $record->record_code,
+            'dedupeKey' => "aems:fieldwork:{$record->id}:v{$versionNumber}:".strtolower($action),
+            'metadata' => ['engagementId' => $engagement->id, 'versionNumber' => $versionNumber, 'workflowAction' => $action],
+        ]));
+    }
+
+    public function evidenceRequestTransition(
+        Request $request,
+        AuditEngagement $engagement,
+        \App\Models\AemsEvidenceRequest $record,
+        string $action,
+    ): void {
+        if (! in_array($action, ['SUBMIT', 'SEND', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'ASSESS', 'CLOSE'], true)) {
+            return;
+        }
+        $recipientIds = $record->requested_from_user_id
+            ? collect([$record->requested_from_user_id])
+            : ($record->requested_from_office_id
+                ? User::query()->where('office_id', $record->requested_from_office_id)->pluck('id')
+                : $this->reviewers($engagement, 'aems.evidence-request.view'));
+        $recipientIds = $recipientIds->merge([$record->prepared_by, $record->submitted_by])
+            ->filter()->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)->unique()->values();
+        $verb = match ($action) {
+            'SUBMIT' => 'submitted', 'SEND' => 'sent', 'MARK_PARTIALLY_RECEIVED' => 'partially received',
+            'MARK_RECEIVED' => 'received', 'ASSESS' => 'assessed', 'CLOSE' => 'closed',
+        };
+        $actorId = $request->user()->id;
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_EVIDENCE_REQUEST_'.strtoupper($action),
+            'category' => 'WORKFLOW',
+            'priority' => in_array($action, ['SUBMIT', 'SEND', 'MARK_RECEIVED'], true) ? 'HIGH' : 'NORMAL',
+            'moduleCode' => 'AEMS',
+            'title' => "{$record->request_code}: Evidence Request {$verb}",
+            'message' => "Evidence Request {$record->request_code} for {$engagement->title} was {$verb}.",
+            'actionUrl' => "/audit-engagement-management/working-papers?engagementId={$engagement->id}",
+            'actionLabel' => 'Open Evidence Workspace',
+            'subjectType' => \App\Models\AemsEvidenceRequest::class,
+            'subjectId' => $record->id,
+            'subjectCode' => $record->request_code,
+            'dedupeKey' => "aems:evidence-request:{$record->id}:{$record->lock_version}:".strtolower($action),
+            'metadata' => ['engagementId' => $engagement->id, 'workflowAction' => $action],
+        ]));
+    }
+
+    public function evidenceAssessmentRecorded(
+        Request $request,
+        AuditEngagement $engagement,
+        \App\Models\AemsEvidenceAssessment $assessment,
+        string $action = 'ASSESSED',
+    ): void {
+        $recipientIds = $this->reviewers($engagement, 'aems.evidence-request.view')
+            ->merge([$assessment->evidence?->uploaded_by, $assessment->evidence?->verified_by])
+            ->filter()->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)->unique()->values();
+        $verb = $action === 'EXCEPTION_APPROVED' ? 'received an approved exception' : 'was assessed';
+        $actorId = $request->user()->id;
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_EVIDENCE_'.strtoupper($action),
+            'category' => 'WORKFLOW',
+            'priority' => $action === 'EXCEPTION_APPROVED' ? 'HIGH' : 'NORMAL',
+            'moduleCode' => 'AEMS',
+            'title' => "Evidence {$verb}",
+            'message' => "Evidence {$assessment->evidence?->evidence_code} for {$engagement->title} {$verb}.",
+            'actionUrl' => "/audit-engagement-management/working-papers?engagementId={$engagement->id}",
+            'actionLabel' => 'Open Evidence Workspace',
+            'subjectType' => \App\Models\AemsEvidenceAssessment::class,
+            'subjectId' => $assessment->id,
+            'subjectCode' => $assessment->evidence?->evidence_code,
+            'dedupeKey' => "aems:evidence-assessment:{$assessment->id}:{$assessment->lock_version}:".strtolower($action),
+            'metadata' => ['engagementId' => $engagement->id, 'assessmentId' => $assessment->id, 'documentVersionId' => $assessment->document_version_id],
         ]));
     }
 
@@ -181,6 +365,65 @@ class AemsNotificationService
                 'responsibleOfficeId' => $finding->responsible_office_id,
                 'responseDueDate' => $finding->management_response_due_date?->toDateString(),
             ],
+        ]));
+    }
+
+    public function issueDisposition(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditIssue $issue,
+        string $action,
+    ): void {
+        $recipientIds = $this->reviewers($engagement, 'aems.issue.view')
+            ->merge([$issue->raised_by])
+            ->filter()
+            ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
+            ->unique()->values();
+        $actorId = $request->user()->id;
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_ISSUE_DISPOSITION_'.strtoupper($action),
+            'category' => 'WORKFLOW',
+            'priority' => 'NORMAL',
+            'moduleCode' => 'AEMS',
+            'title' => "{$issue->issue_code}: issue {$action}",
+            'message' => "Issue {$issue->issue_code} for {$engagement->title} received the {$issue->disposition} disposition.",
+            'actionUrl' => "/audit-engagement-management/issues?engagementId={$engagement->id}",
+            'actionLabel' => 'Open Audit Issues',
+            'subjectType' => AuditIssue::class,
+            'subjectId' => $issue->id,
+            'subjectCode' => $issue->issue_code,
+            'dedupeKey' => "aems:issue:{$issue->id}:disposition:{$issue->lock_version}",
+            'metadata' => ['engagementId' => $engagement->id, 'disposition' => $issue->disposition],
+        ]));
+    }
+
+    public function findingRevision(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+    ): void {
+        $recipientIds = $this->reviewers($engagement, 'aems.finding.view')
+            ->merge([$finding->authored_by])
+            ->filter()
+            ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
+            ->unique()->values();
+        $actorId = $request->user()->id;
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_FINDING_REVISION_CREATED',
+            'category' => 'WORKFLOW',
+            'priority' => 'HIGH',
+            'moduleCode' => 'AEMS',
+            'title' => "{$finding->finding_code}: finding revision created",
+            'message' => "A {$finding->revision_type} revision was created for {$engagement->title} and requires controlled review.",
+            'actionUrl' => "/audit-engagement-management/findings?engagementId={$engagement->id}&findingId={$finding->id}",
+            'actionLabel' => 'Open Findings',
+            'subjectType' => AuditFinding::class,
+            'subjectId' => $finding->id,
+            'subjectCode' => $finding->finding_code,
+            'dedupeKey' => "aems:finding:{$finding->id}:revision:{$finding->revision_number}",
+            'metadata' => ['engagementId' => $engagement->id, 'revisionNumber' => $finding->revision_number, 'revisionType' => $finding->revision_type],
         ]));
     }
 
@@ -492,6 +735,37 @@ class AemsNotificationService
                 'engagementId' => $engagement->id,
                 'blockerCodes' => $blockers->pluck('checklistCode')->values()->all(),
             ],
+        ]));
+    }
+
+    /** @param array<string, mixed> $summary */
+    public function completionTransfer(
+        Request $request,
+        AuditEngagement $engagement,
+        string $action,
+        array $summary,
+    ): void {
+        $recipientIds = $this->reviewers($engagement, 'aems.completion-transfer.view')
+            ->merge($engagement->teamMembers()->where('is_active', true)->whereNull('ended_at')->pluck('user_id'))
+            ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
+            ->unique()->values();
+        $actorId = $request->user()->id;
+        $status = $summary['manifest']['status'] ?? $summary['effortReconciliation']['status'] ?? 'UPDATED';
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_COMPLETION_TRANSFER_'.strtoupper($action),
+            'category' => 'WORKFLOW',
+            'priority' => $status === 'EXCEPTION' ? 'HIGH' : 'NORMAL',
+            'moduleCode' => 'AEMS',
+            'title' => "{$engagement->engagement_code}: completion transfer {$action}",
+            'message' => "Completion transfer reconciliation for {$engagement->title} is {$status}.",
+            'actionUrl' => "/audit-engagement-management/{$engagement->id}?tab=completion-transfer",
+            'actionLabel' => 'Open Completion & Transfer',
+            'subjectType' => AuditEngagement::class,
+            'subjectId' => $engagement->id,
+            'subjectCode' => $engagement->engagement_code,
+            'dedupeKey' => "aems:completion-transfer:{$engagement->id}:{$action}:".($summary['manifest']['id'] ?? $summary['effortReconciliation']['id'] ?? 'none'),
+            'metadata' => ['engagementId' => $engagement->id, 'status' => $status],
         ]));
     }
 

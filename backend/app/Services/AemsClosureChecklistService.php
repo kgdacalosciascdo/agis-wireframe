@@ -12,6 +12,7 @@ class AemsClosureChecklistService
     public function __construct(
         private readonly AemsDocumentIndexService $documentIndex,
         private readonly EngagementRetentionProvider $retention,
+        private readonly AemsCompletionTransferService $completionTransfer,
     ) {}
 
     /** @return list<array<string, mixed>> */
@@ -71,6 +72,7 @@ class AemsClosureChecklistService
         );
         $documentReadiness = $this->documentIndex->readiness($engagement);
         $retentionReadiness = $this->retention->readiness($engagement->retentionRecord);
+        $transferGate = $this->completionTransfer->closureGate($engagement);
         $assessment = $engagement->currentCompletionAssessment;
         $activeChild = $this->activeChildWorkflow($engagement, $program);
         $activeCoreWorkflow = DB::table('workflow_instances')
@@ -262,12 +264,33 @@ class AemsClosureChecklistService
             'Database transfer IDs and idempotency keys were evaluated.',
             'AUDIT_RECOMMENDATION', null,
             '/audit-engagement-management/reports?engagementId='.$engagement->id);
+        $add('CMS_TRANSFER_MANIFEST', 'CMS', 'CMS transfer manifest is reconciled',
+            $transferGate['manifestReady'],
+            $transferGate['manifestReady']
+                ? 'The current CMS transfer manifest is reconciled.'
+                : 'Generate and reconcile the current CMS transfer manifest before closure.',
+            'AEMS_TRANSFER_MANIFEST', null,
+            $this->link($engagement, 'completion-transfer'));
+        $add('CMS_TRANSFER_EXCEPTIONS', 'CMS', 'CMS transfer exceptions are resolved',
+            (int) $transferGate['openExceptions'] === 0,
+            (int) $transferGate['openExceptions'] === 0
+                ? 'No open transfer exception remains.'
+                : "{$transferGate['openExceptions']} transfer exception(s) remain open.",
+            'AEMS_TRANSFER_MANIFEST', null,
+            $this->link($engagement, 'completion-transfer'));
 
         $add('ACTUAL_PERSON_DAYS', 'RESOURCES', 'Actual person-days are recorded',
             (float) $engagement->actual_person_days > 0,
             "Actual person-days: {$engagement->actual_person_days}.",
             'AUDIT_ENGAGEMENT', $engagement->id,
             $this->link($engagement, 'overview'));
+        $add('EFFORT_RECONCILIATION', 'RESOURCES', 'Actual person-days are reconciled with the active provider',
+            $transferGate['effortReady'],
+            $transferGate['effortReady']
+                ? 'The active resource provider effort snapshot is available.'
+                : 'Generate and resolve the ARMIS effort reconciliation before closure.',
+            'AEMS_EFFORT_RECONCILIATION', null,
+            $this->link($engagement, 'completion-transfer'));
         $add('ACTUAL_COST', 'RESOURCES', 'Actual cost is recorded when required',
             true,
             'Cost reporting is not configured for this engagement.',

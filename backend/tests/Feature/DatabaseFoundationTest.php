@@ -22,7 +22,7 @@ class DatabaseFoundationTest extends TestCase
 
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseCount('roles', 6);
-        $this->assertDatabaseCount('permissions', 349);
+        $this->assertDatabaseCount('permissions', 414);
     }
 
     public function test_demo_accounts_are_hashed_and_receive_role_permissions(): void

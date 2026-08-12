@@ -146,6 +146,33 @@ class AemsFindingController extends Controller
         ]);
     }
 
+    public function revise(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+    ): JsonResponse {
+        Gate::authorize('revise', $finding);
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['CORRECT', 'AMEND', 'SUPERSEDE', 'WITHDRAW'])],
+            'reason' => ['required', 'string', 'min:5', 'max:4000'],
+            'lockVersion' => ['required', 'integer', 'min:1'],
+        ]);
+        $revision = $this->findings->reviseFinding(
+            $request,
+            $engagement,
+            $finding,
+            $validated['action'],
+            $validated['lockVersion'],
+            $validated['reason'],
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Immutable finding revision created.',
+            'data' => ['finding' => $this->findings->findingData($revision)],
+        ], 201);
+    }
+
     public function saveRecommendation(
         Request $request,
         AuditEngagement $engagement,

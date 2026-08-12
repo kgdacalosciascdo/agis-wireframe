@@ -21,6 +21,9 @@ class AemsFindingRequest extends FormRequest
             'condition',
             'cause',
             'effect',
+            'conclusion',
+            'significanceClassification',
+            'effectClassification',
             'noRecommendationReason',
         ] as $field) {
             if ($this->has($field)) {
@@ -42,6 +45,9 @@ class AemsFindingRequest extends FormRequest
             'condition' => ['required', 'string', 'min:3', 'max:20000'],
             'cause' => ['required', 'string', 'min:3', 'max:20000'],
             'effect' => ['required', 'string', 'min:3', 'max:20000'],
+            'conclusion' => ['nullable', 'string', 'min:3', 'max:20000'],
+            'significanceClassification' => ['nullable', 'string', 'max:50'],
+            'effectClassification' => ['nullable', 'string', 'max:50'],
             'noRecommendationReason' => ['nullable', 'string', 'min:5', 'max:4000'],
             'riskRatingId' => [
                 'required',
@@ -57,6 +63,10 @@ class AemsFindingRequest extends FormRequest
             'workingPaperVersionIds.*' => ['integer', 'distinct'],
             'evidenceIds' => ['sometimes', 'array', 'max:100'],
             'evidenceIds.*' => ['integer', 'distinct'],
+            'fieldworkRecordIds' => ['sometimes', 'array', 'max:100'],
+            'fieldworkRecordIds.*' => ['integer', 'distinct'],
+            'fieldworkRecordVersionIds' => ['sometimes', 'array', 'max:100'],
+            'fieldworkRecordVersionIds.*' => ['integer', 'distinct'],
             'lockVersion' => [
                 $this->route('finding') ? 'required' : 'nullable',
                 'integer',

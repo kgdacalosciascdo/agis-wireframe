@@ -17,6 +17,9 @@ class AemsEngagementResource extends JsonResource
             'title' => $this->title,
             'sourceType' => $this->source_type,
             'status' => $this->status,
+            'phase' => $this->phase,
+            'administrativeStatus' => $this->administrative_status,
+            'engagementOfficeId' => $this->engagement_office_id,
             'iapPlanEngagementId' => $this->iap_plan_engagement_id,
             'iapPlanId' => $this->iap_plan_id,
             'iapPrioritizationItemId' => $this->iap_prioritization_item_id,
@@ -63,6 +66,13 @@ class AemsEngagementResource extends JsonResource
                     'name' => $office->name,
                     'isPrimary' => (bool) $office->pivot?->is_primary,
                 ])->values()),
+            'officeRule' => $this->whenLoaded('offices', fn (): array => [
+                'requiredCount' => 1,
+                'actualCount' => $this->offices->count(),
+                'state' => $this->offices->count() === 1
+                    ? 'VALID'
+                    : 'LEGACY_MULTI_OFFICE',
+            ]),
             'auditAreas' => $this->whenLoaded('auditAreas', fn () => $this->auditAreas
                 ->map->only(['id', 'code', 'name'])->values()),
             'auditFocuses' => $this->whenLoaded('auditFocuses', fn () => $this->auditFocuses

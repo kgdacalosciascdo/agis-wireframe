@@ -59,6 +59,11 @@ class AuditFindingPolicy
         return $this->allowsFindingAction($user, $finding, 'aems.finding.finalize');
     }
 
+    public function revise(User $user, AuditFinding $finding): bool
+    {
+        return $this->allowsAction($user, $finding->engagement, 'aems.finding.revise');
+    }
+
     public function submitManagementResponse(User $user, AuditFinding $finding): bool
     {
         return $this->allows(

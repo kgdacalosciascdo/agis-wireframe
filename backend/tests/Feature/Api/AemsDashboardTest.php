@@ -132,14 +132,21 @@ class AemsDashboardTest extends TestCase
             ->assertJsonPath('data.cards.workingPapersAwaitingReview', 1)
             ->assertJsonPath('data.cards.findingsAwaitingResponse', 1)
             ->assertJsonPath('data.cards.upcomingExitConferences', 1)
+            ->assertJsonPath('data.cards.upcomingConferences', 1)
             ->assertJsonPath('data.cards.reportsPendingApproval', 1)
             ->assertJsonPath('data.cards.engagementsReadyForClosure', 1)
+            ->assertJsonPath('data.cards.evidenceRequestsAwaitingResponse', 0)
+            ->assertJsonPath('data.cards.findingsAwaitingReview', 0)
+            ->assertJsonPath('data.workQueues.overdueProcedures.count', 1)
+            ->assertJsonPath('data.workQueues.evidenceGaps.count', 0)
+            ->assertJsonPath('data.phaseCounts.0.key', 'planning')
             ->assertJsonPath('data.integrations.core.available', true)
             ->assertJsonPath('data.integrations.iap.mode', 'APPROVED_PLAN_IMPORT')
             ->assertJsonPath('data.integrations.cms.mode', 'IMMUTABLE_INTAKE')
             ->assertJsonPath('data.integrations.armis.mode', 'IAP_INTERIM_FALLBACK')
             ->assertJsonPath('data.integrations.armis.authoritative', false)
             ->assertJsonCount(2, 'data.engagements');
+        $this->assertIsInt($response->json('data.notifications.unread'));
 
         $readyData = collect($response->json('data.engagements'))
             ->firstWhere('engagementCode', 'AEMS-TRACK-READY');
@@ -204,6 +211,10 @@ class AemsDashboardTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'data.engagements')
             ->assertJsonPath('data.pagination.total', 0);
+
+        $this->getJson('/api/aems/dashboard?phase=fieldwork')
+            ->assertOk()
+            ->assertJsonPath('data.pagination.total', 0);
     }
 
     public function test_progress_report_export_is_scoped_permissioned_and_logged(): void
@@ -218,6 +229,7 @@ class AemsDashboardTest extends TestCase
             $management,
             $office,
         );
+        $engagement->update(['title' => '=SUM(1,1)']);
         EngagementTeam::query()->create([
             'audit_engagement_id' => $engagement->id,
             'user_id' => $auditor->id,
@@ -232,14 +244,16 @@ class AemsDashboardTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.capabilities.canExport', false);
         $this->get('/api/aems/dashboard/export')->assertForbidden();
+        $this->get('/api/aems/dashboard/queues/export')->assertForbidden();
 
         Sanctum::actingAs($management);
-        $response = $this->get('/api/aems/dashboard/export?search=exportable')
+        $response = $this->get('/api/aems/dashboard/export?search=AEMS-TRACK-EXPORT')
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8');
         $content = $response->streamedContent();
         $this->assertStringContainsString('AEMS Engagement Progress Report', $content);
         $this->assertStringContainsString('AEMS-TRACK-EXPORT', $content);
+        $this->assertStringContainsString("'=SUM(1,1)", $content);
         $this->assertStringNotContainsString('AEMS-TRACK-OTHER', $content);
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $management->id,
@@ -259,6 +273,15 @@ class AemsDashboardTest extends TestCase
             ->firstOrFail();
         $this->assertSame(1, $audit->metadata['row_count']);
         $this->assertSame(1, $activity->metadata['rowCount']);
+
+        $queueExport = $this->get('/api/aems/dashboard/queues/export?search=AEMS-TRACK-EXPORT')
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('AEMS Operational Work Queues', $queueExport->streamedContent());
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $management->id,
+            'action' => 'aems.dashboard.queues_exported',
+        ]);
     }
 
     private function createEngagement(

@@ -158,6 +158,51 @@ class AemsCompletionClosureTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('engagement');
     }
 
+    public function test_completion_transfer_manifest_is_reconciled_idempotently_and_approved_snapshots_are_locked(): void
+    {
+        [$management, $auditor, $engagement] = $this->closureReadyEngagement();
+        Sanctum::actingAs($auditor);
+
+        $first = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/completion-transfer/reconcile",
+            [],
+        )->assertOk()
+            ->assertJsonPath('data.manifest.status', 'RECONCILED')
+            ->assertJsonPath('data.manifest.expectedCount', 0)
+            ->assertJsonPath('data.effortReconciliation.status', 'RECONCILED')
+            ->json('data');
+        $second = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/completion-transfer/reconcile",
+            [],
+        )->assertOk()->json('data');
+
+        $this->assertSame($first['manifest']['id'], $second['manifest']['id']);
+        $this->assertSame(1, DB::table('aems_completion_transfer_manifests')
+            ->where('audit_engagement_id', $engagement->id)->count());
+        $this->assertSame(2, DB::table('aems_effort_reconciliations')
+            ->where('audit_engagement_id', $engagement->id)->count());
+
+        Sanctum::actingAs($management);
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/completion-transfer/MANIFEST/{$second['manifest']['id']}/approve",
+            ['lockVersion' => $second['manifest']['lockVersion'], 'comment' => 'Independent transfer manifest review completed.'],
+        )->assertOk()->assertJsonPath('data.manifest.status', 'APPROVED');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/completion-transfer/EFFORT/{$second['effortReconciliation']['id']}/approve",
+            ['lockVersion' => $second['effortReconciliation']['lockVersion'], 'comment' => 'Independent effort reconciliation review completed.'],
+        )->assertOk()->assertJsonPath('data.effortReconciliation.status', 'APPROVED');
+
+        Sanctum::actingAs($auditor);
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/completion-transfer/reconcile",
+            [],
+        )->assertUnprocessable();
+        $this->assertDatabaseHas('aems_completion_transfer_manifests', [
+            'id' => $second['manifest']['id'],
+            'status' => 'APPROVED',
+        ]);
+    }
+
     public function test_authoritative_blockers_separation_retention_and_reopening_controls(): void
     {
         [$management, $auditor, $engagement] = $this->closureReadyEngagement();

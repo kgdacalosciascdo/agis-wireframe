@@ -493,6 +493,12 @@ class AemsProgramService
                     'workingPaperReference' => ['A working-paper reference is required to complete a procedure.'],
                 ]);
             }
+            if ($attributes['status'] === 'COMPLETED'
+                && ! $locked->fieldworkRecords()->where('status', 'FINALIZED')->exists()) {
+                throw ValidationException::withMessages([
+                    'fieldwork' => ['Every completed procedure must have at least one finalized Fieldwork Record.'],
+                ]);
+            }
             if ($attributes['status'] === 'WAIVED'
                 && mb_strlen(trim((string) ($attributes['waiverReason'] ?? ''))) < 5) {
                 throw ValidationException::withMessages([
@@ -504,6 +510,16 @@ class AemsProgramService
                 'status' => $attributes['status'],
                 'working_paper_reference' => $attributes['workingPaperReference']
                     ?? $locked->working_paper_reference,
+                'fieldwork_results' => array_key_exists('results', $attributes)
+                    ? $attributes['results'] : $locked->fieldwork_results,
+                'fieldwork_conclusion' => array_key_exists('conclusion', $attributes)
+                    ? $attributes['conclusion'] : $locked->fieldwork_conclusion,
+                'fieldwork_review_state' => array_key_exists('reviewState', $attributes)
+                    ? $attributes['reviewState'] : $locked->fieldwork_review_state,
+                'related_tasks' => array_key_exists('relatedTasks', $attributes)
+                    ? $attributes['relatedTasks'] : $locked->related_tasks,
+                'related_records' => array_key_exists('relatedRecords', $attributes)
+                    ? $attributes['relatedRecords'] : $locked->related_records,
                 'lock_version' => $locked->lock_version + 1,
             ];
             if ($attributes['status'] === 'COMPLETED') {
@@ -948,6 +964,14 @@ class AemsProgramService
             'waivedBy' => $this->user($procedure->waiverApprover),
             'waivedAt' => $procedure->waived_at?->toISOString(),
             'waiverReason' => $procedure->waiver_reason,
+            'fieldworkStatus' => $procedure->fieldwork_status,
+            'fieldworkResults' => $procedure->fieldwork_results,
+            'fieldworkConclusion' => $procedure->fieldwork_conclusion,
+            'fieldworkReviewState' => $procedure->fieldwork_review_state,
+            'relatedTasks' => $procedure->related_tasks ?? [],
+            'relatedRecords' => $procedure->related_records ?? [],
+            'fieldworkCompletedAt' => $procedure->fieldwork_completed_at?->toIso8601String(),
+            'fieldworkCompletedBy' => $this->user($procedure->fieldworkCompletedBy),
             'lockVersion' => $procedure->lock_version,
         ];
     }

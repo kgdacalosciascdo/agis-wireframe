@@ -197,4 +197,23 @@ class IapPlanEngagement extends Model
     {
         return $this->hasOne(AuditEngagement::class, 'iap_plan_engagement_id');
     }
+
+    /**
+     * Compatibility projection for the legacy IAP-to-AEMS link column.
+     *
+     * AEMS owns the relationship through audit_engagements and must not write
+     * to an approved IAP source row.  Existing IAP screens still read
+     * aem_engagement_id, so expose the authoritative AEMS relationship when
+     * the legacy column is null without persisting or mutating the source.
+     */
+    public function getAemEngagementIdAttribute(mixed $value): ?int
+    {
+        if ($value !== null) {
+            return (int) $value;
+        }
+
+        return $this->aemEngagement()
+            ->withTrashed()
+            ->value('audit_engagements.id');
+    }
 }

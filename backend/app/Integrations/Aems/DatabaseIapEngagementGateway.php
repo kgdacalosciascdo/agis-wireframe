@@ -7,7 +7,11 @@ use App\Models\IapPlanEngagement;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-/** Reads approved Annual Plan engagements without allowing AEMS to edit IAP content. */
+/**
+ * Reads approved Annual Plan engagements without allowing AEMS to edit IAP
+ * content.  Import lineage is owned by audit_engagements; the legacy
+ * aem_engagement_id column is intentionally not written.
+ */
 class DatabaseIapEngagementGateway implements IapEngagementGateway
 {
     public function eligibleForImport(): Collection
@@ -31,14 +35,15 @@ class DatabaseIapEngagementGateway implements IapEngagementGateway
 
     public function markImported(IapPlanEngagement $source, int $engagementId): void
     {
-        $source->forceFill(['aem_engagement_id' => $engagementId])->save();
+        // Kept in the contract for compatibility with older callers.  The
+        // AEMS aggregate already owns the FK and immutable source snapshot;
+        // mutating an approved IAP row here would violate module ownership.
     }
 
     public function relink(int $sourceId, int $engagementId): void
     {
-        IapPlanEngagement::withTrashed()
-            ->whereKey($sourceId)
-            ->update(['aem_engagement_id' => $engagementId]);
+        // Legacy compatibility no-op.  Re-linking is represented by the
+        // AEMS audit_engagements.iap_plan_engagement_id relationship.
     }
 
     public function status(): array
@@ -50,6 +55,9 @@ class DatabaseIapEngagementGateway implements IapEngagementGateway
             'available' => true,
             'eligibleEngagements' => $this->eligibleQuery()->count(),
             'ownership' => 'READ_APPROVED_SNAPSHOT',
+            'lineageOwner' => 'AEMS_AUDIT_ENGAGEMENT',
+            'sourceMutation' => false,
+            'duplicatePrevention' => 'AEMS_SOURCE_FOREIGN_KEY_AND_ACTIVE_UNIQUE_INDEX',
         ];
     }
 

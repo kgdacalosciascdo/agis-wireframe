@@ -27,11 +27,21 @@ class AuditFinding extends Model
         'AWAITING_MANAGEMENT_RESPONSE',
         'UNDER_DIALOGUE',
         'FINALIZED',
+        'WITHDRAWN',
+        'SUPERSEDED',
     ];
+
+    public const REVISION_TYPES = ['ORIGINAL', 'CORRECTION', 'AMENDMENT', 'SUPERSESSION', 'WITHDRAWAL'];
+
+    /** Internal guard used only by the revision service when closing a prior revision. */
+    protected static bool $allowRevisionTransition = false;
 
     protected $fillable = [
         'finding_family_uuid',
         'revision_number',
+        'revision_type',
+        'revision_reason',
+        'revision_snapshot',
         'supersedes_finding_id',
         'is_current_revision',
         'audit_engagement_id',
@@ -42,6 +52,9 @@ class AuditFinding extends Model
         'condition',
         'cause',
         'effect',
+        'conclusion',
+        'significance_classification',
+        'effect_classification',
         'no_recommendation_reason',
         'risk_rating_id',
         'responsible_office_id',
@@ -61,6 +74,8 @@ class AuditFinding extends Model
         'finalized_at',
         'finalized_by',
         'finalized_snapshot',
+        'withdrawn_at',
+        'withdrawn_by',
         'lock_version',
     ];
 
@@ -77,6 +92,8 @@ class AuditFinding extends Model
             'non_response_recorded_at' => 'datetime',
             'finalized_at' => 'datetime',
             'finalized_snapshot' => 'array',
+            'revision_snapshot' => 'array',
+            'withdrawn_at' => 'datetime',
             'lock_version' => 'integer',
         ];
     }
@@ -84,16 +101,26 @@ class AuditFinding extends Model
     protected static function booted(): void
     {
         static::updating(function (self $finding): void {
-            if ($finding->getOriginal('status') === 'FINALIZED'
-                || ! $finding->getOriginal('is_current_revision')) {
-                throw new LogicException('Finalized findings are immutable.');
+            if (! self::$allowRevisionTransition && (in_array($finding->getOriginal('status'), ['FINALIZED', 'WITHDRAWN', 'SUPERSEDED'], true)
+                || ! $finding->getOriginal('is_current_revision'))) {
+                throw new LogicException('Finalized or terminal findings are immutable.');
             }
         });
         static::deleting(function (self $finding): void {
-            if ($finding->status === 'FINALIZED') {
+            if (in_array($finding->status, ['FINALIZED', 'WITHDRAWN', 'SUPERSEDED'], true)) {
                 throw new LogicException('Finalized findings cannot be deleted.');
             }
         });
+    }
+
+    public static function allowRevisionTransition(callable $callback): mixed
+    {
+        self::$allowRevisionTransition = true;
+        try {
+            return $callback();
+        } finally {
+            self::$allowRevisionTransition = false;
+        }
     }
 
     /**
@@ -144,6 +171,11 @@ class AuditFinding extends Model
         return $this->belongsTo(User::class, 'finalized_by')->withTrashed();
     }
 
+    public function withdrawnBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'withdrawn_by')->withTrashed();
+    }
+
     public function recommendations(): HasMany
     {
         return $this->hasMany(AuditRecommendation::class, 'audit_finding_id');
@@ -153,6 +185,11 @@ class AuditFinding extends Model
     {
         return $this->hasMany(ManagementResponse::class, 'audit_finding_id')
             ->orderBy('version_number');
+    }
+
+    public function dueProcess(): HasMany
+    {
+        return $this->hasMany(AemsDialogueDueProcess::class, 'audit_finding_id')->orderBy('recorded_at');
     }
 
     public function workingPaperVersions(): BelongsToMany
@@ -196,5 +233,31 @@ class AuditFinding extends Model
     public function supersedes(): BelongsTo
     {
         return $this->belongsTo(self::class, 'supersedes_finding_id')->withTrashed();
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(self::class, 'finding_family_uuid', 'finding_family_uuid')
+            ->orderBy('revision_number');
+    }
+
+    public function fieldworkRecords(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            AemsFieldworkRecord::class,
+            'audit_finding_fieldwork_record',
+            'audit_finding_id',
+            'fieldwork_record_id',
+        )->withPivot(['fieldwork_record_version_id'])->withTimestamps();
+    }
+
+    public function fieldworkRecordVersions(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            AemsFieldworkRecordVersion::class,
+            'audit_finding_fieldwork_record',
+            'audit_finding_id',
+            'fieldwork_record_version_id',
+        )->withPivot(['fieldwork_record_id'])->withTimestamps();
     }
 }

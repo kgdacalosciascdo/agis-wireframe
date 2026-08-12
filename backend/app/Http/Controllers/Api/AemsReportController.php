@@ -61,6 +61,21 @@ class AemsReportController extends Controller
         ], 201);
     }
 
+    public function interim(Request $request, AuditEngagement $engagement): JsonResponse
+    {
+        $report = $this->reports->createInterim(
+            $request,
+            $engagement,
+            $this->content($request, false, false),
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Interim Audit Report generated.',
+            'data' => ['report' => $this->reports->reportData($report, $request->user())],
+        ], 201);
+    }
+
     public function revise(
         Request $request,
         AuditEngagement $engagement,
@@ -149,6 +164,43 @@ class AemsReportController extends Controller
         ]);
     }
 
+    public function distributionDecision(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, \App\Models\ReportRecipient $recipient): JsonResponse
+    {
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['DELIVERED', 'ACKNOWLEDGED', 'REJECTED'])],
+            'comment' => ['nullable', 'string', 'max:10000'],
+        ]);
+        $decision = $this->reports->distributionDecision($request, $engagement, $report, $version, $recipient, $validated['decision'], $validated['comment'] ?? null);
+
+        return response()->json(['success' => true, 'message' => 'Report distribution decision recorded.', 'data' => ['decision' => [
+            'id' => $decision->id, 'decision' => $decision->decision_code, 'comment' => $decision->comment,
+            'decidedAt' => $decision->decided_at?->toISOString(),
+        ]]]);
+    }
+
+    public function successor(Request $request, AuditEngagement $engagement, AuditReport $report): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['AMEND', 'SUPERSEDE'])],
+            'lockVersion' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:5', 'max:10000'],
+        ]);
+        $successor = $this->reports->createSuccessor($request, $engagement, $report, $validated['lockVersion'], $validated['action'], $validated['reason']);
+
+        return response()->json(['success' => true, 'message' => 'Controlled report successor generated.', 'data' => ['report' => $this->reports->reportData($successor, $request->user())]]);
+    }
+
+    public function withdraw(Request $request, AuditEngagement $engagement, AuditReport $report): JsonResponse
+    {
+        $validated = $request->validate([
+            'lockVersion' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:5', 'max:10000'],
+        ]);
+        $withdrawn = $this->reports->withdraw($request, $engagement, $report, $validated['lockVersion'], $validated['reason']);
+
+        return response()->json(['success' => true, 'message' => 'Issued report withdrawn without altering its immutable version.', 'data' => ['report' => $this->reports->reportData($withdrawn, $request->user())]]);
+    }
+
     public function download(
         Request $request,
         AuditEngagement $engagement,
@@ -178,6 +230,10 @@ class AemsReportController extends Controller
             'sections' => ['required', 'array', 'min:1'],
             'sections.*.title' => ['required', 'string', 'max:255'],
             'sections.*.content' => ['required', 'string', 'max:60000'],
+            'qualityChecklist' => ['nullable', 'array'],
+            'qualityChecklist.*.code' => ['required', 'string', 'max:80'],
+            'qualityChecklist.*.label' => ['required', 'string', 'max:255'],
+            'qualityChecklist.*.completed' => ['required', 'boolean'],
             'findingIds' => ['required', 'array', 'min:1'],
             'findingIds.*' => ['required', 'integer', 'distinct'],
             'confidentialityLevelId' => ['required', 'integer'],

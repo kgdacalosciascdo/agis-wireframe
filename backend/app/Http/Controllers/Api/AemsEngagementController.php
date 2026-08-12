@@ -252,6 +252,7 @@ class AemsEngagementController extends Controller
             $locked = AuditEngagement::query()->lockForUpdate()->findOrFail($engagement->id);
             $oldValues = $this->registry->auditSnapshot($locked);
             $locked->forceFill([
+                'administrative_status' => 'ARCHIVED',
                 'is_active' => false,
                 'updated_by' => $request->user()->id,
                 'lock_version' => $locked->lock_version + 1,
@@ -304,6 +305,7 @@ class AemsEngagementController extends Controller
             $oldValues = $this->registry->auditSnapshot($locked);
             $locked->restore();
             $locked->forceFill([
+                ...AuditEngagement::lifecycleProjectionForStatus($locked->status),
                 'is_active' => true,
                 'updated_by' => $request->user()->id,
                 'lock_version' => $locked->lock_version + 1,

@@ -43,6 +43,14 @@ class AuditProgramProcedure extends Model
         'waived_at',
         'waived_by',
         'waiver_reason',
+        'fieldwork_status',
+        'fieldwork_results',
+        'fieldwork_conclusion',
+        'fieldwork_review_state',
+        'related_tasks',
+        'related_records',
+        'fieldwork_completed_at',
+        'fieldwork_completed_by',
         'lock_version',
     ];
 
@@ -54,6 +62,9 @@ class AuditProgramProcedure extends Model
             'reviewed_at' => 'datetime',
             'completed_at' => 'datetime',
             'waived_at' => 'datetime',
+            'related_tasks' => 'array',
+            'related_records' => 'array',
+            'fieldwork_completed_at' => 'datetime',
             'lock_version' => 'integer',
         ];
     }
@@ -86,5 +97,15 @@ class AuditProgramProcedure extends Model
     public function waiverApprover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'waived_by')->withTrashed();
+    }
+
+    public function fieldworkCompletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'fieldwork_completed_by')->withTrashed();
+    }
+
+    public function fieldworkRecords(): HasMany
+    {
+        return $this->hasMany(AemsFieldworkRecord::class, 'audit_program_procedure_id');
     }
 }

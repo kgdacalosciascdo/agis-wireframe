@@ -191,6 +191,7 @@ class AemsReopenService
         ];
         $lockedEngagement->forceFill([
             'status' => 'CLOSURE_REVIEW',
+            ...AuditEngagement::lifecycleProjectionForStatus('CLOSURE_REVIEW'),
             'status_reason' => "Exceptionally reopened under {$reopen->request_code}.",
             'current_reopen_request_id' => $reopen->id,
             'reopen_revision_number' => $lockedEngagement->reopen_revision_number + 1,
@@ -210,6 +211,8 @@ class AemsReopenService
             $before,
             [
                 'status' => $lockedEngagement->status,
+                'phase' => $lockedEngagement->phase,
+                'administrativeStatus' => $lockedEngagement->administrative_status,
                 'lockVersion' => $lockedEngagement->lock_version,
                 'reopenRevisionNumber' => $lockedEngagement->reopen_revision_number,
                 'originalClosureId' => $currentClosure->id,
@@ -229,6 +232,8 @@ class AemsReopenService
             $before,
             [
                 'status' => 'CLOSURE_REVIEW',
+                'phase' => $lockedEngagement->phase,
+                'administrativeStatus' => $lockedEngagement->administrative_status,
                 'reopenRevisionNumber' => $lockedEngagement->reopen_revision_number,
                 'originalClosedSnapshot' => $reopen->original_closed_snapshot_json,
             ],

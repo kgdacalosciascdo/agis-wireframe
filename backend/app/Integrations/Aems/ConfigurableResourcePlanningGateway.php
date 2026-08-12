@@ -79,7 +79,6 @@ class ConfigurableResourcePlanningGateway implements ResourcePlanningGateway
         $mode = $this->mode();
         $active = $this->active()->status();
         $armis = $this->armis->status();
-        $mode = $this->mode();
         $authorityEligible = $this->authorityEligible();
 
         return [
@@ -105,6 +104,18 @@ class ConfigurableResourcePlanningGateway implements ResourcePlanningGateway
                 ? 'ARMIS'
                 : 'AEMS_UNTIL_ARMIS_AUTHORITY_GATE',
             'futureAuthoritativeProvider' => $mode === self::ARMIS_AUTHORITATIVE ? null : 'ARMIS',
+            'fallback' => [
+                'explicit' => true,
+                'provider' => $this->interim->status()['provider'],
+                'active' => $mode !== self::ARMIS_AUTHORITATIVE,
+                'reason' => $mode !== self::ARMIS_AUTHORITATIVE
+                    ? 'ARMIS is not the approved authoritative provider.'
+                    : null,
+            ],
+            'reconciliation' => [
+                'requiredForAuthority' => true,
+                'authorityEligible' => $authorityEligible,
+            ],
         ];
     }
 

@@ -21,6 +21,28 @@ class AuditEngagement extends Model
 
     public const SOURCE_TYPES = ['PLANNED', 'SPECIAL'];
 
+    public const PHASES = [
+        'FOUNDATION',
+        'PLANNING',
+        'EXECUTION',
+        'ISSUES_AFR',
+        'CONFERENCES',
+        'REPORTING',
+        'COMPLETION_TRANSFER',
+        'CLOSURE',
+    ];
+
+    public const ADMINISTRATIVE_STATUSES = [
+        'DRAFT',
+        'ACTIVE',
+        'RETURNED',
+        'ISSUED',
+        'SUSPENDED',
+        'CANCELLED',
+        'CLOSED',
+        'ARCHIVED',
+    ];
+
     public const STATUSES = [
         'DRAFT',
         'AUTHORIZATION_PREPARATION',
@@ -48,6 +70,7 @@ class AuditEngagement extends Model
         'iap_risk_assessment_id',
         'iap_audit_universe_item_id',
         'source_snapshot',
+        'engagement_office_id',
         'special_authority_reference',
         'special_authority_type_code',
         'special_authority_date',
@@ -67,6 +90,8 @@ class AuditEngagement extends Model
         'planned_person_days',
         'actual_person_days',
         'status',
+        'phase',
+        'administrative_status',
         'returned_from_status',
         'return_to_status',
         'suspended_from_status',
@@ -188,6 +213,45 @@ class AuditEngagement extends Model
         )->withPivot('is_primary')->withTimestamps();
     }
 
+    public function engagementOffice(): BelongsTo
+    {
+        return $this->belongsTo(Office::class, 'engagement_office_id')->withTrashed();
+    }
+
+    /** @return array{phase: string, administrative_status: string} */
+    public static function lifecycleProjectionForStatus(
+        string $status,
+        ?string $suspendedFromStatus = null,
+    ): array {
+        $phaseStatus = $status === 'SUSPENDED'
+            ? ($suspendedFromStatus ?: 'DRAFT')
+            : $status;
+        $phase = match ($phaseStatus) {
+            'ENGAGEMENT_PLANNING' => 'PLANNING',
+            'FIELDWORK' => 'EXECUTION',
+            'FINDINGS_COMMUNICATION' => 'ISSUES_AFR',
+            'ENTRY_CONFERENCE' => 'CONFERENCES',
+            'REPORTING', 'ISSUED' => 'REPORTING',
+            'CLOSURE_REVIEW' => 'COMPLETION_TRANSFER',
+            'CLOSED', 'CANCELLED' => 'CLOSURE',
+            default => 'FOUNDATION',
+        };
+        $administrativeStatus = match ($status) {
+            'DRAFT' => 'DRAFT',
+            'RETURNED_FOR_REVISION' => 'RETURNED',
+            'ISSUED' => 'ISSUED',
+            'SUSPENDED' => 'SUSPENDED',
+            'CANCELLED' => 'CANCELLED',
+            'CLOSED' => 'CLOSED',
+            default => 'ACTIVE',
+        };
+
+        return [
+            'phase' => $phase,
+            'administrative_status' => $administrativeStatus,
+        ];
+    }
+
     public function auditAreas(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -229,6 +293,11 @@ class AuditEngagement extends Model
         return $this->hasOne(AuditEngagementPlan::class, 'audit_engagement_id');
     }
 
+    public function planningPackage(): HasOne
+    {
+        return $this->hasOne(AemsPlanningPackage::class, 'audit_engagement_id');
+    }
+
     public function programs(): HasMany
     {
         return $this->hasMany(AuditProgram::class, 'audit_engagement_id');
@@ -244,6 +313,16 @@ class AuditEngagement extends Model
         return $this->hasMany(AuditEvidence::class, 'audit_engagement_id');
     }
 
+    public function evidenceRequests(): HasMany
+    {
+        return $this->hasMany(AemsEvidenceRequest::class, 'audit_engagement_id');
+    }
+
+    public function evidenceAssessments(): HasMany
+    {
+        return $this->hasMany(AemsEvidenceAssessment::class, 'audit_engagement_id');
+    }
+
     public function issues(): HasMany
     {
         return $this->hasMany(AuditIssue::class, 'audit_engagement_id');
@@ -252,6 +331,26 @@ class AuditEngagement extends Model
     public function findings(): HasMany
     {
         return $this->hasMany(AuditFinding::class, 'audit_engagement_id');
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(AemsEngagementTask::class, 'audit_engagement_id');
+    }
+
+    public function reviewNotes(): HasMany
+    {
+        return $this->hasMany(AemsReviewNote::class, 'audit_engagement_id');
+    }
+
+    public function dueProcessExchanges(): HasMany
+    {
+        return $this->hasMany(AemsDialogueDueProcess::class, 'audit_engagement_id');
+    }
+
+    public function escalationCandidates(): HasMany
+    {
+        return $this->hasMany(AemsEscalationCandidate::class, 'audit_engagement_id');
     }
 
     public function exitConferences(): HasMany
@@ -310,6 +409,16 @@ class AuditEngagement extends Model
     public function reopenRequests(): HasMany
     {
         return $this->hasMany(EngagementReopenRequest::class, 'audit_engagement_id');
+    }
+
+    public function completionTransferManifests(): HasMany
+    {
+        return $this->hasMany(AemsCompletionTransferManifest::class, 'audit_engagement_id');
+    }
+
+    public function effortReconciliations(): HasMany
+    {
+        return $this->hasMany(AemsEffortReconciliation::class, 'audit_engagement_id');
     }
 
     public function currentReopenRequest(): BelongsTo

@@ -154,6 +154,17 @@ class AemsReportTest extends TestCase
             ->assertJsonCount(1, 'data.report.cmsTransfers')
             ->json('data.report');
 
+        Sanctum::actingAs($auditee);
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/versions/{$report['versions'][2]['id']}/recipients/{$report['versions'][2]['recipients'][0]['id']}/decision",
+            ['decision' => 'ACKNOWLEDGED', 'comment' => 'The office received the issued report.'],
+        )->assertOk()->assertJsonPath('data.decision.decision', 'ACKNOWLEDGED');
+        $this->assertDatabaseHas('audit_report_distribution_decisions', [
+            'audit_report_id' => $report['id'],
+            'report_recipient_id' => $report['versions'][2]['recipients'][0]['id'],
+            'decision_code' => 'ACKNOWLEDGED',
+        ]);
+
         $this->assertDatabaseCount('cms_recommendations', 1);
         $this->assertDatabaseCount('cms_recommendation_cases', 1);
         $this->assertDatabaseCount('cms_recommendation_events', 1);
@@ -209,6 +220,7 @@ class AemsReportTest extends TestCase
             'type' => 'AEMS_REPORT_ISSUED',
             'module_code' => 'AEMS',
         ]);
+        Sanctum::actingAs($management);
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/cms-transfer",
             ['lockVersion' => $report['lockVersion']],
@@ -272,6 +284,62 @@ class AemsReportTest extends TestCase
         $this->transition($engagement, $report, 'APPROVE')
             ->assertUnprocessable()
             ->assertJsonValidationErrors('report');
+    }
+
+    public function test_interim_report_preserves_quality_checklist_and_assembly_order(): void
+    {
+        [$management, $auditor, , $engagement, $finding] = $this->reportContext();
+        $confidentiality = MasterList::query()->where('code', 'DOCUMENT_CONFIDENTIALITY')->firstOrFail()->items()->firstOrFail();
+
+        Sanctum::actingAs($auditor);
+        $response = $this->postJson("/api/aems/engagements/{$engagement->id}/reports/interim", [
+            ...$this->content($finding, $confidentiality->id),
+            'qualityChecklist' => [
+                ['code' => 'FINDINGS', 'label' => 'Eligible findings reviewed', 'completed' => true],
+                ['code' => 'QUALITY', 'label' => 'Quality review completed', 'completed' => false],
+            ],
+        ])->assertCreated()
+            ->assertJsonPath('data.report.reportStage', 'INTERIM_REPORT')
+            ->assertJsonPath('data.report.versions.0.contentSnapshot.qualityChecklist.0.completed', true)
+            ->assertJsonPath('data.report.versions.0.contentSnapshot.sections.0.sequenceNumber', 1);
+
+        $report = $response->json('data.report');
+        $this->assertSame('DRAFT', $report['status']);
+        $this->assertSame(1, $report['currentVersionNumber']);
+    }
+
+    public function test_issued_report_amendment_creates_immutable_successor_version(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $finding, $recommendation] = $this->reportContext();
+        $internal = MasterList::query()->where('code', 'DOCUMENT_CONFIDENTIALITY')->firstOrFail()->items()->where('code', 'INTERNAL')->firstOrFail();
+        $finding->forceFill(['status' => 'FINALIZED', 'finalized_at' => now(), 'finalized_by' => $management->id])->save();
+        $recommendation->forceFill(['status' => 'FINALIZED', 'finalized_at' => now(), 'finalized_by' => $management->id])->save();
+        ExitConference::query()->create(['audit_engagement_id' => $engagement->id, 'conference_code' => 'EXIT-RPT-SUCCESSOR', 'scheduled_start_at' => now()->subDay(), 'agenda' => 'Review report.', 'minutes' => 'Completed.', 'status' => 'COMPLETED', 'created_by' => $management->id, 'completed_at' => now(), 'completed_by' => $management->id]);
+
+        Sanctum::actingAs($auditor);
+        $report = $this->postJson("/api/aems/engagements/{$engagement->id}/reports", $this->content($finding, $internal->id))->json('data.report');
+        $report = $this->transition($engagement, $report, 'SUBMIT')->json('data.report');
+        Sanctum::actingAs($management);
+        $report = $this->transition($engagement, $report, 'APPROVE')->json('data.report');
+        Sanctum::actingAs($auditor);
+        $final = $this->finalContent($finding, $internal->id, $auditee, $report['lockVersion']);
+        $report = $this->postJson("/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/final", $final)->json('data.report');
+        $report = $this->transition($engagement, $report, 'SUBMIT')->json('data.report');
+        Sanctum::actingAs($management);
+        $report = $this->transition($engagement, $report, 'APPROVE')->json('data.report');
+        $report = $this->transition($engagement, $report, 'ISSUE')->json('data.report');
+
+        $successor = $this->postJson("/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/successors", [
+            'action' => 'AMEND', 'lockVersion' => $report['lockVersion'], 'reason' => 'Corrected an issued report presentation error.',
+        ])->assertOk()->assertJsonPath('data.report.status', 'DRAFT')->json('data.report');
+        $this->assertSame($report['id'], $successor['id']);
+        $this->assertSame($report['currentVersionNumber'] + 1, $successor['currentVersionNumber']);
+        $predecessor = collect($successor['versions'])->firstWhere('id', $report['currentVersionId']);
+        $successorVersion = collect($successor['versions'])->last();
+        $this->assertTrue($predecessor['isLocked']);
+        $this->assertFalse($successorVersion['isLocked']);
+        $this->assertSame($predecessor['id'], $successorVersion['contentSnapshot']['supersedesVersionId']);
+        $this->assertDatabaseHas('audit_reports', ['id' => $report['id'], 'status' => 'DRAFT', 'is_active' => true]);
     }
 
     /** @return array{User, User, User, AuditEngagement, AuditFinding, AuditRecommendation} */

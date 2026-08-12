@@ -12,20 +12,26 @@ use App\Http\Controllers\Api\AemsAeoController;
 use App\Http\Controllers\Api\AemsAepController;
 use App\Http\Controllers\Api\AemsClosureController;
 use App\Http\Controllers\Api\AemsCompletionAssessmentController;
+use App\Http\Controllers\Api\AemsCompletionTransferController;
 use App\Http\Controllers\Api\AemsDashboardController;
 use App\Http\Controllers\Api\AemsDocumentIndexController;
 use App\Http\Controllers\Api\AemsEngagementController;
 use App\Http\Controllers\Api\AemsEngagementLifecycleController;
 use App\Http\Controllers\Api\AemsEntryConferenceController;
 use App\Http\Controllers\Api\AemsEvidenceController;
+use App\Http\Controllers\Api\AemsEvidenceRequestController;
 use App\Http\Controllers\Api\AemsExitConferenceController;
+use App\Http\Controllers\Api\AemsFieldworkController;
 use App\Http\Controllers\Api\AemsFindingController;
 use App\Http\Controllers\Api\AemsIssueController;
 use App\Http\Controllers\Api\AemsProgramController;
+use App\Http\Controllers\Api\AemsPlanningPackageController;
 use App\Http\Controllers\Api\AemsReopenController;
 use App\Http\Controllers\Api\AemsReportController;
 use App\Http\Controllers\Api\AemsTeamController;
+use App\Http\Controllers\Api\AemsTeamSafeguardController;
 use App\Http\Controllers\Api\AemsWorkingPaperController;
+use App\Http\Controllers\Api\AemsWorkQueueController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ArmisResourceController;
 use App\Http\Controllers\Api\ArmisFoundationController;
@@ -480,7 +486,11 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.engagement.view');
     Route::get('/aems/dashboard', AemsDashboardController::class)
         ->middleware('permission:aems.engagement.view');
+    Route::get('/aems/integrations/status', [AemsDashboardController::class, 'status'])
+        ->middleware('permission:aems.engagement.view');
     Route::get('/aems/dashboard/export', [AemsDashboardController::class, 'export'])
+        ->middleware('permission:aems.engagement.export');
+    Route::get('/aems/dashboard/queues/export', [AemsDashboardController::class, 'exportQueues'])
         ->middleware('permission:aems.engagement.export');
     Route::get('/aems/engagements/import-options', [AemsEngagementController::class, 'importOptions'])
         ->middleware('permission:aems.engagement.create');
@@ -490,8 +500,18 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.engagement.create');
     Route::get('/aems/engagements/{engagement}/team', [AemsTeamController::class, 'show'])
         ->middleware('permission:aems.team.view');
+    Route::get('/aems/engagements/{engagement}/team/safeguards', [AemsTeamSafeguardController::class, 'show'])
+        ->middleware('permission:aems.team.safeguard_view');
+    Route::post('/aems/engagements/{engagement}/team/safeguards/assess', [AemsTeamSafeguardController::class, 'assess'])
+        ->middleware('permission:aems.team.safeguard_review');
+    Route::post('/aems/engagements/{engagement}/team/safeguards/approve', [AemsTeamSafeguardController::class, 'approve'])
+        ->middleware('permission:aems.team.safeguard_approve');
     Route::post('/aems/engagements/{engagement}/team', [AemsTeamController::class, 'store'])
         ->middleware('permission:aems.team.assign');
+    Route::post('/aems/engagements/{engagement}/team/{teamMember}/safeguards/declarations', [AemsTeamSafeguardController::class, 'storeDeclaration'])
+        ->middleware('permission:aems.team.safeguard_declare');
+    Route::post('/aems/engagements/{engagement}/team/{teamMember}/safeguards/declarations/{declaration}/review', [AemsTeamSafeguardController::class, 'reviewDeclaration'])
+        ->middleware('permission:aems.team.safeguard_review');
     Route::put('/aems/engagements/{engagement}/team/{teamMember}', [AemsTeamController::class, 'update'])
         ->middleware('permission:aems.team.assign');
     Route::post('/aems/engagements/{engagement}/team/{teamMember}/reassign', [AemsTeamController::class, 'reassign'])
@@ -520,6 +540,16 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.aep.view');
     Route::post('/aems/engagements/{engagement}/aep/{plan}/revise', [AemsAepController::class, 'revise'])
         ->middleware('permission:aems.aep.revise');
+    Route::get('/aems/engagements/{engagement}/planning-package', [AemsPlanningPackageController::class, 'show'])
+        ->middleware('permission:aems.planning-package.view');
+    Route::post('/aems/engagements/{engagement}/planning-package', [AemsPlanningPackageController::class, 'store'])
+        ->middleware('permission:aems.planning-package.create');
+    Route::put('/aems/engagements/{engagement}/planning-package/{package}', [AemsPlanningPackageController::class, 'update'])
+        ->middleware('permission:aems.planning-package.update');
+    Route::post('/aems/engagements/{engagement}/planning-package/{package}/transition', [AemsPlanningPackageController::class, 'transition'])
+        ->middleware('permission:aems.planning-package.view');
+    Route::post('/aems/engagements/{engagement}/planning-package/{package}/revise', [AemsPlanningPackageController::class, 'revise'])
+        ->middleware('permission:aems.planning-package.revise');
     Route::get('/aems/engagements/{engagement}/programs', [AemsProgramController::class, 'index'])
         ->middleware('permission:aems.program.view');
     Route::post('/aems/engagements/{engagement}/programs', [AemsProgramController::class, 'store'])
@@ -540,6 +570,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.program.manage');
     Route::post('/aems/engagements/{engagement}/programs/{program}/procedures/{procedure}/review', [AemsProgramController::class, 'reviewProcedure'])
         ->middleware('permission:aems.program.review');
+    Route::get('/aems/engagements/{engagement}/fieldwork', [AemsFieldworkController::class, 'index'])
+        ->middleware('permission:aems.fieldwork.view');
+    Route::post('/aems/engagements/{engagement}/fieldwork', [AemsFieldworkController::class, 'store'])
+        ->middleware('permission:aems.fieldwork.create');
+    Route::put('/aems/engagements/{engagement}/fieldwork/{record}', [AemsFieldworkController::class, 'update'])
+        ->middleware('permission:aems.fieldwork.create');
+    Route::post('/aems/engagements/{engagement}/fieldwork/{record}/transition', [AemsFieldworkController::class, 'transition'])
+        ->middleware('permission:aems.fieldwork.view');
     Route::get('/aems/engagements/{engagement}/working-papers', [AemsWorkingPaperController::class, 'index'])
         ->middleware('permission:aems.working-paper.view');
     Route::post('/aems/engagements/{engagement}/working-papers', [AemsWorkingPaperController::class, 'store'])
@@ -558,6 +596,20 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.evidence.view');
     Route::get('/aems/engagements/{engagement}/evidence/{evidence}/download', [AemsEvidenceController::class, 'download'])
         ->middleware('permission:aems.evidence.view');
+    Route::get('/aems/engagements/{engagement}/evidence-requests', [AemsEvidenceRequestController::class, 'index'])
+        ->middleware('permission:aems.evidence-request.view');
+    Route::post('/aems/engagements/{engagement}/evidence-requests', [AemsEvidenceRequestController::class, 'store'])
+        ->middleware('permission:aems.evidence-request.create');
+    Route::put('/aems/engagements/{engagement}/evidence-requests/{evidenceRequest}', [AemsEvidenceRequestController::class, 'update'])
+        ->middleware('permission:aems.evidence-request.update');
+    Route::post('/aems/engagements/{engagement}/evidence-requests/{evidenceRequest}/transition', [AemsEvidenceRequestController::class, 'transition'])
+        ->middleware('permission:aems.evidence-request.view');
+    Route::post('/aems/engagements/{engagement}/evidence-requests/{evidenceRequest}/evidence', [AemsEvidenceRequestController::class, 'receiveEvidence'])
+        ->middleware('permission:aems.evidence-request.receive');
+    Route::post('/aems/engagements/{engagement}/evidence-assessments', [AemsEvidenceRequestController::class, 'assessEvidence'])
+        ->middleware('permission:aems.evidence.assess');
+    Route::post('/aems/engagements/{engagement}/evidence-assessments/{assessment}/approve-exception', [AemsEvidenceRequestController::class, 'approveException'])
+        ->middleware('permission:aems.evidence.exception_approve');
     Route::get('/aems/findings-workspaces', [AemsFindingController::class, 'engagements'])
         ->middleware('permission:aems.finding.view');
     Route::get('/aems/engagements/{engagement}/findings-workspace', [AemsFindingController::class, 'index'])
@@ -574,6 +626,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.finding.create');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/transition', [AemsFindingController::class, 'transition'])
         ->middleware('permission:aems.finding.view');
+    Route::post('/aems/engagements/{engagement}/findings/{finding}/revisions', [AemsFindingController::class, 'revise'])
+        ->middleware('permission:aems.finding.revise');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/recommendations', [AemsFindingController::class, 'saveRecommendation'])
         ->middleware('permission:aems.finding.create');
     Route::put('/aems/engagements/{engagement}/findings/{finding}/recommendations/{recommendation}', [AemsFindingController::class, 'saveRecommendation'])
@@ -590,6 +644,30 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.management-response.submit');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/responses/{response}/attachments', [AemsFindingController::class, 'uploadResponseAttachment'])
         ->middleware('permission:aems.management-response.submit');
+    Route::get('/aems/engagements/{engagement}/work-queue', [AemsWorkQueueController::class, 'show'])
+        ->middleware('permission:aems.task.view');
+    Route::post('/aems/engagements/{engagement}/tasks', [AemsWorkQueueController::class, 'storeTask'])
+        ->middleware('permission:aems.task.create');
+    Route::put('/aems/engagements/{engagement}/tasks/{task}', [AemsWorkQueueController::class, 'updateTask'])
+        ->middleware('permission:aems.task.update');
+    Route::post('/aems/engagements/{engagement}/tasks/{task}/transition', [AemsWorkQueueController::class, 'transitionTask'])
+        ->middleware('permission:aems.task.view');
+    Route::post('/aems/engagements/{engagement}/review-notes', [AemsWorkQueueController::class, 'storeReviewNote'])
+        ->middleware('permission:aems.review-note.create');
+    Route::put('/aems/engagements/{engagement}/review-notes/{note}', [AemsWorkQueueController::class, 'updateReviewNote'])
+        ->middleware('permission:aems.review-note.update');
+    Route::post('/aems/engagements/{engagement}/review-notes/{note}/transition', [AemsWorkQueueController::class, 'transitionReviewNote'])
+        ->middleware('permission:aems.review-note.view');
+    Route::post('/aems/engagements/{engagement}/review-notes/{note}/revisions', [AemsWorkQueueController::class, 'reviseReviewNote'])
+        ->middleware('permission:aems.review-note.revise');
+    Route::post('/aems/engagements/{engagement}/review-notes/{note}/attachments', [AemsWorkQueueController::class, 'attachReviewNote'])
+        ->middleware('permission:aems.review-note.attach');
+    Route::post('/aems/engagements/{engagement}/due-process', [AemsWorkQueueController::class, 'storeDueProcess'])
+        ->middleware('permission:aems.due-process.create');
+    Route::post('/aems/engagements/{engagement}/due-process/{item}/attachments', [AemsWorkQueueController::class, 'attachDueProcess'])
+        ->middleware('permission:aems.due-process.attach');
+    Route::post('/aems/engagements/{engagement}/escalation-candidates/{candidate}/review', [AemsWorkQueueController::class, 'reviewCandidate'])
+        ->middleware('permission:aems.escalation-candidate.view');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/responses/{response}/rejoinders', [AemsFindingController::class, 'saveRejoinder'])
         ->middleware('permission:aems.rejoinder.create');
     Route::put('/aems/engagements/{engagement}/findings/{finding}/responses/{response}/rejoinders/{rejoinder}', [AemsFindingController::class, 'saveRejoinder'])
@@ -622,6 +700,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/aems/engagements/{engagement}/reports', [AemsReportController::class, 'index']);
     Route::post('/aems/engagements/{engagement}/reports', [AemsReportController::class, 'store'])
         ->middleware('permission:aems.report.create');
+    Route::post('/aems/engagements/{engagement}/reports/interim', [AemsReportController::class, 'interim'])
+        ->middleware('permission:aems.report.create');
     Route::post('/aems/engagements/{engagement}/reports/{report}/versions', [AemsReportController::class, 'revise'])
         ->middleware('permission:aems.report.create');
     Route::post('/aems/engagements/{engagement}/reports/{report}/final', [AemsReportController::class, 'createFinal'])
@@ -630,6 +710,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.report.view');
     Route::post('/aems/engagements/{engagement}/reports/{report}/cms-transfer', [AemsReportController::class, 'transferRecommendations'])
         ->middleware('permission:aems.report.issue');
+    Route::post('/aems/engagements/{engagement}/reports/{report}/successors', [AemsReportController::class, 'successor']);
+    Route::post('/aems/engagements/{engagement}/reports/{report}/withdraw', [AemsReportController::class, 'withdraw']);
+    Route::post('/aems/engagements/{engagement}/reports/{report}/versions/{version}/recipients/{recipient}/decision', [AemsReportController::class, 'distributionDecision']);
     Route::get('/aems/engagements/{engagement}/reports/{report}/versions/{version}/download', [AemsReportController::class, 'download']);
     Route::get('/aems/engagements/{engagement}/lifecycle', [AemsEngagementLifecycleController::class, 'show'])
         ->middleware('permission:aems.engagement.view');
@@ -691,6 +774,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.retention.approve');
     Route::post('/aems/engagements/{engagement}/lessons-learned', [AemsClosureController::class, 'addLesson'])
         ->middleware('permission:aems.closure.update');
+    Route::get('/aems/engagements/{engagement}/completion-transfer', [AemsCompletionTransferController::class, 'show'])
+        ->middleware('permission:aems.completion-transfer.view');
+    Route::post('/aems/engagements/{engagement}/completion-transfer/reconcile', [AemsCompletionTransferController::class, 'reconcile'])
+        ->middleware('permission:aems.completion-transfer.reconcile');
+    Route::post('/aems/engagements/{engagement}/completion-transfer/{type}/{id}/approve', [AemsCompletionTransferController::class, 'approve'])
+        ->middleware('permission:aems.completion-transfer.approve');
     Route::post('/aems/engagements/{engagement}/recommendations/{recommendation}/cms-exclusion', [AemsClosureController::class, 'excludeRecommendation'])
         ->middleware('permission:aems.closure.approve');
     Route::get('/aems/engagements/{engagement}/reopen-requests', [AemsReopenController::class, 'index'])

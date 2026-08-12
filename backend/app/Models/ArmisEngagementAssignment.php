@@ -15,7 +15,10 @@ class ArmisEngagementAssignment extends Model
 
     public const STATUSES = ['DRAFT', 'SUBMITTED', 'RETURNED', 'APPROVED', 'LOCKED'];
 
-    public const ROLES = ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'];
+    public const ROLES = [
+        'SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER',
+        'SPECIALIST', 'AUTHORIZED_PARTICIPANT',
+    ];
 
     protected $fillable = [
         'assignment_family_uuid', 'audit_engagement_id', 'resource_profile_id', 'requirement_id',

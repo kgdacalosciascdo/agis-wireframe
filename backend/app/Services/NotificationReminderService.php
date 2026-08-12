@@ -19,6 +19,8 @@ class NotificationReminderService
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly CmsAutomationService $cmsAutomation,
+        private readonly AemsWorkQueueService $aemsWorkQueue,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     public function dispatch(): int
@@ -96,6 +98,7 @@ class NotificationReminderService
         $delivered += $this->dispatchAemsProcedureReminders();
         $delivered += $this->dispatchAemsResponseReminders();
         $delivered += $this->dispatchAemsConferenceReminders();
+        $delivered += $this->aemsWorkQueue->dispatchDueReminders();
         // CMS automation creates reminders and reviewable candidates only; it
         // never issues escalation notices or performs closure decisions.
         $delivered += $this->cmsAutomation->run();
@@ -106,9 +109,12 @@ class NotificationReminderService
     private function dispatchAemsProcedureReminders(): int
     {
         $delivered = 0;
+        if (! $this->runtime->boolean('aems_reminders_enabled')) {
+            return 0;
+        }
 
         AuditProgramProcedure::query()
-            ->whereDate('target_date', '<', today())
+            ->whereDate('target_date', '<=', today()->addDays(max(1, (int) ceil($this->runtime->integer('aems_reminder_due_hours') / 24))))
             ->whereNotIn('status', ['COMPLETED', 'WAIVED'])
             ->with([
                 'program.engagement.teamMembers' => fn ($query) => $query
@@ -120,6 +126,7 @@ class NotificationReminderService
                 if (! $engagement || ! $engagement->is_active) {
                     return;
                 }
+                $overdue = $procedure->target_date?->isBefore(today());
                 $recipients = collect([$procedure->assigned_to])
                     ->merge(
                         $engagement->teamMembers
@@ -129,11 +136,11 @@ class NotificationReminderService
                     ->filter()
                     ->unique();
                 $delivered += $this->notifications->send($recipients, [
-                    'type' => 'AEMS_PROCEDURE_OVERDUE',
-                    'category' => 'OVERDUE',
-                    'priority' => 'URGENT',
+                    'type' => $overdue ? 'AEMS_PROCEDURE_OVERDUE' : 'AEMS_PROCEDURE_DUE',
+                    'category' => $overdue ? 'OVERDUE' : 'DUE_DATE',
+                    'priority' => $overdue ? 'URGENT' : 'HIGH',
                     'moduleCode' => 'AEMS',
-                    'title' => "Overdue procedure: {$procedure->procedure_code}",
+                    'title' => ($overdue ? 'Overdue procedure: ' : 'Procedure due soon: ').$procedure->procedure_code,
                     'message' => "{$procedure->procedure_description} was due "
                         .$procedure->target_date?->format('M j, Y').'.',
                     'actionUrl' => "/audit-engagement-management/audit-program?engagementId={$engagement->id}",
@@ -141,8 +148,8 @@ class NotificationReminderService
                     'subjectType' => AuditProgramProcedure::class,
                     'subjectId' => $procedure->id,
                     'subjectCode' => $procedure->procedure_code,
-                    'dedupeKey' => "aems:procedure:{$procedure->id}:overdue:"
-                        .$procedure->target_date?->toDateString(),
+                    'dedupeKey' => "aems:procedure:{$procedure->id}:due:"
+                        .$procedure->target_date?->toDateString().':'.($overdue ? 'overdue' : 'upcoming'),
                     'metadata' => [
                         'engagementId' => $engagement->id,
                         'targetDate' => $procedure->target_date?->toDateString(),
@@ -156,12 +163,15 @@ class NotificationReminderService
     private function dispatchAemsResponseReminders(): int
     {
         $delivered = 0;
+        if (! $this->runtime->boolean('aems_reminders_enabled')) {
+            return 0;
+        }
 
         AuditFinding::query()
             ->where('is_current_revision', true)
             ->whereIn('status', ['COMMUNICATED', 'AWAITING_MANAGEMENT_RESPONSE'])
             ->whereNotNull('management_response_due_date')
-            ->whereDate('management_response_due_date', '<=', today()->addDays(3))
+            ->whereDate('management_response_due_date', '<=', today()->addDays($this->runtime->integer('aems_response_reminder_days')))
             ->with([
                 'engagement.teamMembers' => fn ($query) => $query
                     ->where('is_active', true)
@@ -204,6 +214,20 @@ class NotificationReminderService
                         'responseDueDate' => $finding->management_response_due_date->toDateString(),
                     ],
                 ])->count();
+                if ($overdue) {
+                    $this->aemsWorkQueue->createCandidateForSystem(
+                        $engagement,
+                        'MANAGEMENT_RESPONSE_OVERDUE',
+                        null,
+                        $finding,
+                        null,
+                        'Management response is overdue and requires review.',
+                        [
+                            'findingCode' => $finding->finding_code,
+                            'dueDate' => $finding->management_response_due_date->toDateString(),
+                        ],
+                    );
+                }
             });
 
         return $delivered;
@@ -212,12 +236,15 @@ class NotificationReminderService
     private function dispatchAemsConferenceReminders(): int
     {
         $delivered = 0;
+        if (! $this->runtime->boolean('aems_reminders_enabled')) {
+            return 0;
+        }
 
         ExitConference::query()
             ->whereIn('status', ['SCHEDULED', 'RESCHEDULED'])
             ->whereBetween('scheduled_start_at', [
                 now()->startOfDay(),
-                now()->addDays(7)->endOfDay(),
+                now()->addDays($this->runtime->integer('aems_conference_reminder_days'))->endOfDay(),
             ])
             ->with(['engagement', 'participants'])
             ->each(function (ExitConference $conference) use (&$delivered): void {

@@ -46,6 +46,11 @@ class DatabaseCmsRecommendationGateway implements CmsRecommendationGateway
                 ->whereDoesntHave('case')
                 ->exists(),
             'ownership' => 'CREATE_ONCE',
+            'immutableSourceEnvelope' => true,
+            'idempotency' => 'TRANSFER_KEY_AND_SOURCE_RECOMMENDATION_UNIQUE',
+            'aemsSourceLinks' => ! CmsRecommendation::query()
+                ->whereNull('source_snapshot')
+                ->exists(),
         ];
     }
 }

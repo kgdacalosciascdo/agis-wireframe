@@ -9,6 +9,7 @@ use App\Models\AuditEngagementOrder;
 use App\Models\AuditEngagementPlan;
 use App\Models\AuditLog;
 use App\Models\AuditProgram;
+use App\Models\AemsPlanningPackage;
 use App\Models\EngagementEvent;
 use App\Models\EngagementTeam;
 use App\Models\EntryConference;
@@ -399,6 +400,18 @@ class AemsEngagementLifecycleTest extends TestCase
             'audit_engagement_id' => $engagement->id,
             'plan_code' => 'AEP-'.$engagement->engagement_code,
             'status' => 'APPROVED',
+            'prepared_by' => $auditor->id,
+            'approved_by' => $management->id,
+            'approved_at' => now(),
+            'is_active' => true,
+        ]);
+        AemsPlanningPackage::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'package_code' => 'APP-'.$engagement->engagement_code,
+            'status' => 'APPROVED',
+            'current_version_number' => 1,
+            'approved_version_number' => 1,
+            'source_type' => $engagement->source_type,
             'prepared_by' => $auditor->id,
             'approved_by' => $management->id,
             'approved_at' => now(),

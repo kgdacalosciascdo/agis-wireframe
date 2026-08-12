@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -40,6 +41,7 @@ class AuditEvidence extends Model
         'document_version_id',
         'checksum_sha256',
         'status',
+        'assessment_required',
         'uploaded_by',
         'verified_by',
         'verified_at',
@@ -60,6 +62,7 @@ class AuditEvidence extends Model
             'locked_at' => 'datetime',
             'voided_at' => 'datetime',
             'lock_version' => 'integer',
+            'assessment_required' => 'boolean',
         ];
     }
 
@@ -158,5 +161,17 @@ class AuditEvidence extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(self::class, 'supersedes_evidence_id');
+    }
+
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(AemsEvidenceAssessment::class, 'audit_evidence_id');
+    }
+
+    public function currentAssessment(): HasOne
+    {
+        return $this->hasOne(AemsEvidenceAssessment::class, 'audit_evidence_id')
+            ->where('is_current_revision', true)
+            ->latestOfMany('version_number');
     }
 }

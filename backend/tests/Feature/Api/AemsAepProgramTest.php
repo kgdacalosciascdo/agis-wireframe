@@ -4,12 +4,18 @@ namespace Tests\Feature\Api;
 
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementPlanVersion;
+use App\Models\AemsFieldworkRecord;
+use App\Models\AemsFieldworkRecordVersion;
+use App\Models\AuditArea;
+use App\Models\AuditFocus;
 use App\Models\AuditProgram;
+use App\Models\AuditProgramProcedure;
 use App\Models\IapPlanEngagement;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use LogicException;
 use Tests\TestCase;
@@ -125,6 +131,11 @@ class AemsAepProgramTest extends TestCase
                 'targetDate' => '2026-08-14',
             ],
         )->assertCreated();
+        $this->seedFinalizedFieldworkRecord(
+            $engagement,
+            AuditProgramProcedure::query()->where('audit_program_id', $program['id'])->firstOrFail(),
+            $team['AUDITOR'],
+        );
         $program = $this->currentProgram($engagement);
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/programs/{$program['id']}/transition",
@@ -398,5 +409,46 @@ class AemsAepProgramTest extends TestCase
             ->with(['role.permissions', 'roles.permissions', 'office'])
             ->where('username', $username)
             ->firstOrFail();
+    }
+
+    private function seedFinalizedFieldworkRecord(
+        AuditEngagement $engagement,
+        AuditProgramProcedure $procedure,
+        User $auditor,
+    ): void {
+        $area = AuditArea::query()->where('is_active', true)->firstOrFail();
+        $focus = AuditFocus::query()->where('audit_area_id', $area->id)->where('is_active', true)->firstOrFail();
+        $engagement->auditAreas()->syncWithoutDetaching([$area->id]);
+        $engagement->auditFocuses()->syncWithoutDetaching([$focus->id]);
+        $record = AemsFieldworkRecord::query()->create([
+            'record_family_uuid' => (string) Str::uuid(),
+            'audit_engagement_id' => $engagement->id,
+            'audit_program_procedure_id' => $procedure->id,
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus->id,
+            'record_code' => 'FWR-'.$engagement->engagement_code.'-001',
+            'record_type' => 'TESTING',
+            'status' => 'FINALIZED',
+            'current_version_number' => 1,
+            'prepared_by' => $auditor->id,
+            'finalized_by' => $this->user('departmenthead')->id,
+            'finalized_at' => now(),
+            'lock_version' => 1,
+            'is_active' => true,
+        ]);
+        AemsFieldworkRecordVersion::query()->create([
+            'fieldwork_record_id' => $record->id,
+            'version_number' => 1,
+            'record_type' => 'TESTING',
+            'audit_program_procedure_id' => $procedure->id,
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus->id,
+            'performed_on' => '2026-08-14',
+            'procedure_performed' => 'Reconciled the selected collection transactions.',
+            'result' => 'No unexplained differences were identified.',
+            'conclusion' => 'The procedure was satisfactorily completed.',
+            'execution_status' => 'COMPLETED',
+            'created_by' => $auditor->id,
+        ]);
     }
 }

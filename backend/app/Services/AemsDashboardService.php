@@ -7,8 +7,16 @@ use App\Models\AuditEngagement;
 use App\Models\AuditFinding;
 use App\Models\AuditProgramProcedure;
 use App\Models\AuditReport;
+use App\Models\AemsCompletionTransferException;
+use App\Models\AemsEngagementTask;
+use App\Models\AemsEscalationCandidate;
+use App\Models\AemsEvidenceAssessment;
+use App\Models\AemsEvidenceRequest;
+use App\Models\AemsReviewNote;
+use App\Models\EntryConference;
 use App\Models\ExitConference;
 use App\Models\Office;
+use App\Models\SystemNotification;
 use App\Models\User;
 use App\Models\WorkingPaper;
 use Carbon\CarbonImmutable;
@@ -24,6 +32,7 @@ class AemsDashboardService
     public function __construct(
         private readonly AemsIntegrationStatusService $integrations,
         private readonly ResourcePlanningGateway $resources,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     private const ACTIVE_STATUSES = [
@@ -69,6 +78,10 @@ class AemsDashboardService
         return [
             'asOf' => now()->toIso8601String(),
             'cards' => $this->cards($user, $today),
+            'phaseCounts' => $this->phaseCounts($user),
+            'workQueues' => $this->workQueues($user, $today),
+            'notifications' => $this->notificationSummary($user),
+            'reminderRules' => $this->reminderRules(),
             'engagements' => $engagements->getCollection()
                 ->map(fn (AuditEngagement $engagement) => $this->engagementData(
                     $engagement,
@@ -85,6 +98,7 @@ class AemsDashboardService
             ],
             'filters' => [
                 'statuses' => AuditEngagement::STATUSES,
+                'phases' => array_keys(self::PHASE_STATUSES),
                 'offices' => $this->visibleOffices($user),
             ],
             'integrations' => $this->integrations->status($user),
@@ -156,6 +170,49 @@ class AemsDashboardService
         ];
     }
 
+    /**
+     * Builds a protected, access-scoped snapshot of the current operational
+     * queues. Queue rows are intentionally generated on the backend so an
+     * export cannot expose records hidden from the dashboard actor.
+     *
+     * @param array<string, mixed> $filters
+     * @return array<string, mixed>
+     */
+    public function workQueueReport(User $user, array $filters = []): array
+    {
+        $dashboard = $this->dashboard($user, [
+            ...$filters,
+            'page' => 1,
+            'perPage' => 1,
+        ]);
+        $rows = collect($dashboard['workQueues'])->flatMap(
+            fn (array $queue): Collection => collect($queue['items'] ?? [])->map(fn (array $item): array => [
+                'queue' => $queue['label'],
+                'code' => $item['code'] ?? '',
+                'title' => $item['title'] ?? '',
+                'status' => $item['status'] ?? '',
+                'dueAt' => $item['dueAt'] ?? '',
+                'engagement' => $item['engagement']['code'] ?? '',
+            ]),
+        )->values();
+
+        return [
+            'title' => 'AEMS Operational Work Queues',
+            'description' => 'Access-scoped queue items currently requiring review or action.',
+            'generatedAt' => now()->toIso8601String(),
+            'fileName' => 'aems-work-queues-'.now()->format('Ymd-His'),
+            'columns' => [
+                ['key' => 'queue', 'label' => 'Queue'],
+                ['key' => 'code', 'label' => 'Record Code'],
+                ['key' => 'title', 'label' => 'Title or Reason'],
+                ['key' => 'status', 'label' => 'Status'],
+                ['key' => 'dueAt', 'label' => 'Due'],
+                ['key' => 'engagement', 'label' => 'Engagement'],
+            ],
+            'rows' => $rows->all(),
+        ];
+    }
+
     private function cards(User $user, CarbonImmutable $today): array
     {
         $visible = fn (): Builder => $this->visibleEngagements($user);
@@ -198,7 +255,244 @@ class AemsDashboardService
                 ->whereHas('engagement', $relatedToVisible)
                 ->count(),
             'engagementsReadyForClosure' => $this->readyForClosureQuery($user)->count(),
+            'evidenceRequestsAwaitingResponse' => AemsEvidenceRequest::query()
+                ->whereIn('status', ['SENT', 'PARTIALLY_RECEIVED'])
+                ->whereHas('engagement', $relatedToVisible)
+                ->count(),
+            'evidenceGaps' => $this->evidenceGapQuery($user, $relatedToVisible)->count(),
+            'findingsAwaitingReview' => AuditFinding::query()
+                ->where('is_current_revision', true)
+                ->whereIn('status', self::REVIEW_STATUSES)
+                ->whereHas('engagement', $relatedToVisible)
+                ->count(),
+            'findingsAwaitingManagementResponse' => AuditFinding::query()
+                ->where('is_current_revision', true)
+                ->whereIn('status', ['COMMUNICATED', 'AWAITING_MANAGEMENT_RESPONSE'])
+                ->whereHas('engagement', $relatedToVisible)
+                ->count(),
+            'upcomingConferences' => $this->upcomingConferenceQuery($user, $today)->count()
+                + EntryConference::query()
+                    ->whereIn('status', ['SCHEDULED', 'RESCHEDULED'])
+                    ->whereBetween('scheduled_start_at', [$today->startOfDay(), $upcomingEnd])
+                    ->whereHas('engagement', $relatedToVisible)
+                    ->count(),
+            'cmsTransferExceptions' => AemsCompletionTransferException::query()
+                ->where('status', 'OPEN')
+                ->whereHas('manifest.engagement', $relatedToVisible)
+                ->count(),
+            'reviewNotesAwaitingReview' => AemsReviewNote::query()
+                ->where('is_current_revision', true)
+                ->where('status', 'DRAFT')
+                ->whereHas('engagement', $relatedToVisible)
+                ->count(),
+            'openTasks' => AemsEngagementTask::query()
+                ->whereIn('status', ['OPEN', 'IN_PROGRESS'])
+                ->whereHas('engagement', $relatedToVisible)
+                ->count(),
+            'escalationCandidates' => AemsEscalationCandidate::query()
+                ->whereIn('status', ['OPEN', 'ACKNOWLEDGED'])
+                ->whereHas('engagement', $relatedToVisible)
+                ->count(),
         ];
+    }
+
+    private const PHASE_STATUSES = [
+        'planning' => ['DRAFT', 'AUTHORIZATION_PREPARATION', 'RETURNED_FOR_REVISION', 'AUTHORIZED', 'ENGAGEMENT_PLANNING', 'ENTRY_CONFERENCE'],
+        'fieldwork' => ['FIELDWORK', 'FINDINGS_COMMUNICATION'],
+        'reporting' => ['REPORTING', 'ISSUED'],
+        'closure' => ['CLOSURE_REVIEW', 'CLOSED'],
+    ];
+
+    /** @return list<array<string, mixed>> */
+    private function phaseCounts(User $user): array
+    {
+        $visible = $this->visibleEngagements($user);
+        $counts = collect(self::PHASE_STATUSES)->mapWithKeys(
+            fn (array $statuses, string $phase): array => [$phase => (clone $visible)->whereIn('status', $statuses)->count()],
+        );
+        $known = collect(self::PHASE_STATUSES)->flatten()->unique();
+
+        return collect([
+            ['key' => 'planning', 'label' => 'Planning'],
+            ['key' => 'fieldwork', 'label' => 'Fieldwork'],
+            ['key' => 'reporting', 'label' => 'Reporting'],
+            ['key' => 'closure', 'label' => 'Closure'],
+            ['key' => 'other', 'label' => 'Other'],
+        ])->map(function (array $phase) use ($counts, $known, $visible): array {
+            $count = $phase['key'] === 'other'
+                ? (clone $visible)->whereNotIn('status', $known->all())->count()
+                : (int) ($counts[$phase['key']] ?? 0);
+
+            return [...$phase, 'count' => $count];
+        })->all();
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function workQueues(User $user, CarbonImmutable $today): array
+    {
+        $visible = fn (Builder $engagement): Builder => $engagement
+            ->visibleTo($user)
+            ->where('is_active', true);
+        $queue = function (Builder $query, string $key, string $label, string $route, callable $map): array {
+            $count = (clone $query)->count();
+            $items = (clone $query)->limit(6)->get()->map($map)->values()->all();
+
+            return compact('key', 'label', 'route', 'count', 'items');
+        };
+
+        $procedureQueue = AuditProgramProcedure::query()
+            ->whereDate('target_date', '<', $today->toDateString())
+            ->whereNotIn('status', ['COMPLETED', 'WAIVED'])
+            ->whereHas('program.engagement', $visible)
+            ->with('program.engagement:id,engagement_code,title')
+            ->orderBy('target_date');
+        $paperQueue = WorkingPaper::query()
+            ->whereIn('status', ['SUBMITTED', 'RESUBMITTED'])
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->latest('updated_at');
+        $evidenceQueue = AemsEvidenceRequest::query()
+            ->whereIn('status', ['SENT', 'PARTIALLY_RECEIVED'])
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->orderBy('due_date');
+        $gapQueue = $this->evidenceGapQuery($user, $visible)
+            ->with(['engagement:id,engagement_code,title', 'evidence:id,evidence_code,title'])
+            ->latest('assessed_at');
+        $reviewFindingQueue = AuditFinding::query()
+            ->where('is_current_revision', true)
+            ->whereIn('status', self::REVIEW_STATUSES)
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->latest('updated_at');
+        $responseQueue = AuditFinding::query()
+            ->where('is_current_revision', true)
+            ->whereIn('status', ['COMMUNICATED', 'AWAITING_MANAGEMENT_RESPONSE'])
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->orderBy('management_response_due_date');
+        $reportQueue = AuditReport::query()
+            ->whereIn('status', self::REVIEW_STATUSES)
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->latest('updated_at');
+        $exceptionQueue = AemsCompletionTransferException::query()
+            ->where('status', 'OPEN')
+            ->whereHas('manifest.engagement', $visible)
+            ->with('manifest.engagement:id,engagement_code,title')
+            ->latest('created_at');
+        $noteQueue = AemsReviewNote::query()
+            ->where('is_current_revision', true)
+            ->where('status', 'DRAFT')
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->latest('updated_at');
+        $taskQueue = AemsEngagementTask::query()
+            ->whereIn('status', ['OPEN', 'IN_PROGRESS'])
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->orderByRaw('due_at IS NULL, due_at');
+        $candidateQueue = AemsEscalationCandidate::query()
+            ->whereIn('status', ['OPEN', 'ACKNOWLEDGED'])
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->latest('detected_at');
+
+        $upcoming = $this->upcomingConferenceQuery($user, $today);
+        $entryUpcoming = EntryConference::query()
+            ->whereIn('status', ['SCHEDULED', 'RESCHEDULED'])
+            ->whereBetween('scheduled_start_at', [$today->startOfDay(), $today->addDays(30)->endOfDay()])
+            ->whereHas('engagement', $visible)
+            ->with('engagement:id,engagement_code,title')
+            ->orderBy('scheduled_start_at');
+        $conferenceItems = (clone $upcoming)->with('engagement:id,engagement_code,title')->limit(6)->get()
+            ->merge((clone $entryUpcoming)->limit(6)->get())
+            ->sortBy('scheduled_start_at')->take(6)->map(fn ($conference): array => [
+            'id' => $conference->id,
+            'code' => $conference->conference_code,
+            'type' => $conference instanceof EntryConference ? 'ENTRY' : 'EXIT',
+            'status' => $conference->status,
+            'scheduledAt' => $conference->scheduled_start_at?->toISOString(),
+            'engagement' => $this->engagementRef($conference->engagement),
+            'route' => '/audit-engagement-management/'.($conference instanceof EntryConference ? 'entry-conferences' : 'exit-conferences').'?engagementId='.$conference->audit_engagement_id,
+        ])->values()->all();
+
+        return [
+            'overdueProcedures' => $queue($procedureQueue, 'overdueProcedures', 'Overdue procedures', '/audit-engagement-management/audit-program', fn ($item): array => ['id' => $item->id, 'code' => $item->procedure_code, 'title' => $item->procedure_description, 'dueAt' => $item->target_date?->toDateString(), 'engagement' => $this->engagementRef($item->program?->engagement)]),
+            'workingPapersAwaitingReview' => $queue($paperQueue, 'workingPapersAwaitingReview', 'Working Papers awaiting review', '/audit-engagement-management/working-papers', fn ($item): array => ['id' => $item->id, 'code' => $item->working_paper_code, 'title' => $item->title, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
+            'evidenceRequestsAwaitingResponse' => $queue($evidenceQueue, 'evidenceRequestsAwaitingResponse', 'Evidence Requests awaiting response', '/audit-engagement-management/evidence', fn ($item): array => ['id' => $item->id, 'code' => $item->request_code, 'title' => $item->title, 'status' => $item->status, 'dueAt' => $item->due_date?->toDateString(), 'engagement' => $this->engagementRef($item->engagement)]),
+            'evidenceGaps' => $queue($gapQueue, 'evidenceGaps', 'Evidence gaps', '/audit-engagement-management/evidence', fn ($item): array => ['id' => $item->id, 'code' => $item->evidence?->evidence_code, 'title' => $item->evidence?->title, 'gaps' => $item->evidence_gaps, 'restricted' => (bool) $item->is_restricted, 'engagement' => $this->engagementRef($item->engagement)]),
+            'findingsAwaitingReview' => $queue($reviewFindingQueue, 'findingsAwaitingReview', 'Findings awaiting review', '/audit-engagement-management/findings', fn ($item): array => ['id' => $item->id, 'code' => $item->finding_code, 'title' => $item->title, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
+            'findingsAwaitingManagementResponse' => $queue($responseQueue, 'findingsAwaitingManagementResponse', 'Findings awaiting management response', '/audit-engagement-management/auditee-responses', fn ($item): array => ['id' => $item->id, 'code' => $item->finding_code, 'title' => $item->title, 'status' => $item->status, 'dueAt' => $item->management_response_due_date?->toDateString(), 'engagement' => $this->engagementRef($item->engagement)]),
+            'upcomingConferences' => ['key' => 'upcomingConferences', 'label' => 'Upcoming conferences', 'route' => '/audit-engagement-management/exit-conferences', 'count' => $upcoming->count() + $entryUpcoming->count(), 'items' => $conferenceItems],
+            'reportsPendingApproval' => $queue($reportQueue, 'reportsPendingApproval', 'Reports pending approval', '/audit-engagement-management/reports', fn ($item): array => ['id' => $item->id, 'code' => $item->report_code, 'title' => $item->title, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
+            'cmsTransferExceptions' => $queue($exceptionQueue, 'cmsTransferExceptions', 'CMS transfer exceptions', '/audit-engagement-management/completion', fn ($item): array => ['id' => $item->id, 'code' => $item->exception_code, 'title' => $item->message, 'status' => $item->status, 'engagement' => $this->engagementRef($item->manifest?->engagement)]),
+            'reviewNotesAwaitingReview' => $queue($noteQueue, 'reviewNotesAwaitingReview', 'Review Notes', '/audit-engagement-management/work-queue', fn ($item): array => ['id' => $item->id, 'code' => $item->note_code, 'title' => $item->content, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
+            'tasks' => $queue($taskQueue, 'tasks', 'Tasks', '/audit-engagement-management/work-queue', fn ($item): array => ['id' => $item->id, 'code' => $item->task_code, 'title' => $item->title, 'status' => $item->status, 'dueState' => $item->due_state, 'dueAt' => $item->due_at?->toISOString(), 'engagement' => $this->engagementRef($item->engagement)]),
+            'escalationCandidates' => $queue($candidateQueue, 'escalationCandidates', 'Escalation candidates', '/audit-engagement-management/work-queue', fn ($item): array => ['id' => $item->id, 'code' => $item->candidate_code, 'title' => $item->reason, 'status' => $item->status, 'dueAt' => $item->due_at?->toISOString(), 'engagement' => $this->engagementRef($item->engagement)]),
+        ];
+    }
+
+    private function evidenceGapQuery(User $user, callable $visible): Builder
+    {
+        return AemsEvidenceAssessment::query()
+            ->where('is_current_revision', true)
+            ->where(function (Builder $query): void {
+                $query->where('is_restricted', true)
+                    ->orWhereNotNull('evidence_gaps')->where('evidence_gaps', '<>', '')
+                    ->orWhereNotNull('limitations')->where('limitations', '<>', '')
+                    ->orWhere('exception_required', true);
+            })
+            ->whereHas('engagement', $visible);
+    }
+
+    private function upcomingConferenceQuery(User $user, CarbonImmutable $today): Builder
+    {
+        // Keep the two conference sources separate at the query boundary; the
+        // shared dashboard queue is assembled from both records below.
+        return ExitConference::query()
+            ->whereIn('status', ['SCHEDULED', 'RESCHEDULED'])
+            ->whereBetween('scheduled_start_at', [$today->startOfDay(), $today->addDays(30)->endOfDay()])
+            ->whereHas('engagement', fn (Builder $engagement): Builder => $engagement->visibleTo($user)->where('is_active', true));
+    }
+
+    /** @return array<string, mixed> */
+    private function notificationSummary(User $user): array
+    {
+        $base = SystemNotification::query()->where('recipient_id', $user->id)->whereNull('archived_at');
+        $aems = fn (Builder $query): Builder => $query->whereIn('module_code', ['AEMS', 'AEM']);
+
+        return [
+            'unread' => (clone $base)->whereNull('read_at')->count(),
+            'aemsUnread' => $aems((clone $base))->whereNull('read_at')->count(),
+            'overdue' => (clone $base)->where('category', 'OVERDUE')->whereNull('read_at')->count(),
+            'recent' => (clone $base)->with('actor:id,name,employee_id')->latest()->limit(6)->get()->map(fn (SystemNotification $item): array => [
+                'id' => $item->id,
+                'title' => $item->title,
+                'message' => $item->message,
+                'category' => $item->category,
+                'priority' => $item->priority,
+                'moduleCode' => $item->module_code,
+                'readAt' => $item->read_at?->toISOString(),
+                'actionUrl' => $item->action_url,
+                'createdAt' => $item->created_at?->toISOString(),
+            ])->values()->all(),
+        ];
+    }
+
+    private function reminderRules(): array
+    {
+        return [
+            'enabled' => $this->runtime->boolean('aems_reminders_enabled'),
+            'dueHours' => $this->runtime->integer('aems_reminder_due_hours'),
+            'responseDueDays' => $this->runtime->integer('aems_response_reminder_days'),
+            'conferenceDueDays' => $this->runtime->integer('aems_conference_reminder_days'),
+        ];
+    }
+
+    private function engagementRef(?AuditEngagement $engagement): ?array
+    {
+        return $engagement ? ['id' => $engagement->id, 'code' => $engagement->engagement_code, 'title' => $engagement->title] : null;
     }
 
     private function readyForClosureQuery(User $user): Builder
@@ -278,6 +572,17 @@ class AemsDashboardService
                     'offices',
                     fn (Builder $office) => $office->whereKey($filters['officeId']),
                 ),
+            )
+            ->when(
+                filled($filters['phase'] ?? null),
+                function (Builder $query) use ($filters): void {
+                    $phase = $filters['phase'];
+                    if ($phase === 'other') {
+                        $query->whereNotIn('status', collect(self::PHASE_STATUSES)->flatten()->unique()->all());
+                    } else {
+                        $query->whereIn('status', self::PHASE_STATUSES[$phase] ?? []);
+                    }
+                },
             );
     }
 
@@ -462,6 +767,9 @@ class AemsDashboardService
             'title' => $engagement->title,
             'sourceType' => $engagement->source_type,
             'status' => $engagement->status,
+            'phase' => $engagement->phase,
+            'administrativeStatus' => $engagement->administrative_status,
+            'engagementOfficeId' => $engagement->engagement_office_id,
             'health' => $health,
             'overallProgress' => $overallProgress,
             'plannedStartDate' => $engagement->planned_start_date?->toDateString(),

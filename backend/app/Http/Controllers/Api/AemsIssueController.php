@@ -56,15 +56,26 @@ class AemsIssueController extends Controller
         AuditIssue $issue,
     ): JsonResponse {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['SUBMIT', 'VALIDATE', 'DISMISS', 'CONVERT'])],
+            'action' => ['required', Rule::in([
+                'SUBMIT', 'VALIDATE', 'DISMISS', 'CONVERT', 'MERGE', 'RESOLVE',
+                'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING',
+            ])],
             'lockVersion' => ['required', 'integer', 'min:1'],
             'comment' => ['nullable', 'string', 'max:4000'],
+            'mergedIntoIssueId' => ['nullable', 'integer'],
+            'referredTo' => ['nullable', 'string', 'max:255'],
+            'resolutionDetails' => ['nullable', 'string', 'max:4000'],
         ]);
         Gate::authorize(match ($validated['action']) {
             'SUBMIT' => 'prepare',
             'VALIDATE' => 'validate',
             'DISMISS' => 'dismiss',
             'CONVERT' => 'convert',
+            'MERGE' => 'merge',
+            'RESOLVE' => 'resolve',
+            'OBSERVE' => 'observe',
+            'REFER' => 'refer',
+            'CLOSE_WITHOUT_FINDING' => 'closeWithoutFinding',
         }, $issue);
         $result = $this->findings->transitionIssue(
             $request,
@@ -73,6 +84,7 @@ class AemsIssueController extends Controller
             $validated['action'],
             $validated['lockVersion'],
             $validated['comment'] ?? null,
+            $validated,
         );
 
         return response()->json([

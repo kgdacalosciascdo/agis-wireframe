@@ -19,7 +19,7 @@ class AuditReport extends Model
 {
     use HasFactory, SoftDeletes;
 
-    public const REPORT_STAGES = ['DRAFT_REPORT', 'FINAL_REPORT'];
+    public const REPORT_STAGES = ['INTERIM_REPORT', 'DRAFT_REPORT', 'FINAL_REPORT'];
 
     public const STATUSES = [
         'DRAFT',
@@ -29,6 +29,7 @@ class AuditReport extends Model
         'APPROVED',
         'ISSUED',
         'SUPERSEDED',
+        'WITHDRAWN',
     ];
 
     protected $fillable = [
@@ -41,6 +42,7 @@ class AuditReport extends Model
         'confidentiality_level_id',
         'document_id',
         'current_version_id',
+        'supersedes_report_id',
         'prepared_by',
         'submitted_at',
         'submitted_by',
@@ -49,6 +51,9 @@ class AuditReport extends Model
         'approving_authority',
         'issued_at',
         'issued_by',
+        'withdrawn_at',
+        'withdrawn_by',
+        'withdrawal_reason',
         'lock_version',
         'is_active',
     ];
@@ -60,6 +65,7 @@ class AuditReport extends Model
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'issued_at' => 'datetime',
+            'withdrawn_at' => 'datetime',
             'lock_version' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -135,6 +141,26 @@ class AuditReport extends Model
     public function issuer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'issued_by')->withTrashed();
+    }
+
+    public function withdrawnBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'withdrawn_by')->withTrashed();
+    }
+
+    public function supersededReport(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'supersedes_report_id')->withTrashed();
+    }
+
+    public function successors(): HasMany
+    {
+        return $this->hasMany(self::class, 'supersedes_report_id');
+    }
+
+    public function distributionDecisions(): HasMany
+    {
+        return $this->hasMany(AuditReportDistributionDecision::class);
     }
 
     public function reviewComments(): HasMany

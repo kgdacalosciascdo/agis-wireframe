@@ -22,6 +22,7 @@ class AemsAeoService
         private readonly AemsAccessService $access,
         private readonly AemsSupport $support,
         private readonly AemsNotificationService $notifications,
+        private readonly AemsTeamSafeguardService $teamSafeguards,
     ) {}
 
     /** @return array<string, mixed> */
@@ -433,6 +434,10 @@ class AemsAeoService
             if (! $roles->contains($role)) {
                 $errors[] = str($role)->replace('_', ' ')->title().' is required before AEO submission.';
             }
+        }
+
+        foreach ($this->teamSafeguards->aggregateGate($engagement) as $gate) {
+            $errors[] = $gate['label'].' before AEO approval.';
         }
 
         return $errors;

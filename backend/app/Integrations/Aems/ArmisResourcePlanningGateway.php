@@ -117,12 +117,25 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
             ])
             ->get()
             ->groupBy(fn (ArmisCompetency $claim): int => (int) $claim->resourceProfile?->user_id)
-            ->map(fn ($claims): array => $claims->map(fn (ArmisCompetency $claim): array => [
-                'id' => $claim->competency_id,
-                'code' => $claim->competency?->code,
-                'label' => $claim->competency?->label,
-                'proficiencyLevel' => $claim->proficiency_level,
-            ])->values()->all())
+            ->map(fn ($claims): array => $claims->map(function (ArmisCompetency $claim): array {
+                $base = [
+                    'id' => $claim->competency_id,
+                    'code' => $claim->competency?->code,
+                    'label' => $claim->competency?->label,
+                    'proficiencyLevel' => $claim->proficiency_level,
+                ];
+                $credentials = [
+                    'credentialType' => $claim->credential_type,
+                    'credentialReference' => $claim->credential_reference,
+                    'issuer' => $claim->issuer,
+                    'issuedAt' => $claim->issued_at?->toDateString(),
+                    'expiresAt' => $claim->expires_at?->toDateString(),
+                    'evidenceDocumentVersionId' => $claim->evidence_document_version_id,
+                ];
+
+                return collect($credentials)->filter(fn ($value): bool => $value !== null && $value !== '')
+                    ->isEmpty() ? $base : [...$base, ...$credentials];
+            })->values()->all())
             ->all();
     }
 
@@ -185,6 +198,9 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
             'available' => true,
             'authoritative' => false,
             'authorityEligible' => false,
+            'providerStatus' => 'AVAILABLE_APPROVED_CURRENT_LEDGER',
+            'dataFreshness' => 'CURRENT_REVISIONS_ONLY',
+            'fallbackSupported' => true,
             'capabilities' => [
                 'availability',
                 'workload',

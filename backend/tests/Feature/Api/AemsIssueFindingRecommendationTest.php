@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\AemsFieldworkRecord;
+use App\Models\AemsFieldworkRecordVersion;
 use App\Models\AuditEngagement;
 use App\Models\AuditEvidence;
 use App\Models\AuditEngagementPlan;
@@ -256,6 +258,132 @@ class AemsIssueFindingRecommendationTest extends TestCase
         $recommendation = AuditRecommendation::query()->firstOrFail();
         $this->expectException(LogicException::class);
         $recommendation->update(['recommendation' => 'Historical finalized text cannot be overwritten.']);
+    }
+
+    public function test_finding_author_cannot_validate_and_revision_preserves_immutable_snapshot(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+        Sanctum::actingAs($auditor);
+        $finding = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings",
+            [...$this->findingPayload($auditee, $version, $evidence), 'noRecommendationReason' => 'Tracked as a control correction with no separate recommendation.'],
+        )->assertCreated()->json('data.finding');
+        $finding = $this->findingTransition($engagement, $finding, 'SUBMIT')
+            ->assertJsonPath('data.finding.status', 'PENDING_REVIEW')->json('data.finding');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings/{$finding['id']}/transition",
+            ['action' => 'VALIDATE', 'lockVersion' => $finding['lockVersion']],
+        )->assertForbidden();
+
+        Sanctum::actingAs($management);
+        $revision = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings/{$finding['id']}/revisions",
+            [
+                'action' => 'AMEND',
+                'reason' => 'Update the effect classification after supervisory review.',
+                'lockVersion' => $finding['lockVersion'],
+            ],
+        )->assertCreated()
+            ->assertJsonPath('data.finding.revisionNumber', 1)
+            ->assertJsonPath('data.finding.revisionType', 'AMENDMENT')
+            ->assertJsonPath('data.finding.status', 'DRAFT')
+            ->json('data.finding');
+        $this->assertNotNull($revision['revisionSnapshot']);
+        $this->assertDatabaseHas('audit_findings', [
+            'id' => $finding['id'],
+            'is_current_revision' => false,
+        ]);
+
+        $withdrawn = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings/{$revision['id']}/revisions",
+            [
+                'action' => 'WITHDRAW',
+                'reason' => 'Withdraw the amended finding because the exception was corrected during audit.',
+                'lockVersion' => $revision['lockVersion'],
+            ],
+        )->assertCreated()
+            ->assertJsonPath('data.finding.status', 'WITHDRAWN')
+            ->assertJsonPath('data.finding.revisionType', 'WITHDRAWAL')
+            ->json('data.finding');
+        $this->assertNotNull($withdrawn['withdrawnAt']);
+    }
+
+    public function test_issue_disposition_metadata_supports_non_finding_resolution(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+        Sanctum::actingAs($auditor);
+        $issue = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues",
+            $this->issuePayload($auditee, $version, $evidence),
+        )->assertCreated()->json('data.issue');
+        $issue = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues/{$issue['id']}/transition",
+            ['action' => 'SUBMIT', 'lockVersion' => $issue['lockVersion']],
+        )->assertOk()->json('data.issue');
+        Sanctum::actingAs($management);
+        $issue = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues/{$issue['id']}/transition",
+            ['action' => 'VALIDATE', 'lockVersion' => $issue['lockVersion']],
+        )->assertOk()->json('data.issue');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues/{$issue['id']}/transition",
+            [
+                'action' => 'RESOLVE',
+                'lockVersion' => $issue['lockVersion'],
+                'comment' => 'Corrected and verified during fieldwork.',
+                'resolutionDetails' => 'The office implemented the control before the closing meeting.',
+            ],
+        )->assertOk()
+            ->assertJsonPath('data.issue.status', 'DISMISSED')
+            ->assertJsonPath('data.issue.disposition', 'RESOLVED_DURING_AUDIT')
+            ->assertJsonPath('data.issue.resolutionDetails', 'The office implemented the control before the closing meeting.');
+    }
+
+    public function test_finding_can_pin_exact_finalized_fieldwork_record_version(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+        $procedure = AuditProgramProcedure::query()->firstOrFail();
+        $record = AemsFieldworkRecord::query()->create([
+            'record_family_uuid' => (string) Str::uuid(),
+            'audit_engagement_id' => $engagement->id,
+            'audit_program_procedure_id' => $procedure->id,
+            'record_code' => 'FWR-AEMS-FND-001-001',
+            'record_type' => 'TESTING',
+            'status' => 'FINALIZED',
+            'prepared_by' => $auditor->id,
+            'finalized_by' => $management->id,
+            'finalized_at' => now(),
+            'lock_version' => 1,
+            'is_active' => true,
+        ]);
+        $recordVersion = AemsFieldworkRecordVersion::query()->create([
+            'fieldwork_record_id' => $record->id,
+            'version_number' => 1,
+            'record_type' => 'TESTING',
+            'audit_program_procedure_id' => $procedure->id,
+            'performed_on' => now()->toDateString(),
+            'procedure_performed' => 'Inspected the daily reconciliation control.',
+            'result' => 'Control operated as designed.',
+            'conclusion' => 'No exception identified.',
+            'execution_status' => 'COMPLETED',
+            'created_by' => $auditor->id,
+        ]);
+        Sanctum::actingAs($auditor);
+        $finding = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings",
+            [
+                ...$this->findingPayload($auditee, $version, $evidence),
+                'noRecommendationReason' => 'No separate recommendation is required for this observation.',
+                'fieldworkRecordVersionIds' => [$recordVersion->id],
+            ],
+        )->assertCreated()
+            ->assertJsonPath('data.finding.fieldworkRecords.0.versionId', $recordVersion->id)
+            ->json('data.finding');
+        $finding = $this->findingTransition($engagement, $finding, 'SUBMIT')
+            ->assertJsonPath('data.finding.status', 'PENDING_REVIEW')->json('data.finding');
+        Sanctum::actingAs($management);
+        $this->findingTransition($engagement, $finding, 'VALIDATE')
+            ->assertJsonPath('data.finding.status', 'VALIDATED');
     }
 
     /** @return array{User, User, User, AuditEngagement, WorkingPaperVersion, AuditEvidence} */

@@ -9,6 +9,7 @@ use App\Models\AuditRecommendation;
 use App\Models\AuditReport;
 use App\Models\AuditReportReviewComment;
 use App\Models\AuditReportVersion;
+use App\Models\AuditReportDistributionDecision;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\ExitConference;
@@ -154,6 +155,7 @@ class AemsReportService
         Request $request,
         AuditEngagement $engagement,
         array $attributes,
+        string $stage = 'DRAFT_REPORT',
     ): AuditReport {
         $this->access->authorizeEngagementAction(
             $request->user(),
@@ -185,12 +187,13 @@ class AemsReportService
             $engagement,
             $attributes,
             $findings,
+            $stage,
         ): AuditReport {
             $report = AuditReport::query()->create([
                 'audit_engagement_id' => $engagement->id,
                 'report_code' => $this->nextCode($engagement),
                 'title' => trim($attributes['title']),
-                'report_stage' => 'DRAFT_REPORT',
+                'report_stage' => $stage,
                 'status' => 'DRAFT',
                 'current_version_number' => 0,
                 'confidentiality_level_id' => $attributes['confidentialityLevelId'],
@@ -204,7 +207,7 @@ class AemsReportService
                 $request,
                 $engagement,
                 $report,
-                'DRAFT_REPORT',
+                $stage,
                 $attributes,
                 $findings,
                 [],
@@ -219,6 +222,12 @@ class AemsReportService
 
             return $report;
         });
+    }
+
+    /** Create an Interim Report using the same immutable assembly contract. */
+    public function createInterim(Request $request, AuditEngagement $engagement, array $attributes): AuditReport
+    {
+        return $this->createDraft($request, $engagement, $attributes, 'INTERIM_REPORT');
     }
 
     /** @param array<string, mixed> $attributes */
@@ -329,7 +338,8 @@ class AemsReportService
             $recipients,
         ): AuditReport {
             $report = $this->lock($engagement, $report, $attributes['lockVersion']);
-            if ($report->report_stage !== 'DRAFT_REPORT' || $report->status !== 'APPROVED') {
+            if (! in_array($report->report_stage, ['INTERIM_REPORT', 'DRAFT_REPORT'], true)
+                || $report->status !== 'APPROVED') {
                 throw ValidationException::withMessages([
                     'report' => ['The approved Draft Report is required before generating the Final Report.'],
                 ]);
@@ -473,6 +483,7 @@ class AemsReportService
                 $version->recipients()->update([
                     'delivery_status' => 'SENT',
                     'sent_at' => $issuedAt,
+                    'delivered_at' => $issuedAt,
                     'updated_at' => now(),
                 ]);
                 $version->forceFill([
@@ -618,6 +629,160 @@ class AemsReportService
         return $documentVersion;
     }
 
+    /** Record an append-only delivery/acknowledgement decision for a recipient. */
+    public function distributionDecision(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditReport $report,
+        AuditReportVersion $version,
+        ReportRecipient $recipient,
+        string $decision,
+        ?string $comment,
+    ): AuditReportDistributionDecision {
+        $this->ensureReport($engagement, $report);
+        abort_unless((int) $version->audit_report_id === (int) $report->id, 422, 'The report version does not belong to this report.');
+        abort_unless((int) $recipient->audit_report_version_id === (int) $version->id, 422, 'The recipient does not belong to this report version.');
+        abort_unless($report->status === 'ISSUED' && $version->is_locked, 422, 'Distribution decisions require an issued report version.');
+
+        $user = $request->user();
+        $isRecipient = ((int) $recipient->user_id === (int) $user->id)
+            || ($recipient->office_id && (int) $recipient->office_id === (int) $user->office_id);
+        if ($decision === 'ACKNOWLEDGED') {
+            abort_unless($isRecipient && $user->hasPermission('aems.report.acknowledge'), 403, 'Only an authorized recipient may acknowledge this report.');
+        } else {
+            $this->access->authorizeEngagementAction($user, $engagement, 'aems.report.distribute', $report->prepared_by);
+        }
+
+        return DB::transaction(function () use ($request, $engagement, $report, $version, $recipient, $decision, $comment): AuditReportDistributionDecision {
+            $decisionRecord = AuditReportDistributionDecision::query()->create([
+                'audit_report_id' => $report->id,
+                'audit_report_version_id' => $version->id,
+                'report_recipient_id' => $recipient->id,
+                'decision_code' => $decision,
+                'comment' => $comment,
+                'decided_by' => $request->user()->id,
+                'decided_at' => now(),
+            ]);
+            $this->support->event($request, $engagement, 'aems.report.distribution_'.$decision, 'ISSUED', 'ISSUED', null, [
+                'reportId' => $report->id, 'versionId' => $version->id, 'recipientId' => $recipient->id,
+                'decision' => $decision,
+            ], $comment, 'AUDIT_REPORT', $report->id, $version->version_number, $report->report_code, null, [$version->document_version_id]);
+            $this->support->audit($request, 'aems.report.distribution_'.$decision, $engagement, null, [
+                'reportId' => $report->id, 'versionId' => $version->id, 'recipientId' => $recipient->id,
+                'decision' => $decision,
+            ], ['subjectType' => 'AUDIT_REPORT', 'subjectId' => $report->id, 'subjectCode' => $report->report_code]);
+
+            return $decisionRecord->load(['recipient', 'decider']);
+        });
+    }
+
+    /** Withdraw an issued report without mutating its immutable issued version. */
+    public function withdraw(Request $request, AuditEngagement $engagement, AuditReport $report, int $lockVersion, string $reason): AuditReport
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.report.withdraw', $report->prepared_by);
+        return DB::transaction(function () use ($request, $engagement, $report, $lockVersion, $reason): AuditReport {
+            $locked = $this->lock($engagement, $report, $lockVersion);
+            if ($locked->status !== 'ISSUED') $this->invalidTransition('WITHDRAW', $locked);
+            $old = $this->reportAudit($locked);
+            AuditReport::query()->whereKey($locked->id)->update([
+                'status' => 'WITHDRAWN', 'is_active' => false,
+                'withdrawn_at' => now(), 'withdrawn_by' => $request->user()->id,
+                'withdrawal_reason' => trim($reason), 'lock_version' => $locked->lock_version + 1,
+            ]);
+            $fresh = $this->load($locked->fresh());
+            $this->record($request, $engagement, $fresh, 'aems.report.withdrawn', $old['status'], 'WITHDRAWN', $old, $reason, [$fresh->currentVersion?->document_version_id]);
+            return $fresh;
+        });
+    }
+
+    /**
+     * Create a controlled successor version for an issued report.
+     *
+     * The report family remains the single active family for the engagement;
+     * the issued version is never edited and the correction is represented by
+     * a new draft version linked to its predecessor in the immutable snapshot.
+     */
+    public function createSuccessor(Request $request, AuditEngagement $engagement, AuditReport $report, int $lockVersion, string $action, string $reason): AuditReport
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, $action === 'AMEND' ? 'aems.report.amend' : 'aems.report.supersede', $report->prepared_by);
+        return DB::transaction(function () use ($request, $engagement, $report, $lockVersion, $action, $reason): AuditReport {
+            $source = $this->lock($engagement, $report, $lockVersion);
+            if ($source->status !== 'ISSUED') $this->invalidTransition($action, $source);
+            $sourceVersion = $source->currentVersion()->with(['findings', 'recipients'])->firstOrFail();
+            $snapshot = $sourceVersion->content_snapshot;
+            $attributes = [
+                'title' => $snapshot['title'].' — '.($action === 'AMEND' ? 'Amended' : 'Superseding'),
+                'executiveSummary' => $snapshot['executiveSummary'],
+                'sections' => $snapshot['sections'],
+                'findingIds' => $sourceVersion->findings->pluck('id')->all(),
+                'confidentialityLevelId' => $source->confidentiality_level_id,
+                'approvingAuthority' => $source->approving_authority,
+                'recipients' => $sourceVersion->recipients->map(fn (ReportRecipient $recipient): array => [
+                    'recipientType' => $recipient->recipient_type, 'userId' => $recipient->user_id,
+                    'officeId' => $recipient->office_id, 'externalName' => $recipient->external_name,
+                    'externalEmail' => $recipient->external_email, 'deliveryMethod' => $recipient->delivery_method,
+                ])->all(),
+                'changeReason' => trim($reason),
+                'qualityChecklist' => $snapshot['qualityChecklist'] ?? [],
+                'supersedesVersionId' => $sourceVersion->id,
+            ];
+            $findings = $this->validatedFindings(
+                $engagement,
+                $attributes['findingIds'],
+                $source->report_stage === 'FINAL_REPORT',
+            );
+            $recipients = $source->report_stage === 'FINAL_REPORT'
+                ? $this->validateRecipients($engagement, $attributes['recipients'])
+                : [];
+
+            // Query-builder updates intentionally bypass the issued-row guard:
+            // they reset only the family pointer to a draft state. Existing
+            // issued versions and their document versions remain untouched.
+            AuditReport::query()->whereKey($source->id)->update([
+                'title' => $attributes['title'],
+                'status' => 'DRAFT',
+                'submitted_at' => null,
+                'submitted_by' => null,
+                'approved_at' => null,
+                'approved_by' => null,
+                'issued_at' => null,
+                'issued_by' => null,
+                'withdrawn_at' => null,
+                'withdrawn_by' => null,
+                'withdrawal_reason' => null,
+                'lock_version' => $source->lock_version + 1,
+            ]);
+            $draft = $source->fresh();
+            $version = $this->createVersion(
+                $request,
+                $engagement,
+                $draft,
+                $draft->report_stage,
+                $attributes,
+                $findings,
+                $recipients,
+            );
+            AuditReport::query()->whereKey($draft->id)->update([
+                'current_version_number' => $version->version_number,
+                'current_version_id' => $version->id,
+                'lock_version' => $draft->lock_version + 1,
+            ]);
+            $new = $this->load($draft->fresh());
+            $this->record(
+                $request,
+                $engagement,
+                $new,
+                'aems.report.'.strtolower($action),
+                'ISSUED',
+                'DRAFT',
+                ['supersedesVersionId' => $sourceVersion->id, 'action' => $action],
+                $reason,
+                [$version->document_version_id],
+            );
+            return $new;
+        });
+    }
+
     /** @return array<string, mixed> */
     public function reportData(AuditReport $report, ?User $viewer = null): array
     {
@@ -644,6 +809,10 @@ class AemsReportService
             'approvingAuthority' => $report->approving_authority,
             'issuedBy' => $this->userData($report->issuer),
             'issuedAt' => $report->issued_at?->toISOString(),
+            'withdrawnAt' => $report->withdrawn_at?->toISOString(),
+            'withdrawnBy' => $this->userData($report->withdrawnBy),
+            'withdrawalReason' => $report->withdrawal_reason,
+            'supersedesReportId' => $report->supersedes_report_id,
             'lockVersion' => $report->lock_version,
             'versions' => $report->versions
                 ->map(fn (AuditReportVersion $version): array => $this->versionData($version))
@@ -662,6 +831,16 @@ class AemsReportService
             'canDownloadCurrent' => $viewer
                 ? $this->canDownload($viewer, $report)
                 : true,
+            'distributionDecisions' => $report->distributionDecisions
+                ->map(fn (AuditReportDistributionDecision $decision): array => [
+                    'id' => $decision->id,
+                    'versionId' => $decision->audit_report_version_id,
+                    'recipientId' => $decision->report_recipient_id,
+                    'decision' => $decision->decision_code,
+                    'comment' => $decision->comment,
+                    'decidedBy' => $this->userData($decision->decider),
+                    'decidedAt' => $decision->decided_at?->toISOString(),
+                ])->values()->all(),
         ];
     }
 
@@ -756,6 +935,12 @@ class AemsReportService
                 ? trim($attributes['approvingAuthority'])
                 : null,
             'confidentialityLevelId' => $attributes['confidentialityLevelId'],
+            'qualityChecklist' => collect($attributes['qualityChecklist'] ?? [])->values()->map(fn ($item): array => [
+                'code' => (string) ($item['code'] ?? ''),
+                'label' => (string) ($item['label'] ?? ''),
+                'completed' => (bool) ($item['completed'] ?? false),
+            ])->all(),
+            'supersedesVersionId' => $attributes['supersedesVersionId'] ?? null,
             'recipients' => $recipients,
             'generatedAt' => now()->toISOString(),
             'generatedBy' => $this->userData($request->user()),
@@ -952,6 +1137,12 @@ class AemsReportService
                 'report' => ['Only finalized Findings can be approved in the Final Report.'],
             ]);
         }
+        $checklist = collect($version->content_snapshot['qualityChecklist'] ?? []);
+        if ($checklist->isNotEmpty() && $checklist->contains(fn ($item): bool => ! (bool) ($item['completed'] ?? false))) {
+            throw ValidationException::withMessages([
+                'report' => ['The quality checklist must be completed before Final Report approval.'],
+            ]);
+        }
         if (! ExitConference::query()
             ->where('audit_engagement_id', $engagement->id)
             ->whereIn('status', ['COMPLETED', 'WAIVED'])
@@ -1112,7 +1303,13 @@ class AemsReportService
 
     private function nextCode(AuditEngagement $engagement): string
     {
-        return sprintf('AR-%s-%02d', $engagement->engagement_code, 1);
+        $prefix = sprintf('AR-%s-', $engagement->engagement_code);
+        $number = AuditReport::withTrashed()->where('report_code', 'like', $prefix.'%')->count() + 1;
+        do {
+            $code = sprintf('%s%02d', $prefix, $number++);
+        } while (AuditReport::withTrashed()->where('report_code', $code)->exists());
+
+        return $code;
     }
 
     /** @return list<array<string, mixed>> */
@@ -1132,6 +1329,8 @@ class AemsReportService
             'submitter',
             'approver',
             'issuer',
+            'withdrawnBy',
+            'supersededReport',
             'currentVersion.findings.recommendations.cmsRecommendation',
             'versions.creator',
             'versions.documentVersion',
@@ -1141,6 +1340,7 @@ class AemsReportService
             'versions.recipients.user',
             'versions.recipients.office',
             'versions.reviewComments.reviewer',
+            'distributionDecisions.decider',
         ];
     }
 

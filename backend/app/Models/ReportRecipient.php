@@ -24,6 +24,7 @@ class ReportRecipient extends Model
         'delivery_method',
         'delivery_status',
         'sent_at',
+        'delivered_at',
         'acknowledged_at',
     ];
 
@@ -31,6 +32,7 @@ class ReportRecipient extends Model
     {
         return [
             'sent_at' => 'datetime',
+            'delivered_at' => 'datetime',
             'acknowledged_at' => 'datetime',
         ];
     }

@@ -61,6 +61,31 @@ class AuditIssuePolicy
         return $this->review($user, $issue, 'aems.issue.convert');
     }
 
+    public function merge(User $user, AuditIssue $issue): bool
+    {
+        return $this->review($user, $issue, 'aems.issue.merge');
+    }
+
+    public function resolve(User $user, AuditIssue $issue): bool
+    {
+        return $this->review($user, $issue, 'aems.issue.resolve');
+    }
+
+    public function observe(User $user, AuditIssue $issue): bool
+    {
+        return $this->review($user, $issue, 'aems.issue.observe');
+    }
+
+    public function refer(User $user, AuditIssue $issue): bool
+    {
+        return $this->review($user, $issue, 'aems.issue.refer');
+    }
+
+    public function closeWithoutFinding(User $user, AuditIssue $issue): bool
+    {
+        return $this->review($user, $issue, 'aems.issue.close_without_finding');
+    }
+
     private function review(User $user, AuditIssue $issue, string $permission): bool
     {
         return $this->allows(

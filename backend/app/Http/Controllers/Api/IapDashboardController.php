@@ -46,6 +46,7 @@ class IapDashboardController extends Controller
                         'riskLevel',
                         'teamMembers.user:id,employee_id,name,initials',
                         'skillRequirements.specialization',
+                        'aemEngagement:id,iap_plan_engagement_id,status,deleted_at',
                     ]),
             ])
             ->orderByDesc('fiscal_year')
@@ -133,8 +134,10 @@ class IapDashboardController extends Controller
             ])
             ->values();
 
+        // AEMS owns the import relationship.  Do not use the legacy IAP
+        // compatibility column as mutable source state.
         $implemented = $activeEngagements
-            ->whereNotNull('aem_engagement_id')
+            ->filter(fn ($engagement): bool => $engagement->aemEngagement !== null)
             ->count();
         $plannedCount = $activeEngagements->count();
         $accomplishment = $plan?->status === 'COMPLETED'

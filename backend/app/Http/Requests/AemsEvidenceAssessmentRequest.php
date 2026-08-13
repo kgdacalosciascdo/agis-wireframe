@@ -10,7 +10,10 @@ class AemsEvidenceAssessmentRequest extends FormRequest
     public function authorize(): bool { return true; }
     public function rules(): array
     {
-        $rating = ['nullable', 'string', Rule::in(['YES', 'NO', 'PARTIAL', 'HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'])];
+        $rating = ['nullable', 'string', Rule::in([
+            'YES', 'NO', 'PARTIAL', 'HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED',
+            'ADEQUATE', 'INADEQUATE', 'NOT_APPLICABLE',
+        ])];
         return [
             'evidenceId' => ['required', 'integer', Rule::exists('audit_evidence', 'id')->whereNull('deleted_at')],
             'evidenceRequestId' => ['nullable', 'integer', Rule::exists('aems_evidence_requests', 'id')->whereNull('deleted_at')],

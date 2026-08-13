@@ -2226,3 +2226,27 @@ Runtime configuration keys used by AEMS reminder dispatch are:
 `aems_conference_reminder_days` (integer, default `7`). They are maintained by
 the existing Core System Configuration endpoint and do not permit automated
 approval, closure, CMS transfer, or other final professional decisions.
+
+### AEMS-G1 evidence and direct-Finding contract
+
+`GET /api/aems/engagements/{engagement}/findings-workspace` and Finding detail
+responses include `eligibleForFinalizedFinding` and `eligibilityReasons` on
+each Evidence item and its current Assessment. The backend requires that flag
+to be true for Finding `VALIDATE` and `FINALIZE`; the UI only mirrors the
+decision and cannot override it.
+
+Finding create/update payloads require `conclusion`. A direct Finding (one
+without `sourceIssueId`) additionally requires:
+
+```json
+{
+  "directAuthorityReason": "URGENT_OR_MATERIAL_RISK",
+  "directAuthorityReference": "Approved authority or risk directive reference"
+}
+```
+
+The response preserves `directCreationReason`, `directCreationAuthority`,
+`directCreatedBy`, and `directCreatedAt`. Evidence Request Version and
+Evidence Assessment rows are read-only snapshots; correction or exception
+approval creates a superseding version with a new version number and change
+reason.

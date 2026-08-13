@@ -33,8 +33,11 @@ Auditee Responses, Entry/Exit Conferences, Audit Reports, Completion Assessment,
 formal Closure, retention/final-index metadata, dashboard progress, and
 controlled reopening are implemented with scoped APIs, protected React pages,
 immutable versions, audit/activity records, notifications, and tests. The
-reference-alignment gaps and target navigation contract are recorded in
-[AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md).
+reference-alignment gaps and target navigation contract are recorded in the
+[AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md). The resolved
+professional decisions and the rule-to-code-to-test conformance index are in
+the [AEMS-G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md);
+the operational subset must not be read as full MDS/UID conformance.
 
 The aggregate engagement transition service and the formal engagement closure
 workflow are implemented in the current as-built system. CMS transfer is
@@ -1787,3 +1790,30 @@ permission and scope policy. It reports provider ownership, referential-health
 checks, fallback state, and security flags; scoped users do not receive global
 IAP/CMS counts. AIS remains outside AEMS-11 and no AIS provider, table, or route
 is enabled.
+
+## AEMS-G1 professional-control hardening
+
+Finding validation and finalization now require professionally eligible
+Evidence. The current Evidence revision must be verified or locked, its
+immutable assessment must be assessed against the exact current Core Document
+Version, all professional dimensions must be positive, confidentiality must
+be classified, and gaps/limitations/restrictions must be resolved or covered
+by an independently approved exception. The API exposes the eligibility
+boolean and blocking reasons; the Findings workspace removes ineligible
+Evidence from reporting-support selection and suppresses Validate/Finalize
+actions until the gate is met.
+
+Finding Conclusion is required at creation and before Submit, Validate, or
+Finalize. Direct Findings require one of the G0-authorized reasons and an
+authority reference; the actor and timestamp are retained. A Finding created
+from an Issue must reference a validated Issue in the same engagement.
+
+Evidence Request and Assessment versions are immutable records. Corrections
+and exception approvals create superseding versions, preserving the original
+assessment and exact Document Version lineage. Entry-conference KPI and
+reporting progress gates are evaluated from the approved Planning Package
+baseline; legacy packages explicitly report that the optional control is not
+configured rather than relying on an unconditional hard-coded pass.
+
+See [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
+for the complete rule and API contract.

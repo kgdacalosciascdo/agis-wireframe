@@ -746,3 +746,13 @@ SPA fallback, anonymous ARMIS API rejection, and baseline browser security
 headers. It requires HTTPS and returns a non-zero exit code on failure. It
 does not sign in, upload, mutate records, run migrations, or change provider
 authority.
+
+## AEMS-G1 professional-control migration
+
+Deploy the additive
+`2026_08_28_000000_harden_aems_professional_controls` migration with the
+normal `php artisan migrate --force` command. It adds direct-Finding authority
+provenance columns and restores the current-revision Finding index on SQLite
+after the schema rebuild. No new permission seeder is required; existing
+`aems.*` permissions and compatibility aliases are unchanged. Verify the
+focused AEMS Evidence, Finding, and lifecycle tests after deployment.

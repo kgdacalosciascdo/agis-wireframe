@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Models\AuditFinding;
 
 /** Validates the criteria-condition-cause-effect finding record. */
 class AemsFindingRequest extends FormRequest
@@ -25,6 +26,8 @@ class AemsFindingRequest extends FormRequest
             'significanceClassification',
             'effectClassification',
             'noRecommendationReason',
+            'directAuthorityReason',
+            'directAuthorityReference',
         ] as $field) {
             if ($this->has($field)) {
                 $this->merge([
@@ -39,13 +42,28 @@ class AemsFindingRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $directReason = $this->route('finding')
+            ? ['sometimes', 'nullable', 'string', Rule::in(AuditFinding::DIRECT_CREATION_REASONS)]
+            : ['required_without:sourceIssueId', 'nullable', 'string', Rule::in(AuditFinding::DIRECT_CREATION_REASONS)];
+        $directAuthority = $this->route('finding')
+            ? ['sometimes', 'nullable', 'string', 'min:3', 'max:4000']
+            : ['required_without:sourceIssueId', 'nullable', 'string', 'min:3', 'max:4000'];
+
         return [
             'title' => ['required', 'string', 'min:3', 'max:255'],
             'criteria' => ['required', 'string', 'min:3', 'max:20000'],
             'condition' => ['required', 'string', 'min:3', 'max:20000'],
             'cause' => ['required', 'string', 'min:3', 'max:20000'],
             'effect' => ['required', 'string', 'min:3', 'max:20000'],
-            'conclusion' => ['nullable', 'string', 'min:3', 'max:20000'],
+            'conclusion' => ['required', 'string', 'min:3', 'max:20000'],
+            'sourceIssueId' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('audit_issues', 'id')->whereNull('deleted_at'),
+            ],
+            'directAuthorityReason' => $directReason,
+            'directAuthorityReference' => $directAuthority,
             'significanceClassification' => ['nullable', 'string', 'max:50'],
             'effectClassification' => ['nullable', 'string', 'max:50'],
             'noRecommendationReason' => ['nullable', 'string', 'min:5', 'max:4000'],

@@ -33,6 +33,12 @@ class AuditFinding extends Model
 
     public const REVISION_TYPES = ['ORIGINAL', 'CORRECTION', 'AMENDMENT', 'SUPERSESSION', 'WITHDRAWAL'];
 
+    public const DIRECT_CREATION_REASONS = [
+        'URGENT_OR_MATERIAL_RISK',
+        'FORMAL_DIRECTIVE_OR_LEGAL_REQUIREMENT',
+        'CROSS_CUTTING_OR_SYSTEMIC_MATTER',
+    ];
+
     /** Internal guard used only by the revision service when closing a prior revision. */
     protected static bool $allowRevisionTransition = false;
 
@@ -46,6 +52,10 @@ class AuditFinding extends Model
         'is_current_revision',
         'audit_engagement_id',
         'source_issue_id',
+        'direct_creation_reason',
+        'direct_creation_authority',
+        'direct_creation_by',
+        'direct_creation_at',
         'finding_code',
         'title',
         'criteria',
@@ -93,6 +103,7 @@ class AuditFinding extends Model
             'finalized_at' => 'datetime',
             'finalized_snapshot' => 'array',
             'revision_snapshot' => 'array',
+            'direct_creation_at' => 'datetime',
             'withdrawn_at' => 'datetime',
             'lock_version' => 'integer',
         ];
@@ -139,6 +150,11 @@ class AuditFinding extends Model
     public function sourceIssue(): BelongsTo
     {
         return $this->belongsTo(AuditIssue::class, 'source_issue_id')->withTrashed();
+    }
+
+    public function directCreator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'direct_creation_by')->withTrashed();
     }
 
     public function responsibleOffice(): BelongsTo

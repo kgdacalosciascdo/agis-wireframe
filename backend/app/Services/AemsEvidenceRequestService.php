@@ -18,6 +18,12 @@ use Illuminate\Validation\ValidationException;
 /** Governs evidence requests, exact received-document links, and assessments. */
 class AemsEvidenceRequestService
 {
+    private const ASSESSMENT_DIMENSIONS = [
+        'sufficiency', 'appropriateness', 'relevance', 'reliability',
+        'competence', 'accuracy', 'completeness', 'corroboration',
+        'contradiction', 'authenticity', 'integrity',
+    ];
+
     public function __construct(
         private readonly AemsAccessService $access,
         private readonly AemsSupport $support,
@@ -215,7 +221,7 @@ class AemsEvidenceRequestService
             $number = $current ? $current->version_number + 1 : 1;
             if ($current) {
                 if (empty($attributes['changeReason'])) throw ValidationException::withMessages(['changeReason' => ['A correction reason is required for a new assessment version.']]);
-                $current->update(['is_current_revision' => false]);
+                $this->supersedeAssessment($current);
             }
             $assessment = AemsEvidenceAssessment::query()->create([
                 'assessment_family_uuid' => $current?->assessment_family_uuid ?? (string) Str::uuid(),
@@ -249,11 +255,31 @@ class AemsEvidenceRequestService
             if ((int) $locked->audit_engagement_id !== (int) $engagement->id || $locked->lock_version !== $lockVersion) throw ValidationException::withMessages(['lockVersion' => ['This assessment changed in another session. Refresh before continuing.']]);
             if (! $locked->is_current_revision || ! $locked->exception_required) throw ValidationException::withMessages(['assessment' => ['Only a current assessment requiring an exception can be approved.']]);
             if (mb_strlen(trim($comment)) < 5) throw ValidationException::withMessages(['comment' => ['A clear exception approval explanation is required.']]);
-            $locked->update(['exception_approved_by' => $request->user()->id, 'exception_approved_at' => now(), 'exception_approval_comment' => $comment, 'lock_version' => $locked->lock_version + 1]);
-            $this->support->event($request, $engagement, 'EVIDENCE_EXCEPTION_APPROVED', 'ASSESSED', 'ASSESSED', null, $this->assessmentValues($locked), $comment, 'AEMS_EVIDENCE_ASSESSMENT', $locked->id, $locked->version_number, $locked->evidence?->evidence_code, $locked->assessment_family_uuid, [$locked->document_version_id]);
-            $this->support->audit($request, 'aems.evidence.exception_approved', $engagement, null, $this->assessmentValues($locked), ['assessmentId' => $locked->id]);
-            $this->notifications->evidenceAssessmentRecorded($request, $engagement, $locked, 'EXCEPTION_APPROVED');
-            return $locked;
+            $this->supersedeAssessment($locked);
+            $revision = AemsEvidenceAssessment::query()->create([
+                'assessment_family_uuid' => $locked->assessment_family_uuid,
+                'audit_engagement_id' => $locked->audit_engagement_id,
+                'audit_evidence_id' => $locked->audit_evidence_id,
+                'evidence_request_id' => $locked->evidence_request_id,
+                'document_version_id' => $locked->document_version_id,
+                'version_number' => $locked->version_number + 1,
+                'supersedes_assessment_id' => $locked->id,
+                'is_current_revision' => true,
+                'status' => 'ASSESSED',
+                ...$this->assessmentSnapshotAttributes($locked),
+                'exception_approved_by' => $request->user()->id,
+                'exception_approved_at' => now(),
+                'exception_approval_comment' => $comment,
+                'assessed_by' => $locked->assessed_by,
+                'assessed_at' => $locked->assessed_at,
+                'change_reason' => 'Authorized evidence exception approval: '.$comment,
+                'lock_version' => 1,
+            ]);
+            $revision->load(['evidence', 'request', 'documentVersion', 'assessor', 'exceptionApprover']);
+            $this->support->event($request, $engagement, 'EVIDENCE_EXCEPTION_APPROVED', 'ASSESSED', 'ASSESSED', ['versionNumber' => $locked->version_number], $this->assessmentValues($revision), $comment, 'AEMS_EVIDENCE_ASSESSMENT', $revision->id, $revision->version_number, $revision->evidence?->evidence_code, $revision->assessment_family_uuid, [$revision->document_version_id]);
+            $this->support->audit($request, 'aems.evidence.exception_approved', $engagement, null, $this->assessmentValues($revision), ['assessmentId' => $revision->id, 'supersedesAssessmentId' => $locked->id]);
+            $this->notifications->evidenceAssessmentRecorded($request, $engagement, $revision, 'EXCEPTION_APPROVED');
+            return $revision;
         }, 3);
         return $updated->fresh(['evidence', 'request', 'documentVersion', 'assessor', 'exceptionApprover']);
     }
@@ -286,6 +312,7 @@ class AemsEvidenceRequestService
     public function assessmentData(AemsEvidenceAssessment $assessment): array
     {
         $assessment->loadMissing(['evidence', 'request', 'documentVersion', 'assessor', 'exceptionApprover']);
+        $eligibility = $this->evidenceEligibility($assessment);
         return [
             'id' => $assessment->id, 'familyUuid' => $assessment->assessment_family_uuid,
             'evidenceId' => $assessment->audit_evidence_id, 'evidenceCode' => $assessment->evidence?->evidence_code,
@@ -305,15 +332,58 @@ class AemsEvidenceRequestService
             'exceptionApprovalComment' => $assessment->exception_approval_comment,
             'assessedBy' => $this->user($assessment->assessor), 'assessedAt' => $assessment->assessed_at?->toIso8601String(),
             'changeReason' => $assessment->change_reason, 'lockVersion' => $assessment->lock_version,
-            'eligibleForFinalizedFinding' => $this->eligibleForFinalizedFinding($assessment),
+            'eligibleForFinalizedFinding' => $eligibility['eligible'],
+            'eligibilityReasons' => $eligibility['reasons'],
         ];
     }
 
     public function eligibleForFinalizedFinding(?AemsEvidenceAssessment $assessment): bool
     {
-        if (! $assessment || ! $assessment->is_current_revision || $assessment->status !== 'ASSESSED') return false;
-        if ($assessment->is_restricted || filled($assessment->access_restrictions)) return (bool) $assessment->exception_approved_at;
-        return true;
+        return $this->evidenceEligibility($assessment)['eligible'];
+    }
+
+    /** @return array{eligible: bool, reasons: list<string>} */
+    public function evidenceEligibility(?AemsEvidenceAssessment $assessment): array
+    {
+        if (! $assessment) {
+            return ['eligible' => false, 'reasons' => ['No professional evidence assessment has been recorded.']];
+        }
+        $assessment->loadMissing(['evidence', 'documentVersion']);
+        $reasons = [];
+        if (! $assessment->is_current_revision || $assessment->status !== 'ASSESSED') {
+            $reasons[] = 'The assessment is not the current assessed version.';
+        }
+        $evidence = $assessment->evidence;
+        if (! $evidence || ! $evidence->is_current_revision || ! in_array($evidence->status, ['VERIFIED', 'LOCKED'], true)) {
+            $reasons[] = 'The Evidence record is not a current verified or locked version.';
+        }
+        if (! $assessment->documentVersion || (int) $assessment->document_version_id !== (int) $evidence?->document_version_id) {
+            $reasons[] = 'The assessment does not cite the exact current Core Document Version.';
+        }
+        foreach (self::ASSESSMENT_DIMENSIONS as $dimension) {
+            $value = strtoupper(trim((string) $assessment->{$dimension}));
+            $acceptable = $dimension === 'contradiction'
+                ? in_array($value, ['NO', 'ADEQUATE'], true)
+                : in_array($value, ['YES', 'HIGH', 'ADEQUATE'], true);
+            if (! $acceptable) {
+                $reasons[] = str($dimension)->headline()->toString().' is incomplete or professionally negative.';
+            }
+        }
+        if (blank($assessment->confidentiality)) {
+            $reasons[] = 'Evidence confidentiality must be classified.';
+        }
+        if (filled($assessment->evidence_gaps)) {
+            $reasons[] = 'Unresolved evidence gaps remain.';
+        }
+        if (filled($assessment->limitations) && ! $assessment->exception_approved_at) {
+            $reasons[] = 'Evidence limitations require an approved exception or resolution.';
+        }
+        if (($assessment->is_restricted || filled($assessment->access_restrictions) || $assessment->exception_required)
+            && ! $assessment->exception_approved_at) {
+            $reasons[] = 'Restricted or exception-controlled evidence requires separate approval.';
+        }
+
+        return ['eligible' => $reasons === [], 'reasons' => array_values(array_unique($reasons))];
     }
 
     /** @return list<string> */
@@ -378,6 +448,24 @@ class AemsEvidenceRequestService
             $assessment = $link->evidence?->currentAssessment;
             if ((int) $link->document_version_id !== (int) $assessment?->document_version_id || ! $this->eligibleForFinalizedFinding($assessment)) throw ValidationException::withMessages(['evidence' => ['Every received Evidence/Core Document Version must have an eligible assessment before this request can be assessed.']]);
         }
+    }
+
+    private function supersedeAssessment(AemsEvidenceAssessment $assessment): void
+    {
+        DB::table('aems_evidence_assessments')
+            ->where('id', $assessment->id)
+            ->where('is_current_revision', true)
+            ->update(['is_current_revision' => false, 'updated_at' => now()]);
+    }
+
+    /** @return array<string, mixed> */
+    private function assessmentSnapshotAttributes(AemsEvidenceAssessment $assessment): array
+    {
+        return collect([
+            ...self::ASSESSMENT_DIMENSIONS,
+            'confidentiality', 'is_restricted', 'access_restrictions', 'limitations',
+            'evidence_gaps', 'exception_required', 'exception_reason',
+        ])->mapWithKeys(fn (string $field): array => [$field => $assessment->{$field}])->all();
     }
 
     private function nextCode(AuditEngagement $engagement): string

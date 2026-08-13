@@ -10,6 +10,7 @@ use App\Models\AuditEngagementPlan;
 use App\Models\AuditLog;
 use App\Models\AuditProgram;
 use App\Models\AemsPlanningPackage;
+use App\Models\AemsPlanningPackageVersion;
 use App\Models\EngagementEvent;
 use App\Models\EngagementTeam;
 use App\Models\EntryConference;
@@ -209,6 +210,34 @@ class AemsEngagementLifecycleTest extends TestCase
             ->assertJsonFragment(['The AEP must remain approved.'])
             ->assertJsonFragment(['The current Audit Program must remain approved.'])
             ->assertJsonFragment(['At least one auditee participant must attend.']);
+    }
+
+    public function test_planning_controls_are_evaluated_from_the_approved_baseline(): void
+    {
+        [$management, $auditor, $auditee, $engagement] = $this->engagement('ENGAGEMENT_PLANNING');
+        $this->installRequiredTeamAndAeo($engagement, $management, $auditor);
+        $this->installApprovedPlanningRecords($engagement, $management, $auditor);
+        $package = AemsPlanningPackage::query()->where('audit_engagement_id', $engagement->id)->firstOrFail();
+        AemsPlanningPackageVersion::query()->create([
+            'planning_package_id' => $package->id,
+            'version_number' => 1,
+            'planning_attributes' => [
+                'kpis' => [
+                    'decision' => 'REQUIRED',
+                    'items' => [],
+                ],
+            ],
+            'iap_lineage_snapshot' => [],
+            'created_by' => $auditor->id,
+            'created_at' => now(),
+        ]);
+
+        Sanctum::actingAs($management);
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/START_ENTRY_CONFERENCE",
+            ['lockVersion' => 1],
+        )->assertUnprocessable()
+            ->assertJsonValidationErrors('requirements');
     }
 
     public function test_entry_conference_waiver_requires_elevated_authority_reason_and_separation(): void

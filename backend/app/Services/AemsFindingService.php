@@ -35,6 +35,7 @@ class AemsFindingService
 {
     public function __construct(
         private readonly AemsAccessService $access,
+        private readonly AemsEvidenceRequestService $evidenceRequests,
         private readonly AemsSupport $support,
         private readonly RuntimeConfiguration $runtime,
         private readonly AemsNotificationService $notifications,
@@ -97,6 +98,7 @@ class AemsFindingService
             ->where('audit_engagement_id', $engagement->id)
             ->where('is_current_revision', true)
             ->whereIn('status', ['VERIFIED', 'LOCKED'])
+            ->with(['currentAssessment.evidence', 'currentAssessment.documentVersion'])
             ->orderBy('evidence_code')
             ->get(['id', 'evidence_code', 'title', 'status', 'version_number']);
 
@@ -131,6 +133,9 @@ class AemsFindingService
                 'title' => $item->title,
                 'status' => $item->status,
                 'versionNumber' => $item->version_number,
+                'assessment' => $item->currentAssessment
+                    ? $this->evidenceRequests->assessmentData($item->currentAssessment)
+                    : null,
             ])->values(),
             'agreementPositions' => ManagementResponse::AGREEMENT_POSITIONS,
             'rejoinderDispositions' => AuditorRejoinder::DISPOSITIONS,
@@ -413,12 +418,34 @@ class AemsFindingService
             );
             $evidence = $this->evidence($engagement, $attributes['evidenceIds'] ?? []);
             $fieldworkLinks = $this->fieldworkLinks($engagement, $attributes);
+            $sourceIssue = null;
+            if (filled($attributes['sourceIssueId'] ?? null)) {
+                $sourceIssue = AuditIssue::query()
+                    ->where('audit_engagement_id', $engagement->id)
+                    ->whereKey((int) $attributes['sourceIssueId'])
+                    ->first();
+                if (! $sourceIssue || $sourceIssue->status !== 'VALIDATED') {
+                    throw ValidationException::withMessages([
+                        'sourceIssueId' => ['A Finding may reference only a validated Issue from this engagement.'],
+                    ]);
+                }
+            } elseif (blank($attributes['directAuthorityReason'] ?? null)
+                || blank($attributes['directAuthorityReference'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'directAuthorityReference' => ['Direct Findings require an authorized reason and authority reference.'],
+                ]);
+            }
             $finding = AuditFinding::query()->create([
                 'finding_family_uuid' => (string) Str::uuid(),
                 'revision_number' => 0,
                 'revision_type' => 'ORIGINAL',
                 'is_current_revision' => true,
                 'audit_engagement_id' => $engagement->id,
+                'source_issue_id' => $sourceIssue?->id,
+                'direct_creation_reason' => $sourceIssue ? null : $attributes['directAuthorityReason'],
+                'direct_creation_authority' => $sourceIssue ? null : trim((string) $attributes['directAuthorityReference']),
+                'direct_creation_by' => $sourceIssue ? null : $request->user()->id,
+                'direct_creation_at' => $sourceIssue ? null : now(),
                 'finding_code' => $this->nextFindingCode($engagement),
                 ...$this->findingAttributes($attributes),
                 'status' => 'DRAFT',
@@ -546,6 +573,9 @@ class AemsFindingService
                 'lock_version' => $source->lock_version + 1,
                 'updated_at' => now(),
             ]);
+            if (DB::table('audit_findings')->where('id', $source->id)->where('is_current_revision', true)->exists()) {
+                throw new \LogicException('The source finding revision could not be released before creating its replacement.');
+            }
             $newStatus = $action === 'WITHDRAW' ? 'WITHDRAWN' : 'DRAFT';
             $new = AuditFinding::query()->create([
                 'finding_family_uuid' => $source->finding_family_uuid,
@@ -650,8 +680,11 @@ class AemsFindingService
                 ]);
             }
             $locked->loadMissing($this->findingRelations());
-            if (in_array($action, ['SUBMIT', 'VALIDATE'], true)) {
-                $this->ensureFindingComplete($locked, $action === 'VALIDATE');
+            if (in_array($action, ['SUBMIT', 'VALIDATE', 'FINALIZE'], true)) {
+                $this->ensureFindingComplete(
+                    $locked,
+                    in_array($action, ['VALIDATE', 'FINALIZE'], true),
+                );
             }
             $before = $this->findingAudit($locked);
             $changes = ['status' => $to, 'lock_version' => $locked->lock_version + 1];
@@ -1547,6 +1580,10 @@ class AemsFindingService
             'revisionNumber' => $finding->revision_number,
             'isCurrentRevision' => $finding->is_current_revision,
             'sourceIssueId' => $finding->source_issue_id,
+            'directCreationReason' => $finding->direct_creation_reason,
+            'directCreationAuthority' => $finding->direct_creation_authority,
+            'directCreatedBy' => $this->user($finding->directCreator),
+            'directCreatedAt' => $finding->direct_creation_at?->toIso8601String(),
             'findingCode' => $finding->finding_code,
             'revisionType' => $finding->revision_type,
             'revisionReason' => $finding->revision_reason,
@@ -1794,7 +1831,7 @@ class AemsFindingService
 
     private function ensureFindingComplete(AuditFinding $finding, bool $requireAssessedEvidence = false): void
     {
-        foreach (['criteria', 'condition', 'cause', 'effect'] as $field) {
+        foreach (['criteria', 'condition', 'cause', 'effect', 'conclusion'] as $field) {
             if (! trim((string) $finding->{$field})) {
                 throw ValidationException::withMessages([
                     $field => [Str::headline($field).' is required before submission.'],
@@ -1834,27 +1871,11 @@ class AemsFindingService
         }
         if ($requireAssessedEvidence) {
             foreach ($finding->evidence as $evidence) {
-                // Existing evidence rows predate AEMS-5A and retain their
-                // verified/locked status as a compatibility baseline. New
-                // uploads set assessment_required and must pass this gate.
-                if (! $evidence->assessment_required) {
-                    continue;
-                }
                 $assessment = $evidence->currentAssessment;
-                if (! $assessment || ! $assessment->is_current_revision || $assessment->status !== 'ASSESSED') {
+                if (! $this->evidenceRequests->eligibleForFinalizedFinding($assessment)) {
+                    $reasons = $this->evidenceRequests->evidenceEligibility($assessment)['reasons'];
                     throw ValidationException::withMessages([
-                        'evidenceIds' => ['Every cited evidence version requires a current professional evidence assessment before finding validation.'],
-                    ]);
-                }
-                if ((int) $assessment->document_version_id !== (int) $evidence->document_version_id) {
-                    throw ValidationException::withMessages([
-                        'evidenceIds' => ['Each evidence assessment must cite the exact Core Document Version used by the finding.'],
-                    ]);
-                }
-                if (($assessment->is_restricted || filled($assessment->access_restrictions))
-                    && ! $assessment->exception_approved_at) {
-                    throw ValidationException::withMessages([
-                        'evidenceIds' => ['Restricted evidence requires an approved exception before it can support a finalized finding.'],
+                        'evidenceIds' => $reasons ?: ['Every cited evidence version must be professionally eligible before finding validation.'],
                     ]);
                 }
             }
@@ -2214,10 +2235,12 @@ class AemsFindingService
             'communicator',
             'finalizer',
             'withdrawnBy',
+            'directCreator',
             'fieldworkRecordVersions.record',
             'revisions',
             'workingPaperVersions.workingPaper',
             'evidence.currentAssessment',
+            'evidence.currentAssessment.documentVersion',
             'recommendations.responsibleOffice',
             'recommendations.creator',
             'recommendations.updater',
@@ -2335,6 +2358,7 @@ class AemsFindingService
     private function evidenceData(AuditEvidence $evidence): array
     {
         $assessment = $evidence->currentAssessment;
+        $eligibility = $this->evidenceRequests->evidenceEligibility($assessment);
         return [
             'id' => $evidence->id,
             'evidenceCode' => $evidence->evidence_code,
@@ -2351,10 +2375,11 @@ class AemsFindingService
                 'isRestricted' => $assessment->is_restricted,
                 'accessRestrictions' => $assessment->access_restrictions,
                 'exceptionApprovedAt' => $assessment->exception_approved_at?->toIso8601String(),
-                'eligibleForFinalizedFinding' => $assessment->status === 'ASSESSED'
-                    && (int) $assessment->document_version_id === (int) $evidence->document_version_id
-                    && (! $assessment->is_restricted && blank($assessment->access_restrictions) || filled($assessment->exception_approved_at)),
+                'eligibleForFinalizedFinding' => $eligibility['eligible'],
+                'eligibilityReasons' => $eligibility['reasons'],
             ] : null,
+            'eligibleForFinalizedFinding' => $eligibility['eligible'],
+            'eligibilityReasons' => $eligibility['reasons'],
         ];
     }
 

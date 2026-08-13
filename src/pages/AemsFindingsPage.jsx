@@ -44,6 +44,8 @@ const findingBlank = {
   cause: "",
   effect: "",
   conclusion: "",
+  directAuthorityReason: "",
+  directAuthorityReference: "",
   significanceClassification: "",
   effectClassification: "",
   noRecommendationReason: "",
@@ -298,7 +300,11 @@ export default function AemsFindingsPage({ section = "findings" }) {
         value: item.id,
         label: `${item.workingPaper.workingPaperCode} v${item.versionNumber} — ${item.workingPaper.title}`,
       })),
-      evidence: (workspace?.evidence ?? []).map((item) => ({
+      issueEvidence: (workspace?.evidence ?? []).map((item) => ({
+        value: item.id,
+        label: `${item.evidenceCode} v${item.versionNumber} â€” ${item.title}`,
+      })),
+      evidence: (workspace?.evidence ?? []).filter((item) => item.eligibleForFinalizedFinding === true).map((item) => ({
         value: item.id,
         label: `${item.evidenceCode} v${item.versionNumber} — ${item.title}`,
       })),
@@ -344,6 +350,8 @@ export default function AemsFindingsPage({ section = "findings" }) {
             cause: finding.cause,
             effect: finding.effect,
             conclusion: finding.conclusion ?? "",
+            directAuthorityReason: finding.directCreationReason ?? "",
+            directAuthorityReference: finding.directCreationAuthority ?? "",
             significanceClassification: finding.significanceClassification ?? "",
             effectClassification: finding.effectClassification ?? "",
             noRecommendationReason: finding.noRecommendationReason ?? "",
@@ -1110,6 +1118,9 @@ function FindingDetail({
   }
   const immutable = ["FINALIZED", "WITHDRAWN", "SUPERSEDED"].includes(finding.status);
   const authorIsCurrentUser = currentUserId && Number(finding.authoredBy?.id) === currentUserId;
+  const evidenceEligible = finding.evidence?.length > 0 && finding.evidence.every(
+    (item) => item.eligibleForFinalizedFinding === true,
+  );
   return (
     <div className="space-y-4">
       <Section
@@ -1126,7 +1137,7 @@ function FindingDetail({
               </ActionButton>
             </>
           )}
-          {canValidate && finding.status === "PENDING_REVIEW" && !authorIsCurrentUser && (
+          {canValidate && finding.status === "PENDING_REVIEW" && !authorIsCurrentUser && evidenceEligible && (
             <ActionButton onClick={() => onAction("VALIDATE_FINDING")} tone="green">
               Validate
             </ActionButton>
@@ -1150,7 +1161,7 @@ function FindingDetail({
                 Record non-response
               </ActionButton>
             )}
-          {canFinalize && finding.status === "UNDER_DIALOGUE" && !authorIsCurrentUser && (
+          {canFinalize && finding.status === "UNDER_DIALOGUE" && !authorIsCurrentUser && evidenceEligible && (
             <ActionButton onClick={() => onAction("FINALIZE_FINDING")} tone="green">
               Finalize finding
             </ActionButton>
@@ -1169,6 +1180,11 @@ function FindingDetail({
         {authorIsCurrentUser && finding.status !== "DRAFT" && (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             Separation of duties: the finding author cannot perform review, communication, or finalization actions on this finding.
+          </p>
+        )}
+        {!evidenceEligible && !["DRAFT", "WITHDRAWN", "SUPERSEDED"].includes(finding.status) && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            Professional evidence gate: validation and finalization are unavailable until every linked evidence record has an accepted current assessment with no unresolved gaps or limitations.
           </p>
         )}
       </Section>
@@ -1205,6 +1221,18 @@ function FindingDetail({
           <Info label="Finalized" value={date(finding.finalizedAt, true)} />
         </dl>
       </Section>}
+      {!dialogueOnly && !finding.sourceIssueId && finding.directCreationReason && (
+        <Section title="Direct-finding authority">
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <Info label="Authorized reason" value={label(finding.directCreationReason)} />
+            <Info label="Recorded by" value={finding.directCreatedBy?.name} />
+            <Info label="Recorded at" value={date(finding.directCreatedAt, true)} />
+          </dl>
+          <p className="mt-3 whitespace-pre-wrap rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+            <strong>Authority reference:</strong> {finding.directCreationAuthority}
+          </p>
+        </Section>
+      )}
       {!dialogueOnly && <Section title="Fieldwork traceability">
         {finding.fieldworkRecords?.length ? (
           <ul className="grid gap-2 sm:grid-cols-2">
@@ -1487,7 +1515,11 @@ function Support({ papers, evidence }) {
           </p>
           <ul className="mt-2 space-y-2 text-sm text-slate-700">
             {papers.map((item) => (
-              <li className="rounded-lg bg-slate-50 p-2.5" key={item.id}>
+              <li className={`rounded-lg p-2.5 ${item.eligibleForFinalizedFinding ? "border border-emerald-200 bg-emerald-50" : "border border-red-200 bg-red-50"}`} key={item.id}>
+                <StatusBadge label={item.eligibleForFinalizedFinding ? "Accepted for reporting" : "Not eligible"} tone={item.eligibleForFinalizedFinding ? "success" : "danger"} />
+                {!item.eligibleForFinalizedFinding && item.eligibilityReasons?.length > 0 && (
+                  <p className="mt-1 text-xs text-red-700">{item.eligibilityReasons.join(" ")}</p>
+                )}
                 {item.workingPaperCode} v{item.versionNumber} — {item.title}
               </li>
             ))}
@@ -1637,7 +1669,7 @@ function RecordModal({
             <SearchableSelect multiple options={options.papers} value={form.workingPaperVersionIds} onChange={(value) => set("workingPaperVersionIds", value)} />
           </Field>
           <Field name="Evidence" errors={errors.evidenceIds} wide>
-            <SearchableSelect multiple options={options.evidence} value={form.evidenceIds} onChange={(value) => set("evidenceIds", value)} />
+            <SearchableSelect multiple options={options.issueEvidence} value={form.evidenceIds} onChange={(value) => set("evidenceIds", value)} />
           </Field>
         </div>
       </Modal>
@@ -1660,9 +1692,24 @@ function RecordModal({
               <textarea className={textAreaClass} value={form[field]} onChange={(event) => set(field, event.target.value)} />
             </Field>
           ))}
-          <Field name="Conclusion" errors={errors.conclusion} wide>
+          <Field name="Conclusion (required)" errors={errors.conclusion} wide hint="Required before a finding can be submitted or validated">
             <textarea className={textAreaClass} value={form.conclusion} onChange={(event) => set("conclusion", event.target.value)} />
           </Field>
+          {!editing && (
+            <>
+              <Field name="Direct-Finding authority reason" errors={errors.directAuthorityReason} wide hint="Required when this finding is not converted from a validated Issue">
+                <select className={inputClass} value={form.directAuthorityReason} onChange={(event) => set("directAuthorityReason", event.target.value)}>
+                  <option value="">Select an authorized reason</option>
+                  <option value="URGENT_OR_MATERIAL_RISK">Urgent or material risk</option>
+                  <option value="FORMAL_DIRECTIVE_OR_LEGAL_REQUIREMENT">Formal directive or legal requirement</option>
+                  <option value="CROSS_CUTTING_OR_SYSTEMIC_MATTER">Cross-cutting or systemic matter</option>
+                </select>
+              </Field>
+              <Field name="Authority reference" errors={errors.directAuthorityReference} wide hint="Record the directive, risk assessment, or documented authorization">
+                <textarea className={textAreaClass} value={form.directAuthorityReference} onChange={(event) => set("directAuthorityReference", event.target.value)} />
+              </Field>
+            </>
+          )}
           <Field name="Significance classification" errors={errors.significanceClassification}>
             <input className={inputClass} value={form.significanceClassification} onChange={(event) => set("significanceClassification", event.target.value)} placeholder="Material / significant / low" />
           </Field>

@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\AemsFieldworkRecord;
 use App\Models\AemsFieldworkRecordVersion;
+use App\Models\AemsEvidenceAssessment;
 use App\Models\AuditEngagement;
 use App\Models\AuditEvidence;
 use App\Models\AuditEngagementPlan;
@@ -258,6 +259,41 @@ class AemsIssueFindingRecommendationTest extends TestCase
         $recommendation = AuditRecommendation::query()->firstOrFail();
         $this->expectException(LogicException::class);
         $recommendation->update(['recommendation' => 'Historical finalized text cannot be overwritten.']);
+    }
+
+    public function test_direct_finding_requires_authority_and_conclusion(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+        Sanctum::actingAs($auditor);
+        $payload = $this->findingPayload($auditee, $version, $evidence);
+        unset($payload['directAuthorityReason'], $payload['directAuthorityReference']);
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/findings", $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('directAuthorityReason');
+
+        $withoutConclusion = [
+            ...$payload,
+            'directAuthorityReason' => 'URGENT_OR_MATERIAL_RISK',
+            'directAuthorityReference' => 'Risk committee directive AEMS-G1-001.',
+        ];
+        unset($withoutConclusion['conclusion']);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/findings", $withoutConclusion)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('conclusion');
+
+        $finding = $this->postJson("/api/aems/engagements/{$engagement->id}/findings", [
+            ...$payload,
+            'directAuthorityReason' => 'URGENT_OR_MATERIAL_RISK',
+            'directAuthorityReference' => 'Risk committee directive AEMS-G1-001.',
+        ])->assertCreated()->json('data.finding');
+
+        $this->assertSame('URGENT_OR_MATERIAL_RISK', $finding['directCreationReason']);
+        $this->assertSame('Risk committee directive AEMS-G1-001.', $finding['directCreationAuthority']);
+        $this->assertDatabaseHas('audit_findings', [
+            'id' => $finding['id'],
+            'direct_creation_by' => $auditor->id,
+        ]);
     }
 
     public function test_finding_author_cannot_validate_and_revision_preserves_immutable_snapshot(): void
@@ -523,6 +559,30 @@ class AemsIssueFindingRecommendationTest extends TestCase
             'verified_at' => now(),
         ]);
         $version->evidence()->attach($evidence->id);
+        AemsEvidenceAssessment::query()->create([
+            'assessment_family_uuid' => (string) Str::uuid(),
+            'audit_engagement_id' => $engagement->id,
+            'audit_evidence_id' => $evidence->id,
+            'document_version_id' => $documentVersion->id,
+            'version_number' => 1,
+            'is_current_revision' => true,
+            'status' => 'ASSESSED',
+            'sufficiency' => 'YES',
+            'appropriateness' => 'YES',
+            'relevance' => 'YES',
+            'reliability' => 'HIGH',
+            'competence' => 'HIGH',
+            'accuracy' => 'YES',
+            'completeness' => 'YES',
+            'corroboration' => 'YES',
+            'contradiction' => 'NO',
+            'authenticity' => 'YES',
+            'integrity' => 'YES',
+            'confidentiality' => 'INTERNAL',
+            'assessed_by' => $management->id,
+            'assessed_at' => now(),
+            'lock_version' => 1,
+        ]);
 
         return [$management, $auditor, $auditee, $engagement, $version, $evidence];
     }
@@ -549,6 +609,9 @@ class AemsIssueFindingRecommendationTest extends TestCase
             'condition' => 'One sampled high-value batch was posted without supervisory sign-off.',
             'cause' => 'The posting process does not enforce completion of the review checklist.',
             'effect' => 'Errors or irregular collections may be posted without timely detection.',
+            'conclusion' => 'The control deficiency requires management remediation and follow-up testing.',
+            'directAuthorityReason' => 'URGENT_OR_MATERIAL_RISK',
+            'directAuthorityReference' => 'Risk committee directive AEMS-G1-001.',
             'riskRatingId' => $this->masterItem('RISK_LEVEL', 'HIGH'),
             'responsibleOfficeId' => $auditee->office_id,
             'workingPaperVersionIds' => [$version->id],

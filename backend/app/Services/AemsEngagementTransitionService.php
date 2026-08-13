@@ -559,7 +559,12 @@ class AemsEngagementTransitionService
                 $this->gate('approvedAep', 'Current AEP is approved', $approvedAep, 'aep'),
                 $this->gate('approvedProgram', 'Current Audit Program is approved', (bool) $approvedProgram, 'audit-program'),
                 $this->gate('participants', 'Audit team and auditee offices can be identified', $teamRoles->isNotEmpty() && $engagement->offices->isNotEmpty()),
-                $this->gate('kpis', 'Required engagement KPIs are clear or not yet configured', true),
+                $this->planningControlGate(
+                    $engagement,
+                    'kpis',
+                    'Engagement KPI targets and measurement method are defined',
+                    'planning-package',
+                ),
             ],
             'START_FIELDWORK' => [
                 $this->gate(
@@ -612,7 +617,12 @@ class AemsEngagementTransitionService
                         ->every('status', 'FINALIZED'),
                     'findings',
                 ),
-                $this->gate('progressAssessment', 'Progress Assessment integration is reserved for a later controlled gate', true),
+                $this->planningControlGate(
+                    $engagement,
+                    'progressAssessment',
+                    'Engagement progress assessment is recorded or formally not applicable',
+                    'planning-package',
+                ),
             ],
             'ISSUE_FINAL_REPORT' => $this->finalReportRequirements($engagement),
             'SUBMIT_FOR_CLOSURE' => $this->closureRequirements($engagement),
@@ -792,7 +802,7 @@ class AemsEngagementTransitionService
             'teamMembers.user:id,name',
             'engagementOrder',
             'engagementPlan',
-            'planningPackage',
+            'planningPackage.latestVersion',
             'programs.procedures',
             'workingPapers',
             'issues',
@@ -803,6 +813,83 @@ class AemsEngagementTransitionService
             'reports.currentVersion.recipients',
             'events.actor:id,name',
         ]);
+    }
+
+    /**
+     * Evaluate controls that are configured in the immutable Planning Package
+     * rather than treating them as unconditional lifecycle passes. Older
+     * packages did not carry these controls; those packages remain compatible
+     * and are explicitly reported as not configured/not applicable.
+     *
+     * @return array{key: string, label: string, met: bool, link?: string}
+     */
+    private function planningControlGate(
+        AuditEngagement $engagement,
+        string $key,
+        string $label,
+        string $link,
+    ): array {
+        $version = $engagement->planningPackage?->latestVersion;
+        if (! $version) {
+            return $this->gate($key, "{$label} (not configured for this legacy planning package)", true, $link);
+        }
+
+        $attributes = is_array($version->planning_attributes) ? $version->planning_attributes : [];
+        $config = data_get($attributes, $key);
+        if (! is_array($config)) {
+            $config = [];
+        }
+        $decision = strtoupper((string) ($config['decision'] ?? data_get($attributes, "{$key}Decision") ?? 'NOT_CONFIGURED'));
+
+        if ($decision === 'NOT_APPLICABLE') {
+            $reason = trim((string) ($config['reason'] ?? data_get($attributes, "{$key}NotApplicableReason") ?? ''));
+            return $this->gate(
+                $key,
+                $reason !== '' ? "{$label} is formally not applicable ({$reason})" : "{$label} requires a not-applicable reason",
+                $reason !== '',
+                $link,
+            );
+        }
+
+        if ($decision === 'NOT_CONFIGURED') {
+            return $this->gate($key, "{$label} is not configured in the current planning baseline", true, $link);
+        }
+
+        if ($key === 'kpis') {
+            $items = $config['items'] ?? data_get($attributes, 'kpis', []);
+            if (! is_array($items)) {
+                $items = [];
+            }
+            $complete = $items !== [] && collect($items)->every(function (mixed $item): bool {
+                if (! is_array($item)) {
+                    return false;
+                }
+                $name = trim((string) ($item['name'] ?? $item['indicator'] ?? ''));
+                $target = $item['target'] ?? $item['targetValue'] ?? null;
+                $method = trim((string) ($item['measurementMethod'] ?? $item['method'] ?? ''));
+                return $name !== '' && $target !== null && $target !== '' && $method !== '';
+            });
+
+            return $this->gate(
+                $key,
+                $complete ? $label : "{$label} (each KPI needs a name, target, and measurement method)",
+                $complete,
+                $link,
+            );
+        }
+
+        $status = strtoupper((string) ($config['status'] ?? data_get($attributes, 'progressAssessmentStatus', '')));
+        $reference = trim((string) ($config['evidenceReference'] ?? $config['reference'] ?? data_get($attributes, 'progressAssessmentReference', '')));
+        $met = in_array($decision, ['REQUIRED', 'RECORDED', 'COMPLETE', 'COMPLETED', 'DEFINED'], true)
+            && ($status === '' || in_array($status, ['RECORDED', 'COMPLETE', 'COMPLETED', 'DEFINED'], true))
+            && $reference !== '';
+
+        return $this->gate(
+            $key,
+            $met ? $label : "{$label} (record a status and evidence reference)",
+            $met,
+            $link,
+        );
     }
 
     private function validSource(AuditEngagement $engagement): bool

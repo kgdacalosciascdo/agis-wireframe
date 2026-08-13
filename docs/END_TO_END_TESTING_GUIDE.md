@@ -1496,3 +1496,25 @@ shown to users.
    windows. Run `php artisan notifications:dispatch-reminders` and confirm
    reminders follow the configured windows, remain deduplicated, and never
    approve, close, transfer, or issue a record.
+
+## AEMS-G1 professional-control acceptance
+
+1. Record a current Evidence assessment with a missing or negative rating and
+   confirm the workspace shows `Not eligible` with blocking reasons. Verify
+   that Evidence is not available in the Finding reporting-support selector
+   and that Validate/Finalize actions are absent.
+2. Resolve every rating and evidence gap against the exact current Core
+   Document Version. Confirm the Evidence state becomes `Accepted for
+   reporting` and the Finding actions become available only after all other
+   workflow rules pass.
+3. Attempt to update an existing Evidence Request Version or Assessment row
+   directly. Confirm the API rejects mutation; record a correction and verify
+   that a new immutable superseding version is created instead.
+4. Create a Finding without Conclusion and confirm request validation fails.
+   Create a direct Finding without an authority reason/reference and confirm
+   it fails; submit it with an allowed reason and reference and verify the
+   actor/timestamp provenance in detail.
+5. Configure an approved Planning Package KPI or progress control with missing
+   required fields. Confirm the engagement transition reports a specific
+   blocker; configure the control completely and verify the gate is evaluated
+   from the planning baseline.

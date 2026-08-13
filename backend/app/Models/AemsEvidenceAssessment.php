@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 /** Immutable professional assessment snapshot for one exact evidence version. */
 class AemsEvidenceAssessment extends Model
@@ -34,6 +35,11 @@ class AemsEvidenceAssessment extends Model
             'exception_approved_at' => 'datetime', 'assessed_at' => 'datetime',
             'lock_version' => 'integer',
         ];
+    }
+    protected static function booted(): void
+    {
+        static::updating(fn (): never => throw new LogicException('Evidence assessment versions are immutable.'));
+        static::deleting(fn (): never => throw new LogicException('Evidence assessment versions cannot be deleted.'));
     }
     public function engagement(): BelongsTo { return $this->belongsTo(AuditEngagement::class, 'audit_engagement_id')->withTrashed(); }
     public function evidence(): BelongsTo { return $this->belongsTo(AuditEvidence::class, 'audit_evidence_id')->withTrashed(); }

@@ -84,11 +84,16 @@ class AemsEvidenceRequestTest extends TestCase
         $assessment = $this->postJson("/api/aems/engagements/{$engagement->id}/evidence-assessments", [
             'evidenceId' => $evidence->id,
             'documentVersionId' => $evidence->document_version_id,
-            'sufficiency' => 'YES', 'reliability' => 'HIGH', 'isRestricted' => true,
+            'sufficiency' => 'YES', 'appropriateness' => 'YES', 'relevance' => 'YES',
+            'reliability' => 'HIGH', 'competence' => 'HIGH', 'accuracy' => 'YES',
+            'completeness' => 'YES', 'corroboration' => 'YES', 'contradiction' => 'NO',
+            'authenticity' => 'YES', 'integrity' => 'YES', 'confidentiality' => 'INTERNAL',
+            'isRestricted' => true,
             'accessRestrictions' => 'Restricted personnel only.',
             'exceptionRequired' => true, 'exceptionReason' => 'The source file contains protected personnel data.',
         ])->assertCreated()->json('data.assessment');
         $this->assertFalse($assessment['eligibleForFinalizedFinding']);
+        $initialAssessmentId = $assessment['id'];
 
         Sanctum::actingAs($management);
         $assessment = $this->postJson("/api/aems/engagements/{$engagement->id}/evidence-assessments/{$assessment['id']}/approve-exception", [
@@ -96,7 +101,35 @@ class AemsEvidenceRequestTest extends TestCase
             'comment' => 'Approved restricted-use exception for the finalized finding.',
         ])->assertOk()->assertJsonPath('data.assessment.eligibleForFinalizedFinding', true)->json('data.assessment');
         $this->assertNotNull($assessment['exceptionApprovedAt']);
+        $this->assertDatabaseHas('aems_evidence_assessments', [
+            'id' => $assessment['id'],
+            'is_current_revision' => true,
+            'exception_approved_by' => $management->id,
+        ]);
+        $this->assertDatabaseHas('aems_evidence_assessments', [
+            'id' => $initialAssessmentId,
+            'is_current_revision' => false,
+        ]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'aems.evidence.exception_approved']);
+        $this->expectException(\LogicException::class);
+        AemsEvidenceAssessment::query()->findOrFail($assessment['id'])->update(['confidentiality' => 'PUBLIC']);
+    }
+
+    public function test_evidence_request_versions_are_immutable(): void
+    {
+        [$management, $auditor, $reviewer, $engagement, $evidence] = $this->fixture();
+        Sanctum::actingAs($auditor);
+        $request = $this->postJson("/api/aems/engagements/{$engagement->id}/evidence-requests", [
+            'title' => 'Immutable request version',
+            'purpose' => 'Verify request snapshots cannot be overwritten.',
+            'requestedItems' => ['Signed register'],
+        ])->assertCreated()->json('data.evidenceRequest');
+        $version = \App\Models\AemsEvidenceRequestVersion::query()
+            ->where('evidence_request_id', $request['id'])
+            ->firstOrFail();
+
+        $this->expectException(\LogicException::class);
+        $version->update(['title' => 'Tampered request']);
     }
 
     private function transition(AuditEngagement $engagement, array $request, string $action, ?string $comment = null)

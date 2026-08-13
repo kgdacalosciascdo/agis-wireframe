@@ -3,9 +3,11 @@
 ## 1. Purpose and status
 
 This document is the AEMS-0 baseline for completing the Audit Engagement
-Management module. It records the current as-built state, the decisions that
-are fixed for future implementation, the screen and navigation contract, the
-cross-module boundaries, and the migration and verification rules.
+Management module. It records the current as-built state, the screen and
+navigation contract, the cross-module boundaries, and the migration and
+verification rules. The professional decisions that were previously implicit
+or unresolved are now consolidated in the [AEMS-G0 Governance and Conformance
+Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md).
 
 The source code and automated tests remain authoritative for current behavior.
 The MDS-200, UID-200, and DGM-200 reference artifacts define the target design,
@@ -71,21 +73,20 @@ complete implementation of every MDS-200/UID-200 entity and screen.
 
 ## 4. Target entities and remaining design scope
 
-The reference-alignment target is now materially covered by migrations, models,
-services, APIs, permissions, React consumers, and tests. Review Notes,
-Engagement Tasks, Report Distribution Decisions, completion-transfer manifests,
-transfer exceptions, and effort reconciliations are implemented. Future work
-is limited to additional design refinements or new requirements; these records
-must not be treated as permission to bypass the existing workflow gates.
+The source contains a broad operational AEMS subset, but the reference target
+is not yet fully conformant. The G0 contract is the authoritative consolidated
+gap register and decision record. In particular, it distinguishes implemented
+workflow families from controls that are only partially enforced: evidence
+eligibility and immutable assessment snapshots, structured Area/Focus planning,
+Rule-35 Risk Matrix/Program fields, direct-AFR authority, AEO/report
+signatory/transmittal controls, distinct `COMPLETED` versus `CLOSED`, and
+records archive/disposition operations. Review Notes, Engagement Tasks, and
+escalation candidates have backend records and APIs, but their full operational
+editing queues remain a later UI conformance item.
 
-Process Flow Documentation, Risk Matrix, Risk Matrix Items, risk/objective and
-risk/procedure/working-paper traceability, planning readiness, and immutable
-approved planning baselines are implemented by AEMS-2A/2B. Team declarations,
-provider-aware readiness, person-day reconciliation, and ARMIS authority gates
-are implemented by AEMS-3A/3B. Versioned Fieldwork Records and the completed-
-procedure traceability gate are implemented by AEMS-4A/4B. AEMS-5A adds the
-separate Evidence Request lifecycle and immutable evidence assessments;
-Review Notes and Engagement Tasks remain future scope.
+The completed phase checkpoints below remain historical evidence of what each
+increment added. They do not override the current G0 matrix or convert a
+partial reference control into a completed one.
 
 ## 5. Fixed design decisions
 
@@ -414,6 +415,9 @@ AEMS-0 is complete when:
   and AIS decisions are fixed;
 - global sidebar and engagement tab navigation are defined;
 - the SCR route/permission contract is defined;
+- the [AEMS-G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md)
+  resolves the authority, status, evidence, retention, signature/transmittal,
+  planning-unit, completion, and rule-to-code-to-test decisions;
 - migration and compatibility rules are defined;
 - cross-module boundaries are documented;
 - later implementation phases have measurable acceptance gates;
@@ -775,6 +779,38 @@ Verification recorded for this checkpoint:
 | `npm.cmd run lint` | Passed |
 | `npm.cmd run build` | Passed |
 | `git diff --check` | Passed (line-ending warnings only) |
+
+## AEMS-G1A/G1B Professional-Control Hardening checkpoint
+
+The evidence and finding gates now enforce the G0 professional decisions at
+runtime. A current verified/locked Evidence record must have a current
+immutable assessment tied to the exact Core Document Version, positive
+professional outcomes, classified confidentiality, and no unresolved gaps or
+limitations. Restricted or exception-controlled evidence requires a separate
+approved exception revision. Ineligible Evidence is excluded from the Finding
+support selector and hides Validate/Finalize actions; the backend remains the
+authoritative gate.
+
+Finding Conclusion is required by the request contract and all submission,
+validation, and finalization transitions. Direct Findings require an allowed
+authority reason and reference, with actor/timestamp provenance. Evidence
+Request and Assessment versions cannot be updated or deleted; corrections and
+exception approvals create superseding immutable versions. KPI and progress
+controls are read from the approved Planning Package baseline, with explicit
+legacy not-configured compatibility rather than unconditional lifecycle
+passes.
+
+Verification recorded for this checkpoint:
+
+| Check | Result |
+| --- | --- |
+| `php artisan test --testsuite=Feature --filter=Aems --compact` | Passed: 65 tests, 1,008 assertions |
+| `npm.cmd run lint` | Passed |
+| `npm.cmd run build` | Passed |
+| `git diff --check` | Passed |
+
+See [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
+for the detailed API and evidence eligibility contract.
 
 ## AEMS-10A/10B Dashboard and work-queue checkpoint
 

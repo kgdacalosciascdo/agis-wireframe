@@ -33,6 +33,7 @@ export default function AemsSpecialEngagementForm({
     title: "",
     specialAuthorityReference: "",
     specialAuthorityTypeCode: "",
+    specialAuthorityClass: "SPECIAL",
     specialAuthorityDate: "",
     specialAuthorityApprovedBy: "",
     auditTypeId: "",
@@ -76,6 +77,7 @@ export default function AemsSpecialEngagementForm({
           engagementApproachId: form.engagementApproachId || null,
           specialAuthorityTypeCode:
             form.specialAuthorityTypeCode || null,
+          specialAuthorityClass: form.specialAuthorityClass,
           plannedPersonDays: Number(form.plannedPersonDays),
         });
       }}
@@ -150,6 +152,22 @@ export default function AemsSpecialEngagementForm({
           />
         </FormField>
         <FormField
+          error={errors.specialAuthorityClass?.[0]}
+          htmlFor="aems-authority-class"
+          label="Authorization class"
+          required
+        >
+          <select
+            className={inputClass}
+            id="aems-authority-class"
+            onChange={(event) => set("specialAuthorityClass", event.target.value)}
+            value={form.specialAuthorityClass}
+          >
+            <option value="SPECIAL">Special engagement</option>
+            <option value="EMERGENCY">Emergency engagement</option>
+          </select>
+        </FormField>
+        <FormField
           error={errors.specialAuthorityDate?.[0]}
           htmlFor="aems-authority-date"
           label="Authority date"
@@ -212,16 +230,20 @@ export default function AemsSpecialEngagementForm({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField error={errors.officeIds?.[0]} label="Auditee offices" required>
+        <FormField
+          error={errors.officeIds?.[0]}
+          hint="Exactly one office is required by the foundation rule."
+          label="Engagement Office"
+          required
+        >
           <SearchableSelect
-            multiple
-            onChange={(value) => set("officeIds", value)}
+            onChange={(value) => set("officeIds", value ? [value] : [])}
             options={offices.map((office) => ({
               value: office.id,
               label: `${office.code} — ${office.name}`,
             }))}
-            placeholder="Select one or more offices"
-            value={form.officeIds}
+            placeholder="Select one Engagement Office"
+            value={form.officeIds[0] ?? ""}
           />
         </FormField>
         <FormField

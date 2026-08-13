@@ -547,7 +547,7 @@ export const modules = [
   {
     key: "aem",
     code: "AEMS",
-    label: "Audit Engagement Monitoring",
+    label: "Audit Engagement Management",
     path: "/audit-engagement-management/dashboard",
     permission: "aems.engagement.view",
     icon: ShieldCheck,

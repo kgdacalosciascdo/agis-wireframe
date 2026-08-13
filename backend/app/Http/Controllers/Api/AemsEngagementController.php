@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AemsEngagementRequest;
 use App\Http\Requests\AemsIapImportRequest;
+use App\Http\Requests\AemsScopeRequest;
 use App\Http\Resources\AemsEngagementResource;
 use App\Models\AuditEngagement;
 use App\Services\AemsEngagementRegistryService;
@@ -245,6 +246,44 @@ class AemsEngagementController extends Controller
         ]);
     }
 
+    public function scope(Request $request, int $engagement): JsonResponse
+    {
+        $record = AuditEngagement::withTrashed()->findOrFail($engagement);
+        Gate::authorize('view', $record);
+        if (! $request->user()->hasPermission('aems.foundation.view')) {
+            abort(403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'scope' => new AemsEngagementResource($this->loadEngagement($record, true)),
+                'contract' => [
+                    'screenId' => 'SCR-212',
+                    'officeCount' => 1,
+                    'mutableStatuses' => ['DRAFT', 'AUTHORIZATION_PREPARATION', 'AUTHORIZED'],
+                    'sourceVarianceDecisions' => ['ALIGNED', 'VARIANCE_APPROVED', 'NOT_APPLICABLE'],
+                ],
+            ],
+        ]);
+    }
+
+    public function updateScope(
+        AemsScopeRequest $request,
+        AuditEngagement $engagement,
+    ): JsonResponse {
+        Gate::authorize('view', $engagement);
+        $record = $this->registry->updateScope($request, $engagement, $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Engagement scope updated successfully.',
+            'data' => [
+                'scope' => new AemsEngagementResource($this->loadEngagement($record, true)),
+            ],
+        ]);
+    }
+
     public function destroy(Request $request, AuditEngagement $engagement): JsonResponse
     {
         Gate::authorize('archive', $engagement);
@@ -354,6 +393,7 @@ class AemsEngagementController extends Controller
             'offices:id,code,name',
             'auditAreas:id,code,name',
             'auditFocuses:id,code,name',
+            'scopeBackfillReview',
         ];
     }
 

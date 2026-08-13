@@ -24,10 +24,13 @@ class AemsEngagementResource extends JsonResource
             'iapPlanId' => $this->iap_plan_id,
             'iapPrioritizationItemId' => $this->iap_prioritization_item_id,
             'iapRiskAssessmentId' => $this->iap_risk_assessment_id,
+            'iapRiskSourceType' => $this->iap_risk_source_type,
+            'iapLegacyRiskAssessmentId' => $this->iap_legacy_risk_assessment_id,
             'iapAuditUniverseItemId' => $this->iap_audit_universe_item_id,
             'sourceSnapshot' => $this->source_snapshot,
             'specialAuthorityReference' => $this->special_authority_reference,
             'specialAuthorityTypeCode' => $this->special_authority_type_code,
+            'specialAuthorityClass' => $this->special_authority_class,
             'specialAuthorityDate' => $this->special_authority_date?->toDateString(),
             'specialAuthorityApprovedBy' => $this->special_authority_approved_by,
             'auditTypeId' => $this->audit_type_id,
@@ -35,6 +38,9 @@ class AemsEngagementResource extends JsonResource
             'background' => $this->background,
             'objectives' => $this->objectives,
             'scope' => $this->scope,
+            'scopeBoundaries' => $this->scope_boundaries,
+            'scopeLimitations' => $this->scope_limitations,
+            'scopeSourceVariance' => $this->scope_source_variance,
             'exclusions' => $this->exclusions,
             'plannedStartDate' => $this->planned_start_date?->toDateString(),
             'plannedEndDate' => $this->planned_end_date?->toDateString(),
@@ -69,14 +75,33 @@ class AemsEngagementResource extends JsonResource
             'officeRule' => $this->whenLoaded('offices', fn (): array => [
                 'requiredCount' => 1,
                 'actualCount' => $this->offices->count(),
-                'state' => $this->offices->count() === 1
-                    ? 'VALID'
-                    : 'LEGACY_MULTI_OFFICE',
+                'state' => $this->offices->count() === 0
+                    ? 'MISSING'
+                    : ($this->offices->count() === 1 ? 'VALID' : 'LEGACY_MULTI_OFFICE'),
             ]),
+            'scopeBackfillReview' => $this->whenLoaded('scopeBackfillReview', fn () => $this->scopeBackfillReview ? [
+                'officeCount' => $this->scopeBackfillReview->office_count,
+                'legacyOfficeIds' => $this->scopeBackfillReview->legacy_office_ids,
+                'canonicalOfficeId' => $this->scopeBackfillReview->canonical_office_id,
+                'resolutionStatus' => $this->scopeBackfillReview->resolution_status,
+                'resolutionNotes' => $this->scopeBackfillReview->resolution_notes,
+                'reviewedAt' => $this->scopeBackfillReview->reviewed_at?->toISOString(),
+            ] : null),
             'auditAreas' => $this->whenLoaded('auditAreas', fn () => $this->auditAreas
-                ->map->only(['id', 'code', 'name'])->values()),
+                ->map(fn ($area): array => [
+                    'id' => $area->id,
+                    'code' => $area->code,
+                    'name' => $area->name,
+                    'coverageMetadata' => $this->pivotMetadata($area->pivot?->coverage_metadata),
+                ])->values()),
             'auditFocuses' => $this->whenLoaded('auditFocuses', fn () => $this->auditFocuses
-                ->map->only(['id', 'code', 'name'])->values()),
+                ->map(fn ($focus): array => [
+                    'id' => $focus->id,
+                    'code' => $focus->code,
+                    'name' => $focus->name,
+                    'auditAreaId' => $focus->audit_area_id,
+                    'coverageMetadata' => $this->pivotMetadata($focus->pivot?->coverage_metadata),
+                ])->values()),
             'teamMembers' => $this->whenLoaded('teamMembers', fn () => $this->teamMembers
                 ->map(fn ($member): array => [
                     'id' => $member->id,
@@ -129,5 +154,16 @@ class AemsEngagementResource extends JsonResource
             'name' => $user->name,
             'initials' => $user->initials,
         ] : null;
+    }
+
+    private function pivotMetadata(mixed $value): mixed
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        $decoded = json_decode($value, true);
+
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
     }
 }

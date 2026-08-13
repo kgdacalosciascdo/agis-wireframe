@@ -53,6 +53,7 @@ class AemsEngagementRequest extends FormRequest
                 'max:100',
             ],
             'specialAuthorityTypeCode' => ['nullable', 'string', 'max:60'],
+            'specialAuthorityClass' => ['nullable', 'string', 'in:SPECIAL,EMERGENCY'],
             'specialAuthorityDate' => [Rule::requiredIf($creating), 'nullable', 'date'],
             'specialAuthorityApprovedBy' => [
                 Rule::requiredIf($creating),
@@ -65,6 +66,9 @@ class AemsEngagementRequest extends FormRequest
             'background' => ['nullable', 'string', 'max:10000'],
             'objectives' => ['required', 'string', 'max:10000'],
             'scope' => ['required', 'string', 'max:10000'],
+            'scopeBoundaries' => ['nullable', 'string', 'max:10000'],
+            'scopeLimitations' => ['nullable', 'string', 'max:10000'],
+            'scopeSourceVariance' => ['nullable', 'array'],
             'exclusions' => ['nullable', 'string', 'max:10000'],
             'plannedStartDate' => ['required', 'date'],
             'plannedEndDate' => ['required', 'date', 'after_or_equal:plannedStartDate'],

@@ -49,6 +49,9 @@ test("AEMS-1B exposes grouped navigation and foundation registry filters", async
   await expect(navigation.getByText("Planning", { exact: true })).toBeVisible();
   await expect(navigation.getByText("Issues & AFR", { exact: true })).toBeVisible();
   await expect(
+    navigation.getByText("Audit Engagement Management", { exact: true }),
+  ).toBeVisible();
+  await expect(
     navigation.getByRole("link", { name: "Working Papers & Evidence" }),
   ).toBeVisible();
   await expect(

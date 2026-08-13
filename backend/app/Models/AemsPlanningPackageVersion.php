@@ -20,6 +20,9 @@ class AemsPlanningPackageVersion extends \Illuminate\Database\Eloquent\Model
     public function preliminarySurveyDocumentVersion(): BelongsTo { return $this->belongsTo(DocumentVersion::class, 'preliminary_survey_document_version_id'); }
     public function objectives(): HasMany { return $this->hasMany(AemsPlanningObjective::class, 'planning_package_version_id')->orderBy('sequence'); }
     public function processFlows(): HasMany { return $this->hasMany(AemsProcessFlowDocument::class, 'planning_package_version_id')->orderBy('sequence'); }
-    public function riskMatrix(): HasOne { return $this->hasOne(AemsRiskMatrix::class, 'planning_package_version_id'); }
+    public function riskMatrix(): HasOne { return $this->hasOne(AemsRiskMatrix::class, 'planning_package_version_id')->oldest('id'); }
+    public function riskMatrices(): HasMany { return $this->hasMany(AemsRiskMatrix::class, 'planning_package_version_id')->orderBy('id'); }
+    public function kpis(): HasMany { return $this->hasMany(AemsPlanningKpi::class, 'planning_package_version_id')->orderBy('sequence'); }
+    public function plannedWorkingPaperRequirements(): HasMany { return $this->hasMany(AemsPlannedWorkingPaperRequirement::class, 'planning_package_version_id')->orderBy('sequence'); }
     public function reviews(): HasMany { return $this->hasMany(AemsPlanningPackageReview::class, 'planning_package_version_id'); }
 }

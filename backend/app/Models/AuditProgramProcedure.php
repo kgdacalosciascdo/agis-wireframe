@@ -52,6 +52,7 @@ class AuditProgramProcedure extends Model
         'fieldwork_completed_at',
         'fieldwork_completed_by',
         'lock_version',
+        'audit_area_id','audit_focus_id','process_flow_id','process_name','audit_method','audit_criteria','planned_person_days','sampling_requirement','planned_working_paper_requirement','risk_statement_ids',
     ];
 
     protected function casts(): array
@@ -66,6 +67,7 @@ class AuditProgramProcedure extends Model
             'related_records' => 'array',
             'fieldwork_completed_at' => 'datetime',
             'lock_version' => 'integer',
+            'planned_person_days' => 'decimal:2', 'sampling_requirement' => 'array', 'planned_working_paper_requirement' => 'array', 'risk_statement_ids' => 'array',
         ];
     }
 
@@ -108,4 +110,8 @@ class AuditProgramProcedure extends Model
     {
         return $this->hasMany(AemsFieldworkRecord::class, 'audit_program_procedure_id');
     }
+
+    public function auditArea(): BelongsTo { return $this->belongsTo(AuditArea::class, 'audit_area_id')->withTrashed(); }
+    public function auditFocus(): BelongsTo { return $this->belongsTo(AuditFocus::class, 'audit_focus_id')->withTrashed(); }
+    public function processFlow(): BelongsTo { return $this->belongsTo(AemsProcessFlowDocument::class, 'process_flow_id'); }
 }

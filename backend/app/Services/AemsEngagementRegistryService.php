@@ -22,6 +22,7 @@ class AemsEngagementRegistryService
         private readonly AemsSupport $support,
         private readonly IapEngagementGateway $iap,
         private readonly AemsAccessService $access,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     /** @return Collection<int, IapPlanEngagement> */
@@ -63,6 +64,8 @@ class AemsEngagementRegistryService
                 'iap_plan_id' => $source->plan_id,
                 'iap_prioritization_item_id' => $source->prioritization_item_id,
                 'iap_risk_assessment_id' => $source->universe_risk_assessment_id,
+                'iap_risk_source_type' => $this->iapRiskSourceType($source),
+                'iap_legacy_risk_assessment_id' => $source->risk_assessment_id,
                 'iap_audit_universe_item_id' => $source->audit_universe_item_id,
                 'source_snapshot' => $snapshot,
                 'engagement_office_id' => $officeIds->first(),
@@ -71,6 +74,9 @@ class AemsEngagementRegistryService
                 'background' => $source->background,
                 'objectives' => $source->objectives,
                 'scope' => $source->scope,
+                'scope_boundaries' => null,
+                'scope_limitations' => null,
+                'scope_source_variance' => null,
                 'exclusions' => $source->exclusions,
                 'planned_start_date' => $source->planned_start_date,
                 'planned_end_date' => $source->planned_end_date,
@@ -133,6 +139,7 @@ class AemsEngagementRegistryService
                 'source_type' => 'SPECIAL',
                 'special_authority_reference' => $validated['specialAuthorityReference'],
                 'special_authority_type_code' => $validated['specialAuthorityTypeCode'] ?? null,
+                'special_authority_class' => $validated['specialAuthorityClass'] ?? 'SPECIAL',
                 'special_authority_date' => $validated['specialAuthorityDate'],
                 'special_authority_approved_by' => $validated['specialAuthorityApprovedBy'],
                 'source_snapshot' => [
@@ -143,6 +150,7 @@ class AemsEngagementRegistryService
                     'authority' => [
                         'reference' => $validated['specialAuthorityReference'],
                         'typeCode' => $validated['specialAuthorityTypeCode'] ?? null,
+                        'class' => $validated['specialAuthorityClass'] ?? 'SPECIAL',
                         'date' => $validated['specialAuthorityDate'],
                         'approvedBy' => $validated['specialAuthorityApprovedBy'],
                     ],
@@ -215,6 +223,8 @@ class AemsEngagementRegistryService
                         ?? $locked->special_authority_reference,
                     'special_authority_type_code' => $validated['specialAuthorityTypeCode']
                         ?? $locked->special_authority_type_code,
+                    'special_authority_class' => $validated['specialAuthorityClass']
+                        ?? $locked->special_authority_class,
                     'special_authority_date' => $validated['specialAuthorityDate']
                         ?? $locked->special_authority_date,
                     'special_authority_approved_by' => $validated['specialAuthorityApprovedBy']
@@ -261,6 +271,59 @@ class AemsEngagementRegistryService
         }
     }
 
+    /**
+     * Updates only the controlled SCR-212 scope fields.  The operation is
+     * independent from registry metadata so an approved source snapshot and
+     * approved downstream records cannot be silently changed.
+     *
+     * @param array<string, mixed> $validated
+     */
+    public function updateScope(Request $request, AuditEngagement $engagement, array $validated): AuditEngagement
+    {
+        return DB::transaction(function () use ($request, $engagement, $validated): AuditEngagement {
+            $locked = AuditEngagement::query()->lockForUpdate()->findOrFail($engagement->id);
+            if ((int) $validated['lockVersion'] !== (int) $locked->lock_version) {
+                throw ValidationException::withMessages([
+                    'lockVersion' => ['This engagement was changed by another user. Refresh before saving.'],
+                ]);
+            }
+            if (! in_array($locked->status, ['DRAFT', 'AUTHORIZATION_PREPARATION', 'AUTHORIZED'], true)) {
+                throw ValidationException::withMessages([
+                    'status' => ['Engagement scope is frozen after authorization and planning begins. Create a controlled revision instead.'],
+                ]);
+            }
+            $this->access->authorizeEngagementAction($request->user(), $locked, 'aems.foundation.manage_scope');
+
+            $areaCoverage = $this->validateStructuredCoverage($validated['areaCoverage']);
+            $officeId = (int) $validated['officeId'];
+            $oldValues = $this->auditSnapshot($locked);
+            $locked->forceFill([
+                'engagement_office_id' => $officeId,
+                'scope_boundaries' => $validated['scopeBoundaries'] ?? null,
+                'scope_limitations' => $validated['scopeLimitations'] ?? null,
+                'scope_source_variance' => $validated['scopeSourceVariance'] ?? null,
+                'updated_by' => $request->user()->id,
+                'lock_version' => $locked->lock_version + 1,
+            ])->save();
+            $this->syncStructuredCoverage($locked, $officeId, $areaCoverage);
+
+            $newValues = $this->auditSnapshot($locked);
+            $this->support->event(
+                $request,
+                $locked,
+                'UPDATE_SCOPE',
+                $locked->status,
+                $locked->status,
+                $oldValues,
+                $newValues,
+                'SCR-212 engagement scope updated with one-office and structured Area/Focus coverage.',
+            );
+            $this->support->audit($request, 'aems.engagement.scope_updated', $locked, $oldValues, $newValues);
+
+            return $locked->fresh(['offices', 'auditAreas', 'auditFocuses']);
+        });
+    }
+
     private function assertImportable(IapPlanEngagement $source): void
     {
         if (! $source->plan
@@ -287,6 +350,9 @@ class AemsEngagementRegistryService
             'background' => $validated['background'] ?? null,
             'objectives' => $validated['objectives'],
             'scope' => $validated['scope'],
+            'scope_boundaries' => $validated['scopeBoundaries'] ?? null,
+            'scope_limitations' => $validated['scopeLimitations'] ?? null,
+            'scope_source_variance' => $validated['scopeSourceVariance'] ?? null,
             'exclusions' => $validated['exclusions'] ?? null,
             'planned_start_date' => $validated['plannedStartDate'] ?? null,
             'planned_end_date' => $validated['plannedEndDate'] ?? null,
@@ -337,11 +403,70 @@ class AemsEngagementRegistryService
         $engagement->auditFocuses()->sync($validated['auditFocusIds'] ?? []);
     }
 
+    /** @param list<array<string, mixed>> $coverage */
+    private function validateStructuredCoverage(array $coverage): array
+    {
+        $normalized = collect($coverage)->map(function (array $item): array {
+            return [
+                'auditAreaId' => (int) $item['auditAreaId'],
+                'boundary' => $item['boundary'] ?? null,
+                'limitations' => $item['limitations'] ?? null,
+                'sourceVariance' => $item['sourceVariance'] ?? null,
+                'objective' => $item['objective'] ?? null,
+                'focusIds' => collect($item['focusIds'] ?? [])->map(fn ($id): int => (int) $id)->unique()->values()->all(),
+            ];
+        })->values()->all();
+        $areaIds = collect($normalized)->pluck('auditAreaId')->unique()->values();
+        $focusIds = collect($normalized)->flatMap(fn (array $item) => $item['focusIds'])->unique()->values();
+        if ($focusIds->isNotEmpty()
+            && AuditFocus::query()->whereIn('id', $focusIds)->whereNotIn('audit_area_id', $areaIds)->exists()) {
+            throw ValidationException::withMessages([
+                'areaCoverage' => ['Every selected focus must belong to an in-scope audit area.'],
+            ]);
+        }
+
+        return $normalized;
+    }
+
+    /** @param list<array<string, mixed>> $coverage */
+    private function syncStructuredCoverage(AuditEngagement $engagement, int $officeId, array $coverage): void
+    {
+        $areaIds = collect($coverage)->pluck('auditAreaId')->all();
+        $focusIds = collect($coverage)->flatMap(fn (array $item) => $item['focusIds'])->unique()->values()->all();
+        $engagement->offices()->sync([$officeId => ['is_primary' => true]]);
+        $areaPayload = collect($coverage)->mapWithKeys(fn (array $item): array => [
+            $item['auditAreaId'] => [
+                'coverage_metadata' => json_encode([
+                    'boundary' => $item['boundary'],
+                    'limitations' => $item['limitations'],
+                    'sourceVariance' => $item['sourceVariance'],
+                    'objective' => $item['objective'],
+                    'focusIds' => $item['focusIds'],
+                ]),
+            ],
+        ])->all();
+        $focusPayload = collect($coverage)->flatMap(function (array $item): array {
+            return collect($item['focusIds'])->mapWithKeys(fn (int $focusId): array => [
+                $focusId => [
+                    'coverage_metadata' => json_encode([
+                        'auditAreaId' => $item['auditAreaId'],
+                        'boundary' => $item['boundary'],
+                        'limitations' => $item['limitations'],
+                        'sourceVariance' => $item['sourceVariance'],
+                    ]),
+                ],
+            ])->all();
+        })->all();
+        $engagement->auditAreas()->sync($areaPayload);
+        $engagement->auditFocuses()->sync($focusPayload ?: $focusIds);
+    }
+
     /** @return array<string, mixed> */
     private function sourceSnapshot(IapPlanEngagement $source, User $actor): array
     {
         $item = $source->prioritizationItem;
-        $risk = $source->universeRiskAssessment ?? $item?->riskAssessment;
+        $risk = $source->universeRiskAssessment ?? $source->riskAssessment ?? $item?->riskAssessment;
+        $riskSourceType = $this->iapRiskSourceType($source);
         $universe = $source->auditUniverseItem;
 
         return [
@@ -388,17 +513,22 @@ class AemsEngagementRegistryService
                 'priorityScore' => (float) $item->priority_score,
             ] : null,
             'riskAssessment' => $risk ? [
+                'sourceType' => $riskSourceType,
                 'id' => $risk->id,
                 'periodId' => $risk->period_id,
                 'periodCode' => $risk->period?->period_code
                     ?? $item?->run?->riskPeriod?->period_code,
                 'status' => $risk->status,
                 'assessmentDate' => $risk->assessment_date?->toDateString(),
-                'inherentRiskScore' => (float) $risk->inherent_risk_score,
-                'controlEffectivenessPercent' => (float) $risk->control_effectiveness_percent,
-                'residualRiskScore' => (float) $risk->residual_risk_score,
-                'inherentRiskLevel' => $risk->inherentRiskLevel?->code,
-                'residualRiskLevel' => $risk->residualRiskLevel?->code,
+                'inherentRiskScore' => (float) ($risk->inherent_risk_score ?? $risk->total_weighted_score ?? 0),
+                'controlEffectivenessPercent' => (float) ($risk->control_effectiveness_percent ?? 0),
+                'residualRiskScore' => (float) ($risk->residual_risk_score ?? $risk->total_weighted_score ?? 0),
+                'inherentRiskLevel' => method_exists($risk, 'inherentRiskLevel')
+                    ? $risk->inherentRiskLevel?->code
+                    : $risk->calculatedRiskLevel?->code,
+                'residualRiskLevel' => method_exists($risk, 'residualRiskLevel')
+                    ? $risk->residualRiskLevel?->code
+                    : $risk->finalRiskLevel?->code,
                 'justification' => $risk->justification,
                 'scores' => $risk->scores->map(fn ($score): array => [
                     'criterionCode' => $score->criterion?->code,
@@ -447,6 +577,11 @@ class AemsEngagementRegistryService
             'plannedPersonDays' => (float) $engagement->planned_person_days,
             'officeIds' => $engagement->offices->pluck('id')->all(),
             'engagementOfficeId' => $engagement->engagement_office_id,
+            'iapRiskSourceType' => $engagement->iap_risk_source_type,
+            'iapLegacyRiskAssessmentId' => $engagement->iap_legacy_risk_assessment_id,
+            'scopeBoundaries' => $engagement->scope_boundaries,
+            'scopeLimitations' => $engagement->scope_limitations,
+            'scopeSourceVariance' => $engagement->scope_source_variance,
             'auditAreaIds' => $engagement->auditAreas->pluck('id')->all(),
             'auditFocusIds' => $engagement->auditFocuses->pluck('id')->all(),
             'lockVersion' => $engagement->lock_version,
@@ -479,9 +614,25 @@ class AemsEngagementRegistryService
             ->count() + 1;
 
         do {
-            $code = sprintf('AEMS-%d-%03d', $year, $sequence++);
+            $code = $this->runtime->formatNumber(
+                'aems_engagement_number_format',
+                $sequence++,
+                ['YEAR' => $year],
+            );
         } while (AuditEngagement::withTrashed()->where('engagement_code', $code)->exists());
 
         return $code;
+    }
+
+    private function iapRiskSourceType(IapPlanEngagement $source): ?string
+    {
+        if ($source->universe_risk_assessment_id || $source->prioritizationItem?->risk_assessment_id) {
+            return 'UNIVERSE_RISK_ASSESSMENT';
+        }
+        if ($source->risk_assessment_id) {
+            return 'LEGACY_RISK_ASSESSMENT';
+        }
+
+        return null;
     }
 }

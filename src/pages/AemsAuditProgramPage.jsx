@@ -30,7 +30,7 @@ import {
 } from "../services/api";
 import { useToast } from "../ui/toast-context";
 
-const emptyProgram = { title: "", objective: "" };
+const emptyProgram = { title: "", objective: "", auditAreaId: "", auditTypeId: "", auditPeriodStart: "", auditPeriodEnd: "", auditCriteria: "", riskStatementSet: [], samplingApproach: "", plannedWorkingPaperRequirements: [] };
 const emptyProcedure = {
   id: null,
   procedureCode: "",
@@ -41,6 +41,16 @@ const emptyProcedure = {
   workingPaperReference: "",
   assignedTo: "",
   targetDate: "",
+  auditAreaId: "",
+  auditFocusId: "",
+  processFlowId: "",
+  processName: "",
+  auditMethod: "",
+  auditCriteria: "",
+  plannedPersonDays: "",
+  samplingRequirement: { method: "", population: "", sampleSize: "" },
+  plannedWorkingPaperRequirement: { reference: "", requiredEvidence: "" },
+  riskStatementIds: [],
   lockVersion: 1,
 };
 const emptyProgress = {
@@ -273,7 +283,7 @@ export default function AemsAuditProgramPage() {
       program &&
         program.isCurrentRevision &&
         ["DRAFT", "RETURNED_FOR_REVISION"].includes(program.status)
-        ? { title: program.title, objective: program.objective }
+        ? { ...emptyProgram, ...program }
         : emptyProgram,
     );
     setProgramOpen(true);
@@ -946,6 +956,14 @@ export default function AemsAuditProgramPage() {
               }
             />
           </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Audit area ID"><input className={inputClass} value={programForm.auditAreaId ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditAreaId: event.target.value }))} /></Field>
+            <Field label="Audit type ID"><input className={inputClass} value={programForm.auditTypeId ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditTypeId: event.target.value }))} /></Field>
+            <Field label="Audit period start"><input className={inputClass} type="date" value={programForm.auditPeriodStart ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditPeriodStart: event.target.value }))} /></Field>
+            <Field label="Audit period end"><input className={inputClass} type="date" value={programForm.auditPeriodEnd ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditPeriodEnd: event.target.value }))} /></Field>
+            <Field label="Audit criteria" wide><textarea className={textAreaClass} value={programForm.auditCriteria ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditCriteria: event.target.value }))} /></Field>
+            <Field label="Sampling approach" wide><textarea className={textAreaClass} value={programForm.samplingApproach ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, samplingApproach: event.target.value }))} placeholder="Population, sampling method, and rationale" /></Field>
+          </div>
         </div>
       </Modal>
 
@@ -1043,6 +1061,18 @@ export default function AemsAuditProgramPage() {
               }
             />
           </Field>
+          <Field label="Audit area ID"><input className={inputClass} value={procedureForm.auditAreaId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditAreaId: event.target.value }))} /></Field>
+          <Field label="Audit focus ID"><input className={inputClass} value={procedureForm.auditFocusId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditFocusId: event.target.value }))} /></Field>
+          <Field label="Process name"><input className={inputClass} value={procedureForm.processName ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, processName: event.target.value }))} /></Field>
+          <Field label="Process Flow ID"><input className={inputClass} value={procedureForm.processFlowId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, processFlowId: event.target.value }))} /></Field>
+          <Field label="Audit method"><input className={inputClass} value={procedureForm.auditMethod ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditMethod: event.target.value }))} placeholder="Inspection, interview, analysis..." /></Field>
+          <Field label="Planned person-days"><input className={inputClass} type="number" min="0" step="0.25" value={procedureForm.plannedPersonDays ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, plannedPersonDays: event.target.value }))} /></Field>
+          <Field label="Procedure criteria" wide><textarea className={textAreaClass} value={procedureForm.auditCriteria ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditCriteria: event.target.value }))} /></Field>
+          <Field label="Sampling method"><input className={inputClass} value={procedureForm.samplingRequirement?.method ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, samplingRequirement: { ...current.samplingRequirement, method: event.target.value } }))} /></Field>
+          <Field label="Sample size"><input className={inputClass} type="number" min="0" value={procedureForm.samplingRequirement?.sampleSize ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, samplingRequirement: { ...current.samplingRequirement, sampleSize: event.target.value } }))} /></Field>
+          <Field label="Population" wide><textarea className={textAreaClass} value={procedureForm.samplingRequirement?.population ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, samplingRequirement: { ...current.samplingRequirement, population: event.target.value } }))} /></Field>
+          <Field label="Planned Working Paper reference"><input className={inputClass} value={procedureForm.plannedWorkingPaperRequirement?.reference ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, plannedWorkingPaperRequirement: { ...current.plannedWorkingPaperRequirement, reference: event.target.value } }))} /></Field>
+          <Field label="Planned WP required evidence"><input className={inputClass} value={procedureForm.plannedWorkingPaperRequirement?.requiredEvidence ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, plannedWorkingPaperRequirement: { ...current.plannedWorkingPaperRequirement, requiredEvidence: event.target.value } }))} /></Field>
           <Field error={errors.assignedTo} label="Responsible auditor">
             <SearchableSelect
               options={auditorOptions}

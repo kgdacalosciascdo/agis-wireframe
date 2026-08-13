@@ -53,6 +53,7 @@ const sections = [
   { key: "survey", label: "Preliminary Survey", icon: FilePenLine },
   { key: "process-flows", label: "Process Flows", icon: Workflow },
   { key: "risk-matrix", label: "Risk Matrix", icon: Table2 },
+  { key: "kpis", label: "KPIs & Planned WPs", icon: Target },
   { key: "traceability", label: "Traceability", icon: Link2 },
   { key: "readiness", label: "Readiness & Review", icon: ListChecks },
   { key: "versions", label: "Versions", icon: History },
@@ -98,6 +99,9 @@ const emptyForm = {
     overallConclusion: "",
   },
   riskItems: [],
+  riskMatrices: [],
+  kpis: [],
+  plannedWorkingPapers: [],
 };
 
 function label(value) {
@@ -122,6 +126,14 @@ function valueOrDash(value) {
   return value === null || value === undefined || value === "" ? "—" : value;
 }
 
+function listText(value) {
+  return Array.isArray(value) ? value.join("\n") : String(value ?? "");
+}
+
+function listValue(value) {
+  return String(value ?? "").split("\n").map((entry) => entry.trim()).filter(Boolean);
+}
+
 function makeItem(sequence = 0) {
   return {
     riskCode: `R-${String(sequence + 1).padStart(2, "0")}`,
@@ -143,11 +155,32 @@ function makeItem(sequence = 0) {
     objectiveCodes: [],
     procedureIds: [],
     workingPapers: [],
+    auditAreaId: "",
+    auditFocusId: "",
+    processFlowId: "",
+    processName: "",
+    riskArea: "",
+    plannedAuditApproach: "",
+    criteria: "",
+    responseRationale: "",
   };
 }
 
 function normalizeVersion(version) {
   const matrix = version?.riskMatrix ?? {};
+  const matrices = (version?.riskMatrices?.length ? version.riskMatrices : (version?.riskMatrix ? [version.riskMatrix] : [])).map((entry) => ({
+    ...emptyForm.riskMatrix,
+    code: entry.code ?? "",
+    title: entry.title ?? "",
+    methodology: entry.methodology ?? "",
+    riskAppetite: entry.riskAppetite ?? "",
+    overallConclusion: entry.overallConclusion ?? "",
+    auditAreaId: entry.auditAreaId ?? "",
+    auditFocusId: entry.auditFocusId ?? "",
+    matrixType: entry.matrixType ?? "",
+    status: entry.status ?? "DRAFT",
+    riskItems: (entry.items ?? entry.riskItems ?? []).map((item, index) => ({ ...makeItem(index), ...item })),
+  }));
   return {
     preliminarySurvey: {
       ...emptySurvey,
@@ -175,6 +208,17 @@ function normalizeVersion(version) {
       sourceType: flow.sourceType ?? "AEMS",
       sourceReference: flow.sourceReference ?? "",
       sequence: flow.sequence ?? index,
+      auditAreaId: flow.auditAreaId ?? "",
+      auditFocusId: flow.auditFocusId ?? "",
+      scopeStatement: flow.scopeStatement ?? "",
+      steps: flow.steps ?? [],
+      inputs: flow.inputs ?? [],
+      outputs: flow.outputs ?? [],
+      recordsSystems: flow.recordsSystems ?? [],
+      controls: flow.controls ?? [],
+      decisionPoints: flow.decisionPoints ?? [],
+      riskPoints: flow.riskPoints ?? [],
+      limitations: flow.limitations ?? "",
     })),
     riskMatrix: {
       ...emptyForm.riskMatrix,
@@ -193,6 +237,9 @@ function normalizeVersion(version) {
         item.procedureIds ?? item.procedures?.map((procedure) => procedure.id) ?? [],
       workingPapers: item.workingPapers ?? [],
     })),
+    riskMatrices: matrices,
+    kpis: (version?.kpis ?? []).map((kpi, index) => ({ ...kpi, code: kpi.code ?? `KPI-${index + 1}`, sequence: kpi.sequence ?? index })),
+    plannedWorkingPapers: (version?.plannedWorkingPapers ?? []).map((paper, index) => ({ ...paper, reference: paper.reference ?? `WP-${index + 1}`, sequence: paper.sequence ?? index, isRequired: paper.isRequired ?? true })),
   };
 }
 
@@ -420,6 +467,30 @@ export default function AemsPlanningPackagePage() {
     }));
   }
 
+  function updateMatrix(index, key, value) {
+    setForm((current) => ({ ...current, riskMatrices: (current.riskMatrices?.length ? current.riskMatrices : [current.riskMatrix]).map((matrix, matrixIndex) => matrixIndex === index ? { ...matrix, [key]: value } : matrix) }));
+  }
+
+  function addMatrix() {
+    setForm((current) => ({ ...current, riskMatrices: [...(current.riskMatrices?.length ? current.riskMatrices : [current.riskMatrix]), { ...emptyForm.riskMatrix, code: `RM-${(current.riskMatrices?.length ?? 1) + 1}`, title: "", riskItems: [] }] }));
+  }
+
+  function updateKpi(index, key, value) {
+    setForm((current) => ({ ...current, kpis: current.kpis.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+  }
+
+  function addKpi() {
+    setForm((current) => ({ ...current, kpis: [...current.kpis, { code: `KPI-${current.kpis.length + 1}`, name: "", target: "", measurementMethod: "", sourceReference: "", sequence: current.kpis.length }] }));
+  }
+
+  function addPlannedWorkingPaper() {
+    setForm((current) => ({ ...current, plannedWorkingPapers: [...current.plannedWorkingPapers, { reference: `WP-${current.plannedWorkingPapers.length + 1}`, title: "", objective: "", requiredEvidence: "", procedureId: "", sequence: current.plannedWorkingPapers.length, isRequired: true }] }));
+  }
+
+  function updatePlannedWorkingPaper(index, key, value) {
+    setForm((current) => ({ ...current, plannedWorkingPapers: current.plannedWorkingPapers.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+  }
+
   function isStaleLockError(requestError) {
     const lockErrors = requestError?.errors?.lockVersion;
     return Boolean(
@@ -441,6 +512,10 @@ export default function AemsPlanningPackagePage() {
     try {
       const payload = {
         ...form,
+        riskMatrices: (form.riskMatrices?.length ? form.riskMatrices : [form.riskMatrix]).map((matrix, index) => ({
+          ...matrix,
+          riskItems: index === 0 ? form.riskItems : (matrix.riskItems ?? []),
+        })),
         preliminarySurveyDocumentVersionId: form.preliminarySurveyDocumentVersionId || undefined,
       };
       if (packageRecord) {
@@ -519,6 +594,17 @@ export default function AemsPlanningPackagePage() {
       processOwnerOfficeId: "",
       documentVersionId: "",
       sourceReference: "",
+      auditAreaId: "",
+      auditFocusId: "",
+      scopeStatement: "",
+      steps: [],
+      inputs: [],
+      outputs: [],
+      recordsSystems: [],
+      controls: [],
+      decisionPoints: [],
+      riskPoints: [],
+      limitations: "",
     });
   }
 
@@ -662,14 +748,14 @@ export default function AemsPlanningPackagePage() {
           <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard icon={ClipboardCheck} label="Package status" value={label(packageStatus)} tone={statusTones[packageStatus] === "success" ? "emerald" : statusTones[packageStatus] === "danger" ? "red" : statusTones[packageStatus] === "warning" ? "amber" : "slate"} />
             <SummaryCard icon={History} label="Current / approved version" value={`${packageRecord?.currentVersionNumber ?? "—"} / ${packageRecord?.approvedVersionNumber ?? "—"}`} tone="sky" />
-            <SummaryCard icon={CheckCircle2} label="Readiness checks passed" value={`${workspace.readiness?.checks?.filter((check) => check.met).length ?? 0} / ${workspace.readiness?.checks?.length ?? 0}`} tone={workspace.readiness?.ready ? "emerald" : "amber"} />
+            <SummaryCard icon={CheckCircle2} label="Planning conformance" value={workspace.readiness?.fieldworkReady ? "Ready" : "Blocked"} tone={workspace.readiness?.fieldworkReady ? "emerald" : "amber"} />
             <SummaryCard icon={Link2} label="Risk traceability items" value={form.riskItems.length} tone="slate" />
           </div>
 
-          {(!packageRecord || packageRecord.status !== "APPROVED" || packageRecord.currentVersionNumber !== packageRecord.approvedVersionNumber) && (
+          {(!packageRecord || packageRecord.status !== "APPROVED" || packageRecord.currentVersionNumber !== packageRecord.approvedVersionNumber || !workspace.readiness?.fieldworkReady) && (
             <div className="mb-5 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900" data-testid="planning-fieldwork-blocker" role="status">
               <ShieldAlert className="mt-0.5 shrink-0" size={20} />
-              <div><strong>Fieldwork is blocked.</strong> The aggregate engagement lifecycle requires an approved Planning Package whose current version matches the approved version before `START_FIELDWORK` can proceed.</div>
+              <div><strong>Fieldwork is blocked.</strong> The aggregate engagement lifecycle requires an approved Planning Package whose current version matches the approved version and passes every planning conformance gate before `START_FIELDWORK` can proceed.</div>
             </div>
           )}
 
@@ -680,7 +766,8 @@ export default function AemsPlanningPackagePage() {
           </>}
           {activeSection === "survey" && <SurveySection form={form} editable={editable} errors={errors} updateNested={updateNested} updateForm={updateForm} />}
           {activeSection === "process-flows" && <ProcessFlowsSection form={form} editable={editable} officeOptions={officeOptions} onAdd={startNewFlow} onEdit={editFlow} onRemove={(index) => updateForm("processFlows", form.processFlows.filter((_, itemIndex) => itemIndex !== index))} />}
-          {activeSection === "risk-matrix" && <RiskMatrixSection form={form} editable={editable} officeOptions={officeOptions} objectiveOptions={objectiveOptions} procedureOptions={procedureOptions} onChange={updateNested} onAdd={startNewItem} onEdit={editItem} onRemove={(index) => updateForm("riskItems", form.riskItems.filter((_, itemIndex) => itemIndex !== index))} updateItem={updateItem} />}
+          {activeSection === "risk-matrix" && <RiskMatrixSection form={form} editable={editable} officeOptions={officeOptions} objectiveOptions={objectiveOptions} procedureOptions={procedureOptions} onChange={updateNested} onChangeMatrix={updateMatrix} onAddMatrix={addMatrix} onAdd={startNewItem} onEdit={editItem} onRemove={(index) => updateForm("riskItems", form.riskItems.filter((_, itemIndex) => itemIndex !== index))} updateItem={updateItem} />}
+          {activeSection === "kpis" && <PlanningConformanceSection kpis={form.kpis} plannedWorkingPapers={form.plannedWorkingPapers} procedures={workspace.procedures ?? []} editable={editable} onAddKpi={addKpi} onUpdateKpi={updateKpi} onRemoveKpi={(index) => updateForm("kpis", form.kpis.filter((_, itemIndex) => itemIndex !== index))} onAddWorkingPaper={addPlannedWorkingPaper} onUpdateWorkingPaper={updatePlannedWorkingPaper} onRemoveWorkingPaper={(index) => updateForm("plannedWorkingPapers", form.plannedWorkingPapers.filter((_, itemIndex) => itemIndex !== index))} />}
           {activeSection === "traceability" && <TraceabilitySection workspace={workspace} form={form} />}
           {activeSection === "readiness" && <ReadinessSection workspace={workspace} packageRecord={packageRecord} actionOptions={actionOptions} onAction={openAction} />}
           {activeSection === "versions" && <VersionsSection packageRecord={packageRecord} versions={versions} inspectedVersion={inspectedVersion} selectedVersionNumber={selectedVersionNumber} setSelectedVersionNumber={setSelectedVersionNumber} compareFrom={compareFrom} compareTo={compareTo} setCompareFrom={setCompareFrom} setCompareTo={setCompareTo} compareLeft={compareLeft} compareRight={compareRight} />}
@@ -887,14 +974,18 @@ function ProcessFlowsSection({ form, editable, officeOptions, onAdd, onEdit, onR
 
 function FlowEditor({ flow, setFlow, officeOptions, editable = true }) {
   const update = (key, value) => setFlow((current) => ({ ...current, [key]: value }));
-  return <div className="grid gap-4 sm:grid-cols-2"><Field label="Flow code"><TextInput disabled={!editable} value={flow.code} onChange={(event) => update("code", event.target.value)} /></Field><Field label="Title"><TextInput disabled={!editable} value={flow.title} onChange={(event) => update("title", event.target.value)} /></Field><Field label="Process owner office"><SearchableSelect disabled={!editable} options={officeOptions} value={flow.processOwnerOfficeId} onChange={(value) => update("processOwnerOfficeId", value)} placeholder="Select linked office" /></Field><Field label="Core Document Version ID" hint="Optional exact document"><TextInput disabled={!editable} inputMode="numeric" value={flow.documentVersionId} onChange={(event) => update("documentVersionId", event.target.value)} /></Field><Field label="Source reference" wide><TextInput disabled={!editable} value={flow.sourceReference} onChange={(event) => update("sourceReference", event.target.value)} placeholder="Policy, interview, system, or other source reference" /></Field><Field label="Description / narrative" wide><TextArea disabled={!editable} value={flow.description} onChange={(event) => update("description", event.target.value)} /></Field></div>;
+  return <div className="grid gap-4 sm:grid-cols-2"><Field label="Flow code"><TextInput disabled={!editable} value={flow.code} onChange={(event) => update("code", event.target.value)} /></Field><Field label="Title"><TextInput disabled={!editable} value={flow.title} onChange={(event) => update("title", event.target.value)} /></Field><Field label="Process owner office"><SearchableSelect disabled={!editable} options={officeOptions} value={flow.processOwnerOfficeId} onChange={(value) => update("processOwnerOfficeId", value)} placeholder="Select linked office" /></Field><Field label="Audit area ID"><TextInput disabled={!editable} inputMode="numeric" value={flow.auditAreaId} onChange={(event) => update("auditAreaId", event.target.value)} /></Field><Field label="Audit focus ID"><TextInput disabled={!editable} inputMode="numeric" value={flow.auditFocusId} onChange={(event) => update("auditFocusId", event.target.value)} /></Field><Field label="Core Document Version ID" hint="Optional exact document"><TextInput disabled={!editable} inputMode="numeric" value={flow.documentVersionId} onChange={(event) => update("documentVersionId", event.target.value)} /></Field><Field label="Source reference" wide><TextInput disabled={!editable} value={flow.sourceReference} onChange={(event) => update("sourceReference", event.target.value)} placeholder="Policy, interview, system, or other source reference" /></Field><Field label="Scope statement" wide><TextArea disabled={!editable} value={flow.scopeStatement} onChange={(event) => update("scopeStatement", event.target.value)} placeholder="Boundary and population covered by this flow" /></Field><Field label="Description / narrative" wide><TextArea disabled={!editable} value={flow.description} onChange={(event) => update("description", event.target.value)} /></Field>{[["steps","Steps"],["inputs","Inputs"],["outputs","Outputs"],["recordsSystems","Records and systems"],["controls","Controls"],["decisionPoints","Decision points"],["riskPoints","Risk points"]].map(([key, title]) => <Field key={key} label={title} hint="One entry per line"><TextArea disabled={!editable} value={listText(flow[key])} onChange={(event) => update(key, listValue(event.target.value))} /></Field>)}<Field label="Limitations" wide><TextArea disabled={!editable} value={flow.limitations} onChange={(event) => update("limitations", event.target.value)} /></Field></div>;
 }
 
-function RiskMatrixSection({ form, editable, onChange, onAdd, onEdit, onRemove }) {
+function PlanningConformanceSection({ kpis, plannedWorkingPapers, procedures, editable, onAddKpi, onUpdateKpi, onRemoveKpi, onAddWorkingPaper, onUpdateWorkingPaper, onRemoveWorkingPaper }) {
+  return <div className="space-y-5"><Panel title="Planning KPI workspace" description="Define measurable targets for the engagement, or record a formal not-applicable decision in the planning attributes." actions={editable && <SmallButton icon={Plus} tone="primary" onClick={onAddKpi}>Add KPI</SmallButton>}>{!kpis.length ? <EmptyState title="No KPI records" description="Add at least one KPI before fieldwork, unless the backend records a justified not-applicable decision." /> : <div className="space-y-3">{kpis.map((kpi, index) => <div className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-4" key={`${kpi.code}-${index}`}><Field label="Code"><TextInput disabled={!editable} value={kpi.code ?? ""} onChange={(event) => onUpdateKpi(index, "code", event.target.value)} /></Field><Field label="Name"><TextInput disabled={!editable} value={kpi.name ?? ""} onChange={(event) => onUpdateKpi(index, "name", event.target.value)} /></Field><Field label="Target"><TextInput disabled={!editable} value={kpi.target ?? ""} onChange={(event) => onUpdateKpi(index, "target", event.target.value)} /></Field><Field label="Measurement method"><TextInput disabled={!editable} value={kpi.measurementMethod ?? ""} onChange={(event) => onUpdateKpi(index, "measurementMethod", event.target.value)} /></Field>{editable && <div className="sm:col-span-4 flex justify-end"><SmallButton icon={XCircle} tone="danger" onClick={() => onRemoveKpi(index)}>Remove KPI</SmallButton></div>}</div>)}</div>}</Panel><Panel title="Sampling and planned Working Paper traceability" description="Record the required work product and evidence before procedures are activated." actions={editable && <SmallButton icon={Plus} tone="primary" onClick={onAddWorkingPaper}>Add planned Working Paper</SmallButton>}>{!plannedWorkingPapers.length ? <EmptyState title="No planned Working Paper requirements" description="Every required procedure and risk should have a planned Working Paper and evidence expectation." /> : <div className="space-y-3">{plannedWorkingPapers.map((paper, index) => <div className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-2" key={`${paper.reference}-${index}`}><Field label="Reference"><TextInput disabled={!editable} value={paper.reference ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "reference", event.target.value)} /></Field><Field label="Procedure"><SearchableSelect disabled={!editable} options={procedures.map((procedure) => ({ value: procedure.id, label: `${procedure.code} — ${procedure.objective}` }))} value={paper.procedureId ?? ""} onChange={(value) => onUpdateWorkingPaper(index, "procedureId", value)} placeholder="Select procedure" /></Field><Field label="Title"><TextInput disabled={!editable} value={paper.title ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "title", event.target.value)} /></Field><Field label="Required evidence"><TextInput disabled={!editable} value={paper.requiredEvidence ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "requiredEvidence", event.target.value)} /></Field><Field label="Objective" wide><TextArea disabled={!editable} value={paper.objective ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "objective", event.target.value)} /></Field>{editable && <div className="sm:col-span-2 flex justify-end"><SmallButton icon={XCircle} tone="danger" onClick={() => onRemoveWorkingPaper(index)}>Remove requirement</SmallButton></div>}</div>)}</div>}</Panel></div>;
+}
+
+function RiskMatrixSection({ form, editable, onChange, onChangeMatrix, onAddMatrix, onAdd, onEdit, onRemove }) {
   return (
     <div className="space-y-5">
-      <Panel title="Risk Matrix register" description="The matrix is versioned with the Planning Package and provides the risk baseline for objectives, procedures, and working-paper references." actions={<>{!editable && <ReadOnlyBadge />}{editable && <SmallButton icon={Plus} tone="primary" onClick={onAdd}>Add risk item</SmallButton>}</>}>
-        <div className="grid gap-4 sm:grid-cols-2"><Field label="Matrix code"><TextInput disabled={!editable} value={form.riskMatrix.code} onChange={(event) => onChange("riskMatrix", "code", event.target.value)} /></Field><Field label="Title"><TextInput disabled={!editable} value={form.riskMatrix.title} onChange={(event) => onChange("riskMatrix", "title", event.target.value)} /></Field><Field label="Methodology" wide><TextArea disabled={!editable} value={form.riskMatrix.methodology} onChange={(event) => onChange("riskMatrix", "methodology", event.target.value)} /></Field><Field label="Risk appetite"><TextInput disabled={!editable} value={form.riskMatrix.riskAppetite} onChange={(event) => onChange("riskMatrix", "riskAppetite", event.target.value)} /></Field><Field label="Overall conclusion"><TextArea disabled={!editable} value={form.riskMatrix.overallConclusion} onChange={(event) => onChange("riskMatrix", "overallConclusion", event.target.value)} /></Field></div>
+      <Panel title="Risk Matrix register" description="Multiple matrices can be recorded when the engagement covers authorized areas. The first matrix remains the compatibility baseline for existing traceability." actions={<>{!editable && <ReadOnlyBadge />}{editable && <><SmallButton icon={Plus} onClick={onAddMatrix}>Add matrix</SmallButton><SmallButton icon={Plus} tone="primary" onClick={onAdd}>Add risk item</SmallButton></>}</>}>
+        <div className="space-y-4">{(form.riskMatrices?.length ? form.riskMatrices : [form.riskMatrix]).map((matrix, index) => <div className="grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2" key={`${matrix.code}-${index}`}><Field label={`Matrix ${index + 1} code`}><TextInput disabled={!editable} value={matrix.code ?? ""} onChange={(event) => index === 0 && !form.riskMatrices?.length ? onChange("riskMatrix", "code", event.target.value) : onChangeMatrix(index, "code", event.target.value)} /></Field><Field label="Title"><TextInput disabled={!editable} value={matrix.title ?? ""} onChange={(event) => index === 0 && !form.riskMatrices?.length ? onChange("riskMatrix", "title", event.target.value) : onChangeMatrix(index, "title", event.target.value)} /></Field><Field label="Audit area ID"><TextInput disabled={!editable} inputMode="numeric" value={matrix.auditAreaId ?? ""} onChange={(event) => onChangeMatrix(index, "auditAreaId", event.target.value)} /></Field><Field label="Audit focus ID"><TextInput disabled={!editable} inputMode="numeric" value={matrix.auditFocusId ?? ""} onChange={(event) => onChangeMatrix(index, "auditFocusId", event.target.value)} /></Field><Field label="Methodology" wide><TextArea disabled={!editable} value={matrix.methodology ?? ""} onChange={(event) => index === 0 && !form.riskMatrices?.length ? onChange("riskMatrix", "methodology", event.target.value) : onChangeMatrix(index, "methodology", event.target.value)} /></Field><Field label="Risk appetite"><TextInput disabled={!editable} value={matrix.riskAppetite ?? ""} onChange={(event) => onChangeMatrix(index, "riskAppetite", event.target.value)} /></Field><Field label="Overall conclusion"><TextArea disabled={!editable} value={matrix.overallConclusion ?? ""} onChange={(event) => onChangeMatrix(index, "overallConclusion", event.target.value)} /></Field></div>)}</div>
       </Panel>
       <Panel title="Risk Matrix Items" description="Open an item to inspect its control assessment and traceability links.">
         {!form.riskItems.length ? <EmptyState title="No risk items recorded" description="Add risk items and link each one to an objective, approved-program procedure, and working-paper reference." /> : <div className="overflow-x-auto"><table className="min-w-[900px] w-full text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400"><tr><th className="px-3 py-3">Code</th><th className="px-3 py-3">Risk statement</th><th className="px-3 py-3">Category</th><th className="px-3 py-3">Residual rating</th><th className="px-3 py-3">Traceability</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{form.riskItems.map((item, index) => <tr key={`${item.riskCode}-${index}`}><td className="px-3 py-3 font-bold text-slate-800">{item.riskCode}</td><td className="max-w-xs whitespace-pre-wrap px-3 py-3 text-slate-700">{item.riskStatement || "—"}</td><td className="px-3 py-3 text-slate-600">{valueOrDash(item.riskCategory)}</td><td className="px-3 py-3"><StatusBadge tone={item.residualRating?.toLowerCase().includes("high") ? "danger" : item.residualRating ? "warning" : "inactive"}>{valueOrDash(item.residualRating)}</StatusBadge></td><td className="px-3 py-3 text-xs text-slate-600">{item.objectiveCodes?.length ?? 0} objectives · {item.procedureIds?.length ?? 0} procedures · {item.workingPapers?.length ?? 0} papers</td><td className="px-3 py-3"><div className="flex justify-end gap-2"><SmallButton icon={FilePenLine} onClick={() => onEdit(item, index)}>{editable ? "Edit" : "Inspect"}</SmallButton>{editable && <SmallButton icon={XCircle} tone="danger" onClick={() => onRemove(index)}>Remove</SmallButton>}</div></td></tr>)}</tbody></table></div>}
@@ -906,7 +997,7 @@ function RiskMatrixSection({ form, editable, onChange, onAdd, onEdit, onRemove }
 
 function RiskItemEditor({ item, setItem, objectiveOptions, procedureOptions, officeOptions, editable = true }) {
   const update = (key, value) => setItem((current) => ({ ...current, [key]: value }));
-  return <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Field label="Risk code"><TextInput disabled={!editable} value={item.riskCode} onChange={(event) => update("riskCode", event.target.value)} /></Field><Field label="Risk category"><TextInput disabled={!editable} value={item.riskCategory} onChange={(event) => update("riskCategory", event.target.value)} /></Field><Field label="Status"><TextInput disabled={!editable} value={item.status} onChange={(event) => update("status", event.target.value)} /></Field><Field label="Risk statement" wide><TextArea disabled={!editable} value={item.riskStatement} onChange={(event) => update("riskStatement", event.target.value)} /></Field><Field label="Responsible office"><SearchableSelect disabled={!editable} options={officeOptions} value={item.responsibleOfficeId} onChange={(value) => update("responsibleOfficeId", value)} placeholder="Select linked office" /></Field><Field label="Risk response"><TextInput disabled={!editable} value={item.riskResponse} onChange={(event) => update("riskResponse", event.target.value)} /></Field></div><div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3"><Field label="Inherent likelihood"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentLikelihood} onChange={(event) => update("inherentLikelihood", event.target.value)} /></Field><Field label="Inherent impact"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentImpact} onChange={(event) => update("inherentImpact", event.target.value)} /></Field><Field label="Inherent score"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentScore} onChange={(event) => update("inherentScore", event.target.value)} /></Field><Field label="Residual likelihood"><TextInput disabled={!editable} inputMode="decimal" value={item.residualLikelihood} onChange={(event) => update("residualLikelihood", event.target.value)} /></Field><Field label="Residual impact"><TextInput disabled={!editable} inputMode="decimal" value={item.residualImpact} onChange={(event) => update("residualImpact", event.target.value)} /></Field><Field label="Residual score"><TextInput disabled={!editable} inputMode="decimal" value={item.residualScore} onChange={(event) => update("residualScore", event.target.value)} /></Field><Field label="Residual rating"><TextInput disabled={!editable} value={item.residualRating} onChange={(event) => update("residualRating", event.target.value)} /></Field><Field label="Control effectiveness"><TextInput disabled={!editable} value={item.controlEffectiveness} onChange={(event) => update("controlEffectiveness", event.target.value)} /></Field></div><Field label="Control description" wide><TextArea disabled={!editable} value={item.controlDescription} onChange={(event) => update("controlDescription", event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Linked planning objectives" hint="Select one or more"><SearchableSelect disabled={!editable} multiple multipleDisplay="summary" options={objectiveOptions} value={item.objectiveCodes} onChange={(value) => update("objectiveCodes", value)} placeholder="Select objectives" /></Field><Field label="Linked approved-program procedures" hint="Select one or more"><SearchableSelect disabled={!editable} multiple multipleDisplay="summary" options={procedureOptions} value={item.procedureIds} onChange={(value) => update("procedureIds", value)} placeholder="Select procedures" /></Field><Field label="Working-paper references" hint="One reference per line" wide><TextArea disabled={!editable} value={item.workingPaperText} onChange={(event) => update("workingPaperText", event.target.value)} placeholder="WP-01\nWP-02" /></Field></div></div>;
+  return <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Field label="Risk code"><TextInput disabled={!editable} value={item.riskCode} onChange={(event) => update("riskCode", event.target.value)} /></Field><Field label="Risk category"><TextInput disabled={!editable} value={item.riskCategory} onChange={(event) => update("riskCategory", event.target.value)} /></Field><Field label="Status"><TextInput disabled={!editable} value={item.status} onChange={(event) => update("status", event.target.value)} /></Field><Field label="Risk statement" wide><TextArea disabled={!editable} value={item.riskStatement} onChange={(event) => update("riskStatement", event.target.value)} /></Field><Field label="Audit area ID"><TextInput disabled={!editable} inputMode="numeric" value={item.auditAreaId} onChange={(event) => update("auditAreaId", event.target.value)} /></Field><Field label="Audit focus ID"><TextInput disabled={!editable} inputMode="numeric" value={item.auditFocusId} onChange={(event) => update("auditFocusId", event.target.value)} /></Field><Field label="Process flow ID"><TextInput disabled={!editable} inputMode="numeric" value={item.processFlowId} onChange={(event) => update("processFlowId", event.target.value)} /></Field><Field label="Process name"><TextInput disabled={!editable} value={item.processName} onChange={(event) => update("processName", event.target.value)} /></Field><Field label="Risk area"><TextInput disabled={!editable} value={item.riskArea} onChange={(event) => update("riskArea", event.target.value)} /></Field><Field label="Responsible office"><SearchableSelect disabled={!editable} options={officeOptions} value={item.responsibleOfficeId} onChange={(value) => update("responsibleOfficeId", value)} placeholder="Select linked office" /></Field><Field label="Risk response"><TextInput disabled={!editable} value={item.riskResponse} onChange={(event) => update("riskResponse", event.target.value)} /></Field></div><div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3"><Field label="Inherent likelihood"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentLikelihood} onChange={(event) => update("inherentLikelihood", event.target.value)} /></Field><Field label="Inherent impact"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentImpact} onChange={(event) => update("inherentImpact", event.target.value)} /></Field><Field label="Inherent score"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentScore} onChange={(event) => update("inherentScore", event.target.value)} /></Field><Field label="Residual likelihood"><TextInput disabled={!editable} inputMode="decimal" value={item.residualLikelihood} onChange={(event) => update("residualLikelihood", event.target.value)} /></Field><Field label="Residual impact"><TextInput disabled={!editable} inputMode="decimal" value={item.residualImpact} onChange={(event) => update("residualImpact", event.target.value)} /></Field><Field label="Residual score"><TextInput disabled={!editable} inputMode="decimal" value={item.residualScore} onChange={(event) => update("residualScore", event.target.value)} /></Field><Field label="Residual rating"><TextInput disabled={!editable} value={item.residualRating} onChange={(event) => update("residualRating", event.target.value)} /></Field><Field label="Control effectiveness"><TextInput disabled={!editable} value={item.controlEffectiveness} onChange={(event) => update("controlEffectiveness", event.target.value)} /></Field></div><Field label="Control description" wide><TextArea disabled={!editable} value={item.controlDescription} onChange={(event) => update("controlDescription", event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Planned audit approach" wide><TextArea disabled={!editable} value={item.plannedAuditApproach} onChange={(event) => update("plannedAuditApproach", event.target.value)} /></Field><Field label="Criteria" wide><TextArea disabled={!editable} value={item.criteria} onChange={(event) => update("criteria", event.target.value)} /></Field><Field label="Response rationale" wide><TextArea disabled={!editable} value={item.responseRationale} onChange={(event) => update("responseRationale", event.target.value)} /></Field><Field label="Linked planning objectives" hint="Select one or more"><SearchableSelect disabled={!editable} multiple multipleDisplay="summary" options={objectiveOptions} value={item.objectiveCodes} onChange={(value) => update("objectiveCodes", value)} placeholder="Select objectives" /></Field><Field label="Linked approved-program procedures" hint="Select one or more"><SearchableSelect disabled={!editable} multiple multipleDisplay="summary" options={procedureOptions} value={item.procedureIds} onChange={(value) => update("procedureIds", value)} placeholder="Select procedures" /></Field><Field label="Working-paper references" hint="One reference per line" wide><TextArea disabled={!editable} value={item.workingPaperText} onChange={(event) => update("workingPaperText", event.target.value)} placeholder="WP-01\nWP-02" /></Field></div></div>;
 }
 
 function TraceabilitySection({ workspace, form }) {
@@ -915,7 +1006,8 @@ function TraceabilitySection({ workspace, form }) {
 }
 
 function ReadinessSection({ workspace, packageRecord, actionOptions, onAction }) {
-  return <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]"><Panel title="Planning readiness checklist" description="These checks come directly from the backend and are not recalculated in React."><div className="space-y-2" data-testid="planning-readiness">{(workspace.readiness?.checks ?? []).map((check) => <div className={`flex items-start gap-3 rounded-xl border px-3 py-3 ${check.met ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`} key={check.key}>{check.met ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-700" size={18} /> : <ShieldAlert className="mt-0.5 shrink-0 text-amber-700" size={18} />}<span className="text-sm font-semibold text-slate-700">{check.label}</span><StatusBadge tone={check.met ? "success" : "warning"}>{check.met ? "Met" : "Open"}</StatusBadge></div>)}</div><div className={`mt-4 rounded-xl px-4 py-3 text-sm font-bold ${workspace.readiness?.ready ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>{workspace.readiness?.ready ? "This version is ready for submission or approval, subject to the backend workflow state." : "This version is not ready for submission. Resolve the backend-reported checks above."}</div></Panel><Panel title="Review and approval queue" description="Available actions are derived from backend capabilities and the signed-in user's permissions."><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Current state</p><div className="mt-2 flex flex-wrap items-center gap-2"><StatusBadge tone={statusTones[packageRecord?.status] ?? "inactive"}>{label(packageRecord?.status ?? "Not created")}</StatusBadge>{packageRecord?.currentVersionNumber && <span className="text-sm font-semibold text-slate-600">Version {packageRecord.currentVersionNumber}</span>}</div></div><div className="mt-4 flex flex-wrap gap-2">{actionOptions.length ? actionOptions.map(([key, text, Icon, tone]) => <SmallButton key={key} icon={Icon} tone={tone} onClick={() => onAction(key)}>{text}</SmallButton>) : <p className="text-sm text-slate-500">No workflow action is currently available for this role and state.</p>}</div><div className="mt-5 border-t border-slate-100 pt-4"><h4 className="text-sm font-bold text-slate-700">Review history</h4>{!packageRecord?.reviews?.length ? <p className="mt-2 text-sm text-slate-500">No independent review recorded for this package yet.</p> : <div className="mt-3 space-y-3">{packageRecord.reviews.map((review) => <div className="rounded-xl border border-slate-200 p-3" key={review.id}><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-slate-700">Version {review.versionNumber} · {review.reviewer?.name ?? "Reviewer"}</strong><span className="text-xs text-slate-500">{formatDate(review.reviewedAt, true)}</span></div><p className="mt-1 text-sm leading-6 text-slate-600">{review.comment || "No comment recorded."}</p></div>)}</div>}</div></Panel></div>;
+  const conformanceReady = Boolean(workspace.readiness?.fieldworkReady);
+  return <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]"><Panel title="Planning readiness checklist" description="These checks come directly from the backend and are not recalculated in React."><div className="space-y-2" data-testid="planning-readiness">{(workspace.readiness?.checks ?? []).map((check) => <div className={`flex items-start gap-3 rounded-xl border px-3 py-3 ${check.met ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`} key={check.key}>{check.met ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-700" size={18} /> : <ShieldAlert className="mt-0.5 shrink-0 text-amber-700" size={18} />}<span className="text-sm font-semibold text-slate-700">{check.label}</span><StatusBadge tone={check.met ? "success" : "warning"}>{check.met ? "Met" : "Open"}</StatusBadge></div>)}</div><div className={`mt-4 rounded-xl px-4 py-3 text-sm font-bold ${conformanceReady ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>{conformanceReady ? "Planning conformance is complete; an approved baseline may authorize fieldwork." : "Planning conformance is incomplete. Fieldwork remains blocked until every structured planning gate is met."}</div></Panel><Panel title="Review and approval queue" description="Available actions are derived from backend capabilities and the signed-in user's permissions."><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Current state</p><div className="mt-2 flex flex-wrap items-center gap-2"><StatusBadge tone={statusTones[packageRecord?.status] ?? "inactive"}>{label(packageRecord?.status ?? "Not created")}</StatusBadge>{packageRecord?.currentVersionNumber && <span className="text-sm font-semibold text-slate-600">Version {packageRecord.currentVersionNumber}</span>}</div></div><div className="mt-4 flex flex-wrap gap-2">{actionOptions.length ? actionOptions.map(([key, text, Icon, tone]) => <SmallButton key={key} icon={Icon} tone={tone} onClick={() => onAction(key)}>{text}</SmallButton>) : <p className="text-sm text-slate-500">No workflow action is currently available for this role and state.</p>}</div><div className="mt-5 border-t border-slate-100 pt-4"><h4 className="text-sm font-bold text-slate-700">Review history</h4>{!packageRecord?.reviews?.length ? <p className="mt-2 text-sm text-slate-500">No independent review recorded for this package yet.</p> : <div className="mt-3 space-y-3">{packageRecord.reviews.map((review) => <div className="rounded-xl border border-slate-200 p-3" key={review.id}><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-slate-700">Version {review.versionNumber} · {review.reviewer?.name ?? "Reviewer"}</strong><span className="text-xs text-slate-500">{formatDate(review.reviewedAt, true)}</span></div><p className="mt-1 text-sm leading-6 text-slate-600">{review.comment || "No comment recorded."}</p></div>)}</div>}</div></Panel></div>;
 }
 
 function VersionsSection({ packageRecord, versions, inspectedVersion, selectedVersionNumber, setSelectedVersionNumber, compareFrom, compareTo, setCompareFrom, setCompareTo, compareLeft, compareRight }) {

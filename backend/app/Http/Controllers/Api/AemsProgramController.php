@@ -243,6 +243,15 @@ class AemsProgramController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'min:3', 'max:255'],
             'objective' => ['required', 'string', 'min:5', 'max:10000'],
+            'auditAreaId' => ['nullable', 'integer', 'exists:audit_areas,id'],
+            'auditTypeId' => ['nullable', 'integer', 'exists:master_list_items,id'],
+            'auditPeriodStart' => ['nullable', 'date'],
+            'auditPeriodEnd' => ['nullable', 'date', 'after_or_equal:auditPeriodStart'],
+            'auditCriteria' => ['nullable', 'string', 'max:20000'],
+            'riskStatementSet' => ['sometimes', 'array', 'max:500'],
+            'riskStatementSet.*' => ['string', 'max:255'],
+            'samplingApproach' => ['nullable', 'string', 'max:10000'],
+            'plannedWorkingPaperRequirements' => ['sometimes', 'array', 'max:500'],
         ]);
     }
 
@@ -258,6 +267,22 @@ class AemsProgramController extends Controller
             'workingPaperReference' => ['nullable', 'string', 'max:120'],
             'assignedTo' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'targetDate' => ['required', 'date'],
+            'auditAreaId' => ['nullable', 'integer', 'exists:audit_areas,id'],
+            'auditFocusId' => ['nullable', 'integer', 'exists:audit_focuses,id'],
+            'processFlowId' => ['nullable', 'integer', 'exists:aems_process_flow_documents,id'],
+            'processName' => ['nullable', 'string', 'max:255'],
+            'auditMethod' => ['nullable', 'string', 'max:100'],
+            'auditCriteria' => ['nullable', 'string', 'max:20000'],
+            'plannedPersonDays' => ['nullable', 'numeric', 'min:0'],
+            'samplingRequirement' => ['sometimes', 'array'],
+            'samplingRequirement.method' => ['nullable', 'string', 'max:255'],
+            'samplingRequirement.population' => ['nullable', 'string', 'max:10000'],
+            'samplingRequirement.sampleSize' => ['nullable', 'numeric', 'min:0'],
+            'plannedWorkingPaperRequirement' => ['sometimes', 'array'],
+            'plannedWorkingPaperRequirement.reference' => ['nullable', 'string', 'max:120'],
+            'plannedWorkingPaperRequirement.requiredEvidence' => ['nullable', 'string', 'max:10000'],
+            'riskStatementIds' => ['sometimes', 'array', 'max:500'],
+            'riskStatementIds.*' => ['string', 'max:120'],
         ];
         if ($includeProgramLock) {
             $rules['programLockVersion'] = ['required', 'integer', 'min:1'];

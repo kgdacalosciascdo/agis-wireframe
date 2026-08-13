@@ -49,6 +49,12 @@ class AemsEngagementTransitionService
         'ISSUED' => [
             'SUBMIT_FOR_CLOSURE' => 'CLOSURE_REVIEW',
         ],
+        'CLOSURE_REVIEW' => [
+            'COMPLETE_AUDIT_WORK' => 'COMPLETED',
+        ],
+        'COMPLETED' => [
+            'OPEN_CLOSURE_REVIEW' => 'CLOSURE_REVIEW',
+        ],
     ];
 
     private const RETURNABLE_STATES = [
@@ -101,7 +107,7 @@ class AemsEngagementTransitionService
                     'targetStatus' => $this->targetStatus($engagement, $action),
                     'requiresComment' => in_array(
                         $action,
-                        ['RETURN', 'RESUBMIT', 'SUSPEND', 'RESUME', 'CANCEL', 'SUBMIT_FOR_CLOSURE'],
+                        ['RETURN', 'RESUBMIT', 'SUSPEND', 'RESUME', 'CANCEL', 'SUBMIT_FOR_CLOSURE', 'COMPLETE_AUDIT_WORK', 'OPEN_CLOSURE_REVIEW'],
                         true,
                     ),
                     'requirements' => $requirements,
@@ -259,6 +265,9 @@ class AemsEngagementTransitionService
 
             if ($to === 'FIELDWORK' && ! $locked->actual_start_date) {
                 $changes['actual_start_date'] = today();
+            }
+            if ($to === 'COMPLETED') {
+                $changes['actual_end_date'] = $locked->actual_end_date ?? today();
             }
 
             $locked->forceFill($changes)->save();
@@ -521,6 +530,9 @@ class AemsEngagementTransitionService
         $approvedPlanningPackage = $planningPackage
             && $planningPackage->status === 'APPROVED'
             && (int) $planningPackage->current_version_number === (int) $planningPackage->approved_version_number;
+        $planningConformance = $planningPackage?->latestVersion
+            ? app(AemsPlanningPackageService::class)->readiness($engagement, $planningPackage, $planningPackage->latestVersion, $currentProgram?->procedures ?? collect())
+            : ['fieldworkReady' => false];
         $teamSafeguardGates = $this->teamSafeguards->aggregateGate($engagement);
 
         return match ($action) {
@@ -575,6 +587,7 @@ class AemsEngagementTransitionService
                 $this->gate('approvedAep', 'Current AEP remains approved', $approvedAep, 'aep'),
                 $this->gate('approvedProgram', 'Current Audit Program remains approved', (bool) $approvedProgram, 'audit-program'),
                 $this->gate('planningPackage', 'Approved Planning Package is required before fieldwork', (bool) $approvedPlanningPackage, 'planning-package'),
+                $this->gate('planningConformance', 'Planning Package conformance is complete before fieldwork', (bool) ($approvedPlanningPackage && ($planningConformance['fieldworkReady'] ?? false)), 'planning-package'),
                 $this->gate('teamRoles', 'Required team roles remain active', $requiredRoles->diff($teamRoles)->isEmpty(), 'team'),
                 ...$teamSafeguardGates,
             ],
@@ -626,6 +639,13 @@ class AemsEngagementTransitionService
             ],
             'ISSUE_FINAL_REPORT' => $this->finalReportRequirements($engagement),
             'SUBMIT_FOR_CLOSURE' => $this->closureRequirements($engagement),
+            'COMPLETE_AUDIT_WORK' => [
+                ...$this->closureRequirements($engagement),
+                $this->gate('status', 'Engagement is in Closure Review before substantive completion', $engagement->status === 'CLOSURE_REVIEW'),
+            ],
+            'OPEN_CLOSURE_REVIEW' => [
+                $this->gate('status', 'Engagement is substantively completed', $engagement->status === 'COMPLETED'),
+            ],
             'SUSPEND' => [
                 $this->gate('state', 'Current state permits suspension', in_array($engagement->status, self::SUSPENDABLE_STATES, true)),
             ],

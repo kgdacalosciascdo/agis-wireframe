@@ -55,6 +55,7 @@ class AuditEngagement extends Model
         'REPORTING',
         'ISSUED',
         'CLOSURE_REVIEW',
+        'COMPLETED',
         'CLOSED',
         'SUSPENDED',
         'CANCELLED',
@@ -68,11 +69,14 @@ class AuditEngagement extends Model
         'iap_plan_id',
         'iap_prioritization_item_id',
         'iap_risk_assessment_id',
+        'iap_risk_source_type',
+        'iap_legacy_risk_assessment_id',
         'iap_audit_universe_item_id',
         'source_snapshot',
         'engagement_office_id',
         'special_authority_reference',
         'special_authority_type_code',
+        'special_authority_class',
         'special_authority_date',
         'special_authority_approved_by',
         'special_authority_document_version_id',
@@ -81,6 +85,9 @@ class AuditEngagement extends Model
         'background',
         'objectives',
         'scope',
+        'scope_boundaries',
+        'scope_limitations',
+        'scope_source_variance',
         'exclusions',
         'planned_start_date',
         'planned_end_date',
@@ -118,6 +125,7 @@ class AuditEngagement extends Model
     {
         return [
             'source_snapshot' => 'array',
+            'scope_source_variance' => 'array',
             'suspension_metadata' => 'array',
             'cancellation_metadata' => 'array',
             'special_authority_date' => 'date',
@@ -164,6 +172,12 @@ class AuditEngagement extends Model
     public function sourceRiskAssessment(): BelongsTo
     {
         return $this->belongsTo(IapUniverseRiskAssessment::class, 'iap_risk_assessment_id')
+            ->withTrashed();
+    }
+
+    public function sourceLegacyRiskAssessment(): BelongsTo
+    {
+        return $this->belongsTo(IapRiskAssessment::class, 'iap_legacy_risk_assessment_id')
             ->withTrashed();
     }
 
@@ -218,6 +232,11 @@ class AuditEngagement extends Model
         return $this->belongsTo(Office::class, 'engagement_office_id')->withTrashed();
     }
 
+    public function scopeBackfillReview(): HasOne
+    {
+        return $this->hasOne(AemsEngagementScopeBackfillReview::class, 'audit_engagement_id');
+    }
+
     /** @return array{phase: string, administrative_status: string} */
     public static function lifecycleProjectionForStatus(
         string $status,
@@ -233,6 +252,7 @@ class AuditEngagement extends Model
             'ENTRY_CONFERENCE' => 'CONFERENCES',
             'REPORTING', 'ISSUED' => 'REPORTING',
             'CLOSURE_REVIEW' => 'COMPLETION_TRANSFER',
+            'COMPLETED' => 'COMPLETION_TRANSFER',
             'CLOSED', 'CANCELLED' => 'CLOSURE',
             default => 'FOUNDATION',
         };
@@ -240,6 +260,7 @@ class AuditEngagement extends Model
             'DRAFT' => 'DRAFT',
             'RETURNED_FOR_REVISION' => 'RETURNED',
             'ISSUED' => 'ISSUED',
+            'COMPLETED' => 'ACTIVE',
             'SUSPENDED' => 'SUSPENDED',
             'CANCELLED' => 'CANCELLED',
             'CLOSED' => 'CLOSED',
@@ -259,7 +280,7 @@ class AuditEngagement extends Model
             'audit_engagement_audit_areas',
             'audit_engagement_id',
             'audit_area_id',
-        )->withTimestamps();
+        )->withPivot('coverage_metadata')->withTimestamps();
     }
 
     public function auditFocuses(): BelongsToMany
@@ -269,7 +290,7 @@ class AuditEngagement extends Model
             'audit_engagement_audit_focuses',
             'audit_engagement_id',
             'audit_focus_id',
-        )->withTimestamps();
+        )->withPivot('coverage_metadata')->withTimestamps();
     }
 
     public function teamMembers(): HasMany

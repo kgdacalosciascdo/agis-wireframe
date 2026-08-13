@@ -34,6 +34,7 @@ class SystemConfigurationSeeder extends Seeder
             ['aems_conference_reminder_days', 'AEMS Conference Reminder Window', 7, 'integer', 'notifications', 'Days ahead of a scheduled AEMS conference for a reminder.'],
             ['iap_default_annual_person_days', 'Default IAP Annual Person-days', 180, 'integer', 'planning', 'Default yearly capacity for an active CIAS auditor until ARMIS provides an authoritative capacity record.'],
             ['document_number_format', 'Document Number Format', 'DOC-{YEAR}-{SEQ:5}', 'string', 'numbering', 'Code template for repository documents. Tokens: {YEAR} and {SEQ:n}.'],
+            ['aems_engagement_number_format', 'AEMS Engagement Number Format', 'AEMS-{YEAR}-{SEQ:3}', 'string', 'numbering', 'Code template for AEMS engagements. Tokens: {YEAR} and {SEQ:n}.'],
             ['iap_plan_number_format', 'Annual Plan Number Format', 'IAP-{YEAR}', 'string', 'numbering', 'Code template for annual internal audit plans.'],
             ['siap_plan_number_format', 'Strategic Plan Number Format', 'SIAP-{START_YEAR}-{END_YEAR}-R00', 'string', 'numbering', 'Code template for strategic plans.'],
             ['risk_period_number_format', 'Risk Period Number Format', 'RISK-{YEAR}-{SEQ:3}', 'string', 'numbering', 'Code template for risk-assessment periods.'],

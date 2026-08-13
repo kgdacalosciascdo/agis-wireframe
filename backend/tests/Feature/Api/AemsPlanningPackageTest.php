@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\AemsPlanningPackageVersion;
+use App\Models\AemsRiskMatrix;
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementPlan;
 use App\Models\AuditProgram;
@@ -69,6 +70,26 @@ class AemsPlanningPackageTest extends TestCase
             ->assertJsonPath('data.package.versions.1.versionNumber', 2);
         $this->expectException(\LogicException::class);
         AemsPlanningPackageVersion::query()->firstOrFail()->update(['change_reason' => 'tamper']);
+    }
+
+    public function test_g3_strict_fieldwork_conformance_is_reported_and_multiple_matrices_are_supported(): void
+    {
+        [$prepared, , , $engagement, $procedure] = $this->fixture();
+        Sanctum::actingAs($prepared);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $this->completePayload($procedure->id))
+            ->assertCreated();
+        $workspace = $this->getJson("/api/aems/engagements/{$engagement->id}/planning-package")
+            ->assertOk()->json('data');
+        $this->assertFalse($workspace['readiness']['fieldworkReady']);
+        $this->assertContains('structuredProcessFlows', array_column($workspace['readiness']['conformanceChecks'], 'key'));
+        $version = AemsPlanningPackageVersion::query()->firstOrFail();
+        AemsRiskMatrix::query()->create([
+            'planning_package_version_id' => $version->id,
+            'matrix_code' => 'RM-2',
+            'title' => 'Second authorized matrix',
+            'status' => 'DRAFT',
+        ]);
+        $this->assertDatabaseCount('aems_risk_matrices', 2);
     }
 
     /** @return array{User,User,User,AuditEngagement,AuditProgramProcedure} */

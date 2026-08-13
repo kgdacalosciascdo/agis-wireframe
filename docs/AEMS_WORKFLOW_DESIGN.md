@@ -141,6 +141,7 @@ progress of its controlled child workflows.
 | `REPORTING`                 | Draft and final reports are being prepared and reviewed                      |
 | `ISSUED`                    | The final report has been issued                                             |
 | `CLOSURE_REVIEW`            | Closure requirements are being checked and approved                          |
+| `COMPLETED`                 | Substantive audit work and completion gates are complete; formal closure remains open |
 | `CLOSED`                    | Engagement is complete and locked                                            |
 | `SUSPENDED`                 | Work is temporarily stopped; the prior state is retained                     |
 | `CANCELLED`                 | Work ended by authorized cancellation before report issuance                 |
@@ -148,6 +149,13 @@ progress of its controlled child workflows.
 `ARCHIVED` is not an engagement workflow state. Archiving sets `deleted_at` and
 retains the current workflow status. Restoring an archived record does not
 resume, reopen, or change its workflow.
+
+The SCR-212 Define Engagement Scope workspace is contextual at
+`/audit-engagement-management/{engagementId}?tab=scope`. It enforces one
+Engagement Office, structured Area/Focus boundaries, limitations, and approved
+source-variance decisions. Imported IAP risk lineage exposes whether the source
+is from `iap_universe_risk_assessments` or the legacy `iap_risk_assessments`
+system; neither source table is mutated.
 
 ### 4.2 State diagram
 
@@ -1817,3 +1825,13 @@ configured rather than relying on an unconditional hard-coded pass.
 
 See [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
 for the complete rule and API contract.
+## AEMS-G3 Planning conformance
+
+Before fieldwork, the approved Planning Package must pass the strict
+`fieldworkReady` contract. This includes structured Process Flows, authorized
+Area coverage, Rule-35 risk fields and traceability, Audit Program and
+procedure definitions, KPI or documented KPI non-applicability, sampling, and
+planned Working Paper/evidence requirements. The aggregate
+`START_FIELDWORK` transition is the enforcement point; it reports all failed
+checks and does not bypass child workflows. See
+`docs/AEMS_G3_PLANNING_CONFORMANCE.md` for the data and API contract.

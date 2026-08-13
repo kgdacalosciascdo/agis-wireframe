@@ -379,9 +379,9 @@ Response, Auditor Rejoinder, Recommendation, Exit Conference, and Audit Report
 endpoints are implemented. The Engagement Tracker endpoint derives portfolio
 metrics and per-engagement progress from those records.
 `AemsEngagementTransitionService` now moves the parent through controlled
-actions and cross-workflow gates to `CLOSURE_REVIEW`, and executes the guarded
-atomic `CLOSED` transition for the implemented formal Completion Assessment and
-Engagement Closure aggregate.
+actions and cross-workflow gates to `CLOSURE_REVIEW`, distinct `COMPLETED`, and
+the guarded atomic `CLOSED` transition for the implemented formal Completion
+Assessment and Engagement Closure aggregate.
 CMS is operational through CMS-12B. CMS-1 provides the hardened immutable
 intake foundation: every valid AEMS transfer creates one source envelope, one
 separate operational case initialized in `TRANSFERRED`, and one append-only
@@ -391,6 +391,7 @@ professional decisions, closure/dispositions, automation, and reporting.
 | Entity | Main relationships |
 | --- | --- |
 | `AuditEngagement` | optional approved IAP engagement source; offices, audit areas/focuses, team, AEO, AEP, Entry Conference, programs, working papers, evidence, issues, findings, conferences, reports, Completion Assessments, Closures, final index, retention, lessons, reopening requests, events |
+| `AemsEngagementScopeBackfillReview` | reviewed legacy office IDs, canonical office, resolution state, and reviewer metadata used to enforce the one-office foundation invariant |
 | `EntryConference` | one official PGIAM record per engagement; schedule, briefing, notes, completion/waiver, and optimistic lock |
 | `EntryConferenceParticipant` | internal, auditee, or external participant and attendance |
 | `EntryConferenceMatter` | matter, materiality, disposition, responsibility, and due date |
@@ -754,6 +755,8 @@ enforce preparer/originator separation.
 | `POST` | `/api/aems/engagements/import` | Create an engagement from an approved IAP item |
 | `POST` | `/api/aems/engagements` | Create an independently authorized special or unplanned engagement |
 | `GET` | `/api/aems/engagements/{engagement}` | Return coverage, team, event, lineage, and snapshot details |
+| `GET` | `/api/aems/engagements/{engagement}/scope` | SCR-212 scope contract, one-office status, structured Area/Focus coverage, and lineage discriminator |
+| `PUT` | `/api/aems/engagements/{engagement}/scope` | Save one-office scope boundaries, limitations, source variance, and structured Area/Focus metadata with optimistic locking |
 | `PUT` | `/api/aems/engagements/{engagement}` | Update an editable engagement with optimistic locking |
 | `DELETE` | `/api/aems/engagements/{engagement}` | Soft-archive an engagement |
 | `POST` | `/api/aems/engagements/{engagement}/restore` | Restore an archived engagement when no active duplicate exists |
@@ -2228,6 +2231,16 @@ the existing Core System Configuration endpoint and do not permit automated
 approval, closure, CMS transfer, or other final professional decisions.
 
 ### AEMS-G1 evidence and direct-Finding contract
+
+### AEMS-G3 planning conformance contract
+
+Planning Package snapshots now include `riskMatrices`, structured
+`processFlows`, `kpis`, and `plannedWorkingPapers` while retaining the legacy
+`riskMatrix` alias. Audit Program and procedure snapshots include Area/Focus,
+period, criteria, process/method, planned person-days, sampling, and planned
+Working Paper fields. `readiness.fieldworkReady` is the authoritative strict
+planning gate used by aggregate `START_FIELDWORK`; it must be true in addition
+to the approved-package/version check.
 
 `GET /api/aems/engagements/{engagement}/findings-workspace` and Finding detail
 responses include `eligibleForFinalizedFinding` and `eligibilityReasons` on

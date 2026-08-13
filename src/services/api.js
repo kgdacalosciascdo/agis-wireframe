@@ -1513,6 +1513,21 @@ export const aemsEngagementApi = {
     const data = await request(`/api/aems/engagements/${id}`);
     return data?.engagement ?? null;
   },
+  async scope(id) {
+    const data = await request(`/api/aems/engagements/${id}/scope`);
+    return {
+      scope: data?.scope ?? null,
+      contract: data?.contract ?? {},
+    };
+  },
+  async updateScope(id, payload) {
+    const data = await request(`/api/aems/engagements/${id}/scope`, {
+      method: "PUT",
+      body: payload,
+      csrf: true,
+    });
+    return data?.scope ?? null;
+  },
   async importOptions() {
     const data = await request("/api/aems/engagements/import-options");
     return Array.isArray(data?.iapEngagements) ? data.iapEngagements : [];

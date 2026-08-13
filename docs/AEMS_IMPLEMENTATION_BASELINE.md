@@ -88,6 +88,22 @@ The completed phase checkpoints below remain historical evidence of what each
 increment added. They do not override the current G0 matrix or convert a
 partial reference control into a completed one.
 
+## 4.1 AEMS-G2 foundation implementation
+
+G2A/G2B adds the reviewed one-office backfill and database uniqueness
+invariant, structured Area/Focus coverage metadata, engagement boundaries and
+limitations, source-variance decisions, the IAP risk-source discriminator,
+special/emergency authorization classification, Runtime Configuration-backed
+engagement numbering, and the distinct aggregate `COMPLETED` state. SCR-212 is
+implemented as a contextual Define Engagement Scope workspace at
+`?tab=scope`; it is not a duplicate sidebar page. The visible module name is
+Audit Engagement Management while AEMS compatibility identifiers remain.
+
+The G2 migration records legacy office rows before reconciling duplicate pivot
+links. A record with no historical office remains explicitly marked for
+authorized review rather than receiving an invented office. The focused G2
+tests and existing AEMS registry/lifecycle tests are the conformance gate.
+
 ## 5. Fixed design decisions
 
 ### 5.1 Engagement office rule
@@ -994,6 +1010,16 @@ was started.
 The runtime permission catalogue includes the four new AEMS permission
 families. The AEMS-7B workspace is documented in the frontend checkpoint
 above; AIS and ARMIS integrations remain outside these phases.
+
+## AEMS-G3 planning conformance checkpoint
+
+The Planning Package and Audit Program now expose structured Process Flow,
+multi-matrix risk planning, Rule-35 Risk Matrix Item, program/procedure, KPI,
+sampling, and planned Working Paper requirements. The strict backend
+`fieldworkReady` contract is documented in
+`docs/AEMS_G3_PLANNING_CONFORMANCE.md`; aggregate `START_FIELDWORK` is blocked
+until it passes. The existing compatibility `ready` field is retained for
+legacy clients while new clients should use `fieldworkReady`.
 
 ## 23. AEMS-6B Issues and AFR frontend checkpoint
 

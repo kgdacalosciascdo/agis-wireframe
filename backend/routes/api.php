@@ -498,6 +498,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.engagement.create');
     Route::post('/aems/engagements', [AemsEngagementController::class, 'store'])
         ->middleware('permission:aems.engagement.create');
+    Route::get('/aems/engagements/{engagement}/scope', [AemsEngagementController::class, 'scope'])
+        ->middleware('permission:aems.foundation.view');
+    Route::put('/aems/engagements/{engagement}/scope', [AemsEngagementController::class, 'updateScope'])
+        ->middleware('permission:aems.foundation.manage_scope');
     Route::get('/aems/engagements/{engagement}/team', [AemsTeamController::class, 'show'])
         ->middleware('permission:aems.team.view');
     Route::get('/aems/engagements/{engagement}/team/safeguards', [AemsTeamSafeguardController::class, 'show'])

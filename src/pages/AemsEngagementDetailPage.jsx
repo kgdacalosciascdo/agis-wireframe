@@ -25,6 +25,7 @@ import AemsDocumentIndexWorkspace from "../components/aems/AemsDocumentIndexWork
 import AemsLessonsWorkspace from "../components/aems/AemsLessonsWorkspace";
 import AemsRetentionWorkspace from "../components/aems/AemsRetentionWorkspace";
 import AemsEngagementWorkspaceNav from "../components/aems/AemsEngagementWorkspaceNav";
+import AemsScopeWorkspace from "../components/aems/AemsScopeWorkspace";
 import RegistryHeader from "../components/ui/RegistryHeader";
 import StatusBadge from "../components/ui/StatusBadge";
 import { hasPermission } from "../config/navigation";
@@ -43,6 +44,7 @@ const labels = {
   REPORTING: "Reporting",
   ISSUED: "Issued",
   CLOSURE_REVIEW: "Closure Review",
+  COMPLETED: "Completed",
   CLOSED: "Closed",
   SUSPENDED: "Suspended",
   CANCELLED: "Cancelled",
@@ -82,6 +84,7 @@ const phaseByStatus = {
   REPORTING: "REPORTING",
   ISSUED: "REPORTING",
   CLOSURE_REVIEW: "COMPLETION_TRANSFER",
+  COMPLETED: "COMPLETION_TRANSFER",
   CLOSED: "CLOSURE",
   SUSPENDED: "FOUNDATION",
   CANCELLED: "CLOSURE",
@@ -206,6 +209,9 @@ export default function AemsEngagementDetailPage() {
   const activeTab = searchParams.get("tab") ?? "overview";
   const tabs = [
     ["overview", "Overview"],
+    ...(hasPermission(user, "aems.foundation.view")
+      ? [["scope", "Scope (SCR-212)"]]
+      : []),
     ["lifecycle", "Lifecycle"],
     ...(hasPermission(user, "aems.entry-conference.view")
       ? [["entry-conference", "Entry Conference"]]
@@ -345,7 +351,9 @@ export default function AemsEngagementDetailPage() {
         ))}
       </nav>
 
-      {activeTab === "lifecycle" ? (
+      {activeTab === "scope" && hasPermission(user, "aems.foundation.view") ? (
+        <AemsScopeWorkspace engagementId={engagement.id} initialEngagement={engagement} />
+      ) : activeTab === "lifecycle" ? (
         <AemsLifecycleWorkspace engagementId={engagement.id} />
       ) : activeTab === "entry-conference" &&
         hasPermission(user, "aems.entry-conference.view") ? (

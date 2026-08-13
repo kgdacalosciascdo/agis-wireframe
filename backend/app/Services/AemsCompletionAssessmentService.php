@@ -105,7 +105,7 @@ class AemsCompletionAssessmentService
             $engagement,
             'aems.completion-assessment.create',
         );
-        if (! in_array($engagement->status, ['ISSUED', 'CLOSURE_REVIEW'], true)) {
+        if (! in_array($engagement->status, ['ISSUED', 'CLOSURE_REVIEW', 'COMPLETED'], true)) {
             throw ValidationException::withMessages([
                 'engagement' => ['Completion Assessment begins only after report issuance.'],
             ]);

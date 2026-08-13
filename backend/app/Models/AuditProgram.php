@@ -46,6 +46,7 @@ class AuditProgram extends Model
         'completed_at',
         'lock_version',
         'is_active',
+        'audit_area_id','audit_type_id','audit_period_start','audit_period_end','audit_criteria','risk_statement_set','sampling_approach','planned_working_paper_requirements',
     ];
 
     protected function casts(): array
@@ -59,6 +60,7 @@ class AuditProgram extends Model
             'completed_at' => 'datetime',
             'lock_version' => 'integer',
             'is_active' => 'boolean',
+            'audit_period_start' => 'date', 'audit_period_end' => 'date', 'risk_statement_set' => 'array', 'planned_working_paper_requirements' => 'array',
         ];
     }
 

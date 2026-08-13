@@ -18,7 +18,8 @@ class AemsFieldworkRecord extends Model
 
     public const TYPES = [
         'INTERVIEW', 'OBSERVATION', 'WALKTHROUGH', 'INSPECTION',
-        'TESTING', 'SAMPLING', 'ANALYSIS',
+        'TESTING', 'SAMPLING', 'ANALYSIS', 'INQUIRY', 'MEETING',
+        'FIELD_NOTE', 'OTHER',
     ];
 
     public const STATUSES = [

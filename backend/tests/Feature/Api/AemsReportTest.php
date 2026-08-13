@@ -220,6 +220,11 @@ class AemsReportTest extends TestCase
             'type' => 'AEMS_REPORT_ISSUED',
             'module_code' => 'AEMS',
         ]);
+        $this->assertDatabaseCount('aems_report_authority_decisions', 2);
+        $this->assertDatabaseCount('aems_report_signatories', 2);
+        $this->assertDatabaseCount('aems_report_transmittals', 1);
+        $this->assertNotEmpty($report['versions'][2]['sourceManifestSha256']);
+        $this->assertNotEmpty($report['versions'][2]['reproducibilityKey']);
         Sanctum::actingAs($management);
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/cms-transfer",
@@ -250,6 +255,21 @@ class AemsReportTest extends TestCase
             "/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/versions/{$report['versions'][0]['id']}/download",
             ['Accept' => 'application/pdf'],
         )->assertForbidden();
+
+        Sanctum::actingAs($management);
+        $this->get(
+            "/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/versions/{$report['versions'][2]['id']}/exports/CSV",
+            ['Accept' => 'text/csv'],
+        )->assertOk();
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/reports/{$report['id']}/administrative-close",
+            ['lockVersion' => $report['lockVersion'], 'reason' => 'Distribution and records reconciliation completed.', 'reference' => 'G7-REPORT-CLOSE-001'],
+        )->assertOk()->assertJsonPath('data.report.status', 'ADMINISTRATIVELY_CLOSED');
+        $this->assertDatabaseHas('audit_reports', [
+            'id' => $report['id'],
+            'status' => 'ADMINISTRATIVELY_CLOSED',
+            'administrative_closure_reference' => 'G7-REPORT-CLOSE-001',
+        ]);
 
         $this->expectException(LogicException::class);
         AuditReportVersion::query()

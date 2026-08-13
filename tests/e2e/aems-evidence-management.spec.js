@@ -12,6 +12,7 @@ const evidence = {
   evidenceCode: "EVD-REQ-001",
   title: "Approval sample",
   status: "VERIFIED",
+  outcome: "ACCEPTED",
   versionNumber: 1,
   isCurrentRevision: true,
   documentVersionId: 1001,
@@ -22,6 +23,10 @@ const evidence = {
   checksumSha256: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   dateObtained: "2026-08-12",
   custodianName: "Procurement Office",
+  acquisitionMethod: "AUDITEE_SUBMISSION",
+  acquisitionForm: "DIGITAL_FILE",
+  controlReference: "CTRL-AP-01",
+  reportVersions: [{ id: 1201, reportId: 3001, versionNumber: 1, stage: "DRAFT_REPORT" }],
   confidentialityLevel: { label: "Internal" },
   assessment: {
     id: 801,
@@ -49,13 +54,14 @@ const request = {
   dueDate: "2026-08-20",
   currentVersionNumber: 1,
   lockVersion: 3,
+  events: [{ id: 701, eventType: "EVIDENCE_LINKED", fromStatus: "RECEIVED", toStatus: "RECEIVED", reason: "Exact document version received.", createdAt: "2026-08-12T07:30:00Z", versionNumber: 3 }],
   versions: [{ id: 601, versionNumber: 1, requestedItems: ["Signed approval sample"], createdAt: "2026-08-12T07:00:00Z" }],
   evidence: [{ id: 701, evidenceId: 701, evidenceCode: "EVD-REQ-001", documentVersionId: 1001, receivedAt: "2026-08-12T07:30:00Z", checksumSha256: evidence.checksumSha256, assessment: evidence.assessment }],
 };
 
 const requestWorkspace = {
   engagement,
-  requestStatuses: ["DRAFT", "SUBMITTED", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "ASSESSED", "CLOSED"],
+  requestStatuses: ["DRAFT", "SUBMITTED", "SENT", "ACKNOWLEDGED", "PARTIALLY_RECEIVED", "RECEIVED", "FOR_REVIEW", "ASSESSED", "OVERDUE", "EXTENSION_REQUESTED", "EXTENDED", "ESCALATED", "CANCELLED", "CLOSED_WITHOUT_SUBMISSION", "CLOSED"],
   assessmentStatuses: ["ASSESSED"],
   requests: [request],
   assessments: [evidence.assessment],
@@ -91,10 +97,13 @@ test("AEMS-5B exposes request tracking, assessment state, custody, and linked co
   await expect(page.getByText(request.requestCode, { exact: true }).first()).toBeVisible();
   await expect(page.getByText("RECEIVED", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Submission tracking")).toBeVisible();
+  await expect(page.getByText("Lifecycle audit trail")).toBeVisible();
 
   await page.getByRole("button", { name: "Evidence Register" }).click();
   await expect(page.getByText(evidence.evidenceCode, { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Accepted for reporting", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("AUDITEE SUBMISSION", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 report version link", { exact: true })).toBeVisible();
   await expect(page.getByText(evidence.checksumSha256, { exact: true })).toBeVisible();
   await expect(page.getByTestId("aems-evidence-workspace").getByRole("link", { name: "Working Papers" })).toBeVisible();
 

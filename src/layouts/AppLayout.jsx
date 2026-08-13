@@ -328,7 +328,7 @@ export default function AppLayout() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-color:rgba(255,255,255,.35)_transparent]">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-1 [scrollbar-color:rgba(255,255,255,.35)_transparent]">
           {navigationSections.map((section) => (
             <NavigationSection
               key={section.key}

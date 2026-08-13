@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementOrder;
+use App\Models\AemsAeoDistribution;
 use App\Models\EngagementEvent;
 use App\Services\AemsAccessService;
 use App\Services\AemsAeoService;
@@ -80,9 +81,11 @@ class AemsAeoController extends Controller
         AuditEngagementOrder $order,
     ): JsonResponse {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['SUBMIT', 'REVIEW', 'RETURN', 'RESUBMIT', 'APPROVE', 'ISSUE'])],
+            'action' => ['required', Rule::in(['SUBMIT', 'REVIEW', 'RETURN', 'RESUBMIT', 'APPROVE', 'ISSUE', 'CANCEL', 'VOID', 'SUPERSEDE'])],
             'lockVersion' => ['required', 'integer', 'min:1'],
             'comment' => ['nullable', 'string', 'max:4000'],
+            'signatureMethod' => ['nullable', Rule::in(['IN_APP_ATTESTATION', 'QUALIFIED_E_SIGNATURE', 'MANUAL_TRANSCRIPT'])],
+            'signatureReference' => ['nullable', 'string', 'max:160'],
         ]);
         $updated = $this->orders->transition(
             $request,
@@ -91,6 +94,8 @@ class AemsAeoController extends Controller
             $validated['action'],
             $validated['lockVersion'],
             $validated['comment'] ?? null,
+            $validated['signatureMethod'] ?? 'IN_APP_ATTESTATION',
+            $validated['signatureReference'] ?? null,
         );
 
         return response()->json([
@@ -122,6 +127,68 @@ class AemsAeoController extends Controller
             'message' => 'Formal AEO revision started.',
             'data' => ['order' => $updated],
         ]);
+    }
+
+    public function amend(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditEngagementOrder $order,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'lockVersion' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:5', 'max:4000'],
+        ]);
+        $updated = $this->orders->amend(
+            $request,
+            $engagement,
+            $order,
+            $validated['lockVersion'],
+            $validated['reason'],
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'AEO amendment draft created from the issued version.',
+            'data' => ['order' => $updated],
+        ]);
+    }
+
+    public function distribution(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditEngagementOrder $order,
+    ): JsonResponse {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.aeo.view');
+        return response()->json(['success' => true, 'data' => $this->orders->distributionWorkspace($engagement, $order)]);
+    }
+
+    public function distribute(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditEngagementOrder $order,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'lockVersion' => ['required', 'integer', 'min:1'],
+            'recipientType' => ['required', Rule::in(['USER', 'OFFICE'])],
+            'recipientUserId' => ['nullable', 'integer', 'exists:users,id'],
+            'recipientOfficeId' => ['nullable', 'integer', 'exists:offices,id'],
+            'recipientName' => ['nullable', 'string', 'max:180'],
+            'transmittalMethod' => ['required', Rule::in(['SECURE_PORTAL', 'OFFICIAL_EMAIL', 'PHYSICAL_TRANSMITTAL', 'IN_PERSON'])],
+            'transmittalReference' => ['nullable', 'string', 'max:160'],
+        ]);
+        $distribution = $this->orders->distribute($request, $engagement, $order, $validated);
+        return response()->json(['success' => true, 'message' => 'AEO transmittal recorded.', 'data' => ['distribution' => $distribution]], 201);
+    }
+
+    public function acknowledgeDistribution(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditEngagementOrder $order,
+        AemsAeoDistribution $distribution,
+    ): JsonResponse {
+        $validated = $request->validate(['note' => ['required', 'string', 'min:2', 'max:4000']]);
+        $acknowledgement = $this->orders->acknowledge($request, $engagement, $order, $distribution, $validated['note']);
+        return response()->json(['success' => true, 'message' => 'AEO transmittal acknowledged.', 'data' => ['distribution' => $acknowledgement]]);
     }
 
     public function pdf(

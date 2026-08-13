@@ -10,6 +10,13 @@ use App\Models\AuditReport;
 use App\Models\AuditReportReviewComment;
 use App\Models\AuditReportVersion;
 use App\Models\AuditReportDistributionDecision;
+use App\Models\AuditIssue;
+use App\Models\AuditEvidence;
+use App\Models\WorkingPaperVersion;
+use App\Models\AemsReportAuthorityDecision;
+use App\Models\AemsReportSignatory;
+use App\Models\AemsReportTransmittal;
+use App\Models\AemsReportExport;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\ExitConference;
@@ -122,6 +129,22 @@ class AemsReportService
                 : null,
             'references' => [
                 'findings' => $findings,
+                'issues' => $canViewInternal
+                    ? AuditIssue::query()->where('audit_engagement_id', $engagement->id)
+                        ->whereNull('deleted_at')->whereIn('status', ['DRAFT', 'SUBMITTED', 'VALIDATED', 'DISMISSED', 'CONVERTED_TO_FINDING', 'WITHDRAWN'])
+                        ->orderBy('issue_code')->get(['id', 'issue_code', 'title', 'status', 'disposition'])
+                        ->map(fn (AuditIssue $issue): array => ['id' => $issue->id, 'issueCode' => $issue->issue_code, 'title' => $issue->title, 'status' => $issue->status, 'disposition' => $issue->disposition])->all()
+                    : [],
+                'workingPaperVersions' => $canViewInternal
+                    ? WorkingPaperVersion::query()->whereHas('workingPaper', fn ($query) => $query->where('audit_engagement_id', $engagement->id)->where('status', 'APPROVED'))
+                        ->with('workingPaper')->orderBy('working_paper_id')->orderBy('version_number')->get()
+                        ->map(fn (WorkingPaperVersion $version): array => ['id' => $version->id, 'workingPaperId' => $version->working_paper_id, 'code' => $version->workingPaper?->working_paper_code, 'versionNumber' => $version->version_number, 'checksum' => $version->checksum_sha256])->all()
+                    : [],
+                'evidence' => $canViewInternal
+                    ? AuditEvidence::query()->where('audit_engagement_id', $engagement->id)->where('is_current_revision', true)->whereNull('deleted_at')
+                        ->orderBy('evidence_code')->get(['id', 'evidence_code', 'title', 'outcome', 'document_version_id', 'checksum_sha256'])
+                        ->map(fn (AuditEvidence $evidence): array => ['id' => $evidence->id, 'evidenceCode' => $evidence->evidence_code, 'title' => $evidence->title, 'outcome' => $evidence->outcome, 'documentVersionId' => $evidence->document_version_id, 'checksum' => $evidence->checksum_sha256])->all()
+                    : [],
                 'confidentialityLevels' => $canViewInternal
                     ? $this->masterItems('DOCUMENT_CONFIDENTIALITY')
                     : [],
@@ -328,6 +351,8 @@ class AemsReportService
         $findings = $this->validatedFindings($engagement, $attributes['findingIds'], true);
         $this->ensureConfidentiality($attributes['confidentialityLevelId']);
         $recipients = $this->validateRecipients($engagement, $attributes['recipients']);
+        $attributes['sourceInterimReportVersionId'] ??= $report->current_version_id;
+        $attributes['interimTreatment'] ??= 'RETAINED_WITH_REVIEW';
 
         return DB::transaction(function () use (
             $request,
@@ -468,6 +493,9 @@ class AemsReportService
                     'approved_by' => $request->user()->id,
                     'lock_version' => $report->lock_version + 1,
                 ])->save();
+                if ($report->report_stage === 'FINAL_REPORT') {
+                    $this->ensureDefaultAuthorityDecisions($report, $version, $request->user()->id);
+                }
             } elseif ($action === 'ISSUE') {
                 $this->access->authorizeEngagementAction(
                     $request->user(),
@@ -479,6 +507,8 @@ class AemsReportService
                     $this->invalidTransition($action, $report);
                 }
                 $this->validateFinalApproval($engagement, $report, $version);
+                $this->ensureAuthorityMatrix($report, $version);
+                $this->ensureSignatoryMatrix($report, $version, $request->user()->id);
                 $issuedAt = $issuanceDate ? Carbon::parse($issuanceDate) : now();
                 $version->recipients()->update([
                     'delivery_status' => 'SENT',
@@ -497,6 +527,7 @@ class AemsReportService
                     'issued_by' => $request->user()->id,
                     'lock_version' => $report->lock_version + 1,
                 ])->save();
+                $this->ensureTransmittal($report, $version, $request->user()->id, $issuedAt);
                 $this->transferRecommendations(
                     $request,
                     $engagement,
@@ -812,10 +843,14 @@ class AemsReportService
             'withdrawnAt' => $report->withdrawn_at?->toISOString(),
             'withdrawnBy' => $this->userData($report->withdrawnBy),
             'withdrawalReason' => $report->withdrawal_reason,
+            'administrativelyClosedAt' => $report->administratively_closed_at?->toISOString(),
+            'administrativelyClosedBy' => $this->userData($report->administrativelyClosedBy),
+            'administrativeClosureReason' => $report->administrative_closure_reason,
+            'administrativeClosureReference' => $report->administrative_closure_reference,
             'supersedesReportId' => $report->supersedes_report_id,
             'lockVersion' => $report->lock_version,
             'versions' => $report->versions
-                ->map(fn (AuditReportVersion $version): array => $this->versionData($version))
+                ->map(fn (AuditReportVersion $version): array => $this->versionData($version, $viewer))
                 ->values()
                 ->all(),
             'cmsTransfers' => $report->currentVersion?->findings
@@ -845,8 +880,9 @@ class AemsReportService
     }
 
     /** @return array<string, mixed> */
-    private function versionData(AuditReportVersion $version): array
+    private function versionData(AuditReportVersion $version, ?User $viewer = null): array
     {
+        $internal = $viewer === null || ($viewer->hasPermission('aems.report.view') && ($viewer->hasRole('cias_management') || $viewer->hasRole('agis_user')));
         return [
             'id' => $version->id,
             'versionNumber' => $version->version_number,
@@ -859,6 +895,11 @@ class AemsReportService
             'isLocked' => $version->is_locked,
             'lockedAt' => $version->locked_at?->toISOString(),
             'changeReason' => $version->change_reason,
+            'sourceInterimReportVersionId' => $internal ? $version->source_interim_report_version_id : null,
+            'interimTreatment' => $internal ? $version->interim_treatment : null,
+            'sourceManifest' => $internal ? $version->source_manifest : null,
+            'sourceManifestSha256' => $internal ? $version->source_manifest_sha256 : null,
+            'reproducibilityKey' => $internal ? $version->reproducibility_key : null,
             'createdBy' => $this->userData($version->creator),
             'createdAt' => $version->created_at?->toISOString(),
             'findings' => $version->findings
@@ -877,6 +918,13 @@ class AemsReportService
                     'reviewedBy' => $this->userData($review->reviewer),
                     'reviewedAt' => $review->reviewed_at?->toISOString(),
                 ])->values()->all(),
+            'issues' => $internal ? $version->issues->map(fn (AuditIssue $issue): array => ['id' => $issue->id, 'issueCode' => $issue->issue_code, 'status' => $issue->status, 'treatment' => $issue->pivot->treatment])->values()->all() : [],
+            'workingPaperVersions' => $internal ? $version->workingPaperVersions->map(fn (WorkingPaperVersion $item): array => ['id' => $item->id, 'workingPaperId' => $item->working_paper_id, 'versionNumber' => $item->version_number, 'checksum' => $item->checksum_sha256, 'treatment' => $item->pivot->treatment])->values()->all() : [],
+            'evidence' => $internal ? $version->evidence->map(fn (AuditEvidence $item): array => ['id' => $item->id, 'evidenceCode' => $item->evidence_code, 'outcome' => $item->outcome, 'documentVersionId' => $item->document_version_id, 'checksum' => $item->checksum_sha256, 'treatment' => $item->pivot->treatment])->values()->all() : [],
+            'authorityDecisions' => $internal ? $version->authorityDecisions->map(fn (AemsReportAuthorityDecision $item): array => ['id' => $item->id, 'authorityRole' => $item->authority_role, 'decisionCode' => $item->decision_code, 'comment' => $item->comment, 'decidedBy' => $this->userData($item->decider), 'decidedAt' => $item->decided_at?->toISOString()])->values()->all() : [],
+            'signatories' => $internal ? $version->signatories->map(fn (AemsReportSignatory $item): array => ['id' => $item->id, 'signatoryRole' => $item->signatory_role, 'user' => $this->userData($item->user), 'signatoryName' => $item->signatory_name, 'signatureMethod' => $item->signature_method, 'signatureReference' => $item->signature_reference, 'signedAt' => $item->signed_at?->toISOString()])->values()->all() : [],
+            'transmittals' => $internal ? $version->transmittals->map(fn (AemsReportTransmittal $item): array => ['id' => $item->id, 'reference' => $item->transmittal_reference, 'method' => $item->transmittal_method, 'status' => $item->delivery_status, 'sentAt' => $item->sent_at?->toISOString()])->values()->all() : [],
+            'exports' => $internal ? $version->exports->map(fn (AemsReportExport $item): array => ['id' => $item->id, 'format' => $item->format, 'fileName' => $item->file_name, 'fileChecksumSha256' => $item->file_checksum_sha256, 'sourceManifestSha256' => $item->source_manifest_sha256, 'fileSize' => $item->file_size, 'generatedAt' => $item->generated_at?->toISOString(), 'generatedBy' => $this->userData($item->generator)])->values()->all() : [],
         ];
     }
 
@@ -1000,6 +1048,30 @@ class AemsReportService
                 ],
             ],
         )->all());
+        $source = $this->validatedSources($engagement, $report, $attributes, $stage === 'FINAL_REPORT');
+        if ($source['issues']->isNotEmpty()) {
+            $version->issues()->attach($source['issues']->mapWithKeys(fn (AuditIssue $issue, int $index): array => [
+                $issue->id => ['sequence_number' => $index + 1, 'treatment' => $source['issueTreatments'][$issue->id] ?? null, 'link_reason' => $source['linkReasons'][$issue->id] ?? null, 'linked_by' => $request->user()->id],
+            ])->all());
+        }
+        if ($source['workingPapers']->isNotEmpty()) {
+            $version->workingPaperVersions()->attach($source['workingPapers']->mapWithKeys(fn (WorkingPaperVersion $wp, int $index): array => [
+                $wp->id => ['sequence_number' => $index + 1, 'treatment' => $source['wpTreatments'][$wp->id] ?? null, 'link_reason' => $source['linkReasons'][$wp->id] ?? null, 'linked_by' => $request->user()->id],
+            ])->all());
+        }
+        if ($source['evidence']->isNotEmpty()) {
+            $version->evidence()->attach($source['evidence']->mapWithKeys(fn (AuditEvidence $evidence, int $index): array => [
+                $evidence->id => ['sequence_number' => $index + 1, 'treatment' => $source['evidenceTreatments'][$evidence->id] ?? null, 'link_reason' => $source['linkReasons'][$evidence->id] ?? null, 'linked_by' => $request->user()->id],
+            ])->all());
+        }
+        $manifest = $this->sourceManifest($engagement, $report, $version, $findings, $source);
+        DB::table('audit_report_versions')->where('id', $version->id)->update([
+            'source_interim_report_version_id' => $attributes['sourceInterimReportVersionId'] ?? null,
+            'interim_treatment' => $attributes['interimTreatment'] ?? null,
+            'source_manifest' => $manifest,
+            'source_manifest_sha256' => hash('sha256', json_encode($manifest, JSON_UNESCAPED_SLASHES)),
+            'reproducibility_key' => Str::uuid()->toString(),
+        ]);
         foreach ($recipients as $recipient) {
             $version->recipients()->create($recipient);
         }
@@ -1071,6 +1143,59 @@ class AemsReportService
         }
 
         return collect($findingIds)->map(fn (int $id) => $findings->get($id));
+    }
+
+    /** @return array{issues:Collection,workingPapers:Collection,evidence:Collection,issueTreatments:array,wpTreatments:array,evidenceTreatments:array,linkReasons:array} */
+    private function validatedSources(AuditEngagement $engagement, AuditReport $report, array $attributes, bool $finalOnly): array
+    {
+        $issueIds = array_values(array_unique(array_map('intval', $attributes['issueIds'] ?? [])));
+        $wpIds = array_values(array_unique(array_map('intval', $attributes['workingPaperVersionIds'] ?? [])));
+        $evidenceIds = array_values(array_unique(array_map('intval', $attributes['evidenceIds'] ?? [])));
+        $issues = AuditIssue::query()->where('audit_engagement_id', $engagement->id)->whereIn('id', $issueIds)->get()->keyBy('id');
+        $workingPapers = WorkingPaperVersion::query()->whereIn('id', $wpIds)->with('workingPaper')->get()
+            ->filter(fn (WorkingPaperVersion $version): bool => (int) $version->workingPaper?->audit_engagement_id === (int) $engagement->id
+                && $version->workingPaper?->status === 'APPROVED')->keyBy('id');
+        $evidence = AuditEvidence::query()->where('audit_engagement_id', $engagement->id)
+            ->where('is_current_revision', true)->whereIn('id', $evidenceIds)->with('documentVersion')->get()->keyBy('id');
+        if ($issues->count() !== count($issueIds) || $workingPapers->count() !== count($wpIds) || $evidence->count() !== count($evidenceIds)) {
+            throw ValidationException::withMessages(['sources' => ['Every report source must belong to the engagement and use an approved/current record.']]);
+        }
+        if ($evidence->contains(fn (AuditEvidence $item): bool => ! $item->document_version_id || ! $item->checksum_sha256 || ! $item->documentVersion)) {
+            throw ValidationException::withMessages(['evidenceIds' => ['Every linked Evidence item must pin an available Core Document Version and checksum.']]);
+        }
+        if ($finalOnly && $evidence->contains(fn (AuditEvidence $item): bool => $item->outcome !== 'ACCEPTED')) {
+            throw ValidationException::withMessages(['evidenceIds' => ['Only evidence with an Accepted outcome may be linked to a Final Report.']]);
+        }
+        if ($finalOnly && $issues->contains(fn (AuditIssue $item): bool => ! in_array($item->status, ['VALIDATED', 'DISMISSED', 'CONVERTED_TO_FINDING', 'WITHDRAWN'], true))) {
+            throw ValidationException::withMessages(['issueIds' => ['Only evaluated or terminal Issues may be linked to a Final Report.']]);
+        }
+        $treatments = $attributes['sourceTreatments'] ?? [];
+        if (! empty($attributes['sourceInterimReportVersionId'])) {
+            $sourceVersion = AuditReportVersion::query()->with('report')->find($attributes['sourceInterimReportVersionId']);
+            if (! $sourceVersion || (int) $sourceVersion->report?->audit_engagement_id !== (int) $engagement->id
+                || ! in_array($sourceVersion->report_stage, ['INTERIM_REPORT', 'DRAFT_REPORT'], true)
+                || ! in_array($sourceVersion->report?->status, ['DRAFT', 'APPROVED', 'ISSUED', 'ADMINISTRATIVELY_CLOSED'], true)
+                || ((int) $sourceVersion->audit_report_id !== (int) $report->id && $sourceVersion->report?->status === 'DRAFT')) {
+                throw ValidationException::withMessages(['sourceInterimReportVersionId' => ['Select an approved Interim or Draft Report version from this engagement.']]);
+            }
+        }
+        return [
+            'issues' => $issues->values(), 'workingPapers' => $workingPapers->values(), 'evidence' => $evidence->values(),
+            'issueTreatments' => $treatments['issues'] ?? [], 'wpTreatments' => $treatments['workingPapers'] ?? [],
+            'evidenceTreatments' => $treatments['evidence'] ?? [], 'linkReasons' => $attributes['linkReasons'] ?? [],
+        ];
+    }
+
+    private function sourceManifest(AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, Collection $findings, array $source): array
+    {
+        return [
+            'engagementId' => $engagement->id, 'reportId' => $report->id, 'reportCode' => $report->report_code,
+            'reportVersionId' => $version->id, 'reportVersionNumber' => $version->version_number,
+            'findings' => $findings->map(fn (AuditFinding $finding): array => ['id' => $finding->id, 'revision' => $finding->revision_number ?? null, 'status' => $finding->status, 'finalizedSnapshot' => $finding->finalized_snapshot, 'snapshotHash' => hash('sha256', json_encode($finding->only(['id','title','criteria','condition','cause','effect','conclusion','status','finalized_snapshot']), JSON_UNESCAPED_SLASHES))])->values()->all(),
+            'issues' => $source['issues']->map(fn (AuditIssue $item): array => ['id' => $item->id, 'code' => $item->issue_code, 'status' => $item->status, 'disposition' => $item->disposition])->values()->all(),
+            'workingPapers' => $source['workingPapers']->map(fn (WorkingPaperVersion $item): array => ['id' => $item->id, 'workingPaperId' => $item->working_paper_id, 'version' => $item->version_number, 'documentVersionId' => $item->document_version_id, 'checksum' => $item->checksum_sha256])->values()->all(),
+            'evidence' => $source['evidence']->map(fn (AuditEvidence $item): array => ['id' => $item->id, 'code' => $item->evidence_code, 'outcome' => $item->outcome, 'documentVersionId' => $item->document_version_id, 'checksum' => $item->checksum_sha256])->values()->all(),
+        ];
     }
 
     /** @param list<array<string, mixed>> $recipients
@@ -1151,6 +1276,123 @@ class AemsReportService
                 'report' => ['Final approval requires a completed or formally waived Exit Conference.'],
             ]);
         }
+    }
+
+    private function ensureDefaultAuthorityDecisions(AuditReport $report, AuditReportVersion $version, int $userId): void
+    {
+        foreach ([['IAU_HEAD_RECOMMENDATION', 'RECOMMEND'], ['LCE_APPROVAL', 'APPROVE']] as [$role, $decision]) {
+            if (! $version->authorityDecisions()->where('authority_role', $role)->exists()) {
+                AemsReportAuthorityDecision::query()->create([
+                    'audit_report_id' => $report->id, 'audit_report_version_id' => $version->id,
+                    'authority_role' => $role, 'decision_code' => $decision,
+                    'comment' => 'Recorded from the controlled report approval action.', 'decided_by' => $userId, 'decided_at' => now(),
+                ]);
+            }
+        }
+    }
+
+    private function ensureAuthorityMatrix(AuditReport $report, AuditReportVersion $version): void
+    {
+        $roles = $version->authorityDecisions()->whereIn('authority_role', ['IAU_HEAD_RECOMMENDATION', 'LCE_APPROVAL'])->get();
+        foreach (['IAU_HEAD_RECOMMENDATION' => 'RECOMMEND', 'LCE_APPROVAL' => 'APPROVE'] as $role => $decision) {
+            if (! $roles->contains(fn ($item): bool => $item->authority_role === $role && $item->decision_code === $decision)) {
+                throw ValidationException::withMessages(['authority' => ["{$role} decision is required before issuance."]]);
+            }
+        }
+    }
+
+    private function ensureSignatoryMatrix(AuditReport $report, AuditReportVersion $version, int $issuerId): void
+    {
+        if (! $version->signatories()->where('signatory_role', 'LCE')->exists()) {
+            AemsReportSignatory::query()->create([
+                'audit_report_id' => $report->id, 'audit_report_version_id' => $version->id,
+                'signatory_role' => 'LCE', 'user_id' => $report->approved_by ?: $issuerId,
+                'signature_method' => 'CONTROLLED_WORKFLOW', 'signature_reference' => $report->report_code.'-APPROVAL', 'signed_at' => $report->approved_at ?: now(),
+            ]);
+        }
+        if (! $version->signatories()->where('signatory_role', 'PRESIDING_OFFICER')->exists()) {
+            AemsReportSignatory::query()->create([
+                'audit_report_id' => $report->id, 'audit_report_version_id' => $version->id,
+                'signatory_role' => 'PRESIDING_OFFICER', 'user_id' => $issuerId,
+                'signature_method' => 'CONTROLLED_WORKFLOW', 'signature_reference' => $report->report_code.'-ISSUANCE', 'signed_at' => now(),
+            ]);
+        }
+    }
+
+    private function ensureTransmittal(AuditReport $report, AuditReportVersion $version, int $userId, Carbon $sentAt): void
+    {
+        if (! $version->transmittals()->exists()) {
+            AemsReportTransmittal::query()->create([
+                'audit_report_id' => $report->id, 'audit_report_version_id' => $version->id,
+                'transmittal_reference' => $report->report_code.'-V'.$version->version_number.'-'.Str::upper(Str::random(8)),
+                'transmittal_method' => 'CONTROLLED_SYSTEM', 'delivery_status' => 'SENT',
+                'sent_by' => $userId, 'sent_at' => $sentAt,
+            ]);
+        }
+    }
+
+    public function recordAuthorityDecision(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, array $attributes): AemsReportAuthorityDecision
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.report.authority', $report->prepared_by);
+        $this->ensureReport($engagement, $report); abort_unless((int) $version->audit_report_id === (int) $report->id, 422);
+        abort_unless(! $version->is_locked, 422, 'Authority decisions cannot be added after issuance.');
+        $decision = AemsReportAuthorityDecision::query()->create(['audit_report_id' => $report->id, 'audit_report_version_id' => $version->id, 'authority_role' => $attributes['authorityRole'], 'decision_code' => $attributes['decisionCode'], 'comment' => $attributes['comment'] ?? null, 'decision_reference' => $attributes['decisionReference'] ?? null, 'decided_by' => $request->user()->id, 'decided_at' => now()]);
+        $this->record($request, $engagement, $report, 'aems.report.authority_decision', $report->status, $report->status, null, $decision->authority_role, [$version->document_version_id]);
+        return $decision;
+    }
+
+    public function recordSignatory(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, array $attributes): AemsReportSignatory
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.report.signatory', $report->prepared_by);
+        $this->ensureReport($engagement, $report); abort_unless((int) $version->audit_report_id === (int) $report->id, 422); abort_unless(! $version->is_locked, 422, 'Signatories cannot be changed after issuance.');
+        $signatory = AemsReportSignatory::query()->create(['audit_report_id' => $report->id, 'audit_report_version_id' => $version->id, 'signatory_role' => $attributes['signatoryRole'], 'user_id' => $attributes['userId'] ?? null, 'signatory_name' => $attributes['signatoryName'] ?? null, 'signature_method' => $attributes['signatureMethod'], 'signature_reference' => $attributes['signatureReference'] ?? null, 'signed_at' => $attributes['signedAt'] ?? now()]);
+        $this->record($request, $engagement, $report, 'aems.report.signatory_recorded', $report->status, $report->status, null, $signatory->signatory_role, [$version->document_version_id]);
+        return $signatory;
+    }
+
+    public function createTransmittal(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, array $attributes): AemsReportTransmittal
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.report.transmit', $report->prepared_by); $this->ensureReport($engagement, $report); abort_unless((int) $version->audit_report_id === (int) $report->id && $version->is_locked, 422, 'Only an issued locked version may be transmitted.');
+        $transmittal = AemsReportTransmittal::query()->create(['audit_report_id' => $report->id, 'audit_report_version_id' => $version->id, 'transmittal_reference' => $attributes['transmittalReference'], 'transmittal_method' => $attributes['transmittalMethod'], 'delivery_status' => $attributes['deliveryStatus'] ?? 'SENT', 'note' => $attributes['note'] ?? null, 'sent_by' => $request->user()->id, 'sent_at' => $attributes['sentAt'] ?? now()]);
+        $this->record($request, $engagement, $report, 'aems.report.transmittal_recorded', $report->status, $report->status, null, $transmittal->transmittal_reference, [$version->document_version_id]);
+        return $transmittal;
+    }
+
+    public function administrativeClose(Request $request, AuditEngagement $engagement, AuditReport $report, int $lockVersion, string $reason, ?string $reference): AuditReport
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.report.close_admin', $report->prepared_by);
+        return DB::transaction(function () use ($request, $engagement, $report, $lockVersion, $reason, $reference): AuditReport {
+            $locked = $this->lock($engagement, $report, $lockVersion); abort_unless($locked->status === 'ISSUED', 422, 'Only an issued report can be administratively closed.');
+            $version = $locked->currentVersion()->firstOrFail(); abort_unless($version->is_locked && $version->source_manifest_sha256, 422, 'The issued version must have a source manifest.');
+            abort_unless($version->transmittals()->exists(), 422, 'A report transmittal is required before administrative closure.');
+            AuditReport::query()->whereKey($locked->id)->update(['status' => 'ADMINISTRATIVELY_CLOSED', 'administratively_closed_at' => now(), 'administratively_closed_by' => $request->user()->id, 'administrative_closure_reason' => trim($reason), 'administrative_closure_reference' => $reference ? trim($reference) : null, 'lock_version' => $locked->lock_version + 1]);
+            $fresh = $this->load($locked->fresh()); $this->record($request, $engagement, $fresh, 'aems.report.administratively_closed', 'ISSUED', 'ADMINISTRATIVELY_CLOSED', null, $reason, [$version->document_version_id]); return $fresh;
+        });
+    }
+
+    public function export(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, string $format): AemsReportExport
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.report.export', $report->prepared_by); $this->ensureReport($engagement, $report); abort_unless((int) $version->audit_report_id === (int) $report->id && $version->is_locked, 422, 'Only an issued locked version may be exported.');
+        $this->authorizeConfidentiality($request->user(), $report, $version);
+        $format = strtoupper($format); abort_unless(in_array($format, ['PDF', 'CSV'], true), 422, 'Only PDF and CSV exports are supported.');
+        $manifest = $version->source_manifest ?? []; $bytes = $format === 'PDF' ? Storage::disk('local')->get($version->documentVersion->storage_path) : $this->csvManifest($manifest);
+        $name = $report->report_code.'-v'.$version->version_number.'.'.strtolower($format); $path = 'aems/engagements/'.$engagement->id.'/exports/'.Str::uuid().'.'.strtolower($format); Storage::disk('local')->put($path, $bytes);
+        $export = AemsReportExport::query()->create(['audit_report_id' => $report->id, 'audit_report_version_id' => $version->id, 'format' => $format, 'document_version_id' => $format === 'PDF' ? $version->document_version_id : null, 'source_manifest_sha256' => $version->source_manifest_sha256, 'file_checksum_sha256' => hash('sha256', $bytes), 'file_size' => strlen($bytes), 'file_name' => $name, 'scope_hash' => hash('sha256', $engagement->id.'|'.$request->user()->id), 'generated_by' => $request->user()->id, 'generated_at' => now(), 'storage_path' => $path]);
+        $this->record($request, $engagement, $report, 'aems.report.exported', $report->status, $report->status, null, $format.' export', [$version->document_version_id]);
+        return $export;
+    }
+
+    private function csvManifest(array $manifest): string
+    {
+        $stream = fopen('php://temp', 'r+'); fputcsv($stream, ['record_type', 'record_id', 'code', 'status', 'checksum']);
+        foreach (['findings' => ['findingCode', 'status', null], 'issues' => ['code', 'status', null], 'workingPapers' => ['id', 'version', 'checksum'], 'evidence' => ['code', 'outcome', 'checksum']] as $type => [$code, $status, $checksum]) foreach ($manifest[$type] ?? [] as $row) fputcsv($stream, [$this->csvCell($type), $this->csvCell($row['id'] ?? ''), $this->csvCell($row[$code] ?? ''), $this->csvCell($row[$status] ?? ''), $this->csvCell($checksum ? ($row[$checksum] ?? '') : '')]);
+        rewind($stream); return stream_get_contents($stream) ?: '';
+    }
+
+    private function csvCell(mixed $value): string
+    {
+        $value = (string) $value;
+        return preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
     }
 
     /** @return list<array<string, mixed>> */
@@ -1341,6 +1583,14 @@ class AemsReportService
             'versions.recipients.office',
             'versions.reviewComments.reviewer',
             'distributionDecisions.decider',
+            'administrativelyClosedBy',
+            'versions.issues',
+            'versions.workingPaperVersions',
+            'versions.evidence',
+            'versions.authorityDecisions.decider',
+            'versions.signatories.user',
+            'versions.transmittals.sender',
+            'versions.exports.generator',
         ];
     }
 

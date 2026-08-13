@@ -32,6 +32,8 @@ const statusLabels = {
   APPROVED: "Approved",
   ISSUED: "Issued",
   SUPERSEDED: "Superseded",
+  CANCELLED: "Cancelled",
+  VOIDED: "Voided",
 };
 
 const statusTones = {
@@ -42,6 +44,8 @@ const statusTones = {
   APPROVED: "success",
   ISSUED: "active",
   SUPERSEDED: "inactive",
+  CANCELLED: "danger",
+  VOIDED: "danger",
 };
 
 const emptyForm = {
@@ -106,12 +110,27 @@ export default function AemsAeoPage() {
   const [actionOpen, setActionOpen] = useState(false);
   const [workflowAction, setWorkflowAction] = useState("");
   const [comment, setComment] = useState("");
+  const [distributionOpen, setDistributionOpen] = useState(false);
+  const [distributionForm, setDistributionForm] = useState({
+    recipientType: "OFFICE",
+    recipientUserId: "",
+    recipientOfficeId: "",
+    recipientName: "",
+    transmittalMethod: "SECURE_PORTAL",
+    transmittalReference: "",
+  });
 
   const canPrepare = hasPermission(user, "aems.aeo.prepare");
   const canReview = hasPermission(user, "aems.aeo.review");
   const canApprove = hasPermission(user, "aems.aeo.approve");
   const canIssue = hasPermission(user, "aems.aeo.issue");
   const canRevise = hasPermission(user, "aems.aeo.revise");
+  const canAmend = hasPermission(user, "aems.aeo.amend");
+  const canDistribute = hasPermission(user, "aems.aeo.distribute");
+  const canAcknowledge = hasPermission(user, "aems.aeo.acknowledge");
+  const canCancel = hasPermission(user, "aems.aeo.cancel");
+  const canVoid = hasPermission(user, "aems.aeo.void");
+  const canSupersede = hasPermission(user, "aems.aeo.supersede");
 
   const loadEngagements = useCallback(async () => {
     setLoading(true);
@@ -198,8 +217,18 @@ export default function AemsAeoPage() {
     if (["APPROVED", "ISSUED"].includes(order.status) && canRevise) {
       items.push(["REVISE", "Create revision", RotateCcw, "warning"]);
     }
+    if (["APPROVED", "ISSUED"].includes(order.status) && canAmend) {
+      items.push(["AMEND", "Amend AEO", FilePenLine, "warning"]);
+    }
+    if (!['CANCELLED', 'VOIDED', 'SUPERSEDED'].includes(order.status)) {
+      if (canCancel) items.push(["CANCEL", "Cancel AEO", Undo2, "warning"]);
+      if (canVoid) items.push(["VOID", "Void AEO", Undo2, "warning"]);
+    }
+    if (order.status === "ISSUED" && canSupersede) {
+      items.push(["SUPERSEDE", "Supersede AEO", RotateCcw, "warning"]);
+    }
     return items;
-  }, [canApprove, canIssue, canPrepare, canReview, canRevise, order]);
+  }, [canAmend, canApprove, canCancel, canIssue, canPrepare, canReview, canRevise, canSupersede, canVoid, order]);
 
   function openForm() {
     setErrors({});
@@ -270,6 +299,11 @@ export default function AemsAeoPage() {
           lockVersion: order.lockVersion,
           reason: comment,
         });
+      } else if (workflowAction === "AMEND") {
+        await aemsAeoApi.amend(selectedId, order.id, {
+          lockVersion: order.lockVersion,
+          reason: comment,
+        });
       } else {
         await aemsAeoApi.transition(selectedId, order.id, {
           action: workflowAction,
@@ -285,6 +319,37 @@ export default function AemsAeoPage() {
       toast.error(requestError.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function distribute() {
+    setSaving(true);
+    try {
+      await aemsAeoApi.distribute(selectedId, order.id, {
+        ...distributionForm,
+        lockVersion: order.lockVersion,
+        recipientUserId: distributionForm.recipientUserId || null,
+        recipientOfficeId: distributionForm.recipientOfficeId || null,
+      });
+      toast.success("AEO transmittal recorded.");
+      setDistributionOpen(false);
+      await loadWorkspace();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function acknowledge(distribution) {
+    const note = window.prompt("Acknowledgement note", "AEO received and recorded.");
+    if (!note) return;
+    try {
+      await aemsAeoApi.acknowledgeDistribution(selectedId, order.id, distribution.id, { note });
+      toast.success("AEO transmittal acknowledged.");
+      await loadWorkspace();
+    } catch (requestError) {
+      toast.error(requestError.message);
     }
   }
 
@@ -581,6 +646,40 @@ export default function AemsAeoPage() {
           </div>
 
           <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
+              <div>
+                <h2 className="font-bold text-slate-800">Signatory matrix and transmittal</h2>
+                <p className="mt-1 text-xs text-slate-500">Each required authority is recorded against the immutable AEO version.</p>
+              </div>
+              {order.status === "ISSUED" && canDistribute && (
+                <button className="inline-flex h-9 items-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white" onClick={() => setDistributionOpen(true)} type="button">
+                  <Send size={14} /> Record transmittal
+                </button>
+              )}
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-2 sm:p-5">
+              <div className="space-y-2">
+                {(order.signatories ?? []).map((entry) => (
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" key={entry.id ?? entry.role}>
+                    <div><strong className="text-slate-700">{roleLabel(entry.role)}</strong><span className="ml-2 text-slate-500">{entry.user?.name || "Pending authority"}</span></div>
+                    <StatusBadge tone={entry.status === "SIGNED" ? "active" : "warning"}>{entry.status}</StatusBadge>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {(order.distributions ?? []).map((item) => (
+                  <div className="rounded-lg border border-slate-200 px-3 py-2 text-xs" key={item.id}>
+                    <div className="flex items-center justify-between gap-2"><strong className="text-slate-700">{item.recipientName || item.office?.name || item.recipientUser?.name || "Recipient"}</strong><StatusBadge tone={item.status === "ACKNOWLEDGED" ? "active" : "warning"}>{item.status}</StatusBadge></div>
+                    <p className="mt-1 text-slate-500">{item.transmittalMethod} · {item.transmittalReference || "No reference"}</p>
+                    {canAcknowledge && item.status !== "ACKNOWLEDGED" && <button className="mt-2 text-xs font-bold text-sky-700 hover:underline" onClick={() => acknowledge(item)} type="button">Acknowledge receipt</button>}
+                  </div>
+                ))}
+                {!order.distributions?.length && <p className="text-xs text-slate-500">No transmittal recorded for this version.</p>}
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
               <h2 className="font-bold text-slate-800">Workflow history</h2>
               <p className="mt-1 text-xs text-slate-500">
@@ -741,6 +840,16 @@ export default function AemsAeoPage() {
               />
             </label>
           )}
+        </div>
+      </Modal>
+
+      <Modal open={distributionOpen} onClose={() => !saving && setDistributionOpen(false)} title="Record AEO transmittal" description="Record the protected delivery method and reference for the issued AEO." footer={<><button className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold" onClick={() => setDistributionOpen(false)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white" disabled={saving} onClick={distribute} type="button">{saving ? "Saving…" : "Record transmittal"}</button></>}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-700">Recipient type<select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.recipientType} onChange={(event) => setDistributionForm((current) => ({ ...current, recipientType: event.target.value }))}><option value="OFFICE">Office</option><option value="USER">User</option></select></label>
+          <label className="text-sm font-semibold text-slate-700">Recipient name<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.recipientName} onChange={(event) => setDistributionForm((current) => ({ ...current, recipientName: event.target.value }))} /></label>
+          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Recipient ID<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" placeholder={distributionForm.recipientType === "OFFICE" ? "Office ID" : "User ID"} value={distributionForm.recipientType === "OFFICE" ? distributionForm.recipientOfficeId : distributionForm.recipientUserId} onChange={(event) => setDistributionForm((current) => ({ ...current, ...(current.recipientType === "OFFICE" ? { recipientOfficeId: event.target.value } : { recipientUserId: event.target.value }) }))} /></label>
+          <label className="text-sm font-semibold text-slate-700">Transmittal method<select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.transmittalMethod} onChange={(event) => setDistributionForm((current) => ({ ...current, transmittalMethod: event.target.value }))}><option value="SECURE_PORTAL">Secure portal</option><option value="OFFICIAL_EMAIL">Official email</option><option value="PHYSICAL_TRANSMITTAL">Physical transmittal</option><option value="IN_PERSON">In person</option></select></label>
+          <label className="text-sm font-semibold text-slate-700">Reference<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.transmittalReference} onChange={(event) => setDistributionForm((current) => ({ ...current, transmittalReference: event.target.value }))} /></label>
         </div>
       </Modal>
 

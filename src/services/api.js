@@ -1675,6 +1675,33 @@ export const aemsAeoApi = {
     );
     return data?.order ?? null;
   },
+  async amend(engagementId, orderId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}/amend`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.order ?? null;
+  },
+  async distribution(engagementId, orderId) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}/distribution`,
+    );
+    return data?.data ?? data ?? null;
+  },
+  async distribute(engagementId, orderId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}/distribution`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.distribution ?? null;
+  },
+  async acknowledgeDistribution(engagementId, orderId, distributionId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/aeo/${orderId}/distribution/${distributionId}/acknowledge`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.distribution ?? null;
+  },
   async downloadPdf(engagementId, order) {
     const response = await fetch(
       `/api/aems/engagements/${engagementId}/aeo/${order.id}/pdf`,
@@ -1959,6 +1986,13 @@ export const aemsEvidenceApi = {
     link.remove();
     URL.revokeObjectURL(url);
   },
+  async linkReport(engagementId, evidenceId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/evidence/${evidenceId}/report-links`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.evidence ?? null;
+  },
 };
 
 export const aemsEvidenceRequestApi = {
@@ -2037,6 +2071,26 @@ export const aemsFindingApi = {
       `/api/aems/engagements/${engagementId}/issues/${issueId}/transition`,
       { method: "POST", body: payload, csrf: true },
     );
+  },
+  async createTransmittal(engagementId, findingId, payload) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/transmittals`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.transmittal ?? null;
+  },
+  async transitionTransmittalRecipient(
+    engagementId,
+    findingId,
+    transmittalId,
+    recipientId,
+    payload,
+  ) {
+    const data = await request(
+      `/api/aems/engagements/${engagementId}/findings/${findingId}/transmittals/${transmittalId}/recipients/${recipientId}/transition`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.recipient ?? null;
   },
   async createFinding(engagementId, payload) {
     const data = await request(
@@ -2356,6 +2410,38 @@ export const aemsWorkQueueApi = {
   async show(engagementId) {
     return request(`/api/aems/engagements/${engagementId}/work-queue`);
   },
+  async createTask(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/tasks`, { method: "POST", body: payload, csrf: true });
+    return data?.task ?? null;
+  },
+  async updateTask(engagementId, taskId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/tasks/${taskId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.task ?? null;
+  },
+  async transitionTask(engagementId, taskId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/tasks/${taskId}/transition`, { method: "POST", body: payload, csrf: true });
+    return data?.task ?? null;
+  },
+  async createReviewNote(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/review-notes`, { method: "POST", body: payload, csrf: true });
+    return data?.reviewNote ?? null;
+  },
+  async updateReviewNote(engagementId, noteId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/review-notes/${noteId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.reviewNote ?? null;
+  },
+  async transitionReviewNote(engagementId, noteId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/review-notes/${noteId}/transition`, { method: "POST", body: payload, csrf: true });
+    return data?.reviewNote ?? null;
+  },
+  async recordDueProcess(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/due-process`, { method: "POST", body: payload, csrf: true });
+    return data?.dueProcess ?? null;
+  },
+  async reviewEscalationCandidate(engagementId, candidateId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/escalation-candidates/${candidateId}/review`, { method: "POST", body: payload, csrf: true });
+    return data?.candidate ?? null;
+  },
 };
 
 export const aemsCompletionAssessmentApi = {
@@ -2466,6 +2552,41 @@ export const aemsClosureApi = {
       `/api/aems/engagements/${engagementId}/retention/${retentionId}/approve`,
       { method: "POST", body: payload, csrf: true },
     );
+    return data?.retention ?? null;
+  },
+  async records(engagementId, query = "") {
+    const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
+    return request(`/api/aems/engagements/${engagementId}/records${suffix}`);
+  },
+  async calendar(engagementId) {
+    return request(`/api/aems/engagements/${engagementId}/calendar`);
+  },
+  async createMilestone(engagementId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/calendar/milestones`, { method: "POST", body: payload, csrf: true });
+    return data?.milestone ?? null;
+  },
+  async updateMilestone(engagementId, milestoneId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/calendar/milestones/${milestoneId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.milestone ?? null;
+  },
+  async transitionMilestone(engagementId, milestoneId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/calendar/milestones/${milestoneId}/transition`, { method: "POST", body: payload, csrf: true });
+    return data?.milestone ?? null;
+  },
+  async archiveRetention(engagementId, retentionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/retention/${retentionId}/archive`, { method: "POST", body: payload, csrf: true });
+    return data?.retention ?? null;
+  },
+  async releaseLegalHold(engagementId, retentionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/retention/${retentionId}/legal-hold-release`, { method: "POST", body: payload, csrf: true });
+    return data?.retention ?? null;
+  },
+  async reviewDestruction(engagementId, retentionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/retention/${retentionId}/destruction-review`, { method: "POST", body: payload, csrf: true });
+    return data ?? null;
+  },
+  async recordDisposition(engagementId, retentionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/retention/${retentionId}/disposition`, { method: "POST", body: payload, csrf: true });
     return data?.retention ?? null;
   },
   async addLesson(engagementId, payload) {
@@ -2610,6 +2731,27 @@ export const aemsReportApi = {
       csrf: true,
     });
     return data?.report ?? null;
+  },
+  async authorityDecision(engagementId, reportId, versionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/reports/${reportId}/versions/${versionId}/authority-decisions`, { method: "POST", body: payload, csrf: true });
+    return data?.authorityDecision ?? null;
+  },
+  async signatory(engagementId, reportId, versionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/reports/${reportId}/versions/${versionId}/signatories`, { method: "POST", body: payload, csrf: true });
+    return data?.signatory ?? null;
+  },
+  async transmittal(engagementId, reportId, versionId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/reports/${reportId}/versions/${versionId}/transmittals`, { method: "POST", body: payload, csrf: true });
+    return data?.transmittal ?? null;
+  },
+  async administrativeClose(engagementId, reportId, payload) {
+    const data = await request(`/api/aems/engagements/${engagementId}/reports/${reportId}/administrative-close`, { method: "POST", body: payload, csrf: true });
+    return data?.report ?? null;
+  },
+  async export(engagementId, reportId, version, format) {
+    const response = await fetch(`/api/aems/engagements/${engagementId}/reports/${reportId}/versions/${version.id}/exports/${format}`, { credentials: "include", headers: { Accept: format === "PDF" ? "application/pdf" : "text/csv", "X-Requested-With": "XMLHttpRequest" } });
+    if (!response.ok) { const payload = await parseResponse(response); throw errorFromResponse(payload, response.status); }
+    const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = `${reportId}-v${version.versionNumber}.${format.toLowerCase()}`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
   },
   async download(engagementId, reportId, version) {
     const response = await fetch(

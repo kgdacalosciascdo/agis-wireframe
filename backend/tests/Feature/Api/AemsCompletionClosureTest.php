@@ -203,6 +203,52 @@ class AemsCompletionClosureTest extends TestCase
         ]);
     }
 
+    public function test_records_calendar_and_disposition_controls_are_scope_aware_and_auditable(): void
+    {
+        [$management, $auditor, $engagement] = $this->closureReadyEngagement();
+        Sanctum::actingAs($auditor);
+        $this->putJson("/api/aems/engagements/{$engagement->id}/retention", [
+            'retentionClassificationCode' => 'AUDIT_ENGAGEMENT_RECORD',
+            'retentionTriggerCode' => 'ENGAGEMENT_CLOSED',
+            'retentionStartDate' => today()->toDateString(),
+            'retentionPeriodValue' => 10,
+            'retentionPeriodUnit' => 'YEARS',
+            'custodianUserId' => $auditor->id,
+            'custodianOfficeId' => $auditor->office_id,
+        ])->assertOk();
+        $retention = $engagement->retentionRecord()->firstOrFail();
+        Sanctum::actingAs($management);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/retention/{$retention->id}/approve", ['lockVersion' => $retention->lock_version])->assertOk();
+
+        Sanctum::actingAs($auditor);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/calendar/milestones", [
+            'milestoneCode' => 'FINAL_RECORDS_REVIEW', 'title' => 'Final records review', 'dueDate' => today()->addDay()->toDateString(),
+        ])->assertCreated();
+        $this->getJson("/api/aems/engagements/{$engagement->id}/calendar")
+            ->assertOk()->assertJsonPath('data.summary.total', 1);
+        $this->getJson("/api/aems/engagements/{$engagement->id}/records?q=closure")
+            ->assertOk()->assertJsonStructure(['data' => ['items', 'blockers', 'retention']]);
+
+        $engagement->forceFill(['status' => 'CLOSED'])->save();
+        $this->postJson("/api/aems/engagements/{$engagement->id}/retention/{$retention->id}/archive", ['reason' => 'Transfer to protected archive'])->assertForbidden();
+        Sanctum::actingAs($management);
+        $review = $this->postJson("/api/aems/engagements/{$engagement->id}/retention/{$retention->id}/destruction-review", ['reason' => 'Annual eligibility review'])->assertOk()->json('data');
+        $this->assertFalse($review['eligible']);
+        $this->assertDatabaseHas('aems_record_disposition_actions', ['action_code' => 'DESTRUCTION_REVIEW', 'audit_engagement_id' => $engagement->id]);
+
+        DB::table('engagement_retention_records')->where('id', $retention->id)->update([
+            'legal_hold_flag' => true,
+            'legal_hold_reference' => 'HOLD-001',
+        ]);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/retention/{$retention->id}/legal-hold-release", [
+            'reason' => 'Court release received', 'reference' => 'RELEASE-001',
+        ])->assertOk();
+        $this->postJson("/api/aems/engagements/{$engagement->id}/retention/{$retention->id}/archive", [
+            'reason' => 'Move to protected archive',
+        ])->assertOk();
+        $this->assertDatabaseHas('engagement_retention_records', ['id' => $retention->id, 'archive_status' => 'ARCHIVED', 'legal_hold_flag' => false]);
+    }
+
     public function test_authoritative_blockers_separation_retention_and_reopening_controls(): void
     {
         [$management, $auditor, $engagement] = $this->closureReadyEngagement();

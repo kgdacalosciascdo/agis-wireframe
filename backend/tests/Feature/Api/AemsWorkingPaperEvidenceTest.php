@@ -195,11 +195,13 @@ class AemsWorkingPaperEvidenceTest extends TestCase
             'id' => $lockedEvidence['id'],
             'is_current_revision' => false,
             'status' => 'LOCKED',
+            'outcome' => 'SUPERSEDED',
         ]);
         $this->assertDatabaseHas('audit_evidence', [
             'id' => $replacement['id'],
             'is_current_revision' => true,
             'supersedes_evidence_id' => $lockedEvidence['id'],
+            'outcome' => 'REGISTERED',
         ]);
         $this->assertNotSame(
             $lockedEvidence['documentVersionId'],

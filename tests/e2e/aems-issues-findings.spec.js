@@ -58,6 +58,7 @@ const workspace = {
       workingPaperVersions: [],
       evidence: [],
       fieldworkRecords: [],
+      procedures: [{ id: 81, procedureCode: "PROC-9901", objective: "Review approval evidence", auditCriteria: "Approved policy requires documented review.", criteriaReference: "Approved policy requires documented review.", traceabilityNote: "Criteria linked from approved audit procedure PROC-9901." }],
       recommendations: [],
       managementResponses: [],
       revisions: [],
@@ -69,6 +70,7 @@ const workspace = {
   riskRatings: [],
   workingPaperVersions: [],
   evidence: [],
+  procedures: [{ id: 81, procedureCode: "PROC-9901", objective: "Review approval evidence", auditCriteria: "Approved policy requires documented review.", status: "COMPLETED" }],
   agreementPositions: ["AGREE", "PARTIALLY_AGREE", "DISAGREE"],
   rejoinderDispositions: ["ACCEPT", "PARTIALLY_ACCEPT", "REJECT", "REQUEST_CLARIFICATION"],
 };
@@ -105,6 +107,7 @@ test("Findings page shows immutable detail and revision history contract", async
   await expect(page.getByText("Immutable snapshot:", { exact: false })).toBeVisible();
   await expect(page.getByText("Criteria", { exact: true })).toBeVisible();
   await expect(page.getByText("Fieldwork traceability", { exact: true })).toBeVisible();
+  await expect(page.getByText("Procedure and criteria traceability", { exact: true })).toBeVisible();
   await expect(page.getByText("Immutable revision history", { exact: true })).toBeVisible();
   await expect(page.getByText("Locked after finalized", { exact: false })).toBeVisible();
 });

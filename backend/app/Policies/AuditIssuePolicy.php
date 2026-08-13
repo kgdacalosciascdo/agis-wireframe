@@ -86,6 +86,11 @@ class AuditIssuePolicy
         return $this->review($user, $issue, 'aems.issue.close_without_finding');
     }
 
+    public function withdraw(User $user, AuditIssue $issue): bool
+    {
+        return $this->review($user, $issue, 'aems.issue.withdraw');
+    }
+
     private function review(User $user, AuditIssue $issue, string $permission): bool
     {
         return $this->allows(

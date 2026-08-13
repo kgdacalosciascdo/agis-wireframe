@@ -85,6 +85,8 @@ class AemsFindingRequest extends FormRequest
             'fieldworkRecordIds.*' => ['integer', 'distinct'],
             'fieldworkRecordVersionIds' => ['sometimes', 'array', 'max:100'],
             'fieldworkRecordVersionIds.*' => ['integer', 'distinct'],
+            'procedureIds' => ['sometimes', 'array', 'max:100'],
+            'procedureIds.*' => ['integer', 'distinct'],
             'lockVersion' => [
                 $this->route('finding') ? 'required' : 'nullable',
                 'integer',

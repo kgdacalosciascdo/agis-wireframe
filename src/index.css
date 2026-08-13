@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+/* Keep the standalone AEMS operational surfaces aligned with the rest of the
+ * application shell. Their content is rendered directly into the Outlet, so
+ * the shell cannot provide the page gutter without also changing every other
+ * module. */
+[data-testid="aems-operational-queues"],
+[data-testid="aems-calendar-page"],
+[data-testid="aems-registers-page"],
+[data-testid="aems-records-closure-page"] {
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  [data-testid="aems-operational-queues"],
+  [data-testid="aems-calendar-page"],
+  [data-testid="aems-registers-page"],
+  [data-testid="aems-records-closure-page"] {
+    padding: 1.25rem;
+  }
+}

@@ -30,6 +30,7 @@ class AemsEvidenceAssessmentRequest extends FormRequest
             'exceptionRequired' => ['sometimes', 'boolean'],
             'exceptionReason' => ['nullable', 'string', 'max:10000'],
             'changeReason' => ['nullable', 'string', 'min:5', 'max:4000'],
+            'evidenceOutcome' => ['nullable', 'string', Rule::in(['ACCEPTED', 'LIMITED', 'ADDITIONAL_REQUIRED', 'REJECTED', 'DUPLICATE'])],
         ];
     }
 }

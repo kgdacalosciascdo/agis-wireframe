@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\AuditEngagement;
 use App\Models\AuditEvidence;
+use App\Models\AuditReportVersion;
+use App\Models\AemsPlanningObjective;
+use App\Models\AemsRiskMatrixItem;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\MasterList;
@@ -27,6 +30,7 @@ class AemsEvidenceService
         private readonly AemsSupport $support,
         private readonly DocumentAccessService $documentAccess,
         private readonly RuntimeConfiguration $runtime,
+        private readonly AemsNotificationService $notifications,
     ) {}
 
     /** @return array<string, mixed> */
@@ -43,6 +47,9 @@ class AemsEvidenceService
                 'workingPapers:id,working_paper_code,title,status',
                 'workingPaperVersions.workingPaper:id,working_paper_code,title,status',
                 'findings:id,finding_code,title,status',
+                'planningObjective:id,objective_code,objective_statement',
+                'riskMatrixItem:id,risk_code,risk_statement',
+                'reportVersions:id,audit_report_id,version_number,report_stage',
                 'supersedes:id,evidence_code,version_number',
             ])
             ->orderBy('evidence_code')
@@ -80,6 +87,7 @@ class AemsEvidenceService
             $engagement,
             $attributes['workingPaperIds'] ?? [],
         );
+        $this->assertTraceability($engagement, $attributes);
         $stored = $this->storeFile($file, $engagement);
 
         try {
@@ -150,6 +158,7 @@ class AemsEvidenceService
                     'document_version_id' => $documentVersion->id,
                     'checksum_sha256' => $stored['checksum_sha256'],
                     'status' => 'DRAFT',
+                    'outcome' => 'REGISTERED',
                     'assessment_required' => true,
                     'uploaded_by' => $request->user()->id,
                     'lock_version' => 1,
@@ -216,6 +225,7 @@ class AemsEvidenceService
             $engagement,
             $attributes['workingPaperIds'] ?? [],
         );
+        $this->assertTraceability($engagement, $attributes);
         $stored = $this->storeFile($file, $engagement);
 
         try {
@@ -275,7 +285,9 @@ class AemsEvidenceService
                 // index before the replacement is inserted.
                 DB::statement(
                     'UPDATE audit_evidence
-                     SET is_current_revision = FALSE, lock_version = lock_version + 1
+                     SET is_current_revision = FALSE,
+                         outcome = CASE WHEN outcome IN (\'VOIDED\', \'DUPLICATE\') THEN outcome ELSE \'SUPERSEDED\' END,
+                         lock_version = lock_version + 1
                      WHERE id = ?',
                     [$locked->id],
                 );
@@ -297,6 +309,7 @@ class AemsEvidenceService
                     'document_version_id' => $documentVersion->id,
                     'checksum_sha256' => $stored['checksum_sha256'],
                     'status' => 'DRAFT',
+                    'outcome' => 'REGISTERED',
                     'assessment_required' => true,
                     'uploaded_by' => $request->user()->id,
                     'lock_version' => 1,
@@ -365,6 +378,7 @@ class AemsEvidenceService
     ): AuditEvidence {
         $permission = match ($action) {
             'VERIFY' => 'aems.evidence.verify',
+            'ACCEPT', 'LIMIT', 'ADDITIONAL_REQUIRED', 'REJECT', 'DUPLICATE' => 'aems.evidence.outcome',
             'VOID' => 'aems.evidence.void',
             default => throw ValidationException::withMessages([
                 'action' => ['Unsupported evidence action.'],
@@ -405,11 +419,31 @@ class AemsEvidenceService
                 }
                 $locked->update([
                     'status' => 'VERIFIED',
+                    'outcome' => 'FOR_ASSESSMENT',
                     'verified_by' => $request->user()->id,
                     'verified_at' => now(),
                     'lock_version' => $locked->lock_version + 1,
                 ]);
                 $to = 'VERIFIED';
+            } elseif ($action !== 'VOID') {
+                if (! in_array($from, ['VERIFIED', 'LOCKED'], true)) {
+                    throw ValidationException::withMessages(['action' => ['Only verified or locked evidence can receive a professional outcome.']]);
+                }
+                if ($action === 'ACCEPT') {
+                    $this->assertAcceptableOutcome($locked);
+                }
+                if ($action !== 'ACCEPT' && mb_strlen(trim((string) $reason)) < 5) {
+                    throw ValidationException::withMessages(['reason' => ['A reason is required for a non-accepted evidence outcome.']]);
+                }
+                $outcome = match ($action) {
+                    'ACCEPT' => 'ACCEPTED',
+                    'LIMIT' => 'LIMITED',
+                    'ADDITIONAL_REQUIRED' => 'ADDITIONAL_REQUIRED',
+                    'REJECT' => 'REJECTED',
+                    'DUPLICATE' => 'DUPLICATE',
+                };
+                $locked->update(['outcome' => $outcome, 'lock_version' => $locked->lock_version + 1]);
+                $to = $from;
             } else {
                 if (! in_array($from, ['DRAFT', 'VERIFIED'], true)) {
                     throw ValidationException::withMessages([
@@ -423,6 +457,7 @@ class AemsEvidenceService
                 }
                 $locked->update([
                     'status' => 'VOIDED',
+                    'outcome' => 'VOIDED',
                     'voided_by' => $request->user()->id,
                     'voided_at' => now(),
                     'void_reason' => $reason,
@@ -455,6 +490,9 @@ class AemsEvidenceService
                 ['status' => $to],
                 ['evidenceId' => $locked->id, 'reason' => $reason],
             );
+            if ($action !== 'VERIFY') {
+                $this->notifications->evidenceOutcomeRecorded($request, $engagement, $locked, $locked->outcome);
+            }
 
             return $locked;
         });
@@ -486,6 +524,24 @@ class AemsEvidenceService
         return $version;
     }
 
+    public function linkReport(Request $request, AuditEngagement $engagement, AuditEvidence $evidence, int $reportVersionId, ?string $reason, int $sequence = 0): AuditEvidence
+    {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.evidence.link_report', $evidence->uploaded_by);
+        $record = DB::transaction(function () use ($request, $engagement, $evidence, $reportVersionId, $reason, $sequence): AuditEvidence {
+            $locked = $this->lockEvidence($engagement, $evidence, (int) $evidence->lock_version);
+            if (! $locked->is_current_revision || ! in_array($locked->outcome, ['ACCEPTED', 'LIMITED'], true)) {
+                throw ValidationException::withMessages(['evidence' => ['Only current evidence with an explicit accepted or authorized limited outcome can be linked to a report.']]);
+            }
+            $report = AuditReportVersion::query()->whereKey($reportVersionId)->whereHas('report', fn ($query) => $query->where('audit_engagement_id', $engagement->id))->first();
+            if (! $report) throw ValidationException::withMessages(['reportVersionId' => ['The report version does not belong to this engagement.']]);
+            if ($report->is_locked) throw ValidationException::withMessages(['reportVersionId' => ['Issued or locked report versions cannot have links changed.']]);
+            $locked->reportVersions()->syncWithoutDetaching([$report->id => ['sequence_number' => $sequence, 'link_reason' => $reason, 'linked_by' => $request->user()->id]]);
+            $this->support->audit($request, 'aems.evidence.report_linked', $engagement, null, ['evidenceId' => $locked->id, 'reportVersionId' => $report->id], ['reason' => $reason]);
+            return $locked;
+        });
+        return $this->load($record);
+    }
+
     /** @return array<string, mixed> */
     public function data(AuditEvidence $evidence): array
     {
@@ -501,6 +557,7 @@ class AemsEvidenceService
             'evidenceCode' => $evidence->evidence_code,
             'title' => $evidence->title,
             'status' => $evidence->status,
+            'outcome' => $evidence->outcome,
             'evidenceCategoryId' => $evidence->evidence_category_id,
             'evidenceCategory' => $evidence->category?->only(['id', 'code', 'label']),
             'evidenceSourceTypeId' => $evidence->evidence_source_type_id,
@@ -509,6 +566,13 @@ class AemsEvidenceService
             'dateObtained' => $evidence->date_obtained?->toDateString(),
             'custodianName' => $evidence->custodian_name,
             'custodianOfficeId' => $evidence->custodian_office_id,
+            'acquisitionMethod' => $evidence->acquisition_method,
+            'acquisitionForm' => $evidence->acquisition_form,
+            'planningObjectiveId' => $evidence->planning_objective_id,
+            'planningObjective' => $evidence->planningObjective?->only(['id', 'objective_code', 'objective_statement']),
+            'riskMatrixItemId' => $evidence->risk_matrix_item_id,
+            'riskMatrixItem' => $evidence->riskMatrixItem?->only(['id', 'risk_code', 'risk_statement']),
+            'controlReference' => $evidence->control_reference,
             'confidentialityLevelId' => $evidence->confidentiality_level_id,
             'confidentialityLevel' => $evidence->confidentialityLevel?->only(['id', 'code', 'label']),
             'documentVersionId' => $evidence->document_version_id,
@@ -535,6 +599,7 @@ class AemsEvidenceService
                 'title' => $finding->title,
                 'status' => $finding->status,
             ])->values(),
+            'reportVersions' => $evidence->reportVersions->map(fn ($report): array => ['id' => $report->id, 'reportId' => $report->audit_report_id, 'versionNumber' => $report->version_number, 'stage' => $report->report_stage])->values(),
             'createdAt' => $evidence->created_at?->toIso8601String(),
         ];
     }
@@ -550,6 +615,9 @@ class AemsEvidenceService
             'verifier:id,employee_id,name,initials',
             'workingPapers:id,working_paper_code,title,status',
             'findings:id,finding_code,title,status',
+            'planningObjective:id,objective_code,objective_statement',
+            'riskMatrixItem:id,risk_code,risk_statement',
+            'reportVersions:id,audit_report_id,version_number,report_stage',
             'supersedes:id,evidence_code,version_number',
         ]);
     }
@@ -568,6 +636,11 @@ class AemsEvidenceService
             'custodian_name' => $attributes['custodianName'] ?? null,
             'custodian_office_id' => $attributes['custodianOfficeId'] ?? null,
             'confidentiality_level_id' => $attributes['confidentialityLevelId'],
+            'acquisition_method' => $attributes['acquisitionMethod'] ?? null,
+            'acquisition_form' => $attributes['acquisitionForm'] ?? null,
+            'planning_objective_id' => $attributes['planningObjectiveId'] ?? null,
+            'risk_matrix_item_id' => $attributes['riskMatrixItemId'] ?? null,
+            'control_reference' => $attributes['controlReference'] ?? null,
         ];
     }
 
@@ -597,6 +670,22 @@ class AemsEvidenceService
         return $papers;
     }
 
+    private function assertTraceability(AuditEngagement $engagement, array $attributes): void
+    {
+        if (! empty($attributes['planningObjectiveId']) && ! AemsPlanningObjective::query()
+            ->whereKey((int) $attributes['planningObjectiveId'])
+            ->whereHas('version.package', fn ($package) => $package->where('audit_engagement_id', $engagement->id))
+            ->exists()) {
+            throw ValidationException::withMessages(['planningObjectiveId' => ['The planning objective must belong to this engagement planning package.']]);
+        }
+        if (! empty($attributes['riskMatrixItemId']) && ! AemsRiskMatrixItem::query()
+            ->whereKey((int) $attributes['riskMatrixItemId'])
+            ->whereHas('matrix.version.package', fn ($package) => $package->where('audit_engagement_id', $engagement->id))
+            ->exists()) {
+            throw ValidationException::withMessages(['riskMatrixItemId' => ['The risk-matrix item must belong to this engagement planning package.']]);
+        }
+    }
+
     private function ensureFieldworkAvailable(AuditEngagement $engagement): void
     {
         $available = $engagement->programs()
@@ -607,6 +696,28 @@ class AemsEvidenceService
             throw ValidationException::withMessages([
                 'engagement' => ['Evidence can be uploaded only after the approved Audit Program is active.'],
             ]);
+        }
+    }
+
+    private function assertAcceptableOutcome(AuditEvidence $evidence): void
+    {
+        $assessment = $evidence->currentAssessment()->first();
+        if (! $assessment || $assessment->status !== 'ASSESSED') {
+            throw ValidationException::withMessages(['outcome' => ['Evidence must have a current professional assessment before it can be accepted.']]);
+        }
+        foreach (['sufficiency', 'appropriateness', 'relevance', 'reliability', 'competence', 'accuracy', 'completeness', 'corroboration', 'authenticity', 'integrity'] as $dimension) {
+            if (! in_array(strtoupper((string) $assessment->{$dimension}), ['YES', 'HIGH', 'ADEQUATE'], true)) {
+                throw ValidationException::withMessages(['outcome' => ['Evidence with negative or incomplete assessment dimensions cannot be accepted.']]);
+            }
+        }
+        if (! in_array(strtoupper((string) $assessment->contradiction), ['NO', 'ADEQUATE'], true)
+            || blank($assessment->confidentiality)
+            || filled($assessment->evidence_gaps)
+            || filled($assessment->limitations)
+            || $assessment->is_restricted
+            || filled($assessment->access_restrictions)
+            || $assessment->exception_required) {
+            throw ValidationException::withMessages(['outcome' => ['Evidence gaps, restrictions, limitations, or exceptions must be resolved before acceptance.']]);
         }
     }
 

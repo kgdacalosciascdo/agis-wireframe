@@ -30,6 +30,7 @@ class AuditReport extends Model
         'ISSUED',
         'SUPERSEDED',
         'WITHDRAWN',
+        'ADMINISTRATIVELY_CLOSED',
     ];
 
     protected $fillable = [
@@ -54,6 +55,10 @@ class AuditReport extends Model
         'withdrawn_at',
         'withdrawn_by',
         'withdrawal_reason',
+        'administratively_closed_at',
+        'administratively_closed_by',
+        'administrative_closure_reason',
+        'administrative_closure_reference',
         'lock_version',
         'is_active',
     ];
@@ -66,6 +71,7 @@ class AuditReport extends Model
             'approved_at' => 'datetime',
             'issued_at' => 'datetime',
             'withdrawn_at' => 'datetime',
+            'administratively_closed_at' => 'datetime',
             'lock_version' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -74,12 +80,12 @@ class AuditReport extends Model
     protected static function booted(): void
     {
         static::updating(function (self $report): void {
-            if ($report->getOriginal('status') === 'ISSUED') {
+            if (in_array($report->getOriginal('status'), ['ISSUED', 'ADMINISTRATIVELY_CLOSED'], true)) {
                 throw new LogicException('Issued audit reports are immutable.');
             }
         });
         static::deleting(function (self $report): void {
-            if ($report->status === 'ISSUED') {
+            if (in_array($report->status, ['ISSUED', 'ADMINISTRATIVELY_CLOSED'], true)) {
                 throw new LogicException('Issued audit reports cannot be deleted.');
             }
         });
@@ -148,6 +154,11 @@ class AuditReport extends Model
         return $this->belongsTo(User::class, 'withdrawn_by')->withTrashed();
     }
 
+    public function administrativelyClosedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'administratively_closed_by')->withTrashed();
+    }
+
     public function supersededReport(): BelongsTo
     {
         return $this->belongsTo(self::class, 'supersedes_report_id')->withTrashed();
@@ -166,5 +177,25 @@ class AuditReport extends Model
     public function reviewComments(): HasMany
     {
         return $this->hasMany(AuditReportReviewComment::class);
+    }
+
+    public function authorityDecisions(): HasMany
+    {
+        return $this->hasMany(AemsReportAuthorityDecision::class);
+    }
+
+    public function signatories(): HasMany
+    {
+        return $this->hasMany(AemsReportSignatory::class);
+    }
+
+    public function transmittals(): HasMany
+    {
+        return $this->hasMany(AemsReportTransmittal::class);
+    }
+
+    public function exports(): HasMany
+    {
+        return $this->hasMany(AemsReportExport::class);
     }
 }

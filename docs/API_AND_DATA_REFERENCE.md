@@ -2263,3 +2263,86 @@ The response preserves `directCreationReason`, `directCreationAuthority`,
 Evidence Assessment rows are read-only snapshots; correction or exception
 approval creates a superseding version with a new version number and change
 reason.
+
+### AEMS-G4 AEO authority and team amendment contract
+
+The AEO authority endpoints are:
+
+```text
+POST /api/aems/engagements/{engagement}/aeo/{order}/transition
+POST /api/aems/engagements/{engagement}/aeo/{order}/amend
+GET  /api/aems/engagements/{engagement}/aeo/{order}/distribution
+POST /api/aems/engagements/{engagement}/aeo/{order}/distribution
+POST /api/aems/engagements/{engagement}/aeo/{order}/distribution/{distribution}/acknowledge
+```
+
+Transition actions `CANCEL`, `VOID`, and `SUPERSEDE` require a lock version,
+an authority reason, CIAS Management permission, and create an immutable
+engagement event and audit entry. `AMEND` creates a new AEO content version;
+prior approved or issued versions remain unchanged.
+
+`aems_aeo_signatories` is the per-version signatory matrix. It records the
+independent reviewer, approving authority, and issuing authority, including
+signature method, reference, actor, and timestamp. The preparer cannot review,
+approve, or issue; approval requires independent review and issuance requires
+a different authority from approval.
+
+`aems_aeo_distributions` records only issued-version transmittals and their
+recipient, method, reference, sent time, acknowledgement actor, note, and
+acknowledgement time. `aems_team_amendments` and
+`aems_team_access_history` are append-only authority and assignment-access
+records; `engagement_team_history` remains the compatibility assignment log.
+
+### AEMS-G7 Reporting and distribution contract
+
+`audit_report_versions.source_manifest` and `source_manifest_sha256` are the
+reproducibility contract for issued reports. `aems_report_issue_links`,
+`aems_report_working_paper_links`, and `aems_evidence_report_links` preserve
+direct source links; Evidence links include the exact Core
+`document_version_id` and checksum. Authority decisions, signatories,
+transmittals, and protected export records are append-only and version-bound.
+The report-family `ADMINISTRATIVELY_CLOSED` status does not mutate the locked
+issued version. See `docs/AEMS_G7_REPORTING_DISTRIBUTION.md` for the endpoint
+and permission matrix.
+
+### AEMS-G8 Records and Audit Calendar API
+
+The protected records workspace is `GET /api/aems/engagements/{engagement}/records`
+with optional `q` search, and the calendar is
+`GET /api/aems/engagements/{engagement}/calendar`. Milestones are created,
+updated, and transitioned through the corresponding `/calendar/milestones`
+routes using lock versions. Retention actions use `/retention/{retention}`
+archive, `legal-hold-release`, `destruction-review`, and `disposition` routes.
+The permission contract is `aems.records.*`, `aems.calendar.*`, and the
+controlled `aems.retention.*` action permissions. See
+`docs/AEMS_G8_RECORDS_CALENDAR_CLOSURE.md` for state rules and blocker behavior.
+
+### AEMS-G9 verification and migration rehearsal
+
+`backend/tests/Feature/Api/AemsG9ConformanceTest.php` is the backend contract
+index: it creates 35 Rule tests, 32 SCR registry tests, checks authenticated
+AEMS download/export routes, and verifies the G3-G8 migration rehearsal
+manifest. `tests/e2e/aems-g9-conformance.spec.js` covers duplicate-route
+exclusion, role-by-role menu/tab visibility, lock-version mutation payloads,
+negative Evidence, protected-download markers, and both Playwright projects.
+Run `scripts/verify-aems-g9.ps1` for the repeatable fresh-migration, PHP,
+frontend, and G9 browser checks.
+
+### AEMS-G10A conformance additions
+
+`AemsFieldworkRecord::TYPES` is the canonical fieldwork taxonomy and now
+includes `INQUIRY`, `MEETING`, `FIELD_NOTE`, and `OTHER`. Findings accept
+optional `procedureIds`; the backend also derives procedure links from cited
+Working Paper and Fieldwork Record Versions. The normalized
+`audit_finding_procedure` pivot stores the approved procedure, criteria
+reference, traceability note, and linking actor. Finding detail, communication
+snapshots, finalization snapshots, and immutable revisions preserve these
+procedure IDs. Cross-engagement procedure references are rejected and finding
+review gates require at least one procedure link.
+
+### AEMS-G10E final acceptance
+
+`AemsG10EAcceptanceTest` is the semantic Rule 1–35 runtime contract. The
+canonical SCR registry remains 32 unique identifiers and the role/navigation
+matrix covers six seeded roles. Final command and migration-rehearsal results
+are recorded in `docs/AEMS_G10E_FINAL_ACCEPTANCE.md`.

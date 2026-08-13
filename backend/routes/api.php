@@ -532,6 +532,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.aeo.view');
     Route::post('/aems/engagements/{engagement}/aeo/{order}/revise', [AemsAeoController::class, 'revise'])
         ->middleware('permission:aems.aeo.revise');
+    Route::post('/aems/engagements/{engagement}/aeo/{order}/amend', [AemsAeoController::class, 'amend'])
+        ->middleware('permission:aems.aeo.amend');
+    Route::get('/aems/engagements/{engagement}/aeo/{order}/distribution', [AemsAeoController::class, 'distribution'])
+        ->middleware('permission:aems.aeo.view');
+    Route::post('/aems/engagements/{engagement}/aeo/{order}/distribution', [AemsAeoController::class, 'distribute'])
+        ->middleware('permission:aems.aeo.distribute');
+    Route::post('/aems/engagements/{engagement}/aeo/{order}/distribution/{distribution}/acknowledge', [AemsAeoController::class, 'acknowledgeDistribution'])
+        ->middleware('permission:aems.aeo.acknowledge');
     Route::get('/aems/engagements/{engagement}/aeo/{order}/pdf', [AemsAeoController::class, 'pdf'])
         ->middleware('permission:aems.aeo.view');
     Route::get('/aems/engagements/{engagement}/aep', [AemsAepController::class, 'show'])
@@ -600,6 +608,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.evidence.view');
     Route::get('/aems/engagements/{engagement}/evidence/{evidence}/download', [AemsEvidenceController::class, 'download'])
         ->middleware('permission:aems.evidence.view');
+    Route::post('/aems/engagements/{engagement}/evidence/{evidence}/report-links', [AemsEvidenceController::class, 'linkReport'])
+        ->middleware('permission:aems.evidence.link_report');
     Route::get('/aems/engagements/{engagement}/evidence-requests', [AemsEvidenceRequestController::class, 'index'])
         ->middleware('permission:aems.evidence-request.view');
     Route::post('/aems/engagements/{engagement}/evidence-requests', [AemsEvidenceRequestController::class, 'store'])
@@ -630,6 +640,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.finding.create');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/transition', [AemsFindingController::class, 'transition'])
         ->middleware('permission:aems.finding.view');
+    Route::post('/aems/engagements/{engagement}/findings/{finding}/transmittals', [AemsFindingController::class, 'createTransmittal'])
+        ->middleware('permission:aems.afr.transmit');
+    Route::post('/aems/engagements/{engagement}/findings/{finding}/transmittals/{transmittal}/recipients/{recipient}/transition', [AemsFindingController::class, 'transitionTransmittalRecipient'])
+        ->middleware('permission:aems.afr.view');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/revisions', [AemsFindingController::class, 'revise'])
         ->middleware('permission:aems.finding.revise');
     Route::post('/aems/engagements/{engagement}/findings/{finding}/recommendations', [AemsFindingController::class, 'saveRecommendation'])
@@ -716,6 +730,16 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.report.issue');
     Route::post('/aems/engagements/{engagement}/reports/{report}/successors', [AemsReportController::class, 'successor']);
     Route::post('/aems/engagements/{engagement}/reports/{report}/withdraw', [AemsReportController::class, 'withdraw']);
+    Route::post('/aems/engagements/{engagement}/reports/{report}/versions/{version}/authority-decisions', [AemsReportController::class, 'authorityDecision'])
+        ->middleware('permission:aems.report.authority');
+    Route::post('/aems/engagements/{engagement}/reports/{report}/versions/{version}/signatories', [AemsReportController::class, 'signatory'])
+        ->middleware('permission:aems.report.signatory');
+    Route::post('/aems/engagements/{engagement}/reports/{report}/versions/{version}/transmittals', [AemsReportController::class, 'transmittal'])
+        ->middleware('permission:aems.report.transmit');
+    Route::post('/aems/engagements/{engagement}/reports/{report}/administrative-close', [AemsReportController::class, 'administrativeClose'])
+        ->middleware('permission:aems.report.close_admin');
+    Route::get('/aems/engagements/{engagement}/reports/{report}/versions/{version}/exports/{format}', [AemsReportController::class, 'export'])
+        ->middleware('permission:aems.report.export');
     Route::post('/aems/engagements/{engagement}/reports/{report}/versions/{version}/recipients/{recipient}/decision', [AemsReportController::class, 'distributionDecision']);
     Route::get('/aems/engagements/{engagement}/reports/{report}/versions/{version}/download', [AemsReportController::class, 'download']);
     Route::get('/aems/engagements/{engagement}/lifecycle', [AemsEngagementLifecycleController::class, 'show'])
@@ -776,6 +800,24 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.retention.manage');
     Route::post('/aems/engagements/{engagement}/retention/{retention}/approve', [AemsClosureController::class, 'approveRetention'])
         ->middleware('permission:aems.retention.approve');
+    Route::get('/aems/engagements/{engagement}/records', [AemsClosureController::class, 'records'])
+        ->middleware('permission:aems.records.view');
+    Route::get('/aems/engagements/{engagement}/calendar', [AemsClosureController::class, 'calendar'])
+        ->middleware('permission:aems.calendar.view');
+    Route::post('/aems/engagements/{engagement}/calendar/milestones', [AemsClosureController::class, 'createMilestone'])
+        ->middleware('permission:aems.calendar.manage');
+    Route::put('/aems/engagements/{engagement}/calendar/milestones/{milestone}', [AemsClosureController::class, 'updateMilestone'])
+        ->middleware('permission:aems.calendar.manage');
+    Route::post('/aems/engagements/{engagement}/calendar/milestones/{milestone}/transition', [AemsClosureController::class, 'transitionMilestone'])
+        ->middleware('permission:aems.calendar.manage');
+    Route::post('/aems/engagements/{engagement}/retention/{retention}/archive', [AemsClosureController::class, 'archive'])
+        ->middleware('permission:aems.retention.archive');
+    Route::post('/aems/engagements/{engagement}/retention/{retention}/legal-hold-release', [AemsClosureController::class, 'releaseLegalHold'])
+        ->middleware('permission:aems.retention.legal_hold_release');
+    Route::post('/aems/engagements/{engagement}/retention/{retention}/destruction-review', [AemsClosureController::class, 'destructionReview'])
+        ->middleware('permission:aems.retention.destruction_review');
+    Route::post('/aems/engagements/{engagement}/retention/{retention}/disposition', [AemsClosureController::class, 'recordDisposition'])
+        ->middleware('permission:aems.retention.disposition_execute');
     Route::post('/aems/engagements/{engagement}/lessons-learned', [AemsClosureController::class, 'addLesson'])
         ->middleware('permission:aems.closure.update');
     Route::get('/aems/engagements/{engagement}/completion-transfer', [AemsCompletionTransferController::class, 'show'])

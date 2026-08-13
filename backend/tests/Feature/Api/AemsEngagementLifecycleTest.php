@@ -11,6 +11,13 @@ use App\Models\AuditLog;
 use App\Models\AuditProgram;
 use App\Models\AemsPlanningPackage;
 use App\Models\AemsPlanningPackageVersion;
+use App\Models\AemsPlanningKpi;
+use App\Models\AemsPlanningObjective;
+use App\Models\AemsPlannedWorkingPaperRequirement;
+use App\Models\AemsProcessFlowDocument;
+use App\Models\AemsRiskMatrix;
+use App\Models\AemsRiskMatrixItem;
+use App\Models\AemsRiskWorkingPaperLink;
 use App\Models\EngagementEvent;
 use App\Models\EngagementTeam;
 use App\Models\EntryConference;
@@ -19,6 +26,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -220,7 +228,7 @@ class AemsEngagementLifecycleTest extends TestCase
         $package = AemsPlanningPackage::query()->where('audit_engagement_id', $engagement->id)->firstOrFail();
         AemsPlanningPackageVersion::query()->create([
             'planning_package_id' => $package->id,
-            'version_number' => 1,
+            'version_number' => 2,
             'planning_attributes' => [
                 'kpis' => [
                     'decision' => 'REQUIRED',
@@ -425,6 +433,8 @@ class AemsEngagementLifecycleTest extends TestCase
         User $management,
         User $auditor,
     ): void {
+        $area = $engagement->auditAreas()->firstOrFail();
+        $focus = $area->focuses()->firstOrFail();
         $plan = AuditEngagementPlan::query()->create([
             'audit_engagement_id' => $engagement->id,
             'plan_code' => 'AEP-'.$engagement->engagement_code,
@@ -446,7 +456,7 @@ class AemsEngagementLifecycleTest extends TestCase
             'approved_at' => now(),
             'is_active' => true,
         ]);
-        AuditProgram::query()->create([
+        $program = AuditProgram::query()->create([
             'audit_engagement_id' => $engagement->id,
             'audit_engagement_plan_id' => $plan->id,
             'program_code' => 'AP-'.$engagement->engagement_code,
@@ -458,7 +468,137 @@ class AemsEngagementLifecycleTest extends TestCase
             'approved_at' => now(),
             'is_current_revision' => true,
             'is_active' => true,
+            'audit_area_id' => $area->id,
+            'audit_period_start' => today()->subMonth(),
+            'audit_period_end' => today()->addMonth(),
+            'audit_criteria' => 'Applicable internal control policy.',
+            'sampling_approach' => 'Judgmental sample of the approved population.',
         ]);
+        $procedure = $program->procedures()->create([
+            'procedure_code' => 'P-01',
+            'objective' => 'Confirm the key control operates as designed.',
+            'procedure_description' => 'Inspect the authoritative transaction register.',
+            'status' => 'NOT_STARTED',
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus->id,
+            'process_name' => 'Controlled transaction processing',
+            'audit_method' => 'Inspection and inquiry',
+            'audit_criteria' => 'Applicable internal control policy.',
+            'planned_person_days' => 2,
+            'sampling_requirement' => ['method' => 'judgmental', 'population' => 'Approved transaction register'],
+            'planned_working_paper_requirement' => ['reference' => 'WP-01', 'title' => 'Control test', 'requiredEvidence' => 'Register and approval evidence'],
+        ]);
+        $package = AemsPlanningPackage::query()->where('audit_engagement_id', $engagement->id)->firstOrFail();
+        $version = AemsPlanningPackageVersion::query()->create([
+            'planning_package_id' => $package->id,
+            'version_number' => 1,
+            'preliminary_survey' => [
+                'purpose' => 'Understand the process.',
+                'background' => 'Background reviewed.',
+                'informationSources' => 'Policies and interviews.',
+                'observations' => 'Walkthrough completed.',
+                'planningImplications' => 'Test controls and evidence.',
+            ],
+            'planning_attributes' => [
+                'kpis' => [
+                    'decision' => 'DEFINED',
+                    'items' => [[
+                        'name' => 'Procedure completion',
+                        'target' => '100%',
+                        'measurementMethod' => 'Approved procedure status review',
+                    ]],
+                ],
+            ],
+            'iap_lineage_snapshot' => ['sourceType' => $engagement->source_type],
+            'checksum_sha256' => hash('sha256', 'lifecycle-planning-package'),
+            'created_by' => $auditor->id,
+            'created_at' => now(),
+        ]);
+        $objective = AemsPlanningObjective::query()->create([
+            'planning_package_version_id' => $version->id,
+            'objective_code' => 'OBJ-1',
+            'objective_statement' => 'Assess control design and operation.',
+            'source_type' => 'AEMS',
+            'sequence' => 0,
+        ]);
+        $flow = AemsProcessFlowDocument::query()->create([
+            'planning_package_version_id' => $version->id,
+            'flow_code' => 'FLOW-1',
+            'title' => 'Controlled transaction flow',
+            'description' => 'Documented walkthrough.',
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus->id,
+            'scope_statement' => 'Current transaction process.',
+            'steps' => ['Receive', 'Review', 'Approve'],
+            'inputs' => ['Transaction request'],
+            'outputs' => ['Approved transaction'],
+            'records_systems' => ['Transaction register'],
+            'controls' => ['Approval control'],
+            'decision_points' => ['Approval required'],
+            'risk_points' => ['Unauthorized transaction'],
+            'sequence' => 0,
+        ]);
+        $procedure->update(['process_flow_id' => $flow->id]);
+        $matrix = AemsRiskMatrix::query()->create([
+            'planning_package_version_id' => $version->id,
+            'matrix_code' => 'RM-1',
+            'title' => 'Lifecycle risk matrix',
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus->id,
+            'status' => 'APPROVED',
+        ]);
+        $risk = AemsRiskMatrixItem::query()->create([
+            'risk_matrix_id' => $matrix->id,
+            'risk_code' => 'R-1',
+            'risk_statement' => 'A control may fail.',
+            'risk_response' => 'Test the control and corroborate evidence.',
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus->id,
+            'process_flow_id' => $flow->id,
+            'process_name' => 'Controlled transaction processing',
+            'risk_area' => 'Transaction authorization',
+            'planned_audit_approach' => 'Inspect a judgmental sample.',
+            'criteria' => 'Applicable internal control policy.',
+            'status' => 'OPEN',
+        ]);
+        DB::table('aems_risk_objective_links')->insert([
+            'risk_matrix_item_id' => $risk->id,
+            'planning_objective_id' => $objective->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('aems_risk_procedure_links')->insert([
+            'risk_matrix_item_id' => $risk->id,
+            'audit_program_procedure_id' => $procedure->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        AemsRiskWorkingPaperLink::query()->create([
+            'risk_matrix_item_id' => $risk->id,
+            'working_paper_reference' => 'WP-01',
+            'relationship_basis' => 'Required for procedure conclusion.',
+        ]);
+        AemsPlanningKpi::query()->create([
+            'planning_package_version_id' => $version->id,
+            'kpi_code' => 'KPI-1',
+            'name' => 'Procedure completion',
+            'target' => '100%',
+            'measurement_method' => 'Approved procedure status review',
+            'status' => 'DEFINED',
+            'sequence' => 0,
+        ]);
+        AemsPlannedWorkingPaperRequirement::query()->create([
+            'planning_package_version_id' => $version->id,
+            'audit_program_procedure_id' => $procedure->id,
+            'risk_matrix_item_id' => $risk->id,
+            'working_paper_reference' => 'WP-01',
+            'title' => 'Control test',
+            'objective' => 'Document procedure results.',
+            'required_evidence' => 'Register and approval evidence',
+            'is_required' => true,
+            'sequence' => 0,
+        ]);
+        $package->update(['current_version_number' => 1, 'approved_version_number' => 1]);
     }
 
     /** @return array<string, mixed> */

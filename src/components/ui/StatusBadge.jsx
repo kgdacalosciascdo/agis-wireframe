@@ -7,12 +7,12 @@ const styles = {
   info: "bg-sky-100 text-sky-700 ring-sky-600/20",
 };
 
-export default function StatusBadge({ children, tone = "info" }) {
+export default function StatusBadge({ children, label, tone = "info" }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${styles[tone] ?? styles.info}`}
     >
-      {children}
+      {children ?? label}
     </span>
   );
 }

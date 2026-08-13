@@ -35,6 +35,8 @@ const emptyForm = {
   assignedUntil: "",
   assignmentNotes: "",
   reason: "",
+  amendmentAuthority: "AEMS_TEAM_ASSIGNMENT_AUTHORITY",
+  consequenceAssessment: "",
 };
 
 function roleLabel(value) {
@@ -193,6 +195,8 @@ export default function AemsTeamPage() {
       assignedUntil: member.assignedUntil ?? "",
       assignmentNotes: member.assignmentNotes ?? "",
       reason: "",
+      amendmentAuthority: "AEMS_TEAM_ASSIGNMENT_AUTHORITY",
+      consequenceAssessment: "",
     });
     setFormOpen(true);
   }
@@ -209,6 +213,8 @@ export default function AemsTeamPage() {
       assignedUntil: member.assignedUntil ?? "",
       assignmentNotes: member.assignmentNotes ?? "",
       reason: "",
+      amendmentAuthority: "AEMS_TEAM_ASSIGNMENT_AUTHORITY",
+      consequenceAssessment: "",
     });
     setFormOpen(true);
   }
@@ -223,6 +229,8 @@ export default function AemsTeamPage() {
       assignedUntil: form.assignedUntil || null,
       assignmentNotes: form.assignmentNotes || null,
       reason: form.reason || null,
+      amendmentAuthority: form.amendmentAuthority || null,
+      consequenceAssessment: form.consequenceAssessment || null,
     };
     try {
       if (formMode === "assign") {
@@ -488,6 +496,23 @@ export default function AemsTeamPage() {
             </div>
           </section>
 
+          <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
+              <h2 className="font-bold text-slate-800">Amendment authority and access history</h2>
+              <p className="mt-1 text-xs text-slate-500">Every assignment change records authority, consequence assessment, and access grant or revocation.</p>
+            </div>
+            <div className="grid gap-5 p-4 lg:grid-cols-2 sm:p-5">
+              <div className="space-y-2">
+                {(overview.amendments ?? []).map((item) => <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" key={item.id}><strong className="text-sky-800">{roleLabel(item.action)}</strong><p className="mt-1 text-slate-600">{item.reason}</p><p className="mt-1 text-slate-500">Authority: {item.authorityCode} · {item.consequenceAssessment}</p></div>)}
+                {!overview.amendments?.length && <p className="text-sm text-slate-500">No controlled amendments recorded.</p>}
+              </div>
+              <div className="space-y-2">
+                {(overview.accessHistory ?? []).map((item) => <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs" key={item.id}><span><strong className="text-slate-700">{item.user?.name}</strong><span className="ml-2 text-slate-500">{roleLabel(item.assignmentRoleCode)}</span></span><span className={item.action === "REVOKED" ? "font-bold text-red-700" : "font-bold text-emerald-700"}>{item.action}</span></div>)}
+                {!overview.accessHistory?.length && <p className="text-sm text-slate-500">No access history recorded.</p>}
+              </div>
+            </div>
+          </section>
+
           {safeguards && (
             <AemsTeamSafeguardsPanel
               engagementId={selectedId}
@@ -612,6 +637,18 @@ export default function AemsTeamPage() {
               />
               {errors.reason && <small className="text-red-600">{errors.reason[0]}</small>}
             </label>
+          )}
+          {formMode !== "assign" && (
+            <>
+              <label className="text-sm font-semibold text-slate-700">
+                Amendment authority
+                <input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={form.amendmentAuthority} onChange={(event) => setForm((current) => ({ ...current, amendmentAuthority: event.target.value }))} />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                Consequence assessment
+                <textarea className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 p-3 font-normal" value={form.consequenceAssessment} onChange={(event) => setForm((current) => ({ ...current, consequenceAssessment: event.target.value }))} placeholder="Assess independence, capacity, schedule, and control consequences." />
+              </label>
+            </>
           )}
         </div>
       </Modal>

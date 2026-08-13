@@ -24,6 +24,8 @@ import AemsClosureWorkspace from "../components/aems/AemsClosureWorkspace";
 import AemsDocumentIndexWorkspace from "../components/aems/AemsDocumentIndexWorkspace";
 import AemsLessonsWorkspace from "../components/aems/AemsLessonsWorkspace";
 import AemsRetentionWorkspace from "../components/aems/AemsRetentionWorkspace";
+import AemsCalendarWorkspace from "../components/aems/AemsCalendarWorkspace";
+import AemsRecordsWorkspace from "../components/aems/AemsRecordsWorkspace";
 import AemsEngagementWorkspaceNav from "../components/aems/AemsEngagementWorkspaceNav";
 import AemsScopeWorkspace from "../components/aems/AemsScopeWorkspace";
 import RegistryHeader from "../components/ui/RegistryHeader";
@@ -231,6 +233,12 @@ export default function AemsEngagementDetailPage() {
     ...(hasPermission(user, "aems.retention.view")
       ? [["retention", "Retention"]]
       : []),
+    ...(hasPermission(user, "aems.records.view")
+      ? [["records", "Records & Disposition"]]
+      : []),
+    ...(hasPermission(user, "aems.calendar.view")
+      ? [["calendar", "Audit Calendar"]]
+      : []),
     ...(hasPermission(user, "aems.closure.view")
       ? [["lessons-learned", "Lessons Learned"]]
       : []),
@@ -373,6 +381,12 @@ export default function AemsEngagementDetailPage() {
       ) : activeTab === "retention" &&
         hasPermission(user, "aems.retention.view") ? (
         <AemsRetentionWorkspace engagementId={engagement.id} />
+      ) : activeTab === "records" &&
+        hasPermission(user, "aems.records.view") ? (
+        <AemsRecordsWorkspace engagementId={engagement.id} />
+      ) : activeTab === "calendar" &&
+        hasPermission(user, "aems.calendar.view") ? (
+        <AemsCalendarWorkspace engagementId={engagement.id} />
       ) : activeTab === "lessons-learned" &&
         hasPermission(user, "aems.closure.view") ? (
         <AemsLessonsWorkspace engagementId={engagement.id} />

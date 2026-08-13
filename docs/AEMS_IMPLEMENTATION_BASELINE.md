@@ -68,25 +68,30 @@ by existing tests:
 - role, assignment, office, confidentiality, separation-of-duties, optimistic
   locking, Activity Log, Audit Trail, and workflow notifications.
 
-The current implementation is therefore an operational AEMS subset, not yet a
-complete implementation of every MDS-200/UID-200 entity and screen.
+G10C adds dedicated operational queue, calendar, and register/export surfaces
+over these contracts. See [AEMS-G10C Operational Queues and Output Surfaces](AEMS_G10C_OPERATIONAL_QUEUES_OUTPUTS.md).
+G10D adds the dedicated Records and Administrative Closure workspace over the
+existing retention, records, closure-checklist, archive, legal-hold, and
+disposition services. See [AEMS-G10D Records and Administrative Closure](AEMS_G10D_RECORDS_ADMINISTRATIVE_CLOSURE.md).
+
+The current implementation is the accepted operational AEMS contract for the
+approved MDS/UID scope. G10C and G10D close the dedicated queue/output-surface
+and records/administrative-closure gaps, and G10E closes the governance and
+verification gate. AIS integration and explicitly reserved/reference-only
+screens remain outside this scope.
 
 ## 4. Target entities and remaining design scope
 
-The source contains a broad operational AEMS subset, but the reference target
-is not yet fully conformant. The G0 contract is the authoritative consolidated
-gap register and decision record. In particular, it distinguishes implemented
-workflow families from controls that are only partially enforced: evidence
-eligibility and immutable assessment snapshots, structured Area/Focus planning,
-Rule-35 Risk Matrix/Program fields, direct-AFR authority, AEO/report
-signatory/transmittal controls, distinct `COMPLETED` versus `CLOSED`, and
-records archive/disposition operations. Review Notes, Engagement Tasks, and
-escalation candidates have backend records and APIs, but their full operational
-editing queues remain a later UI conformance item.
+The source contains the approved operational AEMS entities and workflows. The
+G0 contract remains the authoritative decision and compatibility record; G10E
+adds the semantic Rule 1–35 acceptance suite, SCR registry checks, role/menu
+matrix, and final regression evidence. Reserved SCR-243, AIS, and any future
+reference-only entity remain explicit documented boundaries rather than hidden
+gaps.
 
 The completed phase checkpoints below remain historical evidence of what each
-increment added. They do not override the current G0 matrix or convert a
-partial reference control into a completed one.
+increment added. G10E is the current acceptance checkpoint and supersedes
+earlier historical statements about work that had not yet started.
 
 ## 4.1 AEMS-G2 foundation implementation
 
@@ -796,6 +801,34 @@ Verification recorded for this checkpoint:
 | `npm.cmd run build` | Passed |
 | `git diff --check` | Passed (line-ending warnings only) |
 
+## AEMS-G4 AEO and team authority checkpoint
+
+G4 adds an immutable AEO signatory matrix, explicit AEO cancellation,
+voiding, supersession, and amendment operations, controlled issued-order
+transmittal and acknowledgement, and append-only team amendment and access
+history. AEO signatures preserve the authority role, actor, method, reference,
+timestamp, and immutable content version. Team changes preserve authority,
+reason, consequence assessment, and before/after snapshots.
+
+The additive migration is
+`2026_08_31_000000_add_aems_g4_authority_controls.php`. The detailed contract,
+status rules, permissions, and API endpoints are in
+`docs/AEMS_G4_AEO_TEAM_AUTHORITY.md`.
+
+Verification for this checkpoint:
+
+| Check | Result |
+| --- | --- |
+| `php artisan migrate:fresh --seed --force --quiet` | Passed |
+| `php artisan test --filter='AemsG4AuthorityTest\|AemsTeamAeoTest\|AemsAepProgramTest\|AemsFoundationG2Test\|AemsPlanningPackageTest'` | Passed: 13 tests, 200 assertions |
+| `npm.cmd run lint` | Passed |
+| `npm.cmd run build` | Passed |
+| `git diff --check` | Passed (normal LF-to-CRLF warnings only) |
+
+The broader AEMS suite currently stops at the pre-existing G3 lifecycle fixture
+that starts fieldwork without a conformant Planning Package. That is unrelated
+to G4 authority controls and remains a G3 test-fixture follow-up.
+
 ## AEMS-G1A/G1B Professional-Control Hardening checkpoint
 
 The evidence and finding gates now enforce the G0 professional decisions at
@@ -1053,3 +1086,126 @@ Verification recorded for this checkpoint:
 | `npm.cmd run build` | Passed |
 | `npx.cmd playwright test tests/e2e/aems-issues-findings.spec.js --project=desktop-chrome` | Passed: 2 tests |
 | `git diff --check` | Passed (line-ending warnings only) |
+
+## AEMS-G5 Evidence lifecycle checkpoint
+
+The evidence subsystem now has a complete, auditable request lifecycle. Requests
+support acknowledgement, partial/complete receipt, review, assessment,
+extension request and approval, overdue and escalation handling, cancellation,
+and closed-without-submission outcomes. Each transition is recorded in the
+append-only `aems_evidence_request_events` table and continues to emit Core
+activity, audit, and notification events.
+
+Evidence records now carry explicit professional outcomes (`REGISTERED`,
+`FOR_ASSESSMENT`, `ACCEPTED`, `LIMITED`, `ADDITIONAL_REQUIRED`, `REJECTED`,
+`SUPERSEDED`, `DUPLICATE`, and `VOIDED`), acquisition method/form, planning
+objective, risk-matrix-item, and control references, plus direct links to report
+versions. Assessment eligibility requires an exact current Core Document
+Version, a current verified/locked evidence revision, positive assessment
+dimensions, no unresolved gaps or contradictions, and an explicit acceptable
+outcome; restricted or limited evidence requires the existing approved
+exception path.
+
+The consolidated Evidence Management workspace exposes request stages, control
+actions, lifecycle history, explicit outcome and traceability indicators, and
+protected report-link actions. Existing AEMS evidence and working-paper
+compatibility routes remain unchanged.
+
+Verification recorded for this checkpoint:
+
+| Check | Result |
+| --- | --- |
+| `npm.cmd run lint` | Passed |
+| `npm.cmd run build` | Passed |
+| `php artisan migrate:fresh --seed --force --quiet` | Passed |
+| Focused G4/G5/request/WP Feature tests | Passed: 10 tests, 121 assertions |
+| `npx.cmd playwright test tests/e2e/aems-evidence-management.spec.js --project=desktop-chrome --project=mobile-chrome` | Passed: 2 tests |
+| `git diff --check` | Passed (line-ending warnings only) |
+
+The broader `php artisan test --testsuite=Feature --compact` run was previously
+attempted, but the runner exceeded five minutes while the existing working-paper
+request path was still active. The focused G4/G5, request, and working-paper
+suites pass independently, and the desktop/mobile Evidence workspace suites
+pass against the updated lifecycle and traceability contract. This is recorded
+as a suite/runtime limitation rather than a G5 assertion failure.
+## AEMS-G6 checkpoint
+
+G6 adds controlled issue withdrawal and compatibility metadata, immutable AFR
+transmittal/recipient/event records, delivery and acknowledgement actions,
+response extensions, late and supplemental response metadata, and UI/API
+actions for the existing operational queues. Existing legacy DISMISSED issue
+rows and response workflows remain supported. Verification is recorded in
+`AemsG6IssuesDialogueContractTest` and the issue/finding regression suite.
+
+## AEMS-G7 checkpoint
+
+G7 adds immutable report source manifests and hashes, direct Issue/approved
+Working Paper/current Evidence links, Interim-to-Final treatment metadata,
+IAU Head/LCE authority decisions, signatory and transmittal records,
+confidentiality-aware reproducible PDF/CSV exports, and supervisor-controlled
+administrative closure. The issued version remains locked; closure and report
+successors operate at the report-family level. See
+`docs/AEMS_G7_REPORTING_DISTRIBUTION.md` for the contract and protected routes.
+
+## AEMS-G8 checkpoint
+
+G8 adds controlled archive and disposition state, legal-hold release, immutable
+destruction-eligibility reviews, protected records search, and an operational
+Audit Calendar with optimistic-locked milestones. Legal holds and overdue
+required milestones now enter the atomic Closure blocker register. `COMPLETED`
+and `CLOSED` remain distinct lifecycle states; recording disposition never
+physically deletes Core DocumentVersions. See
+`docs/AEMS_G8_RECORDS_CALENDAR_CLOSURE.md` for the API, permissions, data model,
+and verification contract.
+
+## AEMS-G9 verification and documentation truth pass
+
+The current verification contract is in `docs/AEMS_G9_VERIFICATION_AND_TRUTH.md`.
+The G9 backend index contains 35 independent Rule tests and 32 independent
+SCR registry tests. Frontend verification covers the explicit-versus-generic
+route boundary, the six seeded role navigation matrix, mutation payloads,
+negative Evidence, protected downloads, and desktop/mobile responsive
+projects. `scripts/verify-aems-g9.ps1` is the repeatable migration rehearsal
+and verification entry point.
+
+Earlier checkpoint sections in this document are historical snapshots. Where
+an earlier section says a later phase had not started, the later G4-G8 and G9
+sections are the current as-built state. No AEMS operational workflow is
+changed by G9, and AIS remains outside the AEMS scope.
+
+## AEMS-G10A bounded backend conformance pass
+
+The fieldwork taxonomy is now sourced from `AemsFieldworkRecord::TYPES` and
+includes Inquiry, Meeting, Field Note, and Other in addition to the existing
+record types. Findings now preserve an explicit normalized procedure-to-
+criteria traceability link. Links may be supplied by API clients or derived
+from cited Working Paper and Fieldwork Record Versions; cross-engagement
+procedure IDs are rejected. Finding revisions and communication/finalization
+snapshots preserve the procedure IDs. See
+`docs/AEMS_G10A_BACKEND_CONFORMANCE.md`.
+
+This bounded pass does not claim complete MDS/UID conformance. Dedicated queue
+operations, records/archive operations, and unresolved governance decisions
+remain separately tracked.
+
+## AEMS-G10B frontend conformance
+
+The Execution Workspace exposes the expanded Fieldwork Record taxonomy and
+shows procedure criteria alongside the selected execution procedure. Findings
+can select approved-program procedures, and Finding detail displays the
+procedure-to-criteria traceability chain returned by the backend. The SCR-212
+Scope workspace now warns about invalid Area/Focus links and prevents saving
+until the relationship is corrected. See
+`docs/AEMS_G10B_FRONTEND_CONFORMANCE.md` and
+`tests/e2e/aems-g10b-conformance.spec.js`.
+
+## AEMS-G10E governance and final acceptance
+
+G10E is the final governance and verification gate. The G0 decision register
+now includes the acceptance/change-control decision (G0-14), the status map
+reflects the current runtime values, and `AemsG10EAcceptanceTest` executes all
+35 Rule rows against runtime classes, methods, and status constants. The
+canonical 32-SCR and six-role navigation contracts remain covered by the G9
+and G10E Playwright suites. See
+`docs/AEMS_G10E_FINAL_ACCEPTANCE.md` for the final command contract and
+release boundaries.

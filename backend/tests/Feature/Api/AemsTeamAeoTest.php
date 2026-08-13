@@ -91,6 +91,7 @@ class AemsTeamAeoTest extends TestCase
             ])->assertCreated();
         }
         $preparer = $auditors[1];
+        $issuer = $this->newManagement('CIAS-ISSUER-001');
         Sanctum::actingAs($preparer);
         $payload = [
             'authority' => 'Authority is granted under the approved annual plan and CIAS mandate.',
@@ -117,19 +118,21 @@ class AemsTeamAeoTest extends TestCase
             ['action' => 'REVIEW', 'lockVersion' => $order['lockVersion'], 'comment' => 'Self review'],
         )->assertForbidden();
 
-        Sanctum::actingAs($management);
+        Sanctum::actingAs($auditors[3]);
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
             ['action' => 'REVIEW', 'lockVersion' => $order['lockVersion'], 'comment' => 'Reviewed against the approved IAP and current team.'],
         )->assertOk();
         $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
             ->json('data.order');
+        Sanctum::actingAs($management);
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
             ['action' => 'APPROVE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Approved for issuance.'],
         )->assertOk();
         $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
             ->json('data.order');
+        Sanctum::actingAs($issuer);
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
             ['action' => 'ISSUE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Issued to the audit team and auditee office.'],
@@ -163,6 +166,7 @@ class AemsTeamAeoTest extends TestCase
             'scope' => 'Approved engagement scope and audit period.',
         ];
         $preparer = $auditors[1];
+        $issuer = $this->newManagement('CIAS-ISSUER-002');
         Sanctum::actingAs($preparer);
         $this->postJson("/api/aems/engagements/{$engagement->id}/aeo", $payload)
             ->assertCreated();
@@ -173,8 +177,8 @@ class AemsTeamAeoTest extends TestCase
             ['action' => 'SUBMIT', 'lockVersion' => $order['lockVersion']],
         )->assertOk();
 
-        Sanctum::actingAs($management);
-        foreach (['REVIEW', 'APPROVE', 'ISSUE'] as $action) {
+        Sanctum::actingAs($auditors[3]);
+        foreach (['REVIEW'] as $action) {
             $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
                 ->json('data.order');
             $this->postJson(
@@ -186,6 +190,18 @@ class AemsTeamAeoTest extends TestCase
                 ],
             )->assertOk();
         }
+        Sanctum::actingAs($management);
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")->json('data.order');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
+            ['action' => 'APPROVE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Independent approval completed.'],
+        )->assertOk();
+        Sanctum::actingAs($issuer);
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")->json('data.order');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
+            ['action' => 'ISSUE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Issued by a separate authority.'],
+        )->assertOk();
         $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
             ->json('data.order');
         $this->postJson(
@@ -243,6 +259,21 @@ class AemsTeamAeoTest extends TestCase
             'office_id' => $office->id,
             'employee_id' => $employeeId,
             'position' => 'Internal Auditor',
+        ]);
+        $user->syncRoleAssignments([$role->id], $role->id);
+
+        return $user->fresh(['role.permissions', 'roles.permissions', 'office']);
+    }
+
+    private function newManagement(string $employeeId): User
+    {
+        $role = Role::query()->where('code', 'cias_management')->firstOrFail();
+        $office = $this->user('departmenthead')->office;
+        $user = User::factory()->create([
+            'role_id' => $role->id,
+            'office_id' => $office->id,
+            'employee_id' => $employeeId,
+            'position' => 'CIAS Management',
         ]);
         $user->syncRoleAssignments([$role->id], $role->id);
 

@@ -4,8 +4,9 @@
 
 This document resolves the open professional and interoperability decisions
 identified in **MDS-200 AEM v0.8**, **UID-200 v0.5**, and **DGM-200 v0.2**. It is
-the AGIS implementation contract for future AEMS work. It does not claim that
-every decision is already enforced by the current source code.
+the AGIS implementation and acceptance contract for AEMS. Runtime behavior is
+still determined by the source code and tests; compatibility exceptions are
+listed explicitly in the status map and rule matrix rather than left implicit.
 
 The reference documents are draft/review artefacts. This contract is the
 project-level decision record that prevents a later implementation phase from
@@ -276,11 +277,20 @@ the completion assessment. The aggregate and ordinary child records are
 locked, retention/records controls are active, and any reopening requires a
 new immutable Reopening Decision that preserves the original closure.
 
-The current release reaches `CLOSED` from `CLOSURE_REVIEW` and does not yet
-store a separate `COMPLETED` aggregate status. Until that migration is
-implemented, the completion assessment and closure-readiness result are the
-compatibility representation of `COMPLETED`; no client may treat `CLOSED` as
-mere management-reported completion.
+The current release stores `COMPLETED` as a distinct aggregate status and only
+the formal Closure workflow may move an engagement to `CLOSED`. No client may
+treat `CLOSED` as mere management-reported completion.
+
+### G0-14 — Acceptance authority and change control
+
+The G10E acceptance gate is owned by CIAS Management and the AGIS product
+owner. A release is accepted only when the semantic Rule 1–35 suite, SCR and
+role/navigation suite, migration rehearsal, full Feature suite, lint/build,
+protected-download checks, and desktop/mobile Playwright projects have exact
+recorded results. A compatibility alias, legacy status, or deferred AIS
+integration is not an unresolved governance decision. Any change to this
+contract requires a versioned decision, an updated compatibility map, and
+regression evidence before deployment.
 
 ## 3. Status compatibility map
 
@@ -291,16 +301,16 @@ read/write compatibility, and regression tests.
 | Contract concept | Canonical G0 meaning | Current as-built value(s) | Compatibility rule |
 | --- | --- | --- | --- |
 | Engagement review | `FOR_REVIEW` | `RETURNED_FOR_REVISION` and stage-specific review | Keep aggregate status; expose review stage/action separately. |
-| Engagement completed | `COMPLETED` | Completion assessment/readiness before `CLOSED` | Add explicit state later; do not reinterpret `CLOSED`. |
+| Engagement completed | `COMPLETED` | `COMPLETED` | Completion assessment and aggregate transition establish substantive completion; formal Closure is still required for `CLOSED`. |
 | AEO/AEP review | `FOR_REVIEW`, `RETURNED`, `APPROVED`, `ISSUED`, `SUPERSEDED` | `PENDING_REVIEW`, `RETURNED_FOR_REVISION`, `APPROVED`, `ISSUED`, `SUPERSEDED` | Map labels only; preserve stored codes. |
 | Audit Program | `DRAFT`, `FOR_REVIEW`, `APPROVED`, `ACTIVE`, `COMPLETED`, `SUPERSEDED` | Same except `PENDING_REVIEW` represents `FOR_REVIEW` | Preserve current code. |
 | Working Paper | `DRAFT`, `SUBMITTED`, `RETURNED`, `RESUBMITTED`, `APPROVED`, `SUPERSEDED`, `VOIDED` | Same, with `RETURNED_FOR_REVISION` | UI label may say Returned; code remains compatible. |
-| Evidence Request | `DRAFT`, `FOR_REVIEW`, `SENT`, `ACKNOWLEDGED`, `PARTIALLY_RECEIVED`, `RECEIVED`, `OVERDUE`, `EXTENDED`, `ESCALATED`, `ASSESSED`, `CLOSED`, `CANCELLED`, `CLOSED_WITHOUT_SUBMISSION` | `DRAFT`, `SUBMITTED`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED`, `ASSESSED`, `CLOSED` | `SUBMITTED` is the read-compatible alias for `FOR_REVIEW`; new exception states require later implementation. |
-| Audit Evidence | `REGISTERED`, `FOR_ASSESSMENT`, `ACCEPTED`, `LIMITED`, `ADDITIONAL_REQUIRED`, `REJECTED`, `SUPERSEDED`, `DUPLICATE`, `VOIDED` | `DRAFT`, `VERIFIED`, `LOCKED`, `VOIDED` | `LOCKED` is technical immutability, not acceptance. |
+| Evidence Request | `DRAFT`, `FOR_REVIEW`, `SENT`, `ACKNOWLEDGED`, `PARTIALLY_RECEIVED`, `RECEIVED`, `OVERDUE`, `EXTENDED`, `ESCALATED`, `ASSESSED`, `CLOSED`, `CANCELLED`, `CLOSED_WITHOUT_SUBMISSION` | `DRAFT`, `SUBMITTED`, `SENT`, `ACKNOWLEDGED`, `PARTIALLY_RECEIVED`, `RECEIVED`, `FOR_REVIEW`, `ASSESSED`, `OVERDUE`, `EXTENSION_REQUESTED`, `EXTENDED`, `ESCALATED`, `CANCELLED`, `CLOSED_WITHOUT_SUBMISSION`, `CLOSED` | `SUBMITTED` remains the read-compatible alias for `FOR_REVIEW`; `EXTENSION_REQUESTED` is the explicit pending-extension state. |
+| Audit Evidence | `REGISTERED`, `FOR_ASSESSMENT`, `ACCEPTED`, `LIMITED`, `ADDITIONAL_REQUIRED`, `REJECTED`, `SUPERSEDED`, `DUPLICATE`, `VOIDED` | Technical `DRAFT`, `VERIFIED`, `LOCKED`, `VOIDED` plus professional `outcome` values | `LOCKED` is technical immutability; only `outcome=ACCEPTED` satisfies the final-finding gate. |
 | Issue | `DRAFT`, `FOR_REVIEW`, `OPEN`, `UNDER_EVALUATION`, `DISPOSED`, `WITHDRAWN` | `DRAFT`, `SUBMITTED`, `VALIDATED`, `DISMISSED`, `CONVERTED_TO_FINDING` plus dispositions | Preserve disposition history; add projections only through a controlled migration. |
 | Finding/AFR | `DRAFT`, `PENDING_REVIEW`, `VALIDATED`, `COMMUNICATED`, `AWAITING_MANAGEMENT_RESPONSE`, `UNDER_DIALOGUE`, `FINALIZED`, `WITHDRAWN`, `SUPERSEDED` | Same | `FINALIZED` remains the only CMS/reporting source state. |
 | Management response | `DRAFT`, `SUBMITTED`, `UNDER_AUDITOR_REVIEW`, `CLARIFICATION_REQUESTED`, `RESUBMITTED`, `DIALOGUE_FINALIZED` | Same | Extensions are separate immutable decisions, not status overwrites. |
-| Report | `DRAFT`, `PENDING_REVIEW`, `RETURNED`, `RESUBMITTED`, `APPROVED`, `ISSUED`, `SUPERSEDED`, `WITHDRAWN` | `RETURNED_FOR_REVISION` is the current `RETURNED` code | Issued versions remain immutable. |
+| Report | `DRAFT`, `PENDING_REVIEW`, `RETURNED`, `RESUBMITTED`, `APPROVED`, `ISSUED`, `SUPERSEDED`, `WITHDRAWN`, `ADMINISTRATIVELY_CLOSED` | `DRAFT`, `PENDING_REVIEW`, `RETURNED_FOR_REVISION`, `RESUBMITTED`, `APPROVED`, `ISSUED`, `SUPERSEDED`, `WITHDRAWN`, `ADMINISTRATIVELY_CLOSED` | `RETURNED_FOR_REVISION` is the current `RETURNED` code; administrative closure is a report-family state and never mutates an issued version. |
 | Conference | `DRAFT/SCHEDULED`, `HELD`, `ACKNOWLEDGED`, `COMPLETED`, `WAIVED`, `CANCELLED` | Entry and Exit conference-specific status sets | Conference-specific codes remain; waiver authority follows G0-09. |
 
 ## 4. Rule-to-code-to-test conformance matrix
@@ -312,45 +322,46 @@ added. Test paths are existing tests unless marked **required**.
 
 | MDS rule | Current code anchor | Existing protection / required test | G0 status |
 | --- | --- | --- | --- |
-| 1. Exactly one Office | `AemsEngagementRegistryService`, `AuditEngagement`, office pivot migration | `tests/Feature/Api/AemsEngagementRegistryTest.php`, `AemsFoundationContractTest.php`; **required:** DB invariant/backfill test | Partial |
-| 2. Area belongs to Office | `AemsAccessService`, engagement area relations | `AemsAccessControlTest.php`; **required:** area-office mismatch test | Partial |
-| 3. Focus belongs to Area | engagement focus relations and access scopes | **required:** `AemsScopeIntegrityTest` | Gap |
+| 1. Exactly one Office | `AemsEngagementRegistryService`, `AuditEngagement`, office pivot migration | `AemsEngagementRegistryTest.php`, `AemsFoundationContractTest.php`, `AemsFoundationG2Test.php`, G10E semantic row | Implemented |
+| 2. Area belongs to Office | `AemsAccessService`, engagement area relations | `AemsAccessControlTest.php`, G10E semantic row | Implemented |
+| 3. Focus belongs to Area | engagement focus relations and access scopes | `AemsFoundationG2Test::test_scope_rejects_focus_outside_the_selected_area`, G10E semantic row | Implemented |
 | 4. Approved IAP or authorized unplanned source | `AemsEngagementRegistryService`, source validation | `AemsCrossModuleIntegrationTest.php`, `AemsEngagementRegistryTest.php` | Implemented |
 | 5. Source linked and not overwritten | IAP gateway and `source_snapshot` | `AemsCrossModuleIntegrationTest.php` | Implemented |
-| 6. Objectives/coverage/boundaries/limitations/variance | `AuditEngagement` objectives/scope/exclusions | **required:** structured scope contract test | Partial |
+| 6. Objectives/coverage/boundaries/limitations/variance | `AuditEngagement`, SCR-212 structured scope service | `AemsFoundationG2Test`, G10E semantic row | Implemented |
 | 7. Required team roles before AEO | team service and AEO guards | `AemsTeamAeoTest.php`, `AemsEngagementLifecycleTest.php` | Implemented |
-| 8. Competency/capacity/conflict/safeguards | team safeguard and ARMIS provider services | `AemsTeamSafeguardTest.php`, `AemsIntegrationBoundaryTest.php` | Mostly implemented |
+| 8. Competency/capacity/conflict/safeguards | team safeguard and ARMIS provider services | `AemsTeamSafeguardTest.php`, `AemsIntegrationBoundaryTest.php`, G10E semantic row | Implemented |
 | 9. Team validation is not fieldwork authority | aggregate transition service | `AemsEngagementLifecycleTest.php` | Implemented |
-| 10. Team changes require authority/reason/date/consequence/history | team update/history models | `AemsTeamSafeguardTest.php`; **required:** amendment-authority test | Partial |
-| 11. Fieldwork authority/planning/Entry or waiver/emergency | `AemsEngagementTransitionService` | `AemsFieldworkRecordTest.php`, `AemsEngagementLifecycleTest.php`; **required:** emergency/special waiver test | Partial |
-| 12. Exit before final unless waived | report/closure transition guards | `AemsReportTest.php`, `AemsCompletionClosureTest.php`; **required:** waiver-authority test | Mostly implemented |
+| 10. Team changes require authority/reason/date/consequence/history | team update/history models | `AemsTeamSafeguardTest.php`, `AemsG4AuthorityTest.php`, G10E semantic row | Implemented |
+| 11. Fieldwork authority/planning/Entry or waiver/emergency | `AemsEngagementTransitionService` | `AemsFieldworkRecordTest.php`, `AemsEngagementLifecycleTest.php`, G10E semantic row | Implemented |
+| 12. Exit before final unless waived | report/closure transition guards | `AemsReportTest.php`, `AemsCompletionClosureTest.php`, G10E semantic row | Implemented |
 | 13. Material work/conclusions in WPs | `WorkingPaper`, fieldwork/WP links | `AemsWorkingPaperEvidenceTest.php` | Implemented |
 | 14. Completed procedure has conclusion/WP/disposition | `AemsFieldworkService`, `AuditProgramProcedure` | `AemsFieldworkRecordTest.php`, `AemsAepProgramTest.php` | Implemented |
 | 15. Requests and evidence are distinct | `AemsEvidenceRequest`, `AuditEvidence`, link model | `AemsEvidenceRequestTest.php`, `AemsWorkingPaperEvidenceTest.php` | Implemented |
-| 16. Receipt is not acceptance | `AemsEvidenceRequestService` | `AemsEvidenceRequestTest.php`; **required:** negative assessment eligibility test | Partial |
-| 17. Evidence assessed and fully traceable | evidence assessment/link services | `AemsEvidenceRequestTest.php`; **required:** direct report/criterion traceability test | Partial |
-| 18. No uncontrolled evidence alteration | Core `document_versions`, evidence/WP version services | `AemsWorkingPaperEvidenceTest.php`; **required:** assessment immutability test | Partial |
+| 16. Receipt is not acceptance | `AemsEvidenceRequestService` | `AemsEvidenceRequestTest.php`, `AemsG5EvidenceLifecycleTest.php`, G10E semantic row | Implemented |
+| 17. Evidence assessed and fully traceable | evidence assessment/link services | `AemsEvidenceRequestTest.php`, `AemsG5EvidenceLifecycleTest.php`, G10E semantic row | Implemented |
+| 18. No uncontrolled evidence alteration | Core `document_versions`, evidence/WP version services | `AemsWorkingPaperEvidenceTest.php`, `AemsEvidenceRequestTest.php`, G10E semantic row | Implemented |
 | 19. Issue history/disposition/conversion preserved | `AemsFindingService`, Issue disposition models | `AemsIssueFindingRecommendationTest.php` | Mostly implemented |
-| 20. Issue→AFR normal; direct AFR authorized | `AemsFindingService::createFinding` | `AemsIssueFindingRecommendationTest.php`; **required:** direct-AFR authorization test | Partial |
-| 21. Complete Finding structure | finding request/service | `AemsIssueFindingRecommendationTest.php`; **required:** conclusion-required test | Partial |
-| 22. Full finding/recommendation traceability | finding, WP, evidence, fieldwork links | `AemsIssueFindingRecommendationTest.php`; **required:** area/focus/procedure criteria test | Partial |
+| 20. Issue→AFR normal; direct AFR authorized | `AemsFindingService::createFinding` | `AemsIssueFindingRecommendationTest.php`, G10E semantic row | Implemented |
+| 21. Complete Finding structure | finding request/service | `AemsIssueFindingRecommendationTest.php`, G10E semantic row | Implemented |
+| 22. Full finding/recommendation traceability | finding, WP, evidence, fieldwork links | `AemsIssueFindingRecommendationTest.php`, G10A conformance tests, G10E semantic row | Implemented |
 | 23. Management comments do not overwrite findings | response/rejoinder services | `AemsIssueFindingRecommendationTest.php` | Implemented |
 | 24. Corrective action belongs in response | management response model/service | `AemsIssueFindingRecommendationTest.php`; **required:** response-action boundary test | Mostly implemented |
-| 25. Interim source and final treatment linked | report assembly/service | `AemsReportTest.php`; **required:** interim-to-final lineage test | Partial |
+| 25. Interim source and final treatment linked | report assembly/service | `AemsReportTest.php`, G10E semantic row | Implemented |
 | 26. Final report uses finalized findings only | report selection guard | `AemsReportTest.php` | Implemented |
-| 27. Distribution authority/signatory/transmittal/ack | report distribution service | `AemsReportTest.php`; **required:** authority-matrix/transmittal test | Partial |
+| 27. Distribution authority/signatory/transmittal/ack | report distribution service | `AemsReportTest.php`, `AemsG4AuthorityTest.php`, G10E semantic row | Implemented |
 | 28. Only issued recommendations transfer to CMS | CMS intake and completion transfer | `CmsIntakeTest.php`, `AemsCompletionClosureTest.php` | Implemented |
 | 29. Controlled revision/version/audit trail | version families and AEMS support events | AEMS API tests and `AemsFoundationContractTest.php` | Mostly implemented |
 | 30. Completion assessment coverage | `AemsCompletionAssessmentService` | `AemsCompletionClosureTest.php` | Implemented |
-| 31. Completed/closed protected | closure service and locked records | `AemsCompletionClosureTest.php`; **required:** distinct Completed-vs-Closed test | Partial |
-| 32. Significant changes require approval/audit | transition/event/audit services | `AemsFoundationTest.php`, `AemsNotificationTest.php`; **required:** authority-change event test | Partial |
-| 33. Engagement/procedure/finding criteria traceable | AEP/program/finding payloads | `AemsAepProgramTest.php`, `AemsIssueFindingRecommendationTest.php`; **required:** criteria-chain test | Partial |
-| 34. Planning package complete before fieldwork | planning service and transition gates | `AemsPlanningPackageTest.php`, `AemsEngagementLifecycleTest.php`; **required:** KPI/communication gate test | Partial |
-| 35. Rule-35 Risk Item/Program fields and links | `AemsRiskMatrixItem`, `AuditProgram`, `AuditProgramProcedure` | `AemsPlanningPackageTest.php`; **required:** area/focus/process/approach/program criteria test | Gap |
+| 31. Completed/closed protected | closure service and locked records | `AemsCompletionClosureTest.php`, `AemsFoundationG2Test.php`, G10D Playwright, G10E semantic row | Implemented |
+| 32. Significant changes require approval/audit | transition/event/audit services | `AemsFoundationTest.php`, `AemsNotificationTest.php`, `AemsG4AuthorityTest.php`, G10E semantic row | Implemented |
+| 33. Engagement/procedure/finding criteria traceable | AEP/program/finding payloads and `audit_finding_procedure` | `AemsAepProgramTest.php`, `AemsIssueFindingRecommendationTest::test_finding_exposes_explicit_procedure_criteria_traceability` | Implemented |
+| 34. Planning package complete before fieldwork | planning service and transition gates | `AemsPlanningPackageTest.php`, `AemsEngagementLifecycleTest.php`, G10E semantic row | Implemented |
+| 35. Rule-35 Risk Item/Program fields and links | `AemsRiskMatrixItem`, `AuditProgram`, `AuditProgramProcedure` | `AemsPlanningPackageTest.php`, `AemsFoundationG2Test.php`, G10E semantic row | Implemented |
 
-The matrix intentionally distinguishes existing regression protection from the
-tests required to enforce this new contract. A green current test suite does
-not convert a partial or gap row into an implemented professional control.
+The matrix distinguishes runtime enforcement from compatibility labels. The
+G10E semantic acceptance suite executes every row; a compatibility alias is
+reported as an alias and is never treated as a second professional decision
+path.
 
 ## 5. Compatibility and implementation rules
 
@@ -374,19 +385,19 @@ not convert a partial or gap row into an implemented professional control.
    its authority gate, CMS owns post-transfer monitoring/validation/closure,
    and AIS remains outside this contract.
 
-## 6. G0 gate and next implementation order
+## 6. G0 gate and final acceptance order
 
 G0 is complete when:
 
 - all fourteen MDS open decisions are recorded above;
 - the status compatibility map is accepted by backend and frontend owners;
-- every MDS rule has a code anchor, existing protection, and a required test
-  where the as-built implementation is partial or missing;
+- every MDS rule has a code anchor, runtime protection, and a semantic
+  acceptance test;
 - retention, signature/transmittal, direct AFR, waiver, and distribution
   authority are no longer implicit; and
 - this contract is linked from the AEMS README and implementation baseline.
 
-The safe implementation order after this documentation gate is:
+The historical implementation order after this documentation gate was:
 
 1. **G1 professional-control corrections:** evidence eligibility and immutable
    assessment versions, mandatory Finding Conclusion, direct-AFR authority,
@@ -408,14 +419,12 @@ The safe implementation order after this documentation gate is:
    backend Feature tests, focused Playwright journeys, fresh migration/seed,
    lint/build, protected-download checks, and documentation reconciliation.
 
-Dependencies are strict: G2 precedes G3; G3 precedes fieldwork conformance;
-G4 precedes finding validation; reporting follows G4/G5; closure acceptance
-follows records and distribution controls. AIS is not part of the AEMS roadmap.
+Those dependencies have now been exercised through G10E. AIS remains outside
+the AEMS scope, and the compatibility identifiers and both IAP risk systems
+remain intentionally preserved.
 
 ## 7. Verification record
 
-This G0 change is documentation-only. Before publication, the existing focused
-AEMS Feature run completed with **62 tests and 989 assertions**. The working
-tree was clean and `git diff --check` passed. No migration, route, permission,
-or operational workflow was changed by G0. The full implementation and
-Playwright gates remain required for the later phases listed above.
+The G0 contract was initially documentation-only. G10E is the final acceptance
+checkpoint and records the current semantic Rule/SCR/role matrix and complete
+regression results in `docs/AEMS_G10E_FINAL_ACCEPTANCE.md`.

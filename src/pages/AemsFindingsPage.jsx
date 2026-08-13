@@ -55,6 +55,7 @@ const findingBlank = {
   evidenceIds: [],
   fieldworkRecordIds: [],
   fieldworkRecordVersionIds: [],
+  procedureIds: [],
 };
 const recommendationBlank = {
   recommendation: "",
@@ -62,6 +63,8 @@ const recommendationBlank = {
   targetImplementationDate: "",
 };
 const responseBlank = {
+  responseKind: "ORIGINAL",
+  supplementalReason: "",
   agreementPosition: "AGREE",
   managementComment: "",
   proposedAction: "",
@@ -190,6 +193,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
   const canIssueObserve = hasPermission(user, "aems.issue.observe");
   const canIssueRefer = hasPermission(user, "aems.issue.refer");
   const canIssueClose = hasPermission(user, "aems.issue.close_without_finding");
+  const canIssueWithdraw = hasPermission(user, "aems.issue.withdraw");
+  const canAfrTransmit = hasPermission(user, "aems.afr.transmit");
+  const canAfrDelivery = hasPermission(user, "aems.afr.delivery");
+  const canAfrAcknowledge = hasPermission(user, "aems.afr.acknowledge");
   const canFindingCreate = hasPermission(user, "aems.finding.create");
   const canFindingValidate = hasPermission(user, "aems.finding.validate");
   const canFindingRevise = hasPermission(user, "aems.finding.revise");
@@ -308,6 +315,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
         value: item.id,
         label: `${item.evidenceCode} v${item.versionNumber} — ${item.title}`,
       })),
+      procedures: (workspace?.procedures ?? []).map((item) => ({
+        value: item.id,
+        label: `${item.procedureCode} - ${item.objective || "Procedure"}`,
+      })),
     }),
     [workspace],
   );
@@ -365,6 +376,7 @@ export default function AemsFindingsPage({ section = "findings" }) {
             fieldworkRecordVersionIds: finding.fieldworkRecords.map(
               (item) => item.versionId,
             ),
+            procedureIds: (finding.procedures ?? []).map((item) => item.id),
           }
         : findingBlank,
     );
@@ -399,13 +411,15 @@ export default function AemsFindingsPage({ section = "findings" }) {
       confidentiality: "INTERNAL",
       mergedIntoIssueId: "",
       referredTo: "",
-      resolutionDetails: "",
+    resolutionDetails: "",
+    extensionDueDate: "",
+    lateReason: "",
       revisionAction: "CORRECT",
     });
     setModal("action");
   }
 
-  function openResponse(response = null) {
+  function openResponse(response = null, responseKind = "ORIGINAL") {
     setEditing(response);
     setForm(
       response
@@ -415,8 +429,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
             proposedAction: response.proposedAction ?? "",
             responsibleUserId: response.responsibleUserId ?? "",
             proposedTargetDate: response.proposedTargetDate ?? "",
+            responseKind: response.responseKind ?? "ORIGINAL",
+            supplementalReason: response.supplementalReason ?? "",
           }
-        : responseBlank,
+        : { ...responseBlank, responseKind },
     );
     setModal("response");
   }
@@ -601,7 +617,37 @@ export default function AemsFindingsPage({ section = "findings" }) {
       "OBSERVE",
       "REFER",
       "CLOSE_WITHOUT_FINDING",
+      "WITHDRAW",
     ];
+    if (action === "TRANSMIT_AFR") {
+      perform(
+        () => aemsFindingApi.createTransmittal(engagementId, selectedFinding.id, {
+          recipients: actionForm.recipients.split(",").map((item) => item.trim()).filter(Boolean),
+          dueDate: actionForm.dueDate || undefined,
+          confidentiality: actionForm.confidentiality,
+          transmittalMethod: "OFFICIAL_LETTER",
+        }),
+        "AFR transmittal recorded.",
+      );
+      return;
+    }
+    if (["DELIVER_RECIPIENT", "ACKNOWLEDGE_RECIPIENT"].includes(action)) {
+      perform(
+        () => aemsFindingApi.transitionTransmittalRecipient(
+          engagementId,
+          selectedFinding.id,
+          responseContext.transmittal.id,
+          responseContext.recipient.id,
+          {
+            action: action === "DELIVER_RECIPIENT" ? "DELIVER" : "ACKNOWLEDGE",
+            lockVersion: responseContext.recipient.lockVersion,
+            comment: actionForm.comment || undefined,
+          },
+        ),
+        "AFR recipient state updated.",
+      );
+      return;
+    }
     let operation;
     if (issueActions.includes(action)) {
       const issueAction = action.replace("_ISSUE", "");
@@ -616,6 +662,8 @@ export default function AemsFindingsPage({ section = "findings" }) {
             mergedIntoIssueId: actionForm.mergedIntoIssueId || undefined,
             referredTo: actionForm.referredTo || undefined,
             resolutionDetails: actionForm.resolutionDetails || undefined,
+            extensionDueDate: actionForm.extensionDueDate || undefined,
+            lateReason: actionForm.lateReason || undefined,
           },
         );
     } else if (findingActions.includes(action)) {
@@ -637,6 +685,8 @@ export default function AemsFindingsPage({ section = "findings" }) {
                 : undefined,
             dueDate: actionForm.dueDate || undefined,
             confidentiality: actionForm.confidentiality,
+            extensionDueDate: actionForm.extensionDueDate || undefined,
+            lateReason: actionForm.lateReason || undefined,
           },
         );
     } else if (action === "REVISE_RESPONSE") {
@@ -687,7 +737,7 @@ export default function AemsFindingsPage({ section = "findings" }) {
     perform(operation, `${label(action)} completed.`);
   }
 
-  const terminalIssue = ["DISMISSED", "CONVERTED_TO_FINDING"].includes(
+  const terminalIssue = ["DISMISSED", "CONVERTED_TO_FINDING", "WITHDRAWN"].includes(
     selectedIssue?.status,
   );
   const currentResponse = selectedFinding?.managementResponses.find(
@@ -786,7 +836,7 @@ export default function AemsFindingsPage({ section = "findings" }) {
             <SummaryCard
               icon={FileWarning}
               label="Open issues"
-              value={workspace.issues.filter((item) => !["DISMISSED", "CONVERTED_TO_FINDING"].includes(item.status)).length}
+              value={workspace.issues.filter((item) => !["DISMISSED", "CONVERTED_TO_FINDING", "WITHDRAWN"].includes(item.status)).length}
               tone="amber"
             />
             <SummaryCard
@@ -883,6 +933,7 @@ export default function AemsFindingsPage({ section = "findings" }) {
                 canObserve={canIssueObserve}
                 canRefer={canIssueRefer}
                 canClose={canIssueClose}
+                canWithdraw={canIssueWithdraw}
                 currentUserId={Number(user?.id ?? 0)}
                 terminal={terminalIssue}
                 onEdit={() => openIssue(selectedIssue)}
@@ -905,6 +956,9 @@ export default function AemsFindingsPage({ section = "findings" }) {
                 canReviewResponse={canReviewResponse}
                 canRejoin={canRejoin}
                 canFinalizeRejoinder={canFinalizeRejoinder}
+                canAfrTransmit={canAfrTransmit}
+                canAfrDelivery={canAfrDelivery}
+                canAfrAcknowledge={canAfrAcknowledge}
                 currentUserId={Number(user?.id ?? 0)}
                 currentResponse={currentResponse}
                 onEdit={() => openFinding(selectedFinding)}
@@ -948,6 +1002,7 @@ export default function AemsFindingsPage({ section = "findings" }) {
         workspace={workspace}
         selectedIssueId={selectedIssueId}
         action={action}
+        responseContext={responseContext}
         actionForm={actionForm}
         setActionForm={setActionForm}
         onClose={closeModal}
@@ -974,6 +1029,7 @@ function IssueDetail({
   canObserve,
   canRefer,
   canClose,
+  canWithdraw,
   currentUserId,
   terminal,
   onEdit,
@@ -1044,6 +1100,11 @@ function IssueDetail({
               Close without finding
             </ActionButton>
           )}
+          {canWithdraw && !["DISMISSED", "CONVERTED_TO_FINDING", "WITHDRAWN"].includes(issue.status) && !authorIsCurrentUser && (
+            <ActionButton onClick={() => onAction("WITHDRAW")} tone="red">
+              Withdraw issue
+            </ActionButton>
+          )}
           {issue.findingId && (
             <ActionButton onClick={() => onOpenFinding(issue.findingId)}>
               Open finding
@@ -1100,6 +1161,9 @@ function FindingDetail({
   canReviewResponse,
   canRejoin,
   canFinalizeRejoinder,
+  canAfrTransmit,
+  canAfrDelivery,
+  canAfrAcknowledge,
   currentUserId,
   currentResponse,
   onEdit,
@@ -1245,6 +1309,27 @@ function FindingDetail({
           </ul>
         ) : <p className="text-sm text-slate-500">No fieldwork execution record is linked.</p>}
       </Section>}
+      {!dialogueOnly && <Section title="Procedure and criteria traceability">
+        {finding.procedures?.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {finding.procedures.map((procedure) => (
+              <article className="rounded-lg border border-sky-200 bg-sky-50/60 p-3" key={procedure.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-sky-700">{procedure.procedureCode}</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">{procedure.objective || "Approved audit procedure"}</p>
+                  </div>
+                  <StatusBadge label="Linked" tone="active" />
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-slate-700"><strong>Criteria:</strong> {procedure.criteriaReference || procedure.auditCriteria || "No procedure criteria recorded."}</p>
+                {procedure.traceabilityNote && <p className="mt-2 text-xs text-slate-500">{procedure.traceabilityNote}</p>}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">No procedure criteria link is recorded. This finding cannot pass the professional review gate until an approved-program procedure is linked.</p>
+        )}
+      </Section>}
       {!dialogueOnly && <Support papers={finding.workingPaperVersions} evidence={finding.evidence} />}
       {!dialogueOnly && <RevisionHistory finding={finding} />}
       {!dialogueOnly && <Section
@@ -1302,6 +1387,35 @@ function FindingDetail({
           )}
         </div>
       </Section>}
+      <Section
+        title="AFR transmittal and acknowledgement"
+        action={canAfrTransmit && ["COMMUNICATED", "AWAITING_MANAGEMENT_RESPONSE", "UNDER_DIALOGUE"].includes(finding.status) ? (
+          <ActionButton onClick={() => onAction("TRANSMIT_AFR")} tone="blue">New transmittal</ActionButton>
+        ) : null}
+      >
+        <div className="space-y-3">
+          {(finding.transmittals ?? []).map((transmittal) => (
+            <div key={transmittal.id} className="rounded-lg border border-slate-200 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-bold text-sky-700">{transmittal.transmittalCode} · {label(transmittal.transmittalMethod)}</p>
+                <span className="text-xs text-slate-500">Sent {date(transmittal.sentAt, true)}</span>
+              </div>
+              <div className="mt-2 space-y-2">
+                {transmittal.recipients.map((recipient) => (
+                  <div key={recipient.id} className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 p-2 text-sm">
+                    <span><strong>{recipient.recipientName}</strong> · {label(recipient.deliveryStatus)}</span>
+                    <span className="flex gap-2">
+                      {canAfrDelivery && ["SENT", "PENDING"].includes(recipient.deliveryStatus) && <ActionButton onClick={() => onAction("DELIVER_RECIPIENT", { transmittal, recipient })}>Mark delivered</ActionButton>}
+                      {canAfrAcknowledge && ["SENT", "DELIVERED"].includes(recipient.deliveryStatus) && <ActionButton onClick={() => onAction("ACKNOWLEDGE_RECIPIENT", { transmittal, recipient })} tone="green">Acknowledge</ActionButton>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {(finding.transmittals ?? []).length === 0 && <p className="text-sm text-slate-500">No AFR transmittal has been recorded.</p>}
+        </div>
+      </Section>
       {showDialogue && (
         <Section
           title="Management dialogue"
@@ -1318,6 +1432,11 @@ function FindingDetail({
           }
         >
           <div className="space-y-4">
+          {canRespond && currentResponse && ["UNDER_DIALOGUE", "AWAITING_MANAGEMENT_RESPONSE"].includes(finding.status) && (
+            <ActionButton onClick={() => onResponse(null, "SUPPLEMENTAL")} tone="blue">
+              <Plus size={15} /> Add supplemental response
+            </ActionButton>
+          )}
           {finding.managementResponses.map((response) => (
             <ResponseCard
               key={response.id}
@@ -1369,6 +1488,11 @@ function ResponseCard({
           <p className="text-xs font-bold text-sky-700">
             {response.responseCode} · Version {response.versionNumber}
           </p>
+          {response.responseKind && response.responseKind !== "ORIGINAL" && (
+            <span className="mt-1 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+              {label(response.responseKind)} response
+            </span>
+          )}
           <p className="mt-1 text-sm font-bold text-slate-800">
             {label(response.agreementPosition)}
           </p>
@@ -1378,22 +1502,51 @@ function ResponseCard({
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
         {response.managementComment}
       </p>
+      {response.submittedLate && (
+        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <strong>Late response reason:</strong> {response.lateReason || "Reason recorded in the immutable dialogue history."}
+        </p>
+      )}
+      {response.supplementalReason && (
+        <p className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+          <strong>Supplemental response reason:</strong> {response.supplementalReason}
+        </p>
+      )}
       {response.proposedAction && (
         <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
           <strong>Proposed action:</strong> {response.proposedAction}
         </p>
       )}
-      <div className="mt-3 flex flex-wrap gap-2">
-        {canRespond && response.status === "DRAFT" && (
+        <div className="mt-3 flex flex-wrap gap-2">
+        {canRespond && ["DRAFT", "SUBMITTED", "CLARIFICATION_REQUESTED"].includes(response.status) && (
           <>
-            <ActionButton onClick={onEdit}>Edit</ActionButton>
-            <ActionButton onClick={() => onAttachment("response", response)}>
-              <Upload size={15} /> Attach
-            </ActionButton>
-            <ActionButton onClick={() => onAction("SUBMIT")} tone="blue">
-              Submit
+            {response.status === "DRAFT" && <>
+              <ActionButton onClick={onEdit}>Edit</ActionButton>
+              <ActionButton onClick={() => onAttachment("response", response)}>
+                <Upload size={15} /> Attach
+              </ActionButton>
+              <ActionButton onClick={() => onAction("SUBMIT")} tone="blue">
+                Submit
+              </ActionButton>
+            </>}
+            <ActionButton onClick={() => onAction("REQUEST_EXTENSION")} tone="amber">
+              Request extension
             </ActionButton>
           </>
+        )}
+        {canRespond && response.status === "EXTENSION_REQUESTED" && (
+          <span className="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+            Extension awaiting independent approval
+          </span>
+        )}
+        {canReview && response.status === "EXTENSION_REQUESTED" && (
+          <>
+            <ActionButton onClick={() => onAction("APPROVE_EXTENSION")} tone="green">Approve extension</ActionButton>
+            <ActionButton onClick={() => onAction("REJECT_EXTENSION")} tone="red">Reject extension</ActionButton>
+          </>
+        )}
+        {canRespond && response.status === "EXTENSION_APPROVED" && (
+          <ActionButton onClick={() => onAction("SUBMIT")} tone="blue">Submit extended response</ActionButton>
         )}
         {canRespond && response.status === "CLARIFICATION_REQUESTED" && (
           <ActionButton onClick={() => onAction("REVISE_RESPONSE")} tone="blue">
@@ -1622,6 +1775,7 @@ function RecordModal({
   workspace,
   selectedIssueId,
   action,
+  responseContext,
   actionForm,
   setActionForm,
   onClose,
@@ -1728,6 +1882,12 @@ function RecordModal({
           <Field name="Verified evidence" errors={errors.evidenceIds} wide>
             <SearchableSelect multiple options={options.evidence} value={form.evidenceIds} onChange={(value) => set("evidenceIds", value)} />
           </Field>
+          <Field name="Criteria-traceability procedures" errors={errors.procedureIds} wide hint="At least one approved-program procedure is required before review">
+            <SearchableSelect multiple options={options.procedures} value={form.procedureIds ?? []} onChange={(value) => set("procedureIds", value)} placeholder="Select procedures supporting the finding" />
+          </Field>
+          <div className="sm:col-span-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-800">
+            Procedure links are also inferred from selected Working Paper and Fieldwork Record Versions. Review the Finding detail after saving to confirm the exact criteria chain.
+          </div>
           <Field name="Reason no recommendation is required" errors={errors.noRecommendationReason} wide hint="Optional when recommendations will be added separately">
             <textarea className={textAreaClass} value={form.noRecommendationReason} onChange={(event) => set("noRecommendationReason", event.target.value)} />
           </Field>
@@ -1755,6 +1915,19 @@ function RecordModal({
               {(workspace?.agreementPositions ?? []).map((item) => <option key={item} value={item}>{label(item)}</option>)}
             </select>
           </Field>
+          {!editing && (
+            <Field name="Response type" errors={errors.responseKind}>
+              <select className={inputClass} value={form.responseKind} onChange={(event) => set("responseKind", event.target.value)}>
+                <option value="ORIGINAL">Original response</option>
+                <option value="SUPPLEMENTAL">Supplemental response</option>
+              </select>
+            </Field>
+          )}
+          {!editing && form.responseKind === "SUPPLEMENTAL" && (
+            <Field name="Supplemental reason" errors={errors.supplementalReason} wide>
+              <textarea className={textAreaClass} value={form.supplementalReason} onChange={(event) => set("supplementalReason", event.target.value)} />
+            </Field>
+          )}
           <Field name="Proposed target date" errors={errors.proposedTargetDate}><input className={inputClass} type="date" value={form.proposedTargetDate} onChange={(event) => set("proposedTargetDate", event.target.value)} /></Field>
           <Field name="Management comment" errors={errors.managementComment} wide><textarea className={textAreaClass} value={form.managementComment} onChange={(event) => set("managementComment", event.target.value)} /></Field>
           <Field name="Proposed action" errors={errors.proposedAction} wide><textarea className={textAreaClass} value={form.proposedAction} onChange={(event) => set("proposedAction", event.target.value)} /></Field>
@@ -1815,6 +1988,10 @@ function RecordModal({
     "RECORD_NON_RESPONSE",
     "REQUEST_CLARIFICATION",
     "REVISE_FINDING",
+    "WITHDRAW",
+    "REQUEST_EXTENSION",
+    "APPROVE_EXTENSION",
+    "REJECT_EXTENSION",
   ].includes(action);
   return (
     <Modal
@@ -1830,7 +2007,7 @@ function RecordModal({
             <SearchableSelect
               options={(workspace?.issues ?? [])
                 .filter((item) => String(item.id) !== String(selectedIssueId))
-                .filter((item) => !["DISMISSED", "CONVERTED_TO_FINDING"].includes(item.status))
+                .filter((item) => !["DISMISSED", "CONVERTED_TO_FINDING", "WITHDRAWN"].includes(item.status))
                 .map((item) => ({ value: item.id, label: `${item.issueCode} — ${item.title}` }))}
               value={actionForm.mergedIntoIssueId}
               onChange={(value) => setActionForm((current) => ({ ...current, mergedIntoIssueId: value }))}
@@ -1874,6 +2051,26 @@ function RecordModal({
               </select>
             </Field>
           </>
+        )}
+        {action === "TRANSMIT_AFR" && (
+          <>
+            <Field name="Recipients" errors={errors.recipients} hint="Comma-separated offices or recipient names">
+              <input className={inputClass} value={actionForm.recipients} onChange={(event) => setActionForm((current) => ({ ...current, recipients: event.target.value }))} />
+            </Field>
+            <Field name="Response due date" errors={errors.dueDate}>
+              <input className={inputClass} type="date" value={actionForm.dueDate} onChange={(event) => setActionForm((current) => ({ ...current, dueDate: event.target.value }))} />
+            </Field>
+          </>
+        )}
+        {action === "REQUEST_EXTENSION" && (
+          <Field name="Proposed extension due date" errors={errors.extensionDueDate}>
+            <input className={inputClass} type="date" value={actionForm.extensionDueDate} onChange={(event) => setActionForm((current) => ({ ...current, extensionDueDate: event.target.value }))} />
+          </Field>
+        )}
+        {action === "SUBMIT" && responseContext && (
+          <Field name="Late response reason" errors={errors.lateReason} hint="Required only when the response is past its effective due date.">
+            <textarea className={textAreaClass} value={actionForm.lateReason} onChange={(event) => setActionForm((current) => ({ ...current, lateReason: event.target.value }))} />
+          </Field>
         )}
         {(needsComment || !["REVISE_RESPONSE", "FINALIZE_REJOINDER"].includes(action)) && (
           <Field name={needsComment ? "Required explanation" : "Comment"} errors={errors.comment}>

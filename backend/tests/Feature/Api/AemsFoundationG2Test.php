@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\AuditEngagement;
+use App\Models\AuditFocus;
 use App\Models\IapPlanEngagement;
 use App\Models\Office;
 use App\Models\User;
@@ -118,6 +119,36 @@ class AemsFoundationG2Test extends TestCase
 
         $this->expectException(QueryException::class);
         $engagement->offices()->attach($otherOffice->id, ['is_primary' => false]);
+    }
+
+    public function test_scope_rejects_focus_outside_the_selected_area(): void
+    {
+        $management = $this->user('departmenthead');
+        $source = $this->approvedSource($management);
+        $area = $source->auditAreas->firstOrFail();
+        $foreignFocus = AuditFocus::query()
+            ->where('audit_area_id', '<>', $area->id)
+            ->where('is_active', true)
+            ->first();
+        $this->assertNotNull($foreignFocus, 'The seeded catalog must contain a focus outside the selected area.');
+
+        Sanctum::actingAs($management);
+        $engagementId = $this->postJson('/api/aems/engagements/import', [
+            'iapPlanEngagementId' => $source->id,
+        ])->assertCreated()->json('data.engagement.id');
+
+        $this->putJson("/api/aems/engagements/{$engagementId}/scope", [
+            'officeId' => $source->offices->firstOrFail()->id,
+            'scopeBoundaries' => 'Area boundary.',
+            'scopeLimitations' => 'No limitation identified.',
+            'scopeSourceVariance' => ['decision' => 'ALIGNED'],
+            'areaCoverage' => [[
+                'auditAreaId' => $area->id,
+                'focusIds' => [$foreignFocus->id],
+                'boundary' => 'Area boundary.',
+            ]],
+            'lockVersion' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('areaCoverage');
     }
 
     private function user(string $username): \App\Models\User

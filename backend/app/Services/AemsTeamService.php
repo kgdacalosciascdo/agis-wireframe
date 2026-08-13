@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Contracts\Aems\ResourcePlanningGateway;
 use App\Models\AuditEngagement;
+use App\Models\AemsTeamAccessHistory;
+use App\Models\AemsTeamAmendment;
 use App\Models\EngagementTeam;
 use App\Models\EngagementTeamHistory;
 use App\Models\User;
@@ -40,6 +42,10 @@ class AemsTeamService
                 ->with(['user.roles', 'user.role']),
             'teamHistory.actor',
             'teamHistory.teamMember.user',
+            'teamAmendments.actor',
+            'teamAmendments.teamMember.user',
+            'teamAccessHistory.actor',
+            'teamAccessHistory.user',
         ]);
 
         $team = $engagement->teamMembers->values();
@@ -69,6 +75,31 @@ class AemsTeamService
                     'newValues' => $history->new_values,
                     'createdAt' => $history->created_at?->toISOString(),
                     'actor' => $this->user($history->actor),
+                ])->values(),
+            'amendments' => $engagement->teamAmendments
+                ->map(fn (AemsTeamAmendment $amendment): array => [
+                    'id' => $amendment->id,
+                    'action' => $amendment->action,
+                    'authorityCode' => $amendment->authority_code,
+                    'reason' => $amendment->reason,
+                    'consequenceAssessment' => $amendment->consequence_assessment,
+                    'oldValues' => $amendment->old_values,
+                    'newValues' => $amendment->new_values,
+                    'createdAt' => $amendment->created_at?->toISOString(),
+                    'actor' => $this->user($amendment->actor),
+                ])->values(),
+            'accessHistory' => $engagement->teamAccessHistory
+                ->map(fn (AemsTeamAccessHistory $entry): array => [
+                    'id' => $entry->id,
+                    'action' => $entry->action,
+                    'assignmentRoleCode' => $entry->assignment_role_code,
+                    'accessFrom' => $entry->access_from?->toDateString(),
+                    'accessUntil' => $entry->access_until?->toDateString(),
+                    'reason' => $entry->reason,
+                    'snapshot' => $entry->snapshot,
+                    'createdAt' => $entry->created_at?->toISOString(),
+                    'user' => $this->user($entry->user),
+                    'actor' => $this->user($entry->actor),
                 ])->values(),
             'candidates' => $this->candidates($engagement, $team),
             'warnings' => $this->warnings($engagement, $team),
@@ -100,6 +131,8 @@ class AemsTeamService
             ]);
             $snapshot = $this->memberSnapshot($member->load('user'));
             $this->history($locked, $member, 'ASSIGNED', $request->user()->id, null, null, $snapshot);
+            $this->recordAmendment($locked, $member, 'ASSIGNED', $request, null, $snapshot, $attributes);
+            $this->recordAccess($locked, $member, 'GRANTED', $request->user()->id, null, $snapshot);
             $this->record($request, $locked, 'aems.team.assigned', null, $snapshot);
             $this->notifications->teamAssignment(
                 $request,
@@ -131,6 +164,8 @@ class AemsTeamService
             $current->update($this->assignmentAttributes($locked, $payload));
             $after = $this->memberSnapshot($current->fresh('user'));
             $this->history($locked, $current, 'UPDATED', $request->user()->id, $attributes['reason'] ?? null, $before, $after);
+            $this->recordAmendment($locked, $current, 'UPDATED', $request, $before, $after, $attributes);
+            $this->recordAccess($locked, $current, 'UPDATED', $request->user()->id, $attributes['reason'] ?? null, $after);
             $this->record($request, $locked, 'aems.team.updated', $before, $after);
 
             return $current->fresh(['user.roles', 'user.role']);
@@ -178,6 +213,9 @@ class AemsTeamService
             $after = $this->memberSnapshot($newMember->load('user'));
             $this->history($locked, $current, 'REASSIGNED_FROM', $request->user()->id, $attributes['reason'], $before, $after);
             $this->history($locked, $newMember, 'REASSIGNED_TO', $request->user()->id, $attributes['reason'], $before, $after);
+            $this->recordAmendment($locked, $newMember, 'REASSIGNED', $request, $before, $after, $attributes);
+            $this->recordAccess($locked, $current, 'REVOKED', $request->user()->id, $attributes['reason'], $before);
+            $this->recordAccess($locked, $newMember, 'GRANTED', $request->user()->id, $attributes['reason'], $after);
             $this->record($request, $locked, 'aems.team.reassigned', $before, $after);
             $this->notifications->teamAssignment(
                 $request,
@@ -209,6 +247,8 @@ class AemsTeamService
                 'is_active' => false,
             ]);
             $this->history($locked, $current, 'ENDED', $request->user()->id, $reason, $before, null);
+            $this->recordAmendment($locked, $current, 'ENDED', $request, $before, null, ['reason' => $reason]);
+            $this->recordAccess($locked, $current, 'REVOKED', $request->user()->id, $reason, $before);
             $this->record($request, $locked, 'aems.team.assignment_ended', $before, null);
             $current->delete();
         });
@@ -558,5 +598,51 @@ class AemsTeamService
             subjectType: 'TEAM',
         );
         $this->support->audit($request, $action, $engagement, $oldValues, $newValues);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function recordAmendment(
+        AuditEngagement $engagement,
+        EngagementTeam $member,
+        string $action,
+        Request $request,
+        ?array $oldValues,
+        ?array $newValues,
+        array $attributes,
+    ): void {
+        AemsTeamAmendment::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'engagement_team_id' => $member->id,
+            'action' => $action,
+            'authority_code' => $attributes['amendmentAuthority'] ?? 'AEMS_TEAM_ASSIGNMENT_AUTHORITY',
+            'reason' => $attributes['reason'] ?? 'Authorized engagement team amendment.',
+            'consequence_assessment' => $attributes['consequenceAssessment']
+                ?? 'Assignment impact assessed; no unresolved independence or capacity consequence identified.',
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'actor_id' => $request->user()->id,
+        ]);
+    }
+
+    private function recordAccess(
+        AuditEngagement $engagement,
+        EngagementTeam $member,
+        string $action,
+        int $actorId,
+        ?string $reason,
+        ?array $snapshot,
+    ): void {
+        AemsTeamAccessHistory::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'engagement_team_id' => $member->id,
+            'user_id' => $member->user_id,
+            'action' => $action,
+            'assignment_role_code' => $member->assignment_role_code,
+            'access_from' => $member->assigned_from,
+            'access_until' => $member->assigned_until,
+            'actor_id' => $actorId,
+            'reason' => $reason,
+            'snapshot' => $snapshot,
+        ]);
     }
 }

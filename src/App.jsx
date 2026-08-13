@@ -102,6 +102,14 @@ const AemsEngagementDetailPage = lazy(
 const AemsEntryConferencePage = lazy(
   () => import("./pages/AemsEntryConferencePage"),
 );
+const AemsOperationalQueuesPage = lazy(
+  () => import("./pages/AemsOperationalQueuesPage"),
+);
+const AemsCalendarPage = lazy(() => import("./pages/AemsCalendarPage"));
+const AemsRegistersPage = lazy(() => import("./pages/AemsRegistersPage"));
+const AemsRecordsClosurePage = lazy(
+  () => import("./pages/AemsRecordsClosurePage"),
+);
 const CmsDashboardPage = lazy(() => import("./pages/CmsDashboardPage"));
 const CmsRecommendationRegistryPage = lazy(
   () => import("./pages/CmsRecommendationRegistryPage"),
@@ -184,6 +192,10 @@ const implementedCorePaths = new Set([
   "/audit-engagement-management/auditee-responses",
   "/audit-engagement-management/exit-conferences",
   "/audit-engagement-management/reports",
+  "/audit-engagement-management/work-queues",
+  "/audit-engagement-management/calendar",
+  "/audit-engagement-management/registers",
+  "/audit-engagement-management/records-closure",
   "/compliance-management",
   "/compliance-management/dashboard",
   "/compliance-management/recommendations",
@@ -618,6 +630,52 @@ export default function App() {
               >
                 <Suspense fallback={<RouteLoading />}>
                   <AemsReportsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/work-queues"
+            element={
+              <ProtectedPage permission="aems.task.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsOperationalQueuesPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/calendar"
+            element={
+              <ProtectedPage permission="aems.calendar.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsCalendarPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/registers"
+            element={
+              <ProtectedPage permission="aems.engagement.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsRegistersPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-engagement-management/records-closure"
+            element={
+              <ProtectedPage
+                permission={[
+                  "aems.closure.view",
+                  "aems.records.view",
+                  "aems.retention.view",
+                ]}
+              >
+                <Suspense fallback={<RouteLoading />}>
+                  <AemsRecordsClosurePage />
                 </Suspense>
               </ProtectedPage>
             }

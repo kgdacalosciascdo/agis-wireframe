@@ -6,10 +6,14 @@ use App\Models\AuditEngagement;
 use App\Models\AuditEvidence;
 use App\Models\AuditFinding;
 use App\Models\AuditIssue;
+use App\Models\AuditProgramProcedure;
 use App\Models\AuditRecommendation;
 use App\Models\AemsDialogueAttachment;
 use App\Models\AemsFieldworkRecord;
 use App\Models\AemsFieldworkRecordVersion;
+use App\Models\AemsFindingTransmittal;
+use App\Models\AemsFindingTransmittalEvent;
+use App\Models\AemsFindingTransmittalRecipient;
 use App\Models\AuditorRejoinder;
 use App\Models\Document;
 use App\Models\DocumentVersion;
@@ -94,6 +98,14 @@ class AemsFindingService
             ->orderBy('working_paper_id')
             ->orderByDesc('version_number')
             ->get();
+        $procedures = AuditProgramProcedure::query()
+            ->whereHas('program', fn ($program) => $program
+                ->where('audit_engagement_id', $engagement->id)
+                ->where('is_current_revision', true)
+                ->whereNull('deleted_at'))
+            ->orderBy('audit_program_id')
+            ->orderBy('sequence_number')
+            ->get(['id', 'audit_program_id', 'procedure_code', 'objective', 'audit_criteria', 'status']);
         $evidence = AuditEvidence::query()
             ->where('audit_engagement_id', $engagement->id)
             ->where('is_current_revision', true)
@@ -127,6 +139,13 @@ class AemsFindingService
                     ],
                 ],
             )->values(),
+            'procedures' => $procedures->map(fn (AuditProgramProcedure $procedure): array => [
+                'id' => $procedure->id,
+                'procedureCode' => $procedure->procedure_code,
+                'objective' => $procedure->objective,
+                'auditCriteria' => $procedure->audit_criteria,
+                'status' => $procedure->status,
+            ])->values(),
             'evidence' => $evidence->map(fn (AuditEvidence $item): array => [
                 'id' => $item->id,
                 'evidenceCode' => $item->evidence_code,
@@ -266,6 +285,7 @@ class AemsFindingService
             'OBSERVE' => 'aems.issue.observe',
             'REFER' => 'aems.issue.refer',
             'CLOSE_WITHOUT_FINDING' => 'aems.issue.close_without_finding',
+            'WITHDRAW' => 'aems.issue.withdraw',
             default => throw ValidationException::withMessages(['action' => ['Unsupported issue action.']]),
         };
         $originator = $action === 'SUBMIT' ? null : $issue->raised_by;
@@ -297,6 +317,7 @@ class AemsFindingService
                 'CONVERT' => $from === 'VALIDATED' ? 'CONVERTED_TO_FINDING' : null,
                 'MERGE', 'RESOLVE', 'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING'
                     => $from === 'VALIDATED' ? 'DISMISSED' : null,
+                'WITHDRAW' => in_array($from, ['DRAFT', 'SUBMITTED', 'VALIDATED'], true) ? 'WITHDRAWN' : null,
             };
             if (! $to) {
                 throw ValidationException::withMessages([
@@ -310,7 +331,7 @@ class AemsFindingService
             if (in_array($action, ['VALIDATE', 'CONVERT'], true)) {
                 $this->ensureIssueSupport($locked, true);
             }
-            if (in_array($action, ['DISMISS', 'MERGE', 'RESOLVE', 'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING'], true)
+            if (in_array($action, ['DISMISS', 'MERGE', 'RESOLVE', 'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING', 'WITHDRAW'], true)
                 && ! $comment) {
                 throw ValidationException::withMessages([
                     'comment' => ['A disposition reason is required.'],
@@ -322,7 +343,8 @@ class AemsFindingService
                     throw ValidationException::withMessages(['mergedIntoIssueId' => ['Select a different issue in this engagement.']]);
                 }
                 $target = AuditIssue::query()->where('audit_engagement_id', $engagement->id)->find($targetId);
-                if (! $target || in_array($target->status, ['DISMISSED', 'CONVERTED_TO_FINDING'], true)) {
+                if (! $target
+                    || (AuditIssue::STATUS_COMPATIBILITY[$target->status]['terminal'] ?? false)) {
                     throw ValidationException::withMessages(['mergedIntoIssueId' => ['The merge target must be an active issue in this engagement.']]);
                 }
             }
@@ -352,6 +374,14 @@ class AemsFindingService
                 $changes['converted_by'] = $request->user()->id;
                 $changes['converted_at'] = now();
                 $changes['disposition'] = 'CONVERTED_TO_FINDING';
+            } elseif ($action === 'WITHDRAW') {
+                $changes['withdrawn_by'] = $request->user()->id;
+                $changes['withdrawn_at'] = now();
+                $changes['withdrawal_reason'] = $comment;
+                $changes['disposition'] = 'WITHDRAWN';
+                $changes['disposition_reason'] = $comment;
+                $changes['disposition_recorded_by'] = $request->user()->id;
+                $changes['disposition_recorded_at'] = now();
             } else {
                 $changes['disposition'] = match ($action) {
                     'MERGE' => 'MERGED',
@@ -389,7 +419,7 @@ class AemsFindingService
                 $this->issueAudit($locked),
                 $comment,
             );
-            if (in_array($action, ['DISMISS', 'CONVERT', 'MERGE', 'RESOLVE', 'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING'], true)) {
+            if (in_array($action, ['DISMISS', 'CONVERT', 'MERGE', 'RESOLVE', 'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING', 'WITHDRAW'], true)) {
                 $this->notifications->issueDisposition($request, $engagement, $locked, $action);
             }
 
@@ -418,6 +448,13 @@ class AemsFindingService
             );
             $evidence = $this->evidence($engagement, $attributes['evidenceIds'] ?? []);
             $fieldworkLinks = $this->fieldworkLinks($engagement, $attributes);
+            $procedureLinks = $this->procedureLinks(
+                $engagement,
+                $attributes,
+                $workingPapers,
+                $fieldworkLinks,
+                (int) $request->user()->id,
+            );
             $sourceIssue = null;
             if (filled($attributes['sourceIssueId'] ?? null)) {
                 $sourceIssue = AuditIssue::query()
@@ -455,6 +492,7 @@ class AemsFindingService
             $finding->workingPaperVersions()->sync($workingPapers->modelKeys());
             $finding->evidence()->sync($evidence->modelKeys());
             $finding->fieldworkRecordVersions()->sync($fieldworkLinks);
+            $finding->procedures()->sync($procedureLinks);
             $this->recordFinding($request, $engagement, $finding, 'CREATED', null, 'DRAFT');
 
             return $finding;
@@ -494,6 +532,21 @@ class AemsFindingService
                 || array_key_exists('fieldworkRecordIds', $attributes)
                 ? $this->fieldworkLinks($engagement, $attributes)
                 : null;
+            $procedureLinks = array_key_exists('procedureIds', $attributes)
+                || array_key_exists('workingPaperVersionIds', $attributes)
+                || $fieldworkLinks !== null
+                ? $this->procedureLinks(
+                    $engagement,
+                    $attributes,
+                    $workingPapers,
+                    $fieldworkLinks ?? $locked->fieldworkRecordVersions->mapWithKeys(
+                        fn (AemsFieldworkRecordVersion $version): array => [
+                            $version->id => ['fieldwork_record_id' => $version->fieldwork_record_id],
+                        ],
+                    )->all(),
+                    (int) $request->user()->id,
+                )
+                : null;
             $before = $this->findingAudit($locked);
             $locked->update([
                 ...$this->findingAttributes($attributes),
@@ -503,6 +556,9 @@ class AemsFindingService
             $locked->evidence()->sync($evidence->modelKeys());
             if ($fieldworkLinks !== null) {
                 $locked->fieldworkRecordVersions()->sync($fieldworkLinks);
+            }
+            if ($procedureLinks !== null) {
+                $locked->procedures()->sync($procedureLinks);
             }
             $this->recordFinding(
                 $request,
@@ -558,6 +614,7 @@ class AemsFindingService
                 'workingPaperVersionIds' => $source->workingPaperVersions->modelKeys(),
                 'evidenceIds' => $source->evidence->modelKeys(),
                 'fieldworkRecordVersionIds' => $source->fieldworkRecordVersions->modelKeys(),
+                'procedureIds' => $source->procedures->modelKeys(),
                 'recommendations' => $source->recommendations->map(
                     fn (AuditRecommendation $recommendation): array => $this->recommendationData($recommendation),
                 )->values()->all(),
@@ -616,6 +673,17 @@ class AemsFindingService
                 $source->fieldworkRecordVersions->mapWithKeys(
                     fn (AemsFieldworkRecordVersion $version): array => [
                         $version->id => ['fieldwork_record_id' => $version->fieldwork_record_id],
+                    ],
+                )->all(),
+            );
+            $new->procedures()->sync(
+                $source->procedures->mapWithKeys(
+                    fn (AuditProgramProcedure $procedure): array => [
+                        $procedure->id => [
+                            'criteria_reference' => $procedure->pivot->criteria_reference,
+                            'traceability_note' => $procedure->pivot->traceability_note,
+                            'linked_by' => $procedure->pivot->linked_by,
+                        ],
                     ],
                 )->all(),
             );
@@ -731,6 +799,7 @@ class AemsFindingService
                     'workingPaperVersionIds' => $locked->workingPaperVersions->modelKeys(),
                     'evidenceIds' => $locked->evidence->modelKeys(),
                     'fieldworkRecordVersionIds' => $locked->fieldworkRecordVersions->modelKeys(),
+                    'procedureIds' => $locked->procedures->modelKeys(),
                     'recipients' => $recipients,
                     'confidentiality' => $details['confidentiality'] ?? 'INTERNAL',
                     'communicatedAt' => now()->toIso8601String(),
@@ -766,10 +835,17 @@ class AemsFindingService
                     'workingPaperVersionIds' => $locked->workingPaperVersions->modelKeys(),
                     'evidenceIds' => $locked->evidence->modelKeys(),
                     'fieldworkRecordVersionIds' => $locked->fieldworkRecordVersions->modelKeys(),
+                    'procedureIds' => $locked->procedures->modelKeys(),
                     'finalizedAt' => now()->toIso8601String(),
                 ];
             }
             $locked->update($changes);
+            if ($action === 'COMMUNICATE') {
+                $this->createTransmittalRecord($request, $engagement, $locked, [
+                    ...$details,
+                    'recipients' => $recipients,
+                ]);
+            }
             if ($action === 'RECORD_NON_RESPONSE') {
                 $this->workQueue->recordDueProcess(
                     $request,
@@ -943,6 +1019,214 @@ class AemsFindingService
         }, 3);
     }
 
+    /** Create an immutable formal AFR transmittal and recipient register. */
+    public function createTransmittal(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+        array $details,
+    ): AemsFindingTransmittal {
+        $this->ensureFinding($engagement, $finding);
+        $this->access->authorizeEngagementAction(
+            $request->user(),
+            $engagement,
+            'aems.afr.transmit',
+            $finding->authored_by,
+        );
+        if (! in_array($finding->status, ['COMMUNICATED', 'AWAITING_MANAGEMENT_RESPONSE', 'UNDER_DIALOGUE'], true)) {
+            throw ValidationException::withMessages(['finding' => ['Only a formally communicated Finding may be retransmitted.']]);
+        }
+
+        return DB::transaction(fn (): AemsFindingTransmittal => $this->createTransmittalRecord(
+            $request,
+            $engagement,
+            $finding,
+            $details,
+        ), 3);
+    }
+
+    public function transitionTransmittalRecipient(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+        AemsFindingTransmittal $transmittal,
+        AemsFindingTransmittalRecipient $recipient,
+        string $action,
+        int $lockVersion,
+        ?string $comment,
+    ): AemsFindingTransmittalRecipient {
+        $this->ensureFinding($engagement, $finding);
+        if ((int) $transmittal->audit_finding_id !== (int) $finding->id
+            || (int) $transmittal->audit_engagement_id !== (int) $engagement->id
+            || (int) $recipient->transmittal_id !== (int) $transmittal->id) {
+            throw ValidationException::withMessages(['recipient' => ['This recipient is outside the engagement Finding.']]);
+        }
+        if ($action === 'ACKNOWLEDGE' && $request->user()->hasRole('auditee_representative')) {
+            $isResponsibleOffice = (int) $request->user()->office_id === (int) $finding->responsible_office_id;
+            $isNamedRecipient = $recipient->recipient_user_id !== null
+                && (int) $recipient->recipient_user_id === (int) $request->user()->id;
+            $isRecipientOffice = $recipient->recipient_office_id !== null
+                && (int) $recipient->recipient_office_id === (int) $request->user()->office_id;
+            if (! $isResponsibleOffice || (! $isNamedRecipient && ! $isRecipientOffice)) {
+                abort(403, 'You may acknowledge only an AFR formally transmitted to your office or account.');
+            }
+            if (! $request->user()->hasPermission('aems.afr.acknowledge')) {
+                abort(403, 'You do not have acknowledgement permission.');
+            }
+        } else {
+            $this->access->authorizeEngagementAction(
+                $request->user(),
+                $engagement,
+                $action === 'DELIVER' ? 'aems.afr.delivery' : 'aems.afr.acknowledge',
+                $transmittal->sent_by,
+            );
+        }
+
+        return DB::transaction(function () use (
+            $request, $engagement, $transmittal, $recipient, $action, $lockVersion, $comment,
+        ): AemsFindingTransmittalRecipient {
+            $locked = AemsFindingTransmittalRecipient::query()->lockForUpdate()->findOrFail($recipient->id);
+            if ($locked->lock_version !== $lockVersion) {
+                throw ValidationException::withMessages(['lockVersion' => ['This recipient delivery state changed. Refresh before continuing.']]);
+            }
+            $from = $locked->delivery_status;
+            $to = match ($action) {
+                'DELIVER' => in_array($from, ['PENDING', 'SENT', 'FAILED'], true) ? 'DELIVERED' : null,
+                'ACKNOWLEDGE' => in_array($from, ['SENT', 'DELIVERED'], true) ? 'ACKNOWLEDGED' : null,
+                default => null,
+            };
+            if (! $to) {
+                throw ValidationException::withMessages(['action' => ["{$action} is not available while the recipient is {$from}."]]);
+            }
+            if ($action === 'ACKNOWLEDGE' && blank($comment)) {
+                throw ValidationException::withMessages(['comment' => ['An acknowledgement comment is required.']]);
+            }
+            $changes = ['delivery_status' => $to, 'lock_version' => $locked->lock_version + 1];
+            if ($action === 'DELIVER') {
+                $changes['delivered_at'] = now();
+            } else {
+                $changes['acknowledged_at'] = now();
+                $changes['acknowledged_by'] = $request->user()->id;
+                $changes['acknowledgement_comment'] = $comment;
+            }
+            $locked->update($changes);
+            AemsFindingTransmittalEvent::query()->create([
+                'transmittal_id' => $transmittal->id,
+                'recipient_id' => $locked->id,
+                'event_type' => $action === 'DELIVER' ? 'DELIVERED' : 'ACKNOWLEDGED',
+                'content' => $comment,
+                'actor_id' => $request->user()->id,
+                'metadata' => ['fromStatus' => $from, 'toStatus' => $to],
+                'recorded_at' => now(),
+            ]);
+            $this->support->audit(
+                $request,
+                'aems.afr.'.strtolower($action),
+                $engagement,
+                ['recipientId' => $locked->id, 'status' => $from],
+                ['recipientId' => $locked->id, 'status' => $to, 'transmittalId' => $transmittal->id],
+                ['findingId' => $transmittal->audit_finding_id],
+            );
+
+            return $locked->fresh(['user', 'office', 'acknowledger', 'events.actor']);
+        }, 3);
+    }
+
+    /** @return AemsFindingTransmittal */
+    private function createTransmittalRecord(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+        array $details,
+    ): AemsFindingTransmittal {
+        $finding->loadMissing(['recommendations', 'workingPaperVersions', 'evidence']);
+        $rawRecipients = collect($details['recipients'] ?? [])->values();
+        if ($rawRecipients->isEmpty()) {
+            throw ValidationException::withMessages(['recipients' => ['At least one AFR recipient is required.']]);
+        }
+        $sequence = AemsFindingTransmittal::query()->where('audit_finding_id', $finding->id)->count() + 1;
+        $transmittal = AemsFindingTransmittal::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'audit_finding_id' => $finding->id,
+            'transmittal_code' => "AFR-{$finding->finding_code}-".str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
+            'finding_revision_number' => $finding->revision_number,
+            'transmittal_method' => strtoupper((string) ($details['transmittalMethod'] ?? 'OFFICIAL_LETTER')),
+            'transmittal_reference' => $details['transmittalReference'] ?? null,
+            'confidentiality' => $details['confidentiality'] ?? 'INTERNAL',
+            'sent_by' => $request->user()->id,
+            'sent_at' => now(),
+            'response_due_date' => $details['dueDate'] ?? $finding->management_response_due_date,
+            'content_snapshot' => [
+                'finding' => $this->findingContent($finding),
+                'recommendations' => $finding->recommendations->map(fn (AuditRecommendation $item): array => $this->recommendationData($item))->values()->all(),
+                'workingPaperVersionIds' => $finding->workingPaperVersions->modelKeys(),
+                'evidenceIds' => $finding->evidence->modelKeys(),
+                'capturedAt' => now()->toIso8601String(),
+            ],
+            'lock_version' => 1,
+        ]);
+        foreach ($rawRecipients as $raw) {
+            $name = is_array($raw) ? trim((string) ($raw['name'] ?? '')) : trim((string) $raw);
+            if ($name === '') {
+                throw ValidationException::withMessages(['recipients' => ['Recipient names cannot be blank.']]);
+            }
+            $office = $engagement->offices()->where(function ($query) use ($name): void {
+                $query->where('code', $name)->orWhere('name', $name);
+            })->first();
+            $recipientOfficeId = is_array($raw) ? ($raw['officeId'] ?? null) : null;
+            if ($recipientOfficeId !== null) {
+                $this->ensureOffice($engagement, (int) $recipientOfficeId);
+            }
+            $recipientUserId = is_array($raw) ? ($raw['userId'] ?? null) : null;
+            if ($recipientUserId !== null) {
+                $recipientUser = User::query()->find((int) $recipientUserId);
+                if (! $recipientUser || ! $recipientUser->is_active) {
+                    throw ValidationException::withMessages(['recipients' => ['Recipient user must be an active user.']]);
+                }
+                if ($recipientOfficeId !== null && (int) $recipientUser->office_id !== (int) $recipientOfficeId) {
+                    throw ValidationException::withMessages(['recipients' => ['Recipient user and office must match.']]);
+                }
+                if ($recipientOfficeId === null && $recipientUser->office_id !== null) {
+                    $this->ensureOffice($engagement, (int) $recipientUser->office_id);
+                    $recipientOfficeId = (int) $recipientUser->office_id;
+                }
+            }
+            $recipient = $transmittal->recipients()->create([
+                'recipient_type' => is_array($raw) ? strtoupper((string) ($raw['type'] ?? 'OFFICE')) : 'OFFICE',
+                'recipient_user_id' => $recipientUserId,
+                'recipient_office_id' => $office?->id ?? $recipientOfficeId,
+                'recipient_name' => $name,
+                'delivery_status' => 'SENT',
+                'delivered_at' => now(),
+                'lock_version' => 1,
+            ]);
+            $transmittal->events()->create([
+                'recipient_id' => $recipient->id,
+                'event_type' => 'SENT',
+                'content' => 'AFR transmittal sent to recipient.',
+                'actor_id' => $request->user()->id,
+                'metadata' => ['recipientName' => $name],
+                'recorded_at' => now(),
+            ]);
+        }
+        $transmittal->events()->create([
+            'event_type' => 'TRANSMITTED',
+            'content' => 'AFR transmittal created.',
+            'actor_id' => $request->user()->id,
+            'metadata' => ['findingId' => $finding->id],
+            'recorded_at' => now(),
+        ]);
+        $this->support->audit(
+            $request,
+            'aems.afr.transmitted',
+            $engagement,
+            null,
+            ['transmittalId' => $transmittal->id, 'findingId' => $finding->id],
+        );
+
+        return $transmittal->fresh(['sender', 'recipients.user', 'recipients.office', 'events.actor']);
+    }
+
     /** @param array<string, mixed> $attributes */
     public function createResponse(
         Request $request,
@@ -968,17 +1252,28 @@ class AemsFindingService
                     'finding' => ['This finding is not accepting a management response.'],
                 ]);
             }
-            if ($lockedFinding->managementResponses()->where('is_current_revision', true)->exists()) {
+            $responseKind = strtoupper((string) ($attributes['responseKind'] ?? 'ORIGINAL'));
+            if (! in_array($responseKind, ManagementResponse::RESPONSE_KINDS, true)) {
+                throw ValidationException::withMessages(['responseKind' => ['Unsupported management response kind.']]);
+            }
+            if ($responseKind !== 'SUPPLEMENTAL'
+                && $lockedFinding->managementResponses()->where('is_current_revision', true)->exists()) {
                 throw ValidationException::withMessages([
                     'response' => ['A current management response already exists.'],
                 ]);
             }
+            if ($responseKind === 'SUPPLEMENTAL' && blank($attributes['supplementalReason'] ?? null)) {
+                throw ValidationException::withMessages(['supplementalReason' => ['A supplemental-response reason is required.']]);
+            }
+            $responseNumber = $lockedFinding->managementResponses()->withTrashed()->count() + 1;
             $response = ManagementResponse::query()->create([
                 'response_family_uuid' => (string) Str::uuid(),
                 'version_number' => 1,
                 'is_current_revision' => true,
                 'audit_finding_id' => $lockedFinding->id,
-                'response_code' => "MR-{$lockedFinding->finding_code}-001",
+                'response_code' => $responseKind === 'SUPPLEMENTAL'
+                    ? "MR-{$lockedFinding->finding_code}-SUP-".str_pad((string) $responseNumber, 3, '0', STR_PAD_LEFT)
+                    : "MR-{$lockedFinding->finding_code}-001",
                 ...$this->responseAttributes($attributes, $lockedFinding),
                 'status' => 'DRAFT',
                 'authored_by' => $request->user()->id,
@@ -1027,6 +1322,18 @@ class AemsFindingService
                     'response' => ['Only your current draft response can be edited.'],
                 ]);
             }
+            $requestedKind = strtoupper((string) ($attributes['responseKind'] ?? $locked->response_kind));
+            if (! in_array($requestedKind, ManagementResponse::RESPONSE_KINDS, true)) {
+                throw ValidationException::withMessages(['responseKind' => ['Unsupported management response kind.']]);
+            }
+            if ($requestedKind !== $locked->response_kind) {
+                throw ValidationException::withMessages([
+                    'responseKind' => ['Response kind is immutable for a draft. Create a separate supplemental response instead.'],
+                ]);
+            }
+            if ($locked->response_kind === 'SUPPLEMENTAL' && blank($attributes['supplementalReason'] ?? $locked->supplemental_reason)) {
+                throw ValidationException::withMessages(['supplementalReason' => ['A supplemental-response reason is required.']]);
+            }
             $before = $this->responseAudit($locked);
             $locked->update([
                 ...$this->responseAttributes($attributes, $finding),
@@ -1059,10 +1366,20 @@ class AemsFindingService
         string $action,
         int $lockVersion,
         ?string $comment,
+        array $details = [],
     ): ManagementResponse {
         $this->ensureFinding($engagement, $finding);
-        if ($action === 'SUBMIT') {
+        if (in_array($action, ['SUBMIT', 'REQUEST_EXTENSION'], true)) {
             $this->access->authorizeManagementResponseSubmit($request->user(), $finding);
+        } elseif (in_array($action, ['APPROVE_EXTENSION', 'REJECT_EXTENSION'], true)) {
+            $this->access->authorizeEngagementAction(
+                $request->user(),
+                $engagement,
+                $action === 'APPROVE_EXTENSION'
+                    ? 'aems.management-response.approve_extension'
+                    : 'aems.management-response.reject_extension',
+                $response->authored_by,
+            );
         } else {
             $this->access->authorizeEngagementAction(
                 $request->user(),
@@ -1079,11 +1396,12 @@ class AemsFindingService
             $action,
             $lockVersion,
             $comment,
+            $details,
         ): ManagementResponse {
             $locked = $this->lockResponse($finding, $response, $lockVersion);
             $from = $locked->status;
             $to = match ($action) {
-                'SUBMIT' => $from === 'DRAFT'
+                'SUBMIT' => in_array($from, ['DRAFT', 'EXTENSION_APPROVED'], true)
                     ? ($locked->version_number > 1 ? 'RESUBMITTED' : 'SUBMITTED')
                     : null,
                 'START_REVIEW' => in_array($from, ['SUBMITTED', 'RESUBMITTED'], true)
@@ -1092,6 +1410,11 @@ class AemsFindingService
                 'REQUEST_CLARIFICATION' => $from === 'UNDER_AUDITOR_REVIEW'
                     ? 'CLARIFICATION_REQUESTED'
                     : null,
+                'REQUEST_EXTENSION' => in_array($from, ['DRAFT', 'SUBMITTED', 'CLARIFICATION_REQUESTED'], true)
+                    ? 'EXTENSION_REQUESTED'
+                    : null,
+                'APPROVE_EXTENSION' => $from === 'EXTENSION_REQUESTED' ? 'EXTENSION_APPROVED' : null,
+                'REJECT_EXTENSION' => $from === 'EXTENSION_REQUESTED' ? 'DRAFT' : null,
                 default => null,
             };
             if (! $to) {
@@ -1104,8 +1427,45 @@ class AemsFindingService
                     'comment' => ['A clarification request is required.'],
                 ]);
             }
+            $changes = [];
+            if ($action === 'REQUEST_EXTENSION') {
+                $requestedDueDate = $this->validExtensionDate($details['extensionDueDate'] ?? null, $finding);
+                if (! $comment) {
+                    throw ValidationException::withMessages(['comment' => ['An extension reason is required.']]);
+                }
+                $changes['extension_requested_at'] = now();
+                $changes['extension_requested_by'] = $request->user()->id;
+                $changes['extension_requested_due_date'] = $requestedDueDate;
+                $changes['extension_reason'] = $comment;
+            } elseif ($action === 'APPROVE_EXTENSION') {
+                if (! $comment) {
+                    throw ValidationException::withMessages(['comment' => ['An extension decision note is required.']]);
+                }
+                $changes['extension_approved_at'] = now();
+                $changes['extension_approved_by'] = $request->user()->id;
+                $changes['extension_approved_due_date'] = $locked->extension_requested_due_date;
+                $changes['extension_reason'] = trim($locked->extension_reason.' '.$comment);
+            } elseif ($action === 'REJECT_EXTENSION') {
+                if (! $comment) {
+                    throw ValidationException::withMessages(['comment' => ['A rejection reason is required.']]);
+                }
+                $changes['extension_reason'] = trim($locked->extension_reason.' Rejected: '.$comment);
+            }
+            if ($action === 'SUBMIT') {
+                $effectiveDueDate = $locked->extension_approved_due_date ?? $finding->management_response_due_date;
+                if ($effectiveDueDate && now()->startOfDay()->gt($effectiveDueDate->copy()->startOfDay())) {
+                    if (blank($details['lateReason'] ?? null)) {
+                        throw ValidationException::withMessages(['lateReason' => ['A reason is required for a late response.']]);
+                    }
+                    $changes['submitted_late'] = true;
+                    $changes['late_reason'] = trim((string) $details['lateReason']);
+                    if ($locked->response_kind === 'ORIGINAL') {
+                        $changes['response_kind'] = 'LATE';
+                    }
+                }
+            }
             $before = $this->responseAudit($locked);
-            $changes = ['status' => $to, 'lock_version' => $locked->lock_version + 1];
+            $changes = ['status' => $to, 'lock_version' => $locked->lock_version + 1, ...$changes];
             if ($action === 'SUBMIT') {
                 $changes['submitted_at'] = now();
             } elseif ($action === 'REQUEST_CLARIFICATION') {
@@ -1133,6 +1493,38 @@ class AemsFindingService
                 $this->responseAudit($locked),
                 $comment,
             );
+            if (in_array($action, ['REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION'], true)) {
+                $this->workQueue->recordDueProcess(
+                    $request,
+                    $engagement,
+                    [
+                        'findingId' => $finding->id,
+                        'responseId' => $locked->id,
+                        'eventType' => match ($action) {
+                            'REQUEST_EXTENSION' => 'EXTENSION_REQUESTED',
+                            'APPROVE_EXTENSION' => 'EXTENSION_APPROVED',
+                            default => 'EXTENSION_REJECTED',
+                        },
+                        'content' => $comment,
+                        'dueDate' => $locked->extension_requested_due_date?->toDateString(),
+                        'metadata' => ['responseCode' => $locked->response_code],
+                    ],
+                    true,
+                );
+            } elseif ($action === 'SUBMIT' && ($locked->submitted_late || $locked->response_kind === 'SUPPLEMENTAL')) {
+                $this->workQueue->recordDueProcess(
+                    $request,
+                    $engagement,
+                    [
+                        'findingId' => $finding->id,
+                        'responseId' => $locked->id,
+                        'eventType' => $locked->response_kind === 'SUPPLEMENTAL' ? 'SUPPLEMENTAL_RESPONSE' : 'LATE_RESPONSE',
+                        'content' => $locked->late_reason ?? $locked->supplemental_reason,
+                        'metadata' => ['responseCode' => $locked->response_code],
+                    ],
+                    true,
+                );
+            }
 
             return $locked;
         }, 3);
@@ -1172,7 +1564,10 @@ class AemsFindingService
                 'supersedes_response_id' => $locked->id,
                 'is_current_revision' => false,
                 'audit_finding_id' => $locked->audit_finding_id,
-                'response_code' => $locked->response_code,
+                // Keep each immutable revision addressable even on legacy
+                // SQLite deployments that cannot enforce the partial current
+                // revision index consistently.
+                'response_code' => $locked->response_code.'-V'.($locked->version_number + 1),
                 'agreement_position' => $locked->agreement_position,
                 'management_comment' => $locked->management_comment,
                 'proposed_action' => $locked->proposed_action,
@@ -1545,7 +1940,8 @@ class AemsFindingService
             'riskRating' => $issue->riskRating?->only(['id', 'code', 'label']),
             'status' => $issue->status,
             'disposition' => $issue->disposition,
-            'disposition' => $issue->disposition,
+            'statusCompatibility' => AuditIssue::STATUS_COMPATIBILITY[$issue->status] ?? null,
+            'terminalDisposition' => $issue->disposition,
             'dispositionReason' => $issue->disposition_reason,
             'dispositionRecordedBy' => $this->user($issue->dispositionRecorder),
             'dispositionRecordedAt' => $issue->disposition_recorded_at?->toIso8601String(),
@@ -1559,6 +1955,9 @@ class AemsFindingService
             'dismissedAt' => $issue->dismissed_at?->toIso8601String(),
             'dismissalReason' => $issue->dismissal_reason,
             'convertedAt' => $issue->converted_at?->toIso8601String(),
+            'withdrawnAt' => $issue->withdrawn_at?->toIso8601String(),
+            'withdrawnBy' => $this->user($issue->withdrawnBy),
+            'withdrawalReason' => $issue->withdrawal_reason,
             'lockVersion' => $issue->lock_version,
             'workingPaperVersions' => $issue->workingPaperVersions->map(
                 fn (WorkingPaperVersion $version): array => $this->workingPaperVersionData($version),
@@ -1623,6 +2022,15 @@ class AemsFindingService
                     'executionStatus' => $version->execution_status,
                 ],
             )->values(),
+            'procedures' => $finding->procedures->map(fn (AuditProgramProcedure $procedure): array => [
+                'id' => $procedure->id,
+                'procedureCode' => $procedure->procedure_code,
+                'objective' => $procedure->objective,
+                'auditCriteria' => $procedure->audit_criteria,
+                'criteriaReference' => $procedure->pivot->criteria_reference,
+                'traceabilityNote' => $procedure->pivot->traceability_note,
+                'linkedBy' => $procedure->pivot->linked_by,
+            ])->values(),
             'revisions' => $finding->revisions->map(
                 fn (AuditFinding $revision): array => [
                     'id' => $revision->id,
@@ -1656,6 +2064,9 @@ class AemsFindingService
                     'caption' => $attachment->caption,
                 ])->values()->all(),
             ])->values(),
+            'transmittals' => $finding->transmittals->map(
+                fn (AemsFindingTransmittal $transmittal): array => $this->transmittalData($transmittal),
+            )->values(),
             'history' => $this->history('AUDIT_FINDING', $finding->id),
         ];
     }
@@ -1695,6 +2106,7 @@ class AemsFindingService
             'supersedesResponseId' => $response->supersedes_response_id,
             'isCurrentRevision' => $response->is_current_revision,
             'responseCode' => $response->response_code,
+            'responseKind' => $response->response_kind,
             'agreementPosition' => $response->agreement_position,
             'managementComment' => $response->management_comment,
             'proposedAction' => $response->proposed_action,
@@ -1707,6 +2119,16 @@ class AemsFindingService
             'submittedAt' => $response->submitted_at?->toIso8601String(),
             'clarificationRequest' => $response->clarification_request,
             'clarificationRequestedAt' => $response->clarification_requested_at?->toIso8601String(),
+            'extensionRequestedAt' => $response->extension_requested_at?->toIso8601String(),
+            'extensionRequestedDueDate' => $response->extension_requested_due_date?->toDateString(),
+            'extensionRequestedBy' => $this->user($response->extensionRequester),
+            'extensionApprovedAt' => $response->extension_approved_at?->toIso8601String(),
+            'extensionApprovedDueDate' => $response->extension_approved_due_date?->toDateString(),
+            'extensionApprovedBy' => $this->user($response->extensionApprover),
+            'extensionReason' => $response->extension_reason,
+            'submittedLate' => (bool) $response->submitted_late,
+            'lateReason' => $response->late_reason,
+            'supplementalReason' => $response->supplemental_reason,
             'finalizedAt' => $response->finalized_at?->toIso8601String(),
             'finalizedBy' => $this->user($response->finalizer),
             'lockVersion' => $response->lock_version,
@@ -1718,6 +2140,57 @@ class AemsFindingService
             'rejoinders' => $response->rejoinders
                 ->map(fn (AuditorRejoinder $rejoinder): array => $this->rejoinderData($rejoinder))
                 ->values(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function transmittalData(AemsFindingTransmittal $transmittal): array
+    {
+        $transmittal->loadMissing([
+            'sender', 'recipients.user', 'recipients.office', 'recipients.acknowledger',
+            'recipients.events.actor', 'events.actor',
+        ]);
+
+        return [
+            'id' => $transmittal->id,
+            'transmittalCode' => $transmittal->transmittal_code,
+            'findingRevisionNumber' => $transmittal->finding_revision_number,
+            'transmittalMethod' => $transmittal->transmittal_method,
+            'transmittalReference' => $transmittal->transmittal_reference,
+            'confidentiality' => $transmittal->confidentiality,
+            'sentAt' => $transmittal->sent_at?->toIso8601String(),
+            'sentBy' => $this->user($transmittal->sender),
+            'responseDueDate' => $transmittal->response_due_date?->toDateString(),
+            'contentSnapshot' => $transmittal->content_snapshot,
+            'lockVersion' => $transmittal->lock_version,
+            'recipients' => $transmittal->recipients->map(fn (AemsFindingTransmittalRecipient $recipient): array => [
+                'id' => $recipient->id,
+                'recipientType' => $recipient->recipient_type,
+                'recipientName' => $recipient->recipient_name,
+                'recipientUserId' => $recipient->recipient_user_id,
+                'recipientOfficeId' => $recipient->recipient_office_id,
+                'deliveryStatus' => $recipient->delivery_status,
+                'deliveredAt' => $recipient->delivered_at?->toIso8601String(),
+                'acknowledgedAt' => $recipient->acknowledged_at?->toIso8601String(),
+                'acknowledgedBy' => $this->user($recipient->acknowledger),
+                'acknowledgementComment' => $recipient->acknowledgement_comment,
+                'deliveryReference' => $recipient->delivery_reference,
+                'lockVersion' => $recipient->lock_version,
+                'events' => $recipient->events->map(fn (AemsFindingTransmittalEvent $event): array => [
+                    'id' => $event->id,
+                    'eventType' => $event->event_type,
+                    'content' => $event->content,
+                    'recordedAt' => $event->recorded_at?->toIso8601String(),
+                    'actor' => $this->user($event->actor),
+                ])->values()->all(),
+            ])->values()->all(),
+            'events' => $transmittal->events->map(fn (AemsFindingTransmittalEvent $event): array => [
+                'id' => $event->id,
+                'eventType' => $event->event_type,
+                'content' => $event->content,
+                'recordedAt' => $event->recorded_at?->toIso8601String(),
+                'actor' => $this->user($event->actor),
+            ])->values()->all(),
         ];
     }
 
@@ -1867,6 +2340,11 @@ class AemsFindingService
         )) {
             throw ValidationException::withMessages([
                 'fieldworkRecordVersionIds' => ['All directly linked fieldwork records must be finalized.'],
+            ]);
+        }
+        if ($finding->procedures->isEmpty()) {
+            throw ValidationException::withMessages([
+                'procedureIds' => ['At least one approved-program procedure is required to establish criteria traceability.'],
             ]);
         }
         if ($requireAssessedEvidence) {
@@ -2116,6 +2594,69 @@ class AemsFindingService
         )->all();
     }
 
+    /**
+     * Build the explicit finding-to-procedure criteria chain. Procedure IDs
+     * may be supplied directly, or are inferred from cited working-paper and
+     * fieldwork versions so existing clients retain their traceability.
+     *
+     * @param array<int, array{fieldwork_record_id:int}> $fieldworkLinks
+     * @return array<int, array{criteria_reference:?string,traceability_note:?string,linked_by:int}>
+     */
+    private function procedureLinks(
+        AuditEngagement $engagement,
+        array $attributes,
+        Collection $workingPapers,
+        array $fieldworkLinks,
+        int $linkedBy,
+    ): array {
+        $ids = collect($attributes['procedureIds'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique();
+
+        $workingPapers->loadMissing('workingPaper:id,audit_program_procedure_id');
+        $ids = $ids->merge(
+            $workingPapers->pluck('workingPaper.audit_program_procedure_id')->filter(),
+        );
+
+        $versionIds = collect(array_keys($fieldworkLinks))
+            ->map(fn ($id): int => (int) $id)
+            ->filter();
+        if ($versionIds->isNotEmpty()) {
+            $ids = $ids->merge(
+                AemsFieldworkRecordVersion::query()
+                    ->whereIn('id', $versionIds)
+                    ->pluck('audit_program_procedure_id'),
+            );
+        }
+        $ids = $ids->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $procedures = AuditProgramProcedure::query()
+            ->whereIn('id', $ids)
+            ->whereHas('program', fn ($program) => $program
+                ->where('audit_engagement_id', $engagement->id)
+                ->whereNull('deleted_at'))
+            ->get();
+        if ($procedures->count() !== $ids->count()) {
+            throw ValidationException::withMessages([
+                'procedureIds' => ['Every criteria-traceability procedure must belong to this engagement.'],
+            ]);
+        }
+
+        return $procedures->mapWithKeys(
+            fn (AuditProgramProcedure $procedure): array => [
+                $procedure->id => [
+                    'criteria_reference' => $procedure->audit_criteria,
+                    'traceability_note' => 'Criteria linked from approved audit procedure '.$procedure->procedure_code.'.',
+                    'linked_by' => $linkedBy,
+                ],
+            ],
+        )->all();
+    }
+
     /** @param array<string, mixed> $attributes
      * @return array<string, mixed>
      */
@@ -2144,6 +2685,7 @@ class AemsFindingService
         }
 
         return [
+            'response_kind' => strtoupper((string) ($attributes['responseKind'] ?? 'ORIGINAL')),
             'agreement_position' => $attributes['agreementPosition'],
             'management_comment' => trim((string) $attributes['managementComment']),
             'proposed_action' => isset($attributes['proposedAction'])
@@ -2152,7 +2694,26 @@ class AemsFindingService
             'responsible_office_id' => $finding->responsible_office_id,
             'responsible_user_id' => $attributes['responsibleUserId'] ?? null,
             'proposed_target_date' => $attributes['proposedTargetDate'] ?? null,
+            'supplemental_reason' => $attributes['supplementalReason'] ?? null,
         ];
+    }
+
+    private function validExtensionDate(mixed $date, AuditFinding $finding): string
+    {
+        if (! is_string($date) || blank($date)) {
+            throw ValidationException::withMessages(['extensionDueDate' => ['A proposed extension date is required.']]);
+        }
+        try {
+            $parsed = \Illuminate\Support\Carbon::parse($date)->startOfDay();
+        } catch (\Throwable) {
+            throw ValidationException::withMessages(['extensionDueDate' => ['The extension date is invalid.']]);
+        }
+        if ($parsed->lte(now()->startOfDay())
+            || ($finding->management_response_due_date && $parsed->lte($finding->management_response_due_date->copy()->startOfDay()))) {
+            throw ValidationException::withMessages(['extensionDueDate' => ['The extension date must be after the current due date and today.']]);
+        }
+
+        return $parsed->toDateString();
     }
 
     private function nextIssueCode(AuditEngagement $engagement): string
@@ -2221,6 +2782,7 @@ class AemsFindingService
             'workingPaperVersions.workingPaper',
             'evidence.currentAssessment',
             'finding:id,source_issue_id',
+            'withdrawnBy',
         ];
     }
 
@@ -2237,6 +2799,7 @@ class AemsFindingService
             'withdrawnBy',
             'directCreator',
             'fieldworkRecordVersions.record',
+            'procedures',
             'revisions',
             'workingPaperVersions.workingPaper',
             'evidence.currentAssessment',
@@ -2247,6 +2810,8 @@ class AemsFindingService
             'managementResponses.responsibleOffice',
             'managementResponses.author',
             'managementResponses.finalizer',
+            'managementResponses.extensionRequester',
+            'managementResponses.extensionApprover',
             'managementResponses.attachments.documentVersion',
             'managementResponses.attachments.uploader',
             'managementResponses.rejoinders.author',
@@ -2257,6 +2822,12 @@ class AemsFindingService
             'dueProcess.response',
             'dueProcess.attachments.documentVersion',
             'dueProcess.attachments.uploader',
+            'transmittals.sender',
+            'transmittals.recipients.user',
+            'transmittals.recipients.office',
+            'transmittals.recipients.acknowledger',
+            'transmittals.recipients.events.actor',
+            'transmittals.events.actor',
         ];
     }
 
@@ -2276,6 +2847,8 @@ class AemsFindingService
             'responsibleOffice',
             'author',
             'finalizer',
+            'extensionRequester',
+            'extensionApprover',
             'attachments.documentVersion',
             'attachments.uploader',
             'rejoinders.author',
@@ -2351,6 +2924,7 @@ class AemsFindingService
             'workingPaperCode' => $version->workingPaper?->working_paper_code,
             'title' => $version->workingPaper?->title,
             'status' => $version->workingPaper?->status,
+            'procedureId' => $version->workingPaper?->audit_program_procedure_id,
         ];
     }
 

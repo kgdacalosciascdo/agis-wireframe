@@ -60,6 +60,7 @@ class AemsTeamController extends Controller
         EngagementTeam $teamMember,
     ): JsonResponse {
         Gate::authorize('assignTeam', $engagement);
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.team.amend');
         $member = $this->teams->update(
             $request,
             $engagement,
@@ -79,6 +80,7 @@ class AemsTeamController extends Controller
         AuditEngagement $engagement,
         EngagementTeam $teamMember,
     ): JsonResponse {
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.team.amend');
         $this->access->authorizeEngagementAction(
             $request->user(),
             $engagement,
@@ -92,6 +94,8 @@ class AemsTeamController extends Controller
             'assignedUntil' => ['nullable', 'date', 'after_or_equal:assignedFrom'],
             'assignmentNotes' => ['nullable', 'string', 'max:4000'],
             'reason' => ['required', 'string', 'min:5', 'max:4000'],
+            'amendmentAuthority' => ['nullable', 'string', 'max:80'],
+            'consequenceAssessment' => ['nullable', 'string', 'max:4000'],
         ]);
         $member = $this->teams->reassign(
             $request,
@@ -113,6 +117,7 @@ class AemsTeamController extends Controller
         EngagementTeam $teamMember,
     ): JsonResponse {
         Gate::authorize('assignTeam', $engagement);
+        $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.team.amend');
         $validated = $request->validate([
             'reason' => ['required', 'string', 'min:5', 'max:4000'],
         ]);
@@ -135,6 +140,8 @@ class AemsTeamController extends Controller
             'assignedUntil' => ['nullable', 'date', 'after_or_equal:assignedFrom'],
             'assignmentNotes' => ['nullable', 'string', 'max:4000'],
             'reason' => ['nullable', 'string', 'max:4000'],
+            'amendmentAuthority' => ['nullable', 'string', 'max:80'],
+            'consequenceAssessment' => ['nullable', 'string', 'max:4000'],
         ]);
     }
 }

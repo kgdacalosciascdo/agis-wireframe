@@ -153,7 +153,9 @@ class AemsEvidenceRequestTest extends TestCase
         Sanctum::actingAs($management);
         $engagement = AuditEngagement::query()->findOrFail($this->postJson('/api/aems/engagements/import', ['iapPlanEngagementId' => $source->id])->assertCreated()->json('data.engagement.id'));
         $engagement->update(['status' => 'FIELDWORK', 'phase' => 'EXECUTION', 'administrative_status' => 'ACTIVE']);
-        $engagement->offices()->syncWithoutDetaching([$management->office_id]);
+        // G2 enforces exactly one engagement office; make the fixture explicit
+        // instead of appending a second pivot to the imported source office.
+        $engagement->offices()->sync([$management->office_id]);
         \App\Models\EngagementTeam::query()->create(['audit_engagement_id' => $engagement->id, 'user_id' => $auditor->id, 'assignment_role_code' => 'AUDITOR', 'assigned_by' => $management->id, 'is_active' => true]);
         \App\Models\EngagementTeam::query()->create(['audit_engagement_id' => $engagement->id, 'user_id' => $reviewer->id, 'assignment_role_code' => 'REVIEWER', 'assigned_by' => $management->id, 'is_active' => true]);
         $plan = AuditEngagementPlan::query()->create(['audit_engagement_id' => $engagement->id, 'plan_code' => 'AEP-ERQ-'.Str::upper(Str::random(5)), 'status' => 'APPROVED', 'prepared_by' => $auditor->id, 'approved_by' => $management->id, 'approved_at' => now(), 'is_active' => true]);

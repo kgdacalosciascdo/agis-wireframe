@@ -40,8 +40,8 @@ class AemsEvidenceRequestController extends Controller
 
     public function transition(Request $request, AuditEngagement $engagement, AemsEvidenceRequest $evidenceRequest): JsonResponse
     {
-        $validated = $request->validate(['action' => ['required', Rule::in(['SUBMIT', 'SEND', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'ASSESS', 'CLOSE'])], 'lockVersion' => ['required', 'integer', 'min:1'], 'comment' => ['nullable', 'string', 'max:4000']]);
-        $record = $this->requests->transition($request, $engagement, $evidenceRequest, $validated['action'], (int) $validated['lockVersion'], $validated['comment'] ?? null);
+        $validated = $request->validate(['action' => ['required', Rule::in(['SUBMIT', 'SEND', 'ACKNOWLEDGE', 'MARK_OVERDUE', 'REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION', 'ESCALATE', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'FOR_REVIEW', 'ASSESS', 'CLOSE_WITHOUT_SUBMISSION', 'CANCEL', 'CLOSE'])], 'lockVersion' => ['required', 'integer', 'min:1'], 'comment' => ['nullable', 'string', 'max:4000'], 'extensionDueDate' => ['nullable', 'date', 'after:today']]);
+        $record = $this->requests->transition($request, $engagement, $evidenceRequest, $validated['action'], (int) $validated['lockVersion'], $validated['comment'] ?? null, $validated);
         return response()->json(['success' => true, 'message' => 'Evidence Request workflow action completed.', 'data' => ['evidenceRequest' => $this->requests->requestData($record)]]);
     }
 

@@ -18,6 +18,10 @@ class EngagementRetentionRecord extends Model
             'permanent_flag' => 'boolean',
             'legal_hold_flag' => 'boolean',
             'approved_at' => 'datetime',
+            'archived_at' => 'datetime',
+            'legal_hold_released_at' => 'datetime',
+            'destruction_reviewed_at' => 'datetime',
+            'disposition_recorded_at' => 'datetime',
             'approved_snapshot_json' => 'array',
             'lock_version' => 'integer',
         ];
@@ -45,5 +49,11 @@ class EngagementRetentionRecord extends Model
     public function closure(): BelongsTo
     {
         return $this->belongsTo(EngagementClosure::class, 'engagement_closure_id');
+    }
+
+    public function dispositionActions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AemsRecordDispositionAction::class, 'engagement_retention_record_id')
+            ->orderByDesc('occurred_at');
     }
 }

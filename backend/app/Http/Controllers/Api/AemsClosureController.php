@@ -7,6 +7,8 @@ use App\Models\AuditEngagement;
 use App\Models\AuditRecommendation;
 use App\Models\EngagementClosure;
 use App\Models\EngagementRetentionRecord;
+use App\Models\AemsEngagementMilestone;
+use App\Services\AemsRecordsCalendarService;
 use App\Services\AemsClosureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +16,10 @@ use Illuminate\Validation\Rule;
 
 class AemsClosureController extends Controller
 {
-    public function __construct(private readonly AemsClosureService $closures) {}
+    public function __construct(
+        private readonly AemsClosureService $closures,
+        private readonly AemsRecordsCalendarService $records,
+    ) {}
 
     public function show(Request $request, AuditEngagement $engagement): JsonResponse
     {
@@ -138,6 +143,90 @@ class AemsClosureController extends Controller
             'message' => 'Retention and custody metadata approved.',
             'data' => ['retention' => $record],
         ]);
+    }
+
+    public function records(Request $request, AuditEngagement $engagement): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $this->records->recordsWorkspace($request, $engagement, $request->string('q')->toString())]);
+    }
+
+    public function calendar(Request $request, AuditEngagement $engagement): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $this->records->calendar($request, $engagement)]);
+    }
+
+    public function createMilestone(Request $request, AuditEngagement $engagement): JsonResponse
+    {
+        $validated = $request->validate([
+            'milestoneCode' => ['required', 'string', 'max:100'],
+            'categoryCode' => ['nullable', 'string', 'max:60'],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'plannedStartDate' => ['nullable', 'date'],
+            'dueDate' => ['nullable', 'date'],
+            'requiredFlag' => ['sometimes', 'boolean'],
+            'responsibleOfficeId' => ['nullable', 'exists:offices,id'],
+            'responsibleUserId' => ['nullable', 'exists:users,id'],
+            'relatedRecordType' => ['nullable', 'string', 'max:120'],
+            'relatedRecordId' => ['nullable', 'integer'],
+        ]);
+        $milestone = $this->records->createMilestone($request, $engagement, $validated);
+
+        return response()->json(['success' => true, 'data' => ['milestone' => $milestone]], 201);
+    }
+
+    public function updateMilestone(Request $request, AuditEngagement $engagement, AemsEngagementMilestone $milestone): JsonResponse
+    {
+        $validated = $request->validate([
+            'lockVersion' => ['required', 'integer', 'min:1'],
+            'categoryCode' => ['nullable', 'string', 'max:60'], 'title' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:10000'], 'plannedStartDate' => ['nullable', 'date'],
+            'dueDate' => ['nullable', 'date'], 'requiredFlag' => ['sometimes', 'boolean'],
+            'responsibleOfficeId' => ['nullable', 'exists:offices,id'], 'responsibleUserId' => ['nullable', 'exists:users,id'],
+        ]);
+        $milestone = $this->records->updateMilestone($request, $engagement, $milestone, $validated);
+
+        return response()->json(['success' => true, 'data' => ['milestone' => $milestone]]);
+    }
+
+    public function transitionMilestone(Request $request, AuditEngagement $engagement, AemsEngagementMilestone $milestone): JsonResponse
+    {
+        $validated = $request->validate(['status' => ['required', 'string'], 'lockVersion' => ['required', 'integer', 'min:1']]);
+        $milestone = $this->records->transitionMilestone($request, $engagement, $milestone, $validated['status'], $validated['lockVersion']);
+
+        return response()->json(['success' => true, 'data' => ['milestone' => $milestone]]);
+    }
+
+    public function archive(Request $request, AuditEngagement $engagement, EngagementRetentionRecord $retention): JsonResponse
+    {
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:10000']]);
+        $record = $this->records->archive($request, $engagement, $retention, $validated['reason']);
+
+        return response()->json(['success' => true, 'data' => ['retention' => $record]]);
+    }
+
+    public function releaseLegalHold(Request $request, AuditEngagement $engagement, EngagementRetentionRecord $retention): JsonResponse
+    {
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:10000'], 'reference' => ['nullable', 'string', 'max:160']]);
+        $record = $this->records->releaseLegalHold($request, $engagement, $retention, $validated['reason'], $validated['reference'] ?? null);
+
+        return response()->json(['success' => true, 'data' => ['retention' => $record]]);
+    }
+
+    public function destructionReview(Request $request, AuditEngagement $engagement, EngagementRetentionRecord $retention): JsonResponse
+    {
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:10000']]);
+        $result = $this->records->reviewDestruction($request, $engagement, $retention, $validated['reason']);
+
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    public function recordDisposition(Request $request, AuditEngagement $engagement, EngagementRetentionRecord $retention): JsonResponse
+    {
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:10000'], 'reference' => ['required', 'string', 'max:160']]);
+        $record = $this->records->recordDisposition($request, $engagement, $retention, $validated['reason'], $validated['reference']);
+
+        return response()->json(['success' => true, 'data' => ['retention' => $record]]);
     }
 
     public function addLesson(Request $request, AuditEngagement $engagement): JsonResponse

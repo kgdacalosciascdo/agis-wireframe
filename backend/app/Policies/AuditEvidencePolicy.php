@@ -72,6 +72,18 @@ class AuditEvidencePolicy
         );
     }
 
+    public function outcome(User $user, AuditEvidence $evidence): bool
+    {
+        return $this->allows(
+            fn () => $this->access->authorizeEngagementAction(
+                $user,
+                $evidence->engagement,
+                'aems.evidence.outcome',
+                $evidence->uploaded_by,
+            ),
+        );
+    }
+
     private function allows(callable $authorization): bool
     {
         try {

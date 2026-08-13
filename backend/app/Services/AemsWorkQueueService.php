@@ -403,7 +403,40 @@ class AemsWorkQueueService
     private function lockNote(AuditEngagement $engagement, AemsReviewNote $note, int $version): AemsReviewNote { if ((int) $note->audit_engagement_id !== (int) $engagement->id) abort(404); $locked = AemsReviewNote::query()->lockForUpdate()->findOrFail($note->id); if ((int) $locked->lock_version !== $version) throw ValidationException::withMessages(['lockVersion' => ['The review note changed. Refresh before continuing.']]); return $locked->load($this->noteRelations()); }
     private function ensureDueProcess(AuditEngagement $engagement, AemsDialogueDueProcess $item): void { if ((int) $item->audit_engagement_id !== (int) $engagement->id) abort(404); }
     private function ensureDocumentVersion(int $id): void { if (! DocumentVersion::query()->whereKey($id)->exists()) throw ValidationException::withMessages(['documentVersionId' => ['Select an existing immutable Core Document Version.']]); }
-    private function validateTaskLinks(AuditEngagement $engagement, array $attributes, bool $partial = false): void { foreach (['findingId' => AuditFinding::class, 'entryConferenceId' => EntryConference::class, 'exitConferenceId' => ExitConference::class] as $field => $class) if (! empty($attributes[$field]) && ! $class::query()->where('audit_engagement_id', $engagement->id)->whereKey($attributes[$field])->exists()) throw ValidationException::withMessages([$field => ['The linked record must belong to this engagement.']]); if (! $partial && empty($attributes['title'])) throw ValidationException::withMessages(['title' => ['A task title is required.']]); }
+    private function validateTaskLinks(AuditEngagement $engagement, array $attributes, bool $partial = false): void
+    {
+        foreach (['findingId' => AuditFinding::class, 'entryConferenceId' => EntryConference::class, 'exitConferenceId' => ExitConference::class] as $field => $class) {
+            if (! empty($attributes[$field]) && ! $class::query()->where('audit_engagement_id', $engagement->id)->whereKey($attributes[$field])->exists()) {
+                throw ValidationException::withMessages([$field => ['The linked record must belong to this engagement.']]);
+            }
+        }
+        if (! $partial && empty($attributes['title'])) {
+            throw ValidationException::withMessages(['title' => ['A task title is required.']]);
+        }
+        if (! empty($attributes['assignedOfficeId'])
+            && ! $engagement->offices()->whereKey($attributes['assignedOfficeId'])->exists()) {
+            throw ValidationException::withMessages(['assignedOfficeId' => ['The assigned office must be part of this engagement scope.']]);
+        }
+        if (! empty($attributes['assignedTo'])) {
+            $assignee = User::query()->find($attributes['assignedTo']);
+            if (! $assignee || ! $assignee->is_active) {
+                throw ValidationException::withMessages(['assignedTo' => ['The assignee must be an active user.']]);
+            }
+            $isTeamMember = $engagement->teamMembers()
+                ->where('user_id', $assignee->id)
+                ->where('is_active', true)
+                ->whereNull('ended_at')
+                ->exists();
+            if (! $isTeamMember && ! $assignee->hasGlobalEngagementAccess()) {
+                throw ValidationException::withMessages(['assignedTo' => ['The assignee must have an active assignment on this engagement.']]);
+            }
+            if (! empty($attributes['assignedOfficeId'])
+                && $assignee->office_id !== null
+                && (int) $assignee->office_id !== (int) $attributes['assignedOfficeId']) {
+                throw ValidationException::withMessages(['assignedOfficeId' => ['The assigned user and office must match.']]);
+            }
+        }
+    }
     private function validateNoteLinks(AuditEngagement $engagement, array $attributes): void { $links = collect(['findingId' => AuditFinding::class, 'entryConferenceId' => EntryConference::class, 'exitConferenceId' => ExitConference::class, 'taskId' => AemsEngagementTask::class])->filter(fn ($class, $field) => ! empty($attributes[$field])); if ($links->isEmpty()) throw ValidationException::withMessages(['link' => ['Link the note to a finding, conference, or task.']]); foreach ($links as $field => $class) { if (! $class::query()->where('audit_engagement_id', $engagement->id)->whereKey($attributes[$field])->exists()) throw ValidationException::withMessages([$field => ['The linked record must belong to this engagement.']]); } }
     private function taskEvent(Request $request, AuditEngagement $engagement, AemsEngagementTask $task, string $action, ?string $from, ?string $to, ?string $content, array $snapshot): void { AemsEngagementTaskEvent::query()->create(['aems_engagement_task_id' => $task->id, 'audit_engagement_id' => $engagement->id, 'version_number' => $task->lock_version, 'action' => $action, 'from_status' => $from, 'to_status' => $to, 'content' => $content, 'actor_id' => $request->user()->id, 'snapshot' => $snapshot]); }
     private function nextTaskCode(AuditEngagement $engagement): string { $sequence = AemsEngagementTask::withTrashed()->where('audit_engagement_id', $engagement->id)->count() + 1; do { $code = 'TASK-'.$engagement->engagement_code.'-'.str_pad((string) $sequence++, 3, '0', STR_PAD_LEFT); } while (AemsEngagementTask::withTrashed()->where('task_code', $code)->exists()); return $code; }

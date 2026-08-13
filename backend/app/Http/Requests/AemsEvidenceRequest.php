@@ -84,6 +84,11 @@ class AemsEvidenceRequest extends FormRequest
             ],
             'workingPaperIds' => ['sometimes', 'array', 'max:100'],
             'workingPaperIds.*' => ['integer', 'distinct'],
+            'acquisitionMethod' => ['nullable', 'string', 'max:50'],
+            'acquisitionForm' => ['nullable', 'string', 'max:40'],
+            'planningObjectiveId' => ['nullable', 'integer', Rule::exists('aems_planning_objectives', 'id')],
+            'riskMatrixItemId' => ['nullable', 'integer', Rule::exists('aems_risk_matrix_items', 'id')],
+            'controlReference' => ['nullable', 'string', 'max:160'],
             'changeReason' => [
                 $this->route('evidence') ? 'required' : 'nullable',
                 'string',

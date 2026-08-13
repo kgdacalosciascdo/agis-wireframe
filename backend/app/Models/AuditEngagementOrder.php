@@ -23,6 +23,8 @@ class AuditEngagementOrder extends Model
         'RESUBMITTED',
         'APPROVED',
         'ISSUED',
+        'CANCELLED',
+        'VOIDED',
         'SUPERSEDED',
     ];
 
@@ -40,6 +42,12 @@ class AuditEngagementOrder extends Model
         'issued_at',
         'lock_version',
         'is_active',
+        'cancelled_by',
+        'cancelled_at',
+        'voided_by',
+        'voided_at',
+        'amended_from_version_number',
+        'superseded_by_order_id',
     ];
 
     protected function casts(): array
@@ -49,6 +57,8 @@ class AuditEngagementOrder extends Model
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'issued_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'voided_at' => 'datetime',
             'lock_version' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -89,5 +99,27 @@ class AuditEngagementOrder extends Model
     public function issuer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'issued_by')->withTrashed();
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by')->withTrashed();
+    }
+
+    public function voider(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by')->withTrashed();
+    }
+
+    public function signatories(): HasMany
+    {
+        return $this->hasMany(AemsAeoSignatory::class, 'audit_engagement_order_id')
+            ->orderBy('version_number')->orderBy('sequence');
+    }
+
+    public function distributions(): HasMany
+    {
+        return $this->hasMany(AemsAeoDistribution::class, 'audit_engagement_order_id')
+            ->orderByDesc('created_at');
     }
 }

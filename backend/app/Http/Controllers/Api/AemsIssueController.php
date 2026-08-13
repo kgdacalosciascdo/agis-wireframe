@@ -59,6 +59,7 @@ class AemsIssueController extends Controller
             'action' => ['required', Rule::in([
                 'SUBMIT', 'VALIDATE', 'DISMISS', 'CONVERT', 'MERGE', 'RESOLVE',
                 'OBSERVE', 'REFER', 'CLOSE_WITHOUT_FINDING',
+                'WITHDRAW',
             ])],
             'lockVersion' => ['required', 'integer', 'min:1'],
             'comment' => ['nullable', 'string', 'max:4000'],
@@ -76,6 +77,7 @@ class AemsIssueController extends Controller
             'OBSERVE' => 'observe',
             'REFER' => 'refer',
             'CLOSE_WITHOUT_FINDING' => 'closeWithoutFinding',
+            'WITHDRAW' => 'withdraw',
         }, $issue);
         $result = $this->findings->transitionIssue(
             $request,

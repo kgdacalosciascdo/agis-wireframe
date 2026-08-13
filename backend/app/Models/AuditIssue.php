@@ -25,6 +25,7 @@ class AuditIssue extends Model
         'VALIDATED',
         'DISMISSED',
         'CONVERTED_TO_FINDING',
+        'WITHDRAWN',
     ];
 
     public const DISPOSITIONS = [
@@ -35,6 +36,18 @@ class AuditIssue extends Model
         'REFERRED',
         'CLOSED_WITHOUT_FINDING',
         'DISMISSED',
+        'WITHDRAWN',
+    ];
+
+    /** Compatibility labels preserve legacy DISMISSED rows while exposing the
+     * professional terminal disposition represented by the row. */
+    public const STATUS_COMPATIBILITY = [
+        'DRAFT' => ['canonical' => 'DRAFT', 'label' => 'Draft', 'terminal' => false],
+        'SUBMITTED' => ['canonical' => 'FOR_REVIEW', 'label' => 'For Review', 'terminal' => false],
+        'VALIDATED' => ['canonical' => 'UNDER_EVALUATION', 'label' => 'Under Evaluation', 'terminal' => false],
+        'DISMISSED' => ['canonical' => 'DISPOSED', 'label' => 'Disposed', 'terminal' => true],
+        'CONVERTED_TO_FINDING' => ['canonical' => 'DISPOSED', 'label' => 'Disposed — Converted to Finding', 'terminal' => true],
+        'WITHDRAWN' => ['canonical' => 'WITHDRAWN', 'label' => 'Withdrawn', 'terminal' => true],
     ];
 
     protected $fillable = [
@@ -62,6 +75,9 @@ class AuditIssue extends Model
         'dismissal_reason',
         'converted_at',
         'converted_by',
+        'withdrawn_at',
+        'withdrawn_by',
+        'withdrawal_reason',
         'lock_version',
     ];
 
@@ -72,6 +88,7 @@ class AuditIssue extends Model
             'validated_at' => 'datetime',
             'dismissed_at' => 'datetime',
             'converted_at' => 'datetime',
+            'withdrawn_at' => 'datetime',
             'disposition_recorded_at' => 'datetime',
             'lock_version' => 'integer',
         ];
@@ -80,12 +97,12 @@ class AuditIssue extends Model
     protected static function booted(): void
     {
         static::updating(function (self $issue): void {
-            if (in_array($issue->getOriginal('status'), ['DISMISSED', 'CONVERTED_TO_FINDING'], true)) {
+            if (in_array($issue->getOriginal('status'), ['DISMISSED', 'CONVERTED_TO_FINDING', 'WITHDRAWN'], true)) {
                 throw new LogicException('Dismissed or converted issues are immutable.');
             }
         });
         static::deleting(function (self $issue): void {
-            if (in_array($issue->status, ['DISMISSED', 'CONVERTED_TO_FINDING'], true)) {
+            if (in_array($issue->status, ['DISMISSED', 'CONVERTED_TO_FINDING', 'WITHDRAWN'], true)) {
                 throw new LogicException('Dismissed or converted issues cannot be deleted.');
             }
         });
@@ -128,6 +145,11 @@ class AuditIssue extends Model
     public function dispositionRecorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'disposition_recorded_by')->withTrashed();
+    }
+
+    public function withdrawnBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'withdrawn_by')->withTrashed();
     }
 
     public function mergedInto(): BelongsTo

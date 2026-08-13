@@ -66,11 +66,11 @@ class AemsEvidenceController extends Controller
         AuditEvidence $evidence,
     ): JsonResponse {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['VERIFY', 'VOID'])],
+            'action' => ['required', Rule::in(['VERIFY', 'ACCEPT', 'LIMIT', 'ADDITIONAL_REQUIRED', 'REJECT', 'DUPLICATE', 'VOID'])],
             'lockVersion' => ['required', 'integer', 'min:1'],
             'reason' => ['nullable', 'string', 'max:4000'],
         ]);
-        Gate::authorize(strtolower($validated['action']), $evidence);
+        Gate::authorize(in_array($validated['action'], ['VERIFY', 'VOID'], true) ? strtolower($validated['action']) : 'outcome', $evidence);
         $record = $this->evidence->transition(
             $request,
             $engagement,
@@ -100,5 +100,16 @@ class AemsEvidenceController extends Controller
             $version->original_file_name,
             ['Content-Type' => $version->mime_type],
         );
+    }
+
+    public function linkReport(Request $request, AuditEngagement $engagement, AuditEvidence $evidence): JsonResponse
+    {
+        $validated = $request->validate([
+            'reportVersionId' => ['required', 'integer', Rule::exists('audit_report_versions', 'id')],
+            'reason' => ['nullable', 'string', 'max:4000'],
+            'sequence' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $record = $this->evidence->linkReport($request, $engagement, $evidence, (int) $validated['reportVersionId'], $validated['reason'] ?? null, (int) ($validated['sequence'] ?? 0));
+        return response()->json(['success' => true, 'message' => 'Evidence linked to the report version.', 'data' => ['evidence' => $this->evidence->data($record)]]);
     }
 }

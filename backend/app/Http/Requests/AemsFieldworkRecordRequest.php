@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Models\AemsFieldworkRecord;
 
 /** Validates one editable Fieldwork Record version and its traceability links. */
 class AemsFieldworkRecordRequest extends FormRequest
@@ -29,7 +30,7 @@ class AemsFieldworkRecordRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'recordType' => ['required', Rule::in(['INTERVIEW', 'OBSERVATION', 'WALKTHROUGH', 'INSPECTION', 'TESTING', 'SAMPLING', 'ANALYSIS'])],
+            'recordType' => ['required', Rule::in(AemsFieldworkRecord::TYPES)],
             'procedureId' => ['required', 'integer', Rule::exists('audit_program_procedures', 'id')->whereNull('deleted_at')],
             'auditAreaId' => ['required', 'integer', Rule::exists('audit_areas', 'id')->whereNull('deleted_at')],
             'auditFocusId' => ['required', 'integer', Rule::exists('audit_focuses', 'id')->whereNull('deleted_at')],

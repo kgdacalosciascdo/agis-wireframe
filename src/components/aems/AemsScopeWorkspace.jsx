@@ -122,6 +122,14 @@ export default function AemsScopeWorkspace({ engagementId, initialEngagement }) 
     value: area.id,
     label: `${area.code} — ${area.name}`,
   }));
+  const invalidFocusLinks = form.areaCoverage.flatMap((item) =>
+    item.focusIds
+      .filter((focusId) => {
+        const focus = focuses.find((candidate) => String(candidate.id) === String(focusId));
+        return !focus || String(focus.auditAreaId) !== String(item.auditAreaId);
+      })
+      .map((focusId) => ({ areaId: item.auditAreaId, focusId })),
+  );
 
   function updateAreas(values) {
     const next = values.map((value) => {
@@ -219,6 +227,7 @@ export default function AemsScopeWorkspace({ engagementId, initialEngagement }) 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="font-bold text-slate-800">Area and Focus coverage</h3>
             <p className="mt-1 text-sm text-slate-500">Each in-scope Area has explicit boundaries and limitations. Focuses must belong to the selected Area.</p>
+            {invalidFocusLinks.length > 0 && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"><strong>Scope integrity warning:</strong> one or more stored Focus links do not belong to their selected Area. Remove or correct these links before saving.</div>}
             <div className="mt-4"><FormField label="In-scope Audit Areas" required><SearchableSelect disabled={!editable} multiple onChange={updateAreas} options={areaOptions} placeholder="Select audit areas" value={selectedAreaIds} /></FormField></div>
             <div className="mt-5 space-y-4">
               {form.areaCoverage.map((item) => {
@@ -233,7 +242,7 @@ export default function AemsScopeWorkspace({ engagementId, initialEngagement }) 
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><h3 className="font-bold text-slate-800">Scope controls</h3><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">Status</dt><dd className="font-semibold text-slate-800">{engagement?.status}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Lock version</dt><dd className="font-semibold text-slate-800">{engagement?.lockVersion}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Office count</dt><dd className="font-semibold text-slate-800">{engagement?.officeRule?.actualCount ?? engagement?.offices?.length ?? 0} / 1</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Risk source</dt><dd className="text-right font-semibold text-slate-800">{engagement?.iapRiskSourceType ?? "Special authority"}</dd></div></dl></section>
-          {editable ? <button className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-sky-800 disabled:opacity-50" disabled={saving || !form.officeId || !form.areaCoverage.length} onClick={save} type="button"><Save size={17} />{saving ? "Saving scope..." : "Save scope"}</button> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>Read-only scope</strong><p className="mt-1">Scope changes are unavailable after authorization or when your permission does not include foundation scope management.</p></div>}
+          {editable ? <button className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-sky-800 disabled:opacity-50" disabled={saving || !form.officeId || !form.areaCoverage.length || invalidFocusLinks.length > 0} onClick={save} type="button"><Save size={17} />{saving ? "Saving scope..." : "Save scope"}</button> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>Read-only scope</strong><p className="mt-1">Scope changes are unavailable after authorization or when your permission does not include foundation scope management.</p></div>}
         </aside>
       </div>
     </section>

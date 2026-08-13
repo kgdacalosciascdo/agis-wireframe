@@ -304,9 +304,20 @@ class AuditEngagement extends Model
             ->orderBy('created_at');
     }
 
+    public function teamAmendments(): HasMany
+    {
+        return $this->hasMany(AemsTeamAmendment::class, 'audit_engagement_id')->orderByDesc('created_at');
+    }
+
+    public function teamAccessHistory(): HasMany
+    {
+        return $this->hasMany(AemsTeamAccessHistory::class, 'audit_engagement_id')->orderByDesc('created_at');
+    }
+
     public function engagementOrder(): HasOne
     {
-        return $this->hasOne(AuditEngagementOrder::class, 'audit_engagement_id');
+        return $this->hasOne(AuditEngagementOrder::class, 'audit_engagement_id')
+            ->where('is_active', true);
     }
 
     public function engagementPlan(): HasOne
@@ -425,6 +436,18 @@ class AuditEngagement extends Model
     public function lessonsLearned(): HasMany
     {
         return $this->hasMany(EngagementLessonLearned::class, 'audit_engagement_id');
+    }
+
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(AemsEngagementMilestone::class, 'audit_engagement_id')
+            ->orderBy('due_date')->orderBy('id');
+    }
+
+    public function recordDispositionActions(): HasMany
+    {
+        return $this->hasMany(AemsRecordDispositionAction::class, 'audit_engagement_id')
+            ->orderByDesc('occurred_at');
     }
 
     public function reopenRequests(): HasMany

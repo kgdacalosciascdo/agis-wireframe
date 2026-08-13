@@ -20,6 +20,7 @@ class AuditEvidence extends Model
     use HasFactory, SoftDeletes;
 
     public const STATUSES = ['DRAFT', 'VERIFIED', 'LOCKED', 'VOIDED'];
+    public const OUTCOMES = ['REGISTERED', 'FOR_ASSESSMENT', 'ACCEPTED', 'LIMITED', 'ADDITIONAL_REQUIRED', 'REJECTED', 'SUPERSEDED', 'DUPLICATE', 'VOIDED'];
 
     protected $table = 'audit_evidence';
 
@@ -49,7 +50,8 @@ class AuditEvidence extends Model
         'voided_by',
         'voided_at',
         'void_reason',
-        'lock_version',
+        'lock_version', 'outcome', 'acquisition_method', 'acquisition_form',
+        'planning_objective_id', 'risk_matrix_item_id', 'control_reference',
     ];
 
     protected function casts(): array
@@ -173,5 +175,13 @@ class AuditEvidence extends Model
         return $this->hasOne(AemsEvidenceAssessment::class, 'audit_evidence_id')
             ->where('is_current_revision', true)
             ->latestOfMany('version_number');
+    }
+
+    public function planningObjective(): BelongsTo { return $this->belongsTo(AemsPlanningObjective::class, 'planning_objective_id'); }
+    public function riskMatrixItem(): BelongsTo { return $this->belongsTo(AemsRiskMatrixItem::class, 'risk_matrix_item_id'); }
+    public function reportVersions(): BelongsToMany
+    {
+        return $this->belongsToMany(AuditReportVersion::class, 'aems_evidence_report_links', 'audit_evidence_id', 'audit_report_version_id')
+            ->withPivot(['sequence_number', 'link_reason', 'linked_by'])->withTimestamps();
     }
 }

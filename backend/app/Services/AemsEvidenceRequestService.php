@@ -24,6 +24,11 @@ class AemsEvidenceRequestService
         'contradiction', 'authenticity', 'integrity',
     ];
 
+    private const REQUEST_OPEN_STATUSES = [
+        'SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED', 'OVERDUE',
+        'EXTENDED', 'ESCALATED', 'EXTENSION_REQUESTED',
+    ];
+
     public function __construct(
         private readonly AemsAccessService $access,
         private readonly AemsSupport $support,
@@ -55,6 +60,7 @@ class AemsEvidenceRequestService
                 'status' => $engagement->status,
             ],
             'requestStatuses' => AemsEvidenceRequest::STATUSES,
+            'requestActions' => ['SUBMIT', 'SEND', 'ACKNOWLEDGE', 'MARK_OVERDUE', 'REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION', 'ESCALATE', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'FOR_REVIEW', 'ASSESS', 'CLOSE_WITHOUT_SUBMISSION', 'CANCEL', 'CLOSE'],
             'assessmentStatuses' => AemsEvidenceAssessment::STATUSES,
             'requests' => $requests->map(fn (AemsEvidenceRequest $item): array => $this->requestData($item))->values(),
             'assessments' => $assessments->map(fn (AemsEvidenceAssessment $item): array => $this->assessmentData($item))->values(),
@@ -120,26 +126,46 @@ class AemsEvidenceRequestService
         return $this->loadRequest($record);
     }
 
-    public function transition(Request $request, AuditEngagement $engagement, AemsEvidenceRequest $record, string $action, int $lockVersion, ?string $comment): AemsEvidenceRequest
+    public function transition(Request $request, AuditEngagement $engagement, AemsEvidenceRequest $record, string $action, int $lockVersion, ?string $comment, array $attributes = []): AemsEvidenceRequest
     {
         $permission = match ($action) {
             'SUBMIT' => 'aems.evidence-request.submit',
             'SEND' => 'aems.evidence-request.send',
             'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED' => 'aems.evidence-request.receive',
-            'ASSESS' => 'aems.evidence-request.assess',
-            'CLOSE' => 'aems.evidence-request.close',
+            'FOR_REVIEW', 'ASSESS' => 'aems.evidence-request.assess',
+            'ACKNOWLEDGE' => 'aems.evidence-request.acknowledge',
+            'REQUEST_EXTENSION' => 'aems.evidence-request.extend',
+            'APPROVE_EXTENSION' => 'aems.evidence-request.extension_approve',
+            'REJECT_EXTENSION' => 'aems.evidence-request.extension_approve',
+            'MARK_OVERDUE' => 'aems.evidence-request.overdue',
+            'ESCALATE' => 'aems.evidence-request.escalate',
+            'CANCEL' => 'aems.evidence-request.cancel',
+            'CLOSE_WITHOUT_SUBMISSION', 'CLOSE' => 'aems.evidence-request.close',
             default => throw ValidationException::withMessages(['action' => ['Unsupported Evidence Request action.']]),
         };
-        $this->access->authorizeEngagementAction($request->user(), $engagement, $permission, $record->prepared_by);
-        $record = DB::transaction(function () use ($request, $engagement, $record, $action, $lockVersion, $comment): AemsEvidenceRequest {
+        if ($action === 'ACKNOWLEDGE') {
+            $this->access->authorizeEvidenceRequestAcknowledgement($request->user(), $record->fresh(['engagement']));
+        } else {
+            $this->access->authorizeEngagementAction($request->user(), $engagement, $permission, $record->prepared_by);
+        }
+        $record = DB::transaction(function () use ($request, $engagement, $record, $action, $lockVersion, $comment, $attributes): AemsEvidenceRequest {
             $locked = $this->lockRequest($engagement, $record, $lockVersion);
             $from = $locked->status;
             $to = match ($action) {
                 'SUBMIT' => $from === 'DRAFT' ? 'SUBMITTED' : null,
                 'SEND' => $from === 'SUBMITTED' ? 'SENT' : null,
-                'MARK_PARTIALLY_RECEIVED' => in_array($from, ['SENT', 'PARTIALLY_RECEIVED'], true) ? 'PARTIALLY_RECEIVED' : null,
-                'MARK_RECEIVED' => in_array($from, ['SENT', 'PARTIALLY_RECEIVED'], true) ? 'RECEIVED' : null,
-                'ASSESS' => $from === 'RECEIVED' ? 'ASSESSED' : null,
+                'ACKNOWLEDGE' => $from === 'SENT' ? 'ACKNOWLEDGED' : null,
+                'MARK_PARTIALLY_RECEIVED' => in_array($from, ['SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED', 'OVERDUE', 'EXTENDED', 'ESCALATED'], true) ? 'PARTIALLY_RECEIVED' : null,
+                'MARK_RECEIVED' => in_array($from, ['SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED', 'OVERDUE', 'EXTENDED', 'ESCALATED'], true) ? 'RECEIVED' : null,
+                'FOR_REVIEW' => $from === 'RECEIVED' ? 'FOR_REVIEW' : null,
+                'ASSESS' => in_array($from, ['RECEIVED', 'FOR_REVIEW'], true) ? 'ASSESSED' : null,
+                'REQUEST_EXTENSION' => in_array($from, ['SENT', 'ACKNOWLEDGED', 'OVERDUE', 'ESCALATED'], true) ? 'EXTENSION_REQUESTED' : null,
+                'APPROVE_EXTENSION' => $from === 'EXTENSION_REQUESTED' ? 'EXTENDED' : null,
+                'REJECT_EXTENSION' => $from === 'EXTENSION_REQUESTED' ? 'SENT' : null,
+                'MARK_OVERDUE' => in_array($from, ['SENT', 'ACKNOWLEDGED', 'EXTENDED'], true) ? 'OVERDUE' : null,
+                'ESCALATE' => $from === 'OVERDUE' ? 'ESCALATED' : null,
+                'CANCEL' => in_array($from, ['DRAFT', 'SUBMITTED', ...self::REQUEST_OPEN_STATUSES], true) ? 'CANCELLED' : null,
+                'CLOSE_WITHOUT_SUBMISSION' => in_array($from, ['SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED', 'OVERDUE', 'EXTENDED', 'ESCALATED'], true) ? 'CLOSED_WITHOUT_SUBMISSION' : null,
                 'CLOSE' => $from === 'ASSESSED' ? 'CLOSED' : null,
             };
             if (! $to) {
@@ -152,8 +178,20 @@ class AemsEvidenceRequestService
             if ($action === 'ASSESS') {
                 $this->ensureRequestEvidenceAssessed($locked);
             }
-            if ($action === 'CLOSE' && mb_strlen(trim((string) $comment)) < 5) {
+            if (in_array($action, ['CLOSE', 'CLOSE_WITHOUT_SUBMISSION', 'CANCEL', 'ESCALATE', 'REQUEST_EXTENSION'], true) && mb_strlen(trim((string) $comment)) < 5) {
                 throw ValidationException::withMessages(['comment' => ['A closure reason is required.']]);
+            }
+            if ($action === 'MARK_OVERDUE' && (! $locked->due_date || $locked->due_date->isFuture())) {
+                throw ValidationException::withMessages(['dueDate' => ['A request can be marked overdue only after its due date.']]);
+            }
+            if ($action === 'REQUEST_EXTENSION') {
+                $requestedDate = $attributes['extensionDueDate'] ?? null;
+                if (! $requestedDate || now()->startOfDay()->gte(\Illuminate\Support\Carbon::parse($requestedDate))) {
+                    throw ValidationException::withMessages(['extensionDueDate' => ['A future extension due date is required.']]);
+                }
+            }
+            if ($action === 'APPROVE_EXTENSION' && ! $locked->extension_requested_due_date) {
+                throw ValidationException::withMessages(['extensionDueDate' => ['No extension request is pending.']]);
             }
             $changes = ['status' => $to, 'lock_version' => $locked->lock_version + 1];
             if ($action === 'SUBMIT') { $changes += ['submitted_by' => $request->user()->id, 'submitted_at' => now()]; }
@@ -161,7 +199,14 @@ class AemsEvidenceRequestService
             if ($action === 'MARK_PARTIALLY_RECEIVED') { $changes['partially_received_at'] = now(); }
             if ($action === 'MARK_RECEIVED') { $changes['received_at'] = now(); }
             if ($action === 'ASSESS') { $changes['assessed_at'] = now(); }
-            if ($action === 'CLOSE') { $changes += ['closed_at' => now(), 'closed_by' => $request->user()->id, 'closure_reason' => $comment]; }
+            if ($action === 'ACKNOWLEDGE') { $changes += ['acknowledged_by' => $request->user()->id, 'acknowledged_at' => now(), 'acknowledgement_note' => $comment]; }
+            if ($action === 'REQUEST_EXTENSION') { $changes += ['extension_requested_due_date' => $attributes['extensionDueDate'], 'extension_requested_by' => $request->user()->id, 'extension_requested_at' => now(), 'extension_reason' => $comment]; }
+            if ($action === 'APPROVE_EXTENSION') { $changes += ['extension_due_date' => $locked->extension_requested_due_date, 'extension_approved_by' => $request->user()->id, 'extension_approved_at' => now(), 'due_date' => $locked->extension_requested_due_date]; }
+            if ($action === 'MARK_OVERDUE') { $changes['overdue_at'] = now(); }
+            if ($action === 'ESCALATE') { $changes += ['escalated_by' => $request->user()->id, 'escalated_at' => now(), 'escalation_reason' => $comment]; }
+            if ($action === 'CANCEL') { $changes += ['cancelled_by' => $request->user()->id, 'cancelled_at' => now(), 'cancellation_reason' => $comment, 'closure_type' => 'CANCELLED', 'closed_at' => now(), 'closed_by' => $request->user()->id, 'closure_reason' => $comment]; }
+            if ($action === 'CLOSE_WITHOUT_SUBMISSION') { $changes += ['closed_at' => now(), 'closed_by' => $request->user()->id, 'closure_reason' => $comment, 'closure_type' => 'WITHOUT_SUBMISSION']; }
+            if ($action === 'CLOSE') { $changes += ['closed_at' => now(), 'closed_by' => $request->user()->id, 'closure_reason' => $comment, 'closure_type' => 'ASSESSED']; }
             $locked->update($changes);
             $this->event($request, $engagement, $locked, $action, $from, $to, $comment);
             $this->support->audit($request, 'aems.evidence-request.'.str($action)->lower(), $engagement, ['status' => $from], $this->auditValues($locked), ['evidenceRequestId' => $locked->id, 'comment' => $comment]);
@@ -177,7 +222,7 @@ class AemsEvidenceRequestService
         $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.evidence-request.receive', $record->prepared_by);
         return DB::transaction(function () use ($request, $engagement, $record, $attributes): AemsEvidenceRequestEvidence {
             $locked = $this->lockRequest($engagement, $record, (int) $attributes['lockVersion']);
-            if (! in_array($locked->status, ['SENT', 'PARTIALLY_RECEIVED'], true)) {
+            if (! in_array($locked->status, ['SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED', 'OVERDUE', 'EXTENDED', 'ESCALATED'], true)) {
                 throw ValidationException::withMessages(['status' => ['Evidence can only be received after the request is sent.']]);
             }
             $evidence = AuditEvidence::query()->where('audit_engagement_id', $engagement->id)->whereKey((int) $attributes['evidenceId'])->whereNot('status', 'VOIDED')->with('documentVersion')->first();
@@ -187,7 +232,7 @@ class AemsEvidenceRequestService
             if (! $version) throw ValidationException::withMessages(['documentVersionId' => ['The Core Document Version is not part of this Evidence record.']]);
             $link = AemsEvidenceRequestEvidence::query()->firstOrCreate(
                 ['evidence_request_id' => $locked->id, 'audit_evidence_id' => $evidence->id, 'document_version_id' => $version->id],
-                ['received_by' => $request->user()->id, 'received_at' => now(), 'receipt_notes' => $attributes['receiptNotes'] ?? null],
+                ['received_by' => $request->user()->id, 'received_at' => now(), 'receipt_notes' => $attributes['receiptNotes'] ?? null, 'receipt_status' => 'RECEIVED', 'receipt_outcome' => $attributes['receiptOutcome'] ?? null, 'received_form' => $attributes['receivedForm'] ?? null, 'acquisition_method' => $attributes['acquisitionMethod'] ?? null],
             );
             $locked->increment('lock_version');
             $this->event($request, $engagement, $locked, 'EVIDENCE_LINKED', $locked->status, $locked->status, $attributes['receiptNotes'] ?? null, [$version->id]);
@@ -239,6 +284,13 @@ class AemsEvidenceRequestService
                 'change_reason' => $attributes['changeReason'] ?? null,
                 'lock_version' => 1,
             ]);
+            $assessmentEligible = $this->assessmentValuesForEligibility($assessment);
+            if (($attributes['evidenceOutcome'] ?? null) === 'ACCEPTED' && ! $assessmentEligible) {
+                throw ValidationException::withMessages(['evidenceOutcome' => ['Evidence cannot be marked accepted while its professional assessment is negative, incomplete, restricted, or unresolved.']]);
+            }
+            $evidence->forceFill([
+                'outcome' => $attributes['evidenceOutcome'] ?? ($assessmentEligible ? 'ACCEPTED' : (($assessment->is_restricted || filled($assessment->limitations)) ? 'LIMITED' : 'ADDITIONAL_REQUIRED')),
+            ])->save();
             $this->support->event($request, $engagement, 'EVIDENCE_ASSESSED', null, 'ASSESSED', $current ? ['versionNumber' => $current->version_number] : null, $this->assessmentValues($assessment), $attributes['changeReason'] ?? null, 'AEMS_EVIDENCE_ASSESSMENT', $assessment->id, $number, $evidence->evidence_code, $assessment->assessment_family_uuid, [$assessment->document_version_id]);
             $this->support->audit($request, 'aems.evidence.assessed', $engagement, null, $this->assessmentValues($assessment), ['evidenceId' => $evidence->id, 'assessmentId' => $assessment->id]);
             $this->notifications->evidenceAssessmentRecorded($request, $engagement, $assessment);
@@ -276,6 +328,9 @@ class AemsEvidenceRequestService
                 'lock_version' => 1,
             ]);
             $revision->load(['evidence', 'request', 'documentVersion', 'assessor', 'exceptionApprover']);
+            if ($revision->evidence) {
+                $revision->evidence->forceFill(['outcome' => 'ACCEPTED'])->save();
+            }
             $this->support->event($request, $engagement, 'EVIDENCE_EXCEPTION_APPROVED', 'ASSESSED', 'ASSESSED', ['versionNumber' => $locked->version_number], $this->assessmentValues($revision), $comment, 'AEMS_EVIDENCE_ASSESSMENT', $revision->id, $revision->version_number, $revision->evidence?->evidence_code, $revision->assessment_family_uuid, [$revision->document_version_id]);
             $this->support->audit($request, 'aems.evidence.exception_approved', $engagement, null, $this->assessmentValues($revision), ['assessmentId' => $revision->id, 'supersedesAssessmentId' => $locked->id]);
             $this->notifications->evidenceAssessmentRecorded($request, $engagement, $revision, 'EXCEPTION_APPROVED');
@@ -298,10 +353,16 @@ class AemsEvidenceRequestService
             'requestedFromUser' => $this->user($record->requestedFromUser),
             'preparedBy' => $this->user($record->preparer), 'submittedBy' => $this->user($record->submitter),
             'sentBy' => $this->user($record->sender), 'closedBy' => $this->user($record->closer),
+            'acknowledgedBy' => $this->user($record->acknowledger), 'acknowledgedAt' => $record->acknowledged_at?->toIso8601String(), 'acknowledgementNote' => $record->acknowledgement_note,
+            'extensionRequestedBy' => $this->user($record->extensionRequester), 'extensionRequestedAt' => $record->extension_requested_at?->toIso8601String(), 'extensionRequestedDueDate' => $record->extension_requested_due_date?->toDateString(),
+            'extensionApprovedBy' => $this->user($record->extensionApprover), 'extensionApprovedAt' => $record->extension_approved_at?->toIso8601String(), 'extensionDueDate' => $record->extension_due_date?->toDateString(), 'extensionReason' => $record->extension_reason,
+            'overdueAt' => $record->overdue_at?->toIso8601String(), 'escalatedBy' => $this->user($record->escalator), 'escalatedAt' => $record->escalated_at?->toIso8601String(), 'escalationReason' => $record->escalation_reason,
+            'cancelledBy' => $this->user($record->canceller), 'cancelledAt' => $record->cancelled_at?->toIso8601String(), 'cancellationReason' => $record->cancellation_reason, 'closureType' => $record->closure_type,
             'submittedAt' => $record->submitted_at?->toIso8601String(), 'sentAt' => $record->sent_at?->toIso8601String(),
             'partiallyReceivedAt' => $record->partially_received_at?->toIso8601String(), 'receivedAt' => $record->received_at?->toIso8601String(),
             'assessedAt' => $record->assessed_at?->toIso8601String(), 'closedAt' => $record->closed_at?->toIso8601String(),
             'closureReason' => $record->closure_reason, 'lockVersion' => $record->lock_version,
+            'events' => $record->events->map(fn ($event): array => ['id' => $event->id, 'eventType' => $event->event_type, 'fromStatus' => $event->from_status, 'toStatus' => $event->to_status, 'reason' => $event->reason, 'actor' => $this->user($event->actor), 'createdAt' => $event->created_at?->toIso8601String(), 'versionNumber' => $event->version_number])->values(),
             'latestVersion' => $record->latestVersion ? $this->versionData($record->latestVersion) : null,
             'versions' => $record->versions->map(fn (AemsEvidenceRequestVersion $version): array => $this->versionData($version))->values(),
             'evidence' => $record->evidenceLinks->map(fn (AemsEvidenceRequestEvidence $link): array => $this->linkData($link))->values(),
@@ -357,6 +418,9 @@ class AemsEvidenceRequestService
         if (! $evidence || ! $evidence->is_current_revision || ! in_array($evidence->status, ['VERIFIED', 'LOCKED'], true)) {
             $reasons[] = 'The Evidence record is not a current verified or locked version.';
         }
+        if (! $evidence || ! in_array($evidence->outcome, ['ACCEPTED', 'LIMITED'], true)) {
+            $reasons[] = 'Evidence must have an explicit accepted outcome before it can support reporting.';
+        }
         if (! $assessment->documentVersion || (int) $assessment->document_version_id !== (int) $evidence?->document_version_id) {
             $reasons[] = 'The assessment does not cite the exact current Core Document Version.';
         }
@@ -389,7 +453,7 @@ class AemsEvidenceRequestService
     /** @return list<string> */
     private function requestRelations(): array
     {
-        return ['requestedFromOffice', 'requestedFromUser', 'preparer', 'submitter', 'sender', 'closer', 'latestVersion.creator', 'versions.creator', 'evidenceLinks.evidence.documentVersion', 'evidenceLinks.documentVersion', 'evidenceLinks.receiver'];
+        return ['requestedFromOffice', 'requestedFromUser', 'preparer', 'submitter', 'sender', 'closer', 'acknowledger', 'extensionRequester', 'extensionApprover', 'escalator', 'canceller', 'latestVersion.creator', 'versions.creator', 'evidenceLinks.evidence.documentVersion', 'evidenceLinks.documentVersion', 'evidenceLinks.receiver', 'events.actor'];
     }
 
     private function loadRequest(AemsEvidenceRequest $record): AemsEvidenceRequest
@@ -468,6 +532,23 @@ class AemsEvidenceRequestService
         ])->mapWithKeys(fn (string $field): array => [$field => $assessment->{$field}])->all();
     }
 
+    private function assessmentValuesForEligibility(AemsEvidenceAssessment $assessment): bool
+    {
+        foreach (self::ASSESSMENT_DIMENSIONS as $dimension) {
+            $value = strtoupper(trim((string) $assessment->{$dimension}));
+            $acceptable = $dimension === 'contradiction'
+                ? in_array($value, ['NO', 'ADEQUATE'], true)
+                : in_array($value, ['YES', 'HIGH', 'ADEQUATE'], true);
+            if (! $acceptable) return false;
+        }
+        return filled($assessment->confidentiality)
+            && blank($assessment->evidence_gaps)
+            && blank($assessment->limitations)
+            && ! $assessment->is_restricted
+            && blank($assessment->access_restrictions)
+            && ! $assessment->exception_required;
+    }
+
     private function nextCode(AuditEngagement $engagement): string
     {
         $number = AemsEvidenceRequest::withTrashed()->where('audit_engagement_id', $engagement->id)->count() + 1;
@@ -478,13 +559,25 @@ class AemsEvidenceRequestService
     private function event(Request $request, AuditEngagement $engagement, AemsEvidenceRequest $record, string $action, ?string $from, ?string $to, ?string $comment = null, ?array $documentIds = null): void
     {
         $this->support->event($request, $engagement, 'EVIDENCE_REQUEST_'.$action, $from, $to, ['requestCode' => $record->request_code, 'status' => $from], ['requestCode' => $record->request_code, 'status' => $to], $comment, 'AEMS_EVIDENCE_REQUEST', $record->id, $record->current_version_number, $record->request_code, $record->request_family_uuid, $documentIds);
+        \App\Models\AemsEvidenceRequestEvent::query()->create([
+            'evidence_request_id' => $record->id,
+            'audit_engagement_id' => $engagement->id,
+            'event_type' => $action,
+            'from_status' => $from,
+            'to_status' => $to,
+            'actor_id' => $request->user()?->id,
+            'reason' => $comment,
+            'metadata' => ['documentVersionIds' => $documentIds ?? []],
+            'version_number' => $record->current_version_number,
+            'created_at' => now(),
+        ]);
     }
 
     private function auditValues(AemsEvidenceRequest $record): array { return ['id' => $record->id, 'requestCode' => $record->request_code, 'status' => $record->status, 'versionNumber' => $record->current_version_number, 'lockVersion' => $record->lock_version]; }
     private function assessmentValues(AemsEvidenceAssessment $assessment): array { return ['id' => $assessment->id, 'evidenceId' => $assessment->audit_evidence_id, 'status' => $assessment->status, 'versionNumber' => $assessment->version_number, 'documentVersionId' => $assessment->document_version_id, 'isRestricted' => $assessment->is_restricted, 'exceptionApprovedAt' => $assessment->exception_approved_at?->toIso8601String()]; }
 
     private function versionData(AemsEvidenceRequestVersion $version): array { return ['id' => $version->id, 'versionNumber' => $version->version_number, 'title' => $version->title, 'purpose' => $version->purpose, 'requestedFromOfficeId' => $version->requested_from_office_id, 'requestedFromUserId' => $version->requested_from_user_id, 'dueDate' => $version->due_date?->toDateString(), 'requestedItems' => $version->requested_items ?? [], 'changeReason' => $version->change_reason, 'createdBy' => $this->user($version->creator), 'createdAt' => $version->created_at?->toIso8601String()]; }
-    private function linkData(AemsEvidenceRequestEvidence $link): array { return ['id' => $link->id, 'evidenceId' => $link->audit_evidence_id, 'evidenceCode' => $link->evidence?->evidence_code, 'documentVersionId' => $link->document_version_id, 'fileName' => $link->documentVersion?->original_file_name, 'checksumSha256' => $link->documentVersion?->checksum_sha256, 'receivedBy' => $this->user($link->receiver), 'receivedAt' => $link->received_at?->toIso8601String(), 'receiptNotes' => $link->receipt_notes, 'assessment' => $link->evidence?->currentAssessment ? $this->assessmentData($link->evidence->currentAssessment) : null]; }
-    private function evidenceSummary(AuditEvidence $evidence): array { return ['id' => $evidence->id, 'evidenceCode' => $evidence->evidence_code, 'title' => $evidence->title, 'status' => $evidence->status, 'versionNumber' => $evidence->version_number, 'documentVersionId' => $evidence->document_version_id, 'assessment' => $evidence->currentAssessment ? $this->assessmentData($evidence->currentAssessment) : null]; }
+    private function linkData(AemsEvidenceRequestEvidence $link): array { return ['id' => $link->id, 'evidenceId' => $link->audit_evidence_id, 'evidenceCode' => $link->evidence?->evidence_code, 'documentVersionId' => $link->document_version_id, 'fileName' => $link->documentVersion?->original_file_name, 'checksumSha256' => $link->documentVersion?->checksum_sha256, 'receivedBy' => $this->user($link->receiver), 'receivedAt' => $link->received_at?->toIso8601String(), 'receiptNotes' => $link->receipt_notes, 'receiptStatus' => $link->receipt_status, 'receiptOutcome' => $link->receipt_outcome, 'receivedForm' => $link->received_form, 'acquisitionMethod' => $link->acquisition_method, 'assessment' => $link->evidence?->currentAssessment ? $this->assessmentData($link->evidence->currentAssessment) : null]; }
+    private function evidenceSummary(AuditEvidence $evidence): array { return ['id' => $evidence->id, 'evidenceCode' => $evidence->evidence_code, 'title' => $evidence->title, 'status' => $evidence->status, 'outcome' => $evidence->outcome, 'versionNumber' => $evidence->version_number, 'documentVersionId' => $evidence->document_version_id, 'acquisitionMethod' => $evidence->acquisition_method, 'acquisitionForm' => $evidence->acquisition_form, 'planningObjectiveId' => $evidence->planning_objective_id, 'riskMatrixItemId' => $evidence->risk_matrix_item_id, 'controlReference' => $evidence->control_reference, 'assessment' => $evidence->currentAssessment ? $this->assessmentData($evidence->currentAssessment) : null]; }
     private function user(mixed $user): ?array { return $user ? ['id' => $user->id, 'employeeId' => $user->employee_id, 'name' => $user->name, 'initials' => $user->initials] : null; }
 }

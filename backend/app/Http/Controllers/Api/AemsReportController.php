@@ -201,6 +201,52 @@ class AemsReportController extends Controller
         return response()->json(['success' => true, 'message' => 'Issued report withdrawn without altering its immutable version.', 'data' => ['report' => $this->reports->reportData($withdrawn, $request->user())]]);
     }
 
+    public function authorityDecision(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version): JsonResponse
+    {
+        $decision = $this->reports->recordAuthorityDecision($request, $engagement, $report, $version, $request->validate([
+            'authorityRole' => ['required', Rule::in(['IAU_HEAD_RECOMMENDATION', 'LCE_APPROVAL', 'PRESIDING_OFFICER_APPROVAL'])],
+            'decisionCode' => ['required', Rule::in(['RECOMMEND', 'APPROVE', 'RETURN', 'REJECT'])],
+            'comment' => ['nullable', 'string', 'max:10000'], 'decisionReference' => ['nullable', 'string', 'max:160'],
+        ]));
+        return response()->json(['success' => true, 'data' => ['authorityDecision' => $decision->load('decider')]]);
+    }
+
+    public function signatory(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version): JsonResponse
+    {
+        $signatory = $this->reports->recordSignatory($request, $engagement, $report, $version, $request->validate([
+            'signatoryRole' => ['required', Rule::in(['IAU_HEAD', 'LCE', 'PRESIDING_OFFICER', 'REPORT_ISSUER'])],
+            'userId' => ['nullable', 'integer', 'required_without:signatoryName'], 'signatoryName' => ['nullable', 'string', 'max:255', 'required_without:userId'],
+            'signatureMethod' => ['required', Rule::in(['CONTROLLED_WORKFLOW', 'DIGITAL', 'WET_SIGNATURE', 'E_SIGNATURE'])],
+            'signatureReference' => ['nullable', 'string', 'max:160'], 'signedAt' => ['nullable', 'date'],
+        ]));
+        return response()->json(['success' => true, 'data' => ['signatory' => $signatory->load('user')]]);
+    }
+
+    public function transmittal(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version): JsonResponse
+    {
+        $transmittal = $this->reports->createTransmittal($request, $engagement, $report, $version, $request->validate([
+            'transmittalReference' => ['required', 'string', 'max:160'],
+            'transmittalMethod' => ['required', Rule::in(['CONTROLLED_SYSTEM', 'EMAIL', 'HAND_DELIVERY', 'REGISTERED_MAIL'])],
+            'deliveryStatus' => ['nullable', Rule::in(['PREPARED', 'SENT', 'DELIVERED', 'ACKNOWLEDGED'])], 'note' => ['nullable', 'string', 'max:10000'], 'sentAt' => ['nullable', 'date'],
+        ]));
+        return response()->json(['success' => true, 'data' => ['transmittal' => $transmittal]]);
+    }
+
+    public function administrativeClose(Request $request, AuditEngagement $engagement, AuditReport $report): JsonResponse
+    {
+        $validated = $request->validate([
+            'lockVersion' => ['required', 'integer', 'min:1'], 'reason' => ['required', 'string', 'min:5', 'max:10000'], 'reference' => ['nullable', 'string', 'max:160'],
+        ]);
+        $closed = $this->reports->administrativeClose($request, $engagement, $report, $validated['lockVersion'], $validated['reason'], $validated['reference'] ?? null);
+        return response()->json(['success' => true, 'data' => ['report' => $this->reports->reportData($closed, $request->user())]]);
+    }
+
+    public function export(Request $request, AuditEngagement $engagement, AuditReport $report, AuditReportVersion $version, string $format): StreamedResponse
+    {
+        $export = $this->reports->export($request, $engagement, $report, $version, $format);
+        return Storage::disk('local')->download($export->storage_path, $export->file_name, ['Content-Type' => strtoupper($format) === 'PDF' ? 'application/pdf' : 'text/csv']);
+    }
+
     public function download(
         Request $request,
         AuditEngagement $engagement,
@@ -236,6 +282,12 @@ class AemsReportController extends Controller
             'qualityChecklist.*.completed' => ['required', 'boolean'],
             'findingIds' => ['required', 'array', 'min:1'],
             'findingIds.*' => ['required', 'integer', 'distinct'],
+            'issueIds' => ['nullable', 'array'], 'issueIds.*' => ['integer', 'distinct'],
+            'workingPaperVersionIds' => ['nullable', 'array'], 'workingPaperVersionIds.*' => ['integer', 'distinct'],
+            'evidenceIds' => ['nullable', 'array'], 'evidenceIds.*' => ['integer', 'distinct'],
+            'sourceInterimReportVersionId' => ['nullable', 'integer'],
+            'interimTreatment' => ['nullable', Rule::in(['RETAINED_WITH_REVIEW', 'REVISED', 'OMITTED', 'RESOLVED'])],
+            'sourceTreatments' => ['nullable', 'array'], 'linkReasons' => ['nullable', 'array'],
             'confidentialityLevelId' => ['required', 'integer'],
             'approvingAuthority' => [
                 $final ? 'required' : 'nullable',

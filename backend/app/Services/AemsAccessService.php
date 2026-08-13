@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditEngagement;
 use App\Models\AuditFinding;
 use App\Models\AuditReport;
+use App\Models\AemsEvidenceRequest;
 use App\Models\EntryConference;
 use App\Models\ExitConference;
 use App\Models\User;
@@ -29,10 +30,16 @@ class AemsAccessService
         'aems.entry-conference.waive',
         'aems.team.assign',
         'aems.team.reassign',
+        'aems.team.amend',
         'aems.team.safeguard_approve',
         'aems.aeo.approve',
         'aems.aeo.issue',
         'aems.aeo.revise',
+        'aems.aeo.amend',
+        'aems.aeo.cancel',
+        'aems.aeo.void',
+        'aems.aeo.supersede',
+        'aems.aeo.distribute',
         'aems.aep.approve',
         'aems.aep.revise',
         'aems.program.approve',
@@ -47,12 +54,17 @@ class AemsAccessService
         'aems.report.approve',
         'aems.report.issue',
         'aems.report.withdraw',
+        'aems.report.close_admin',
         'aems.completion-assessment.approve',
         'aems.completion-transfer.approve',
         'aems.closure.approve',
         'aems.closure.close',
         'aems.document-index.finalize',
         'aems.retention.approve',
+        'aems.retention.archive',
+        'aems.retention.legal_hold_release',
+        'aems.retention.destruction_review',
+        'aems.retention.disposition_execute',
         'aems.engagement.reopen_approve',
         'aems.foundation.reconcile',
     ];
@@ -62,6 +74,7 @@ class AemsAccessService
         'aems.aeo.review',
         'aems.aeo.approve',
         'aems.aeo.issue',
+        'aems.aeo.sign',
         'aems.engagement.authorize',
         'aems.aep.review',
         'aems.aep.approve',
@@ -74,7 +87,11 @@ class AemsAccessService
         'aems.fieldwork.review',
         'aems.fieldwork.finalize',
         'aems.evidence-request.assess',
+        'aems.evidence-request.extension_approve',
+        'aems.management-response.approve_extension',
+        'aems.management-response.reject_extension',
         'aems.evidence.exception_approve',
+        'aems.evidence.outcome',
         'aems.issue.validate',
         'aems.issue.dismiss',
         'aems.issue.convert',
@@ -83,6 +100,10 @@ class AemsAccessService
         'aems.issue.observe',
         'aems.issue.refer',
         'aems.issue.close_without_finding',
+        'aems.issue.withdraw',
+        'aems.afr.transmit',
+        'aems.afr.delivery',
+        'aems.afr.acknowledge',
         'aems.finding.review',
         'aems.finding.validate',
         'aems.finding.revise',
@@ -93,6 +114,10 @@ class AemsAccessService
         'aems.report.issue',
         'aems.report.amend',
         'aems.report.supersede',
+        'aems.report.authority',
+        'aems.report.signatory',
+        'aems.report.transmit',
+        'aems.report.export',
         'aems.engagement.close',
         'aems.completion-assessment.review',
         'aems.completion-assessment.approve',
@@ -101,6 +126,9 @@ class AemsAccessService
         'aems.closure.approve',
         'aems.closure.close',
         'aems.retention.approve',
+        'aems.retention.legal_hold_release',
+        'aems.retention.destruction_review',
+        'aems.retention.disposition_execute',
         'aems.engagement.reopen_approve',
     ];
 
@@ -114,10 +142,15 @@ class AemsAccessService
         'aems.team.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.team.safeguard_view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.team.safeguard_declare' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
+        'aems.team.history' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
+        'aems.team.amend' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.team.safeguard_review' => ['SUPERVISOR', 'REVIEWER'],
         'aems.aeo.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.aeo.prepare' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.aeo.review' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.aeo.sign' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.aeo.acknowledge' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
+        'aems.aeo.distribute' => ['SUPERVISOR'],
         'aems.aep.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.aep.create' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.aep.review' => ['SUPERVISOR', 'REVIEWER'],
@@ -141,6 +174,8 @@ class AemsAccessService
         'aems.evidence.verify' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
         'aems.evidence.assess' => ['SUPERVISOR', 'REVIEWER'],
         'aems.evidence.exception_approve' => ['SUPERVISOR'],
+        'aems.evidence.outcome' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.evidence.link_report' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
         'aems.evidence-request.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.evidence-request.create' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
         'aems.evidence-request.update' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
@@ -149,6 +184,12 @@ class AemsAccessService
         'aems.evidence-request.receive' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.evidence-request.assess' => ['SUPERVISOR', 'REVIEWER'],
         'aems.evidence-request.close' => ['SUPERVISOR'],
+        'aems.evidence-request.acknowledge' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
+        'aems.evidence-request.extend' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
+        'aems.evidence-request.extension_approve' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.evidence-request.overdue' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
+        'aems.evidence-request.escalate' => ['SUPERVISOR', 'TEAM_LEADER'],
+        'aems.evidence-request.cancel' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.issue.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.issue.create' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
         'aems.issue.validate' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
@@ -159,6 +200,11 @@ class AemsAccessService
         'aems.issue.observe' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
         'aems.issue.refer' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
         'aems.issue.close_without_finding' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
+        'aems.issue.withdraw' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
+        'aems.afr.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
+        'aems.afr.transmit' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
+        'aems.afr.delivery' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
+        'aems.afr.acknowledge' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
         'aems.finding.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER', 'SPECIALIST', 'AUTHORIZED_PARTICIPANT'],
         'aems.finding.create' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
         'aems.finding.review' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
@@ -166,6 +212,10 @@ class AemsAccessService
         'aems.finding.revise' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
         'aems.management-response.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
         'aems.management-response.request_clarification' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
+        'aems.management-response.request_extension' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
+        'aems.management-response.approve_extension' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.management-response.reject_extension' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.management-response.supplement' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
         'aems.rejoinder.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
         'aems.rejoinder.create' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR'],
         'aems.rejoinder.finalize' => ['SUPERVISOR', 'TEAM_LEADER', 'REVIEWER'],
@@ -206,6 +256,11 @@ class AemsAccessService
         'aems.report.amend' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.report.supersede' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.report.withdraw' => ['SUPERVISOR'],
+        'aems.report.authority' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.report.signatory' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.report.transmit' => ['SUPERVISOR', 'TEAM_LEADER'],
+        'aems.report.export' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
+        'aems.report.close_admin' => ['SUPERVISOR'],
         'aems.report.acknowledge' => [],
         'aems.completion-assessment.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
         'aems.completion-assessment.create' => ['SUPERVISOR', 'TEAM_LEADER'],
@@ -224,6 +279,14 @@ class AemsAccessService
         'aems.document-index.manage' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.retention.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
         'aems.retention.manage' => ['SUPERVISOR', 'TEAM_LEADER'],
+        'aems.retention.archive' => ['SUPERVISOR', 'TEAM_LEADER'],
+        'aems.retention.legal_hold_release' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.retention.destruction_review' => ['SUPERVISOR', 'REVIEWER'],
+        'aems.retention.disposition_execute' => ['SUPERVISOR'],
+        'aems.records.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
+        'aems.records.search' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
+        'aems.calendar.view' => ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'],
+        'aems.calendar.manage' => ['SUPERVISOR', 'TEAM_LEADER'],
         'aems.engagement.reopen_request' => ['SUPERVISOR', 'TEAM_LEADER'],
     ];
 
@@ -271,6 +334,10 @@ class AemsAccessService
             && ! in_array($permission, [
                 'aems.engagement.reopen_request',
                 'aems.engagement.reopen_approve',
+                'aems.retention.archive',
+                'aems.retention.legal_hold_release',
+                'aems.retention.destruction_review',
+                'aems.retention.disposition_execute',
             ], true)) {
             throw ValidationException::withMessages([
                 'engagement' => ['Closed engagement official records are immutable.'],
@@ -295,6 +362,17 @@ class AemsAccessService
         }
 
         $this->enforceSeparationOfDuties($user, $permission, $originatorId);
+    }
+
+    public function authorizeEvidenceRequestAcknowledgement(User $user, AemsEvidenceRequest $record): void
+    {
+        throw_unless($user->hasPermission('aems.evidence-request.acknowledge'), new HttpException(403, 'You do not have acknowledgement permission.'));
+        $allowed = $user->hasRole('cias_management')
+            || ($user->hasRole('auditee_representative')
+                && (($record->requested_from_user_id && (int) $record->requested_from_user_id === (int) $user->id)
+                    || ($record->requested_from_office_id && (int) $record->requested_from_office_id === (int) $user->office_id)))
+            || $this->isAssigned($user, $record->engagement);
+        throw_unless($allowed, new HttpException(403, 'Only the requested custodian office or user may acknowledge this request.'));
     }
 
     public function visibleFindings(Builder $query, User $user): Builder
@@ -419,10 +497,10 @@ class AemsAccessService
             if ($canViewIssued) {
                 if ($user->hasGlobalEngagementAccess() && ! $user->isReadOnlyOnly()) {
                     // Platform administrators may monitor issued output, not working drafts.
-                    $visible->orWhere('status', 'ISSUED');
+                    $visible->orWhereIn('status', ['ISSUED', 'ADMINISTRATIVELY_CLOSED']);
                 } else {
                     $visible->orWhere(function (Builder $issued) use ($user): void {
-                        $issued->where('status', 'ISSUED')
+                        $issued->whereIn('status', ['ISSUED', 'ADMINISTRATIVELY_CLOSED'])
                             ->whereHas('versions', function (Builder $version) use ($user): void {
                                 $version
                                     ->whereColumn(

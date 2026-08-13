@@ -9,7 +9,7 @@ const engagement = {
 
 const fieldwork = {
   engagement,
-  recordTypes: ["INTERVIEW", "OBSERVATION", "WALKTHROUGH", "INSPECTION", "TESTING", "SAMPLING", "ANALYSIS"],
+  recordTypes: ["INTERVIEW", "OBSERVATION", "WALKTHROUGH", "INSPECTION", "TESTING", "SAMPLING", "ANALYSIS", "INQUIRY", "MEETING", "FIELD_NOTE", "OTHER"],
   executionStatuses: ["PLANNED", "IN_PROGRESS", "COMPLETED"],
   auditAreas: [{ id: 11, code: "AREA-01", name: "Procurement" }],
   auditFocuses: [{ id: 12, auditAreaId: 11, code: "FOCUS-01", name: "Approvals" }],
@@ -17,6 +17,7 @@ const fieldwork = {
     id: 81,
     procedureCode: "PROC-01",
     objective: "Inspect approval evidence",
+    auditCriteria: "Approved procurement policy requires documented supervisory review.",
     description: "Trace a sample of procurement approvals.",
     status: "ACTIVE",
     fieldworkStatus: "IN_PROGRESS",
@@ -72,6 +73,7 @@ const findings = {
   evidence: [{ id: 701, evidenceCode: "EVD-EXEC-001", title: "Approval sample", versionNumber: 1 }],
   issues: [],
   findings: [],
+  procedures: [{ id: 81, procedureCode: "PROC-01", objective: "Inspect approval evidence", auditCriteria: "Approved procurement policy requires documented supervisory review.", status: "COMPLETED" }],
 };
 
 async function signIn(page) {
@@ -106,6 +108,7 @@ test("AEMS-4B exposes linked procedure execution and fieldwork context", async (
   await expect(page.getByText("PROC-01", { exact: true }).first()).toBeVisible();
   await expect(page.getByTestId("fieldwork-record-list")).toContainText("FWR-EXEC-001");
   await expect(page.getByText("Fieldwork timeline")).toBeVisible();
+  await expect(page.getByText("Criteria traceability:", { exact: false })).toBeVisible();
   await expect(page.getByTestId("aems-execution-workspace").getByRole("link", { name: /Working Papers & Evidence/ })).toBeVisible();
   await expect(page.locator('a[href*="/issues?"][href*="procedureId=81"]')).toBeVisible();
   await expect(page.getByRole("button", { name: /Create issue/ })).toBeVisible();

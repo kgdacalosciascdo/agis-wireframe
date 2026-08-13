@@ -60,6 +60,7 @@ function statusTone(status) {
     ISSUED: "active",
     SUPERSEDED: "inactive",
     WITHDRAWN: "danger",
+    ADMINISTRATIVELY_CLOSED: "inactive",
   }[status] ?? "inactive";
 }
 
@@ -103,6 +104,11 @@ function emptyContent(defaultConfidentiality = "") {
       { title: "Overall Conclusion", content: "" },
     ],
     findingIds: [],
+    issueIds: [],
+    workingPaperVersionIds: [],
+    evidenceIds: [],
+    sourceInterimReportVersionId: "",
+    interimTreatment: "RETAINED_WITH_REVIEW",
     confidentialityLevelId: defaultConfidentiality,
     approvingAuthority: "",
     recipients: [],
@@ -159,6 +165,9 @@ export default function AemsReportsPage() {
   const canAmend = hasPermission(user, "aems.report.amend");
   const canWithdraw = hasPermission(user, "aems.report.withdraw");
   const canSupersede = hasPermission(user, "aems.report.supersede");
+  const canAuthority = hasPermission(user, "aems.report.authority");
+  const canExport = hasPermission(user, "aems.report.export");
+  const canAdminClose = hasPermission(user, "aems.report.close_admin");
 
   const loadEngagements = useCallback(async () => {
     setLoading(true);
@@ -257,6 +266,11 @@ export default function AemsReportsPage() {
                     ?.filter((finding) => finding.status === "FINALIZED")
                     .map((finding) => finding.id) ?? []
                 : snapshot.findings?.map((finding) => finding.id) ?? [],
+            issueIds: currentVersion.issues?.map((issue) => issue.id) ?? [],
+            workingPaperVersionIds: currentVersion.workingPaperVersions?.map((item) => item.id) ?? [],
+            evidenceIds: currentVersion.evidence?.map((item) => item.id) ?? [],
+            sourceInterimReportVersionId: currentVersion.sourceInterimReportVersionId ?? "",
+            interimTreatment: currentVersion.interimTreatment ?? "RETAINED_WITH_REVIEW",
             confidentialityLevelId: defaultConfidentiality,
             approvingAuthority: report.approvingAuthority ?? "",
             recipients:
@@ -286,6 +300,10 @@ export default function AemsReportsPage() {
         ...content,
         confidentialityLevelId: Number(content.confidentialityLevelId),
         findingIds: content.findingIds.map(Number),
+        issueIds: content.issueIds.map(Number),
+        workingPaperVersionIds: content.workingPaperVersionIds.map(Number),
+        evidenceIds: content.evidenceIds.map(Number),
+        sourceInterimReportVersionId: content.sourceInterimReportVersionId ? Number(content.sourceInterimReportVersionId) : null,
         ...(generationMode !== "create"
           ? { lockVersion: report.lockVersion }
           : {}),
@@ -387,6 +405,18 @@ export default function AemsReportsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function recordAuthority(role, decision) {
+    if (!currentVersion) return;
+    setSaving(true);
+    try { await aemsReportApi.authorityDecision(engagementId, report.id, currentVersion.id, { authorityRole: role, decisionCode: decision, comment: "Recorded from the reporting workspace." }); await refresh("Authority decision recorded."); } catch (requestError) { showError(requestError); } finally { setSaving(false); }
+  }
+
+  async function administrativeClose() {
+    const reason = window.prompt("Administrative closure reason"); if (!reason) return;
+    setSaving(true);
+    try { await aemsReportApi.administrativeClose(engagementId, report.id, { lockVersion: report.lockVersion, reason }); await refresh("Report administratively closed."); } catch (requestError) { showError(requestError); } finally { setSaving(false); }
   }
 
   return (
@@ -555,6 +585,8 @@ export default function AemsReportsPage() {
                 {canAmend && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={() => controlledReportAction("AMEND")}><FilePlus2 size={15} /> Amend</ActionButton>}
                 {canSupersede && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={() => controlledReportAction("SUPERSEDE")} tone="amber"><FileCheck2 size={15} /> Supersede</ActionButton>}
                 {canWithdraw && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={() => controlledReportAction("WITHDRAW")} tone="red"><Undo2 size={15} /> Withdraw</ActionButton>}
+                {canAdminClose && report.status === "ISSUED" && <ActionButton disabled={saving} onClick={administrativeClose} tone="amber"><LockKeyhole size={15} /> Administrative close</ActionButton>}
+                {canExport && currentVersion?.isLocked && <><ActionButton disabled={saving} onClick={() => aemsReportApi.export(engagementId, report.id, currentVersion, "PDF").catch(showError)}><Download size={15} /> Protected PDF</ActionButton><ActionButton disabled={saving} onClick={() => aemsReportApi.export(engagementId, report.id, currentVersion, "CSV").catch(showError)}><Download size={15} /> Source CSV</ActionButton></>}
               </div>
             </div>
 
@@ -605,6 +637,13 @@ export default function AemsReportsPage() {
             {compareVersion && currentVersion && compareVersion.id !== currentVersion.id && (
               <div className="mt-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700"><div className="flex items-center justify-between gap-3"><h4 className="font-bold">Version comparison: v{compareVersion.versionNumber} → v{currentVersion.versionNumber}</h4><button className="text-xs font-bold text-sky-700" onClick={() => setCompareVersion(null)} type="button">Close</button></div><p className="mt-2"><strong>Executive summary:</strong> {compareVersion.contentSnapshot?.executiveSummary === currentVersion.contentSnapshot?.executiveSummary ? "Unchanged" : "Changed"}</p><p className="mt-1"><strong>Sections:</strong> {compareVersion.contentSnapshot?.sections?.length ?? 0} → {currentVersion.contentSnapshot?.sections?.length ?? 0}; <strong>Findings:</strong> {compareVersion.findings?.length ?? 0} → {currentVersion.findings?.length ?? 0}</p></div>
             )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold text-slate-800">Source traceability and authority</h3><p className="mt-1 text-xs text-slate-500">Every version is reproducible from its immutable source manifest.</p></div><div className="flex flex-wrap gap-2">{canAuthority && report.reportStage === "FINAL_REPORT" && report.status !== "ISSUED" && <><ActionButton onClick={() => recordAuthority("IAU_HEAD_RECOMMENDATION", "RECOMMEND")}><BadgeCheck size={14}/> IAU Head recommendation</ActionButton><ActionButton onClick={() => recordAuthority("LCE_APPROVAL", "APPROVE")} tone="green"><BadgeCheck size={14}/> LCE approval</ActionButton></>}</div></div>
+            {currentVersion && <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Meta title="Manifest SHA-256">{currentVersion.sourceManifestSha256 || "Pending"}</Meta><Meta title="Interim treatment">{label(currentVersion.interimTreatment) || "Not applicable"}</Meta><Meta title="Issues / WP / Evidence">{`${currentVersion.issues?.length ?? 0} / ${currentVersion.workingPaperVersions?.length ?? 0} / ${currentVersion.evidence?.length ?? 0}`}</Meta><Meta title="Reproducibility key">{currentVersion.reproducibilityKey || "Pending"}</Meta></div>}
+            {currentVersion && <div className="mt-4 grid gap-3 md:grid-cols-2"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Signatories</p>{currentVersion.signatories?.length ? currentVersion.signatories.map((item) => <p className="mt-1 text-sm text-slate-700" key={item.id}>{label(item.signatoryRole)} · {item.user?.name || item.signatoryName || "Recorded"} · {label(item.signatureMethod)}</p>) : <p className="mt-1 text-sm text-slate-400">No signatories recorded yet.</p>}</div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Transmittals</p>{currentVersion.transmittals?.length ? currentVersion.transmittals.map((item) => <p className="mt-1 text-sm text-slate-700" key={item.id}>{item.reference} · {label(item.status)} · {label(item.method)}</p>) : <p className="mt-1 text-sm text-slate-400">No transmittal recorded yet.</p>}</div></div>}
+            {currentVersion?.sourceManifest && <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-bold text-slate-700">Inspect approved source manifest</summary><pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs text-slate-600">{JSON.stringify(currentVersion.sourceManifest, null, 2)}</pre></details>}
           </section>
         </div>
       )}
@@ -778,6 +817,22 @@ function VersionCard({ version, onDownload, canDownload, onCompare, onDecision, 
   );
 }
 
+function SourceChoices({ title, items, selected, onChange, labelFor }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{title}</p>
+      <div className="mt-2 max-h-40 space-y-2 overflow-auto">
+        {items.length === 0 ? <p className="text-xs text-slate-400">No eligible records.</p> : items.map((item) => (
+          <label className="flex items-start gap-2 text-xs text-slate-700" key={item.id}>
+            <input checked={selected.includes(item.id)} className="mt-0.5" onChange={(event) => onChange(event.target.checked ? [...selected, item.id] : selected.filter((id) => id !== item.id))} type="checkbox" />
+            <span>{labelFor(item)}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GenerationModal({
   open,
   mode,
@@ -797,6 +852,9 @@ function GenerationModal({
   const confidentiality = references?.confidentialityLevels ?? [];
   const users = references?.users ?? [];
   const offices = references?.offices ?? [];
+  const issues = references?.issues ?? [];
+  const workingPapers = references?.workingPaperVersions ?? [];
+  const evidence = (references?.evidence ?? []).filter((item) => !final || item.outcome === "ACCEPTED");
 
   function moveSection(index, direction) {
     const destination = index + direction;
@@ -915,6 +973,17 @@ function GenerationModal({
             </label>
           ))}
         </div>
+      </section>
+
+      <section className="mt-6">
+        <h3 className="font-bold text-slate-800">Approved source traceability</h3>
+        <p className="mt-1 text-xs text-slate-500">Pin the exact Issue, approved Working Paper version, and Evidence records used by this report version.</p>
+        <div className="mt-3 grid gap-4 lg:grid-cols-3">
+          <SourceChoices title="Issues" items={issues} selected={form.issueIds} onChange={(ids) => onChange((current) => ({ ...current, issueIds: ids }))} labelFor={(item) => `${item.issueCode} · ${label(item.status)}`} />
+          <SourceChoices title="Working Paper versions" items={workingPapers} selected={form.workingPaperVersionIds} onChange={(ids) => onChange((current) => ({ ...current, workingPaperVersionIds: ids }))} labelFor={(item) => `${item.code || `WP-${item.workingPaperId}`} · v${item.versionNumber}`} />
+          <SourceChoices title="Evidence" items={evidence} selected={form.evidenceIds} onChange={(ids) => onChange((current) => ({ ...current, evidenceIds: ids }))} labelFor={(item) => `${item.evidenceCode} · ${label(item.outcome)}`} />
+        </div>
+        {final && <div className="mt-4 grid gap-3 sm:grid-cols-2"><Field title="Interim source version ID"><input className={inputClass} onChange={(event) => onChange((current) => ({ ...current, sourceInterimReportVersionId: event.target.value }))} placeholder="Approved Interim/Draft version ID" value={form.sourceInterimReportVersionId} /></Field><Field title="Interim treatment"><select className={inputClass} onChange={(event) => onChange((current) => ({ ...current, interimTreatment: event.target.value }))} value={form.interimTreatment}><option value="RETAINED_WITH_REVIEW">Retained with review</option><option value="REVISED">Revised</option><option value="OMITTED">Omitted</option><option value="RESOLVED">Resolved</option></select></Field></div>}
       </section>
 
       <section className="mt-6">

@@ -208,6 +208,11 @@ class AuditFinding extends Model
         return $this->hasMany(AemsDialogueDueProcess::class, 'audit_finding_id')->orderBy('recorded_at');
     }
 
+    public function transmittals(): HasMany
+    {
+        return $this->hasMany(AemsFindingTransmittal::class, 'audit_finding_id')->orderBy('sent_at');
+    }
+
     public function workingPaperVersions(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -275,5 +280,21 @@ class AuditFinding extends Model
             'audit_finding_id',
             'fieldwork_record_version_id',
         )->withPivot(['fieldwork_record_id'])->withTimestamps();
+    }
+
+    /**
+     * Program procedures whose approved criteria and execution support the
+     * finding. This is separate from the fieldwork pivot so the criteria
+     * chain remains explicit even when a finding is created from a direct
+     * authority or a working-paper reference.
+     */
+    public function procedures(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            AuditProgramProcedure::class,
+            'audit_finding_procedure',
+            'audit_finding_id',
+            'audit_program_procedure_id',
+        )->withPivot(['criteria_reference', 'traceability_note', 'linked_by'])->withTimestamps();
     }
 }

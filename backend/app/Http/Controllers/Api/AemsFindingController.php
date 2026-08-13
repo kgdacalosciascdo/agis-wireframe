@@ -8,6 +8,8 @@ use App\Models\AuditEngagement;
 use App\Models\AuditFinding;
 use App\Models\AuditRecommendation;
 use App\Models\AemsDialogueAttachment;
+use App\Models\AemsFindingTransmittal;
+use App\Models\AemsFindingTransmittalRecipient;
 use App\Models\AuditorRejoinder;
 use App\Models\ManagementResponse;
 use App\Services\AemsAccessService;
@@ -277,9 +279,11 @@ class AemsFindingController extends Controller
         ManagementResponse $response,
     ): JsonResponse {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['SUBMIT', 'START_REVIEW', 'REQUEST_CLARIFICATION'])],
+            'action' => ['required', Rule::in(['SUBMIT', 'START_REVIEW', 'REQUEST_CLARIFICATION', 'REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION'])],
             'lockVersion' => ['required', 'integer', 'min:1'],
             'comment' => ['nullable', 'string', 'max:4000'],
+            'extensionDueDate' => ['nullable', 'date'],
+            'lateReason' => ['nullable', 'string', 'max:4000'],
         ]);
         $response = $this->findings->transitionResponse(
             $request,
@@ -289,12 +293,71 @@ class AemsFindingController extends Controller
             $validated['action'],
             $validated['lockVersion'],
             $validated['comment'] ?? null,
+            $validated,
         );
 
         return response()->json([
             'success' => true,
             'message' => 'Management response workflow action completed.',
             'data' => ['response' => $this->findings->responseData($response)],
+        ]);
+    }
+
+    public function createTransmittal(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'recipients' => ['required', 'array', 'min:1', 'max:100'],
+            'recipients.*' => ['required'],
+            'transmittalMethod' => ['nullable', Rule::in(['OFFICIAL_LETTER', 'EMAIL', 'PORTAL', 'HAND_DELIVERY'])],
+            'transmittalReference' => ['nullable', 'string', 'max:255'],
+            'dueDate' => ['nullable', 'date'],
+            'confidentiality' => ['nullable', Rule::in(['PUBLIC', 'INTERNAL', 'CONFIDENTIAL', 'RESTRICTED'])],
+        ]);
+        $transmittal = $this->findings->createTransmittal($request, $engagement, $finding, $validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'AFR transmittal recorded.',
+            'data' => ['transmittal' => $this->findings->transmittalData($transmittal)],
+        ], 201);
+    }
+
+    public function transitionTransmittalRecipient(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditFinding $finding,
+        AemsFindingTransmittal $transmittal,
+        AemsFindingTransmittalRecipient $recipient,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['DELIVER', 'ACKNOWLEDGE'])],
+            'lockVersion' => ['required', 'integer', 'min:1'],
+            'comment' => ['nullable', 'string', 'max:4000'],
+        ]);
+        $recipient = $this->findings->transitionTransmittalRecipient(
+            $request,
+            $engagement,
+            $finding,
+            $transmittal,
+            $recipient,
+            $validated['action'],
+            $validated['lockVersion'],
+            $validated['comment'] ?? null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'AFR recipient state updated.',
+            'data' => ['recipient' => [
+                'id' => $recipient->id,
+                'deliveryStatus' => $recipient->delivery_status,
+                'deliveredAt' => $recipient->delivered_at?->toIso8601String(),
+                'acknowledgedAt' => $recipient->acknowledged_at?->toIso8601String(),
+                'lockVersion' => $recipient->lock_version,
+            ]],
         ]);
     }
 
@@ -479,6 +542,8 @@ class AemsFindingController extends Controller
             'proposedAction' => ['nullable', 'string', 'max:20000'],
             'responsibleUserId' => ['nullable', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'proposedTargetDate' => ['nullable', 'date'],
+            'responseKind' => ['nullable', Rule::in(ManagementResponse::RESPONSE_KINDS)],
+            'supplementalReason' => ['nullable', 'string', 'max:4000'],
             'findingLockVersion' => [$creating ? 'required' : 'nullable', 'integer', 'min:1'],
             'lockVersion' => [$creating ? 'nullable' : 'required', 'integer', 'min:1'],
         ]);

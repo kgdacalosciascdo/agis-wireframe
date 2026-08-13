@@ -17,8 +17,9 @@ class AemsEvidenceRequest extends Model
     use HasFactory, SoftDeletes;
 
     public const STATUSES = [
-        'DRAFT', 'SUBMITTED', 'SENT', 'PARTIALLY_RECEIVED',
-        'RECEIVED', 'ASSESSED', 'CLOSED',
+        'DRAFT', 'SUBMITTED', 'SENT', 'ACKNOWLEDGED', 'PARTIALLY_RECEIVED',
+        'RECEIVED', 'FOR_REVIEW', 'ASSESSED', 'OVERDUE', 'EXTENSION_REQUESTED',
+        'EXTENDED', 'ESCALATED', 'CANCELLED', 'CLOSED_WITHOUT_SUBMISSION', 'CLOSED',
     ];
 
     protected $table = 'aems_evidence_requests';
@@ -30,6 +31,11 @@ class AemsEvidenceRequest extends Model
         'submitted_by', 'submitted_at', 'sent_by', 'sent_at',
         'partially_received_at', 'received_at', 'assessed_at', 'closed_at',
         'closed_by', 'closure_reason', 'lock_version', 'is_active',
+        'acknowledged_by', 'acknowledged_at', 'acknowledgement_note',
+        'extension_requested_due_date', 'extension_requested_by', 'extension_requested_at',
+        'extension_due_date', 'extension_approved_by', 'extension_approved_at', 'extension_reason',
+        'overdue_at', 'escalated_by', 'escalated_at', 'escalation_reason',
+        'cancelled_by', 'cancelled_at', 'cancellation_reason', 'closure_type',
     ];
 
     protected function casts(): array
@@ -42,6 +48,14 @@ class AemsEvidenceRequest extends Model
             'received_at' => 'datetime',
             'assessed_at' => 'datetime',
             'closed_at' => 'datetime',
+            'acknowledged_at' => 'datetime',
+            'extension_requested_due_date' => 'date',
+            'extension_requested_at' => 'datetime',
+            'extension_due_date' => 'date',
+            'extension_approved_at' => 'datetime',
+            'overdue_at' => 'datetime',
+            'escalated_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'lock_version' => 'integer',
             'current_version_number' => 'integer',
             'is_active' => 'boolean',
@@ -61,7 +75,13 @@ class AemsEvidenceRequest extends Model
     public function submitter(): BelongsTo { return $this->belongsTo(User::class, 'submitted_by')->withTrashed(); }
     public function sender(): BelongsTo { return $this->belongsTo(User::class, 'sent_by')->withTrashed(); }
     public function closer(): BelongsTo { return $this->belongsTo(User::class, 'closed_by')->withTrashed(); }
+    public function acknowledger(): BelongsTo { return $this->belongsTo(User::class, 'acknowledged_by')->withTrashed(); }
+    public function extensionRequester(): BelongsTo { return $this->belongsTo(User::class, 'extension_requested_by')->withTrashed(); }
+    public function extensionApprover(): BelongsTo { return $this->belongsTo(User::class, 'extension_approved_by')->withTrashed(); }
+    public function escalator(): BelongsTo { return $this->belongsTo(User::class, 'escalated_by')->withTrashed(); }
+    public function canceller(): BelongsTo { return $this->belongsTo(User::class, 'cancelled_by')->withTrashed(); }
     public function versions(): HasMany { return $this->hasMany(AemsEvidenceRequestVersion::class, 'evidence_request_id')->orderByDesc('version_number'); }
     public function latestVersion(): HasOne { return $this->hasOne(AemsEvidenceRequestVersion::class, 'evidence_request_id')->latestOfMany('version_number'); }
     public function evidenceLinks(): HasMany { return $this->hasMany(AemsEvidenceRequestEvidence::class, 'evidence_request_id'); }
+    public function events(): HasMany { return $this->hasMany(AemsEvidenceRequestEvent::class, 'evidence_request_id')->orderByDesc('created_at'); }
 }

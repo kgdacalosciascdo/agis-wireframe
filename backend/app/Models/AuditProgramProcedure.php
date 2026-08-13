@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -114,4 +115,14 @@ class AuditProgramProcedure extends Model
     public function auditArea(): BelongsTo { return $this->belongsTo(AuditArea::class, 'audit_area_id')->withTrashed(); }
     public function auditFocus(): BelongsTo { return $this->belongsTo(AuditFocus::class, 'audit_focus_id')->withTrashed(); }
     public function processFlow(): BelongsTo { return $this->belongsTo(AemsProcessFlowDocument::class, 'process_flow_id'); }
+
+    public function findings(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            AuditFinding::class,
+            'audit_finding_procedure',
+            'audit_program_procedure_id',
+            'audit_finding_id',
+        )->withPivot(['criteria_reference', 'traceability_note', 'linked_by'])->withTimestamps();
+    }
 }

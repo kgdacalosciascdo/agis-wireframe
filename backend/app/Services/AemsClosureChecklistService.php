@@ -326,13 +326,25 @@ class AemsClosureChecklistService
             $this->link($engagement, 'retention'));
         $legalHold = $engagement->retentionRecord?->legal_hold_flag ?? false;
         $add('LEGAL_HOLD', 'RECORDS', 'Legal hold is preserved without permitting disposition',
-            true,
+            ! $legalHold,
             $legalHold
-                ? 'Legal hold is active and preserved; disposition remains prohibited.'
+                ? 'Legal hold is active; closure cannot bypass the unresolved records control.'
                 : 'No legal hold is recorded.',
             'ENGAGEMENT_RETENTION', $engagement->retentionRecord?->id,
             $this->link($engagement, 'retention'),
-            false, false, $legalHold ? 'WARNING' : 'PASS');
+            true, true, null);
+
+        $overdueMilestones = $engagement->milestones
+            ->filter(fn ($milestone): bool => $milestone->due_date
+                && $milestone->due_date->lt(today())
+                && ! in_array($milestone->status_code, ['COMPLETED', 'WAIVED', 'CANCELLED'], true));
+        $add('AUDIT_CALENDAR', 'RECORDS', 'Required Audit Calendar milestones are complete or not overdue',
+            $overdueMilestones->isEmpty(),
+            $overdueMilestones->isEmpty()
+                ? 'No required overdue Audit Calendar milestone remains.'
+                : $overdueMilestones->count().' required milestone(s) are overdue.',
+            'AEMS_MILESTONE', $overdueMilestones->first()?->id,
+            $this->link($engagement, 'calendar'));
 
         $add('NO_ACTIVE_CHILD_WORKFLOW', 'WORKFLOW', 'No active child approval workflow remains',
             ! $activeChild,
@@ -403,6 +415,7 @@ class AemsClosureChecklistService
             'reports.reviewComments',
             'currentCompletionAssessment',
             'retentionRecord',
+            'milestones',
             'closure',
         ];
     }

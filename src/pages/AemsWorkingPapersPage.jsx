@@ -56,6 +56,11 @@ const emptyEvidence = {
   custodianName: "",
   custodianOfficeId: "",
   confidentialityLevelId: "",
+  acquisitionMethod: "",
+  acquisitionForm: "",
+  planningObjectiveId: "",
+  riskMatrixItemId: "",
+  controlReference: "",
   workingPaperIds: [],
   changeReason: "",
   file: null,
@@ -438,6 +443,11 @@ export default function AemsWorkingPapersPage() {
       custodianName: record.custodianName ?? "",
       custodianOfficeId: record.custodianOfficeId ?? "",
       confidentialityLevelId: record.confidentialityLevelId,
+      acquisitionMethod: record.acquisitionMethod ?? "",
+      acquisitionForm: record.acquisitionForm ?? "",
+      planningObjectiveId: record.planningObjectiveId ?? "",
+      riskMatrixItemId: record.riskMatrixItemId ?? "",
+      controlReference: record.controlReference ?? "",
       workingPaperIds: (record.workingPapers ?? []).map((paper) => paper.id),
       changeReason: "",
       file: null,
@@ -1463,6 +1473,19 @@ export default function AemsWorkingPapersPage() {
               }
             />
           </Field>
+          <Field error={errors.acquisitionMethod} label="Acquisition method">
+            <select className={inputClass} value={evidenceForm.acquisitionMethod} onChange={(event) => setEvidenceForm((current) => ({ ...current, acquisitionMethod: event.target.value }))}>
+              <option value="">Select method</option><option value="REQUESTED">Requested</option><option value="OBSERVED">Observed</option><option value="INTERVIEW">Interview</option><option value="SYSTEM_EXPORT">System export</option><option value="INSPECTION">Inspection</option><option value="OTHER">Other</option>
+            </select>
+          </Field>
+          <Field error={errors.acquisitionForm} label="Acquisition form">
+            <select className={inputClass} value={evidenceForm.acquisitionForm} onChange={(event) => setEvidenceForm((current) => ({ ...current, acquisitionForm: event.target.value }))}>
+              <option value="">Select form</option><option value="DIGITAL">Digital</option><option value="PHYSICAL">Physical</option><option value="ORAL">Oral</option><option value="EXTERNAL_CONFIRMATION">External confirmation</option>
+            </select>
+          </Field>
+          <Field error={errors.planningObjectiveId} label="Planning objective ID"><input className={inputClass} inputMode="numeric" value={evidenceForm.planningObjectiveId} onChange={(event) => setEvidenceForm((current) => ({ ...current, planningObjectiveId: event.target.value }))} placeholder="Optional objective link" /></Field>
+          <Field error={errors.riskMatrixItemId} label="Risk matrix item ID"><input className={inputClass} inputMode="numeric" value={evidenceForm.riskMatrixItemId} onChange={(event) => setEvidenceForm((current) => ({ ...current, riskMatrixItemId: event.target.value }))} placeholder="Optional risk link" /></Field>
+          <Field error={errors.controlReference} label="Control reference"><input className={inputClass} value={evidenceForm.controlReference} onChange={(event) => setEvidenceForm((current) => ({ ...current, controlReference: event.target.value }))} placeholder="Optional control ID/reference" /></Field>
           <Field error={errors.custodianName} label="Custodian name">
             <input
               className={inputClass}

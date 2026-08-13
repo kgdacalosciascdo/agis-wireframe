@@ -12,7 +12,11 @@ class AemsDialogueDueProcess extends Model
 {
     public const CREATED_AT = 'recorded_at';
     public const UPDATED_AT = null;
-    public const TYPES = ['REMINDER', 'NOTICE_SENT', 'CLARIFICATION_REQUESTED', 'FINAL_NON_RESPONSE', 'ESCALATION_RECOMMENDED'];
+    public const TYPES = [
+        'REMINDER', 'NOTICE_SENT', 'CLARIFICATION_REQUESTED', 'FINAL_NON_RESPONSE',
+        'ESCALATION_RECOMMENDED', 'EXTENSION_REQUESTED', 'EXTENSION_APPROVED',
+        'EXTENSION_REJECTED', 'LATE_RESPONSE', 'SUPPLEMENTAL_RESPONSE',
+    ];
     protected $table = 'aems_dialogue_due_process';
     protected $fillable = ['audit_engagement_id', 'audit_finding_id', 'management_response_id', 'event_code', 'version_number', 'event_type', 'content', 'due_date', 'actor_id', 'metadata', 'recorded_at'];
     protected static function booted(): void { static::updating(fn (): never => throw new LogicException('Due-process exchanges are immutable.')); static::deleting(fn (): never => throw new LogicException('Due-process exchanges cannot be deleted.')); }

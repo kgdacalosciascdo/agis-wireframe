@@ -1446,8 +1446,14 @@ information sought from a custodian, its due date, request versions, exact
 received evidence links, and its own controlled lifecycle:
 
 ```text
-DRAFT -> SUBMITTED -> SENT -> PARTIALLY_RECEIVED -> RECEIVED -> ASSESSED -> CLOSED
+DRAFT -> SUBMITTED -> SENT -> ACKNOWLEDGED -> PARTIALLY_RECEIVED -> RECEIVED
+       -> FOR_REVIEW -> ASSESSED -> CLOSED
 ```
+
+`SUBMITTED` is the compatibility label for `FOR_REVIEW`. The lifecycle also
+supports controlled `OVERDUE`, `EXTENSION_REQUESTED`, `EXTENDED`, `ESCALATED`,
+`CANCELLED`, and `CLOSED_WITHOUT_SUBMISSION` states; these are reviewable
+actions and do not make a professional acceptance decision automatically.
 
 `aems_evidence_request_versions` preserves each request content revision.
 `aems_evidence_request_evidence` pins each received item to both the current
@@ -1835,3 +1841,61 @@ planned Working Paper/evidence requirements. The aggregate
 `START_FIELDWORK` transition is the enforcement point; it reports all failed
 checks and does not bypass child workflows. See
 `docs/AEMS_G3_PLANNING_CONFORMANCE.md` for the data and API contract.
+
+## AEMS-G4 AEO and team authority
+
+Each AEO version has an immutable signatory matrix for independent review,
+approval, and issuance. The preparer is excluded from all independent actions;
+approval requires a reviewer signature and issuance requires a different
+authority from approval. AEO cancellation, voiding, supersession, and
+amendment preserve all prior versions and create auditable events.
+
+Only issued AEO versions can be transmitted. Distribution records preserve the
+recipient, transmittal method/reference, sent timestamp, and acknowledgement
+actor, note, and timestamp. Team assignment changes now create immutable
+authority/consequence records and separate access grant/revocation history.
+See `docs/AEMS_G4_AEO_TEAM_AUTHORITY.md` for the endpoint and permission
+contract.
+
+## AEMS-G7 Reporting and distribution
+
+Report versions preserve an immutable source manifest and SHA-256 manifest
+hash. Version-bound links pin Issues, approved Working Paper versions, and
+Evidence to the exact Core Document Version and checksum. Final generation
+records its approved Interim/Draft source and treatment. Final issuance
+requires the IAU Head recommendation and LCE approval records, preserves
+signatories and transmittals, and locks the issued source version. Protected
+PDF/CSV exports are generated from the locked version/manifest and record file
+and source checksums. Supervisors may administratively close an issued report
+family without altering its locked version. See
+`docs/AEMS_G7_REPORTING_DISTRIBUTION.md`.
+
+## AEMS-G8 Records, calendar, and closure hardening
+
+Formal closure re-evaluates legal-hold and overdue required milestone
+controls. Records remain in Core DocumentVersions; AEMS records only the
+authorized archive, legal-hold release, destruction-eligibility review, and
+external/provider disposition reference. Each disposition action is immutable.
+The engagement detail workspace provides Records & Disposition and Audit
+Calendar tabs. See `docs/AEMS_G8_RECORDS_CALENDAR_CLOSURE.md`.
+
+### AEMS-G9 verification contract
+
+The source-of-truth verification index is
+`docs/AEMS_G9_VERIFICATION_AND_TRUTH.md`. It defines 35 Rule rows and 32 SCR
+rows, verifies that each operational AEMS path is explicitly registered once,
+and checks the generic route fallback exclusion. Role visibility is evaluated
+from seeded permission codes, not role-name conditionals. Browser contracts
+cover mutation lock versions, negative Evidence, protected downloads, and
+desktop/mobile shell behavior. G9 is verification/documentation only; it does
+not introduce a new workflow transition.
+
+### AEMS-G10E governance and final acceptance
+
+The final acceptance contract is in
+`docs/AEMS_G10E_FINAL_ACCEPTANCE.md`. It supersedes historical checkpoint
+language in this workflow document and records the resolved G0-01 through
+G0-14 decisions, current status compatibility, semantic Rule 1–35 tests, the
+32-SCR registry, six-role navigation matrix, full regression, migration
+rehearsal, and desktop/mobile Playwright acceptance. Compatibility aliases,
+reserved SCR-243, and AIS remain explicit boundaries.

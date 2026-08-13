@@ -18,12 +18,16 @@ class ManagementResponse extends Model
 
     public const AGREEMENT_POSITIONS = ['AGREE', 'PARTIALLY_AGREE', 'DISAGREE'];
 
+    public const RESPONSE_KINDS = ['ORIGINAL', 'LATE', 'SUPPLEMENTAL', 'REPLACEMENT'];
+
     public const STATUSES = [
         'DRAFT',
         'SUBMITTED',
         'UNDER_AUDITOR_REVIEW',
         'CLARIFICATION_REQUESTED',
         'RESUBMITTED',
+        'EXTENSION_REQUESTED',
+        'EXTENSION_APPROVED',
         'DIALOGUE_FINALIZED',
     ];
 
@@ -34,6 +38,7 @@ class ManagementResponse extends Model
         'is_current_revision',
         'audit_finding_id',
         'response_code',
+        'response_kind',
         'agreement_position',
         'management_comment',
         'proposed_action',
@@ -46,6 +51,16 @@ class ManagementResponse extends Model
         'clarification_requested_at',
         'clarification_requested_by',
         'clarification_request',
+        'extension_requested_at',
+        'extension_requested_by',
+        'extension_requested_due_date',
+        'extension_approved_at',
+        'extension_approved_by',
+        'extension_approved_due_date',
+        'extension_reason',
+        'submitted_late',
+        'late_reason',
+        'supplemental_reason',
         'finalized_at',
         'finalized_by',
         'lock_version',
@@ -55,10 +70,15 @@ class ManagementResponse extends Model
     {
         return [
             'version_number' => 'integer',
+            'submitted_late' => 'boolean',
             'is_current_revision' => 'boolean',
             'proposed_target_date' => 'date',
             'submitted_at' => 'datetime',
             'clarification_requested_at' => 'datetime',
+            'extension_requested_at' => 'datetime',
+            'extension_approved_at' => 'datetime',
+            'extension_requested_due_date' => 'date',
+            'extension_approved_due_date' => 'date',
             'finalized_at' => 'datetime',
             'lock_version' => 'integer',
         ];
@@ -97,6 +117,16 @@ class ManagementResponse extends Model
     public function finalizer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'finalized_by')->withTrashed();
+    }
+
+    public function extensionRequester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'extension_requested_by')->withTrashed();
+    }
+
+    public function extensionApprover(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'extension_approved_by')->withTrashed();
     }
 
     public function rejoinders(): HasMany

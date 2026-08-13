@@ -33,6 +33,11 @@ class AuditReportVersion extends Model
         'change_reason',
         'created_by',
         'created_at',
+        'source_interim_report_version_id',
+        'interim_treatment',
+        'source_manifest',
+        'source_manifest_sha256',
+        'reproducibility_key',
     ];
 
     protected function casts(): array
@@ -44,6 +49,7 @@ class AuditReportVersion extends Model
             'is_locked' => 'boolean',
             'locked_at' => 'datetime',
             'created_at' => 'datetime',
+            'source_manifest' => 'array',
         ];
     }
 
@@ -77,6 +83,53 @@ class AuditReportVersion extends Model
             'audit_report_version_id',
             'audit_finding_id',
         )->withPivot(['sequence_number', 'is_included'])->withTimestamps();
+    }
+
+    public function evidence(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            AuditEvidence::class,
+            'aems_evidence_report_links',
+            'audit_report_version_id',
+            'audit_evidence_id',
+        )->withPivot(['sequence_number', 'treatment', 'link_reason', 'linked_by'])->withTimestamps();
+    }
+
+    public function sourceInterimVersion(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_interim_report_version_id');
+    }
+
+    public function issues(): BelongsToMany
+    {
+        return $this->belongsToMany(AuditIssue::class, 'aems_report_issue_links', 'audit_report_version_id', 'audit_issue_id')
+            ->withPivot(['sequence_number', 'treatment', 'link_reason', 'linked_by'])->withTimestamps();
+    }
+
+    public function workingPaperVersions(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkingPaperVersion::class, 'aems_report_working_paper_links', 'audit_report_version_id', 'working_paper_version_id')
+            ->withPivot(['sequence_number', 'treatment', 'link_reason', 'linked_by'])->withTimestamps();
+    }
+
+    public function authorityDecisions(): HasMany
+    {
+        return $this->hasMany(AemsReportAuthorityDecision::class, 'audit_report_version_id');
+    }
+
+    public function signatories(): HasMany
+    {
+        return $this->hasMany(AemsReportSignatory::class, 'audit_report_version_id');
+    }
+
+    public function transmittals(): HasMany
+    {
+        return $this->hasMany(AemsReportTransmittal::class, 'audit_report_version_id');
+    }
+
+    public function exports(): HasMany
+    {
+        return $this->hasMany(AemsReportExport::class, 'audit_report_version_id');
     }
 
     public function recipients(): HasMany

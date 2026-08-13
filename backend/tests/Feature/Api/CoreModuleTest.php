@@ -36,7 +36,7 @@ class CoreModuleTest extends TestCase
         $this->assertDatabaseCount('users', 89);
         $this->assertDatabaseCount('audit_areas', 10);
         $this->assertDatabaseCount('master_lists', 23);
-        $this->assertDatabaseCount('system_configurations', 39);
+        $this->assertDatabaseCount('system_configurations', 40);
         $this->assertGreaterThanOrEqual(50, $this->getConnection()->table('audit_focuses')->count());
         $this->assertGreaterThan(80, $this->getConnection()->table('audit_area_office')->count());
         $positionListId = $this->getConnection()
@@ -129,12 +129,12 @@ class CoreModuleTest extends TestCase
         $this->getJson('/api/audit-focuses')->assertOk();
         $this->getJson('/api/users')->assertOk()->assertJsonCount(89, 'data.users');
         $this->getJson('/api/roles')->assertOk()->assertJsonCount(6, 'data.roles');
-        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(414, 'data.permissions');
+        $this->getJson('/api/permissions')->assertOk()->assertJsonCount(453, 'data.permissions');
         $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(23, 'data.masterLists');
         $this->getJson('/api/master-lists?configurableOnly=1')
             ->assertOk()
             ->assertJsonCount(21, 'data.masterLists');
-        $this->getJson('/api/system-configurations')->assertOk()->assertJsonCount(39, 'data.configurations');
+        $this->getJson('/api/system-configurations')->assertOk()->assertJsonCount(40, 'data.configurations');
 
         Sanctum::actingAs($this->user('mayor'));
         $this->getJson('/api/audit-areas')->assertOk();

@@ -90,7 +90,11 @@ const tabs = [
     key: "completion",
     label: "Completion & Transfer",
     icon: BriefcaseBusiness,
-    permission: "aems.completion-assessment.view",
+    permission: [
+      "aems.completion-assessment.view",
+      "aems.records.view",
+      "aems.calendar.view",
+    ],
     href: ({ id }) => `/audit-engagement-management/${id}?tab=completion-assessment`,
     paths: ["/audit-engagement-management/"],
     queryTabs: [
@@ -98,6 +102,8 @@ const tabs = [
       "closure",
       "document-index",
       "retention",
+      "records",
+      "calendar",
       "lessons-learned",
     ],
   },

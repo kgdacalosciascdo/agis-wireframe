@@ -375,6 +375,39 @@ class AemsIssueFindingRecommendationTest extends TestCase
             ->assertJsonPath('data.issue.resolutionDetails', 'The office implemented the control before the closing meeting.');
     }
 
+    public function test_issue_withdrawal_is_independent_and_terminal(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+        Sanctum::actingAs($auditor);
+        $issue = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues",
+            $this->issuePayload($auditee, $version, $evidence),
+        )->assertCreated()->json('data.issue');
+
+        $issue = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues/{$issue['id']}/transition",
+            ['action' => 'SUBMIT', 'lockVersion' => $issue['lockVersion']],
+        )->assertOk()->json('data.issue');
+
+        Sanctum::actingAs($management);
+        $withdrawn = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/issues/{$issue['id']}/transition",
+            [
+                'action' => 'WITHDRAW',
+                'lockVersion' => $issue['lockVersion'],
+                'comment' => 'Duplicate issue withdrawn after supervisory review.',
+            ],
+        )->assertOk()
+            ->assertJsonPath('data.issue.status', 'WITHDRAWN')
+            ->assertJsonPath('data.issue.statusCompatibility.canonical', 'WITHDRAWN')
+            ->assertJsonPath('data.issue.statusCompatibility.terminal', true)
+            ->json('data.issue');
+
+        $this->assertSame('WITHDRAWN', $withdrawn['disposition']);
+        $this->assertNotNull($withdrawn['withdrawnAt']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'issue.withdraw']);
+    }
+
     public function test_finding_can_pin_exact_finalized_fieldwork_record_version(): void
     {
         [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
@@ -420,6 +453,52 @@ class AemsIssueFindingRecommendationTest extends TestCase
         Sanctum::actingAs($management);
         $this->findingTransition($engagement, $finding, 'VALIDATE')
             ->assertJsonPath('data.finding.status', 'VALIDATED');
+    }
+
+    public function test_finding_exposes_explicit_procedure_criteria_traceability(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+        $procedure = AuditProgramProcedure::query()->firstOrFail();
+
+        Sanctum::actingAs($auditor);
+        $finding = $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings",
+            [
+                ...$this->findingPayload($auditee, $version, $evidence),
+                'noRecommendationReason' => 'The existing control owner will address this through monitoring.',
+            ],
+        )->assertCreated()
+            ->assertJsonPath('data.finding.procedures.0.id', $procedure->id)
+            ->assertJsonPath('data.finding.procedures.0.procedureCode', $procedure->procedure_code)
+            ->json('data.finding');
+
+        $this->assertDatabaseHas('audit_finding_procedure', [
+            'audit_finding_id' => $finding['id'],
+            'audit_program_procedure_id' => $procedure->id,
+        ]);
+    }
+
+    public function test_extended_fieldwork_record_taxonomy_is_available_to_the_api_contract(): void
+    {
+        $this->assertContains('INQUIRY', AemsFieldworkRecord::TYPES);
+        $this->assertContains('MEETING', AemsFieldworkRecord::TYPES);
+        $this->assertContains('FIELD_NOTE', AemsFieldworkRecord::TYPES);
+        $this->assertContains('OTHER', AemsFieldworkRecord::TYPES);
+    }
+
+    public function test_finding_rejects_an_unscoped_procedure_traceability_link(): void
+    {
+        [, $auditor, $auditee, $engagement, $version, $evidence] = $this->supportedEngagement();
+
+        Sanctum::actingAs($auditor);
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/findings",
+            [
+                ...$this->findingPayload($auditee, $version, $evidence),
+                'noRecommendationReason' => 'No separate recommendation is required.',
+                'procedureIds' => [999999],
+            ],
+        )->assertUnprocessable()->assertJsonValidationErrors('procedureIds');
     }
 
     /** @return array{User, User, User, AuditEngagement, WorkingPaperVersion, AuditEvidence} */
@@ -554,6 +633,7 @@ class AemsIssueFindingRecommendationTest extends TestCase
             'document_version_id' => $documentVersion->id,
             'checksum_sha256' => str_repeat('a', 64),
             'status' => 'VERIFIED',
+            'outcome' => 'ACCEPTED',
             'uploaded_by' => $auditor->id,
             'verified_by' => $management->id,
             'verified_at' => now(),
@@ -567,6 +647,7 @@ class AemsIssueFindingRecommendationTest extends TestCase
             'version_number' => 1,
             'is_current_revision' => true,
             'status' => 'ASSESSED',
+            'outcome' => 'ACCEPTED',
             'sufficiency' => 'YES',
             'appropriateness' => 'YES',
             'relevance' => 'YES',

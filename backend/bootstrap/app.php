@@ -8,6 +8,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -65,5 +66,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'message' => 'You do not have permission to perform this action.',
             ], 403);
+        });
+
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'The request could not be completed. Please retry or contact an administrator.',
+            ], 500, [
+                'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
         });
     })->create();

@@ -563,6 +563,21 @@ export const armisPages = [
   },
 ];
 
+export const aisPages = [
+  {
+    label: "AIS Dashboard",
+    path: "/audit-intelligence-system",
+    permission: "ais.view",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "AIS Reports & Exports",
+    path: "/audit-intelligence-system/reports",
+    permission: "ais.view",
+    icon: FileBarChart,
+  },
+];
+
 export const modules = [
   {
     key: "core",
@@ -639,9 +654,10 @@ export const modules = [
     path: "/audit-intelligence-system",
     permission: "ais.view",
     icon: ChartNoAxesCombined,
-    value: 8,
-    note: "Key Insights",
+    value: "—",
+    note: "Analytics and reports",
     tone: "yellow",
+    children: aisPages,
   },
 ];
 

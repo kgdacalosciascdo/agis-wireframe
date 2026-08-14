@@ -6,10 +6,12 @@ import {
   Plus,
   Search,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useAuth } from "../../auth/auth-context";
 import { modules, visibleFor } from "../../config/navigation";
+import { coreDashboardApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 
 const roleContent = {
@@ -254,10 +256,31 @@ export default function DashboardPage() {
   const { dateLabel } = useOutletContext();
   const toast = useToast();
   const navigate = useNavigate();
+  const [live, setLive] = useState(null);
+  const [dashboardError, setDashboardError] = useState("");
   const content = roleContent[user.roleCode] ?? roleContent.agis_user;
+  useEffect(() => {
+    let active = true;
+    coreDashboardApi.show()
+      .then((data) => { if (active) setLive(data); })
+      .catch((error) => { if (active) setDashboardError(error.message || "Live dashboard data is unavailable."); });
+    return () => { active = false; };
+  }, []);
+
+  const liveModules = useMemo(() => new Map((live?.modules || []).map((module) => [module.key, module])), [live]);
   const allowedModules = visibleFor(user, modules).filter(
     (module) => module.key !== "core",
-  );
+  ).map((module) => ({ ...module, ...(liveModules.get(module.key) || {}) }));
+  const tasks = live?.tasks?.length ? live.tasks.map((task) => [task.title, task.code, task.due || "Open"]) : content.tasks;
+  const activities = live?.upcomingActivities?.length ? live.upcomingActivities : upcomingActivities;
+  const recent = live?.recentEngagements?.length ? live.recentEngagements.map((item) => [item.number, item.office || "—", item.phase || item.status || "—", "—", "—"]) : recentEngagements;
+  const quickActions = live?.quickActions || [];
+  const engagementStatus = live?.engagementStatus || {};
+  const recommendationStatus = live?.recommendationStatus || {};
+  const liveEngagementTotal = Object.values(engagementStatus).reduce((sum, value) => sum + Number(value || 0), 0);
+  const liveRecommendationTotal = Object.values(recommendationStatus).reduce((sum, value) => sum + Number(value || 0), 0);
+  const engagementSegments = Object.entries(engagementStatus).map(([label, value], index) => ({ label: label.replaceAll("_", " "), value: String(value), percent: liveEngagementTotal ? Math.round((Number(value) / liveEngagementTotal) * 100) : 0, color: ["#4775b8", "#16ad62", "#ffa01c", "#6840a2", "#a9b5c5"][index % 5] }));
+  const recommendationSegments = Object.entries(recommendationStatus).map(([label, value], index) => ({ label: label.replaceAll("_", " "), value: String(value), percent: liveRecommendationTotal ? Math.round((Number(value) / liveRecommendationTotal) * 100) : 0, color: ["#16ad62", "#4775b8", "#ffa01c", "#a9b5c5"][index % 4] }));
   const moduleCount = Math.min(Math.max(allowedModules.length, 1), 6);
   const moduleGridClasses = {
     1: "grid-cols-1",
@@ -282,6 +305,11 @@ export default function DashboardPage() {
           {dateLabel}
         </time>
       </div>
+      {dashboardError && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Live metrics are temporarily unavailable; showing the last-known dashboard layout.
+        </div>
+      )}
 
       <section className={`grid gap-3 ${moduleGridClasses}`}>
         {allowedModules.map((module) => (
@@ -292,7 +320,7 @@ export default function DashboardPage() {
       <section className="mt-3 grid gap-3 xl:grid-cols-[1fr_1fr_1.35fr]">
         <Panel title="My Tasks" action="View All">
           <div className="divide-y divide-slate-100">
-            {content.tasks.map(([title, code, due]) => (
+            {tasks.map(([title, code, due]) => (
               <button
                 className="flex min-h-16 w-full items-center gap-3 px-4 text-left transition hover:bg-blue-50 hover:pl-5"
                 type="button"
@@ -318,7 +346,7 @@ export default function DashboardPage() {
 
         <Panel title="Upcoming Activities" action="View Calendar">
           <div className="divide-y divide-slate-100">
-            {upcomingActivities.map(([title, detail, date, time]) => (
+            {activities.map(([title, detail, date, time]) => (
               <div
                 className="flex min-h-16 items-center gap-3 px-4"
                 key={title}
@@ -356,7 +384,7 @@ export default function DashboardPage() {
               <span>Progress</span>
               <span>Risk Level</span>
             </div>
-            {recentEngagements.map(
+            {recent.map(
               ([number, office, status, progress, risk]) => (
                 <div
                   className="grid min-h-10 grid-cols-[1.1fr_1.25fr_.7fr_.5fr_.5fr] items-center gap-3 border-b border-slate-100 px-2 text-slate-500"
@@ -379,8 +407,8 @@ export default function DashboardPage() {
       <section className="mt-3 grid gap-3 xl:grid-cols-[1fr_1fr_.62fr_.65fr]">
         <DonutPanel
           title="Audit Engagement Status"
-          total={18}
-          segments={[
+          total={live ? liveEngagementTotal : 18}
+          segments={live ? engagementSegments : [
             {
               label: "Planning",
               value: "4 (22%)",
@@ -410,8 +438,8 @@ export default function DashboardPage() {
         />
         <DonutPanel
           title="Recommendation Status (CMS)"
-          total={21}
-          segments={[
+          total={live ? liveRecommendationTotal : 21}
+          segments={live ? recommendationSegments : [
             {
               label: "Completed",
               value: "7 (33%)",
@@ -441,7 +469,7 @@ export default function DashboardPage() {
 
         <Panel title="Overdue Recommendations">
           <div className="p-4">
-            <strong className="text-2xl text-red-600">4</strong>
+            <strong className="text-2xl text-red-600">{live?.overdueRecommendations ?? 4}</strong>
             <span className="ml-2 text-xs text-slate-500">Overdue Items</span>
             <ul className="mt-4 grid gap-3 text-xs text-slate-600">
               {[
@@ -461,26 +489,22 @@ export default function DashboardPage() {
 
         <Panel title="Quick Actions">
           <div className="grid gap-2 p-3">
-            {[
-              "New Audit Engagement",
-              "New Finding",
-              "Search Documents",
-              "Generate Report",
-            ].map((action, index) => {
+            {quickActions.map((action, index) => {
               const ActionIcon = [Plus, Plus, Search, FileText][index];
 
               return (
                 <button
                   className={`flex min-h-10 items-center gap-3 rounded-md px-3 text-left text-xs text-slate-600 transition hover:translate-x-1 ${["bg-emerald-100", "bg-orange-100", "bg-blue-100", "bg-cyan-100"][index]}`}
                   type="button"
-                  key={action}
-                  onClick={() => toast.info(`${action} is coming soon.`)}
+                  key={action.path || action.label}
+                  onClick={() => navigate(action.path)}
                 >
                   <ActionIcon size={17} />
-                  {action}
+                  {action.label}
                 </button>
               );
             })}
+            {!quickActions.length && <p className="px-3 py-2 text-xs text-slate-500">No authorized quick actions.</p>}
           </div>
         </Panel>
       </section>

@@ -352,7 +352,9 @@ Accepted-Risk and No-Longer-Applicable dispositions, controlled reopening,
 scheduled automation/candidates, and protected reports/CSV/PDF exports. The
 older CMS-5B through CMS-7B notes above are historical deployment gates. ARMIS
 is operational through ARMIS-7C; its provider authority remains a separate
-reconciliation decision and AIS is not implemented.
+reconciliation decision. AIS-4 is available as a hardened read-only analytical
+and protected reporting surface with private responses, rate limits, and audit
+events; operational AIS writes remain disabled.
 
 ## 11. Production checklist
 

@@ -182,6 +182,137 @@ export const runtimeConfigurationApi = {
   },
 };
 
+export const coreDashboardApi = {
+  async show() {
+    return request("/api/dashboard");
+  },
+};
+
+export const aisContractApi = {
+  async show() {
+    return request("/api/ais/contract");
+  },
+  async hardening() {
+    return request("/api/ais/hardening");
+  },
+};
+
+export const aisAggregationApi = {
+  async overview() {
+    return request("/api/ais/aggregations");
+  },
+  async snapshots() {
+    const data = await request("/api/ais/aggregations/snapshots");
+    return data?.snapshots || [];
+  },
+  async generate() {
+    const data = await request("/api/ais/aggregations/snapshots", {
+      method: "POST",
+      csrf: true,
+    });
+    return data?.snapshot || null;
+  },
+};
+
+export const aisDashboardApi = {
+  async show() {
+    return request("/api/ais/dashboard");
+  },
+};
+
+export const aisReportApi = {
+  async catalog() {
+    return request("/api/ais/reports");
+  },
+  async alerts() {
+    return request("/api/ais/alerts");
+  },
+  async runs() {
+    const data = await request("/api/ais/reports/runs");
+    return data?.runs || [];
+  },
+  async generate(code, filters = {}) {
+    const data = await request(`/api/ais/reports/${code}/generate`, {
+      method: "POST",
+      body: filters,
+      csrf: true,
+    });
+    return data?.run || null;
+  },
+  async export(runId, format) {
+    const data = await request(`/api/ais/reports/runs/${runId}/exports`, {
+      method: "POST",
+      body: { format },
+      csrf: true,
+    });
+    return data?.export || null;
+  },
+  async download(exportRecord) {
+    const response = await fetch(`/api/ais/report-exports/${exportRecord.id}/download`, {
+      credentials: "include",
+      headers: { Accept: exportRecord.mimeType || "application/octet-stream" },
+    });
+    if (!response.ok) throw new Error("The AIS export download could not be completed.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = exportRecord.fileName || "ais-report-export";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const coreAdministrativeReportApi = {
+  async catalog() {
+    return request("/api/administrative-reports");
+  },
+  async runs() {
+    const data = await request("/api/administrative-reports/runs");
+    return data?.runs || [];
+  },
+  async generate(code, filters = {}) {
+    const data = await request(`/api/administrative-reports/${code}/generate`, {
+      method: "POST",
+      body: filters,
+      csrf: true,
+    });
+    return data?.run || null;
+  },
+  async export(runId, format) {
+    const data = await request(`/api/administrative-reports/runs/${runId}/exports`, {
+      method: "POST",
+      body: { format },
+      csrf: true,
+    });
+    return data?.export || null;
+  },
+  async download(exportRecord) {
+    const response = await fetch(
+      `/api/administrative-report-exports/${exportRecord.id}/download`,
+      {
+        credentials: "include",
+        headers: { Accept: "application/octet-stream", "X-Requested-With": "XMLHttpRequest" },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = exportRecord.fileName || "administrative-report";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
 export const workflowApi = {
   async list({ includeArchived = false, includeCompleted = true } = {}) {
     const query = queryFrom({

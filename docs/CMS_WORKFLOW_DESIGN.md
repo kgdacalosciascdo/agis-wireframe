@@ -900,5 +900,6 @@ generation, and authenticated downloads. Download authorization rechecks the
 current visible case set, so a report cannot be downloaded after its scope or
 confidentiality becomes unauthorized. Report generation and export/download
 actions create Activity Log and Audit Trail entries. CMS-12A/12B do not transfer,
-close, reopen, or otherwise change recommendation cases. AIS is not implemented,
-and ARMIS provider integration is outside the CMS boundary.
+close, reopen, or otherwise change recommendation cases. AIS-2 is a separate
+read-only analytical surface; it does not mutate CMS records, and ARMIS provider
+integration remains outside the CMS boundary.

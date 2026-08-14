@@ -88,8 +88,10 @@ report version, and transfer provenance.
 - Core document confidentiality and protected download checks remain in force.
 - Activity Log, Audit Trail, engagement events, and CMS events record the
   cross-module actions and identities.
-- AIS is explicitly outside this phase. No AIS provider, table, route, or
-  integration is enabled by AEMS-11.
+- AIS operational integration remains outside this phase. AIS-4 publishes a
+  governance contract, scope-aware read-only aggregation snapshots, analytical
+  views, review indicators, and protected reports/exports; AIS has no provider,
+  professional decision, or operational write integration enabled by AEMS-11.
 
 ## Verification contract
 
@@ -98,4 +100,3 @@ byte-for-byte unchanged after import, that AEMS owns the resulting lineage,
 that integration status is protected and scope-safe, and that AIS remains out
 of scope. Existing AEMS registry, IAP, ARMIS adapter, CMS intake, and report
 tests continue to protect the surrounding workflows.
-

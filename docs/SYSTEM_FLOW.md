@@ -602,7 +602,10 @@ Recommendation detail and dashboard payloads add backward-compatible,
 visibility-scoped validation summaries. CMS-5B adds the protected React
 validation workspace described below. Later CMS-6 through CMS-10 increments add
 extensions, escalation, closure, dispositions, and controlled reopening.
-Automation and reports/exports are implemented. AIS is not implemented. ARMIS
+Automation and reports/exports are implemented. AIS-4 read-only analytical
+views, review indicators, reports, protected exports, rate limits, private
+responses, and audit events are implemented; AIS operational writes
+remain reserved for later phases. ARMIS
 planning, assignments, reports, provider reconciliation, monitoring, and the
 responsive workspaces are available as separate operational ledgers; AEMS still
 uses the IAP fallback provider by default until an explicit ARMIS authority gate
@@ -949,7 +952,8 @@ records. CMS-11A adds scheduled, idempotent reminders and reviewable
 closure-readiness/escalation candidates. It does not make professional final
 decisions, directly close or reopen cases, or issue escalation notices. The
 CMS-11B workspace and CMS-12 reports/exports are separate completed phases;
-AIS is not implemented and
+AIS-4 is implemented as a hardened read-only analytical and protected reporting surface; AIS operational writes
+and professional decisions remain outside scope, and
 ARMIS remains outside the CMS provider boundary.
 
 ## CMS-11A automation flow

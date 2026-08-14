@@ -39,7 +39,7 @@ claimed.
 | CMS | Implemented through CMS-12B | `CMS_WORKFLOW_DESIGN.md`, CMS controllers/services/models | Owns post-issuance Action Plans, monitoring, validation, dispositions, reopening, closure, reports, and exports |
 | ARMIS | Implemented through ARMIS-7C | `ARMIS_WORKFLOW_DESIGN.md`, ARMIS controllers/services/models | Owns resource and allocation ledgers; AEMS consumes the configured provider boundary |
 | AFR standalone module | Reference only | `src/config/navigation.js` and route registry | Findings and Recommendations are owned by AEMS; no separate AFR business workflow is claimed |
-| AIS | Not implemented | Placeholder navigation/route only | No AIS integration or professional workflow is enabled |
+| AIS | AIS-4 hardened read-only analytical reporting | `AIS_GOVERNANCE_CONTRACT.md`, `AisContractService`, `AisAggregationService`, `AisReportService`, `AisAuditService`, `AisReportRun`, `AisReportExport`, `AisGovernancePage`, `AisReportsPage` | Scope-aware metrics, analytical dashboard, review-only alerts, immutable reports, protected CSV/PDF exports, checksums, private responses, named rate limits, and read audit events; operational writes and professional decisions remain disabled |
 
 ## 3. Implementation authorities
 
@@ -89,7 +89,7 @@ Detailed endpoint payloads are maintained in [API and Data Reference](API_AND_DA
 
 | Workspace | Route | Functions | Status |
 | --- | --- | --- | --- |
-| Dashboard | `/dashboard` | Role-aware module cards, tasks, upcoming activities, recent engagements, date and profile context | Implemented |
+| Dashboard | `/dashboard` | Live scope-aware module cards, status totals, overdue recommendations, recent engagements, tasks, quick actions, and safe loading/error fallback | Implemented live |
 | Office Registry | `/office-registry` | Create, edit, activate/archive/restore, office scope and related records | Implemented |
 | Audit Area Registry | `/audit-area-registry` | Maintain reusable audit areas and scope relationships | Implemented |
 | Audit Focus Registry | `/audit-focus-registry` | Maintain audit focuses and area relationships | Implemented |
@@ -103,7 +103,7 @@ Detailed endpoint payloads are maintained in [API and Data Reference](API_AND_DA
 | Activity Log | `/activity-log` | User/system activity search and detail | Implemented |
 | Audit Trail | `/audit-trail` | Security and record-change history, immutable event context | Implemented |
 | System Configuration | `/system-configuration` | Runtime settings, numbering formats, provider configuration, feature settings | Implemented |
-| Administrative Reports | `/administrative-reports` | Core administrative/reporting views | Implemented |
+| Administrative Reports | `/administrative-reports` | Immutable scope-pinned office, user-access, workflow, and activity snapshots with protected CSV/PDF exports and checksums | Implemented live |
 
 ### 4.2 Core platform functions
 
@@ -333,7 +333,7 @@ hardening; React specs are `tests/e2e/armis-*.spec.js`.
 | Resource provider | ARMIS boundary | AEMS uses fallback/shadow/authoritative mode with reconciliation |
 | Recommendation transfer | AEMS | Finalized recommendation snapshot is sent to CMS once |
 | Compliance monitoring and closure | CMS | CMS owns Action Plans, monitoring, validation, dispositions and post-transfer closure |
-| AIS | None | No implementation or integration in the current release |
+| AIS | Governance, analytics, and protected reporting | `/audit-intelligence-system`, `/audit-intelligence-system/reports`, `/api/ais/contract`, `/api/ais/hardening`, `/api/ais/aggregations`, `/api/ais/dashboard`, `/api/ais/reports` | AIS-1 through AIS-4 implemented; AIS remains read-only |
 
 ## 10. Documented exceptions and compatibility items
 

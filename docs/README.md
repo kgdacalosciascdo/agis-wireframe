@@ -43,7 +43,7 @@ feature inventory unless they are explicitly marked as current.
 | CMS | CMS-1 through CMS-12B: intake, registry/detail, assignments, Action Plans, Progress Updates, Validation, extensions, escalations, closure, Accepted-Risk, No-Longer-Applicable, controlled reopening, automation/candidates, reports, and protected CSV/PDF exports | Complete in [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md), [API and Data Reference](API_AND_DATA_REFERENCE.md), [Operations Guide](OPERATIONS_GUIDE.md), and the end-to-end guide |
 | ARMIS | ARMIS-0 through ARMIS-7C: resource registry, competencies/certifications, planning/utilization, assignments/actuals, reports/exports, provider adapter, reconciliation/authority gate, monitoring, security regression, deployment preflight, and Render smoke verification | Complete in [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md), with API, operations, Render, and acceptance-testing references |
 | AFR | Placeholder navigation/routes only; AEMS currently owns its implemented Findings and Recommendations workspace | Explicitly documented as not implemented |
-| AIS | Placeholder navigation/routes only | Explicitly documented as not implemented |
+| AIS | AIS-4 hardened read-only analytical dashboard, review indicators, immutable reports, protected CSV/PDF exports, private responses, rate limits, and audit events over scope-aware Core/IAP/AEMS/CMS/ARMIS metrics and AIS snapshots; operational writes remain disabled | Documented in [AIS Governance and Data Contract](AIS_GOVERNANCE_CONTRACT.md), with API, testing, and operations references |
 
 ### Integration boundaries
 
@@ -53,7 +53,10 @@ feature inventory unless they are explicitly marked as current.
   continues to use the configurable provider boundary; `IAP_INTERIM_FALLBACK`
   remains the default, while shadow/authoritative ARMIS modes require the
   documented reconciliation and authority gate.
-- AIS is not implemented and no AIS integration is enabled.
+- AIS-4 provides hardened read-only analytical presentation, review indicators,
+  immutable reports, and protected CSV/PDF exports. AIS does not mutate source
+  modules or make professional decisions; operational writes remain reserved
+  for later AIS phases.
 - CMS automation may create reminders or reviewable candidates only. It cannot
   make final professional decisions, close cases, reopen cases, or issue
   escalation notices automatically.

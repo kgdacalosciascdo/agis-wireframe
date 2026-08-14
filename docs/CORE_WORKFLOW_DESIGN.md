@@ -21,12 +21,18 @@ Core currently provides:
 
 Core is a prerequisite for IAP, AEM, AFR, CMS, ARMIS, and AIS.
 
-The main `/dashboard` route is currently a role-aware demonstration landing
-page. Its access checks and module links use the authenticated user's real
-permissions, but its summary counts, upcoming activities, recent engagements,
-and task content are static frontend data. Its quick actions may display
+The main `/dashboard` route is a role-aware landing dashboard backed by the
+protected `/api/dashboard` contract. Its module cards, status totals, overdue
+recommendations, recent engagements, tasks, and quick actions are calculated
+from the authenticated user's office and engagement scope. If the live
+contract is unavailable, the UI retains a safe layout fallback and displays a
+non-authoritative warning rather than treating fallback data as live.
+
+The previously documented static-dashboard note is obsolete; the current
 “coming soon” messages. It must not be treated as an operational reporting
-source; use the live IAP and AEMS dashboards for current module metrics.
+The protected Core Administrative Reports workspace provides scope-pinned
+immutable snapshots and authenticated CSV/PDF exports with checksums;
+spreadsheet formula prefixes are escaped in CSV output.
 
 ```mermaid
 flowchart TD
@@ -48,6 +54,13 @@ flowchart TD
     MODULES --> ACTIVITY[Activity Log]
     MODULES --> AUDIT[Audit Trail]
 ```
+
+## Current implementation note
+
+The dashboard and Administrative Reports contracts described above are the
+authoritative as-built behavior. Any older static/demo dashboard wording in
+historical notes is retained only for change history and must not be used as a
+feature requirement.
 
 ## 2. Core roles
 
@@ -504,6 +517,8 @@ All protected endpoints are under `/api` and require Sanctum:
 | Activity and audit exports | `/activity-logs`, `/audit-logs` |
 | Runtime configuration | `/runtime-configuration`, `/system-configurations` |
 | View logging | `/record-views` |
+| Core dashboard | `/dashboard` |
+| Administrative report catalog, runs, and protected exports | `/administrative-reports`, `/administrative-report-exports/{export}/download` |
 
 Consult `backend/routes/api.php` for exact methods and permission middleware.
 

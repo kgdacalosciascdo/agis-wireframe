@@ -32,6 +32,9 @@ use App\Http\Controllers\Api\Aems\AemsTeamController;
 use App\Http\Controllers\Api\Aems\AemsTeamSafeguardController;
 use App\Http\Controllers\Api\Aems\AemsWorkingPaperController;
 use App\Http\Controllers\Api\Aems\AemsWorkQueueController;
+use App\Http\Controllers\Api\Ais\AisContractController;
+use App\Http\Controllers\Api\Ais\AisAggregationController;
+use App\Http\Controllers\Api\Ais\AisReportController;
 use App\Http\Controllers\Api\Shared\AuthController;
 use App\Http\Controllers\Api\Armis\ArmisResourceController;
 use App\Http\Controllers\Api\Armis\ArmisFoundationController;
@@ -55,6 +58,8 @@ use App\Http\Controllers\Api\Cms\CmsReopeningController;
 use App\Http\Controllers\Api\Cms\CmsTargetDateExtensionController;
 use App\Http\Controllers\Api\Cms\CmsValidationController;
 use App\Http\Controllers\Api\Core\CoreRegistryController;
+use App\Http\Controllers\Api\Core\CoreDashboardController;
+use App\Http\Controllers\Api\Core\CoreAdministrativeReportController;
 use App\Http\Controllers\Api\Shared\DemoAccountController;
 use App\Http\Controllers\Api\Core\DocumentController;
 use App\Http\Controllers\Api\Shared\HealthController;
@@ -93,6 +98,48 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/record-views', RecordViewController::class);
+
+    Route::get('/ais/contract', AisContractController::class)
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/hardening', [AisContractController::class, 'hardening'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/aggregations', [AisAggregationController::class, 'overview'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/dashboard', [AisAggregationController::class, 'dashboard'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/alerts', [AisReportController::class, 'alerts'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/reports', [AisReportController::class, 'catalog'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/reports/runs', [AisReportController::class, 'runs'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/reports/runs/{run}', [AisReportController::class, 'show'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::post('/ais/reports/{report}/generate', [AisReportController::class, 'generate'])
+        ->middleware(['permission:ais.view', 'throttle:ais-generate']);
+    Route::post('/ais/reports/runs/{run}/exports', [AisReportController::class, 'export'])
+        ->middleware(['permission:ais.export', 'throttle:ais-export']);
+    Route::get('/ais/report-exports/{export}/download', [AisReportController::class, 'download'])
+        ->middleware(['permission:ais.export', 'throttle:ais-export']);
+    Route::get('/ais/aggregations/snapshots', [AisAggregationController::class, 'snapshots'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::post('/ais/aggregations/snapshots', [AisAggregationController::class, 'generate'])
+        ->middleware(['permission:ais.view', 'throttle:ais-generate']);
+
+    Route::get('/dashboard', CoreDashboardController::class)
+        ->middleware('permission:dashboard.view');
+    Route::get('/administrative-reports', [CoreAdministrativeReportController::class, 'catalog'])
+        ->middleware('permission:administrative_reports.view');
+    Route::get('/administrative-reports/runs', [CoreAdministrativeReportController::class, 'runs'])
+        ->middleware('permission:administrative_reports.view');
+    Route::get('/administrative-reports/runs/{run}', [CoreAdministrativeReportController::class, 'show'])
+        ->middleware('permission:administrative_reports.view');
+    Route::post('/administrative-reports/{report}/generate', [CoreAdministrativeReportController::class, 'generate'])
+        ->middleware('permission:administrative_reports.view');
+    Route::post('/administrative-reports/runs/{run}/exports', [CoreAdministrativeReportController::class, 'export'])
+        ->middleware('permission:administrative_reports.export');
+    Route::get('/administrative-report-exports/{export}/download', [CoreAdministrativeReportController::class, 'download'])
+        ->middleware('permission:administrative_reports.export');
 
     Route::get('/cms/dashboard', CmsDashboardController::class)
         ->middleware('permission:cms.dashboard.view');

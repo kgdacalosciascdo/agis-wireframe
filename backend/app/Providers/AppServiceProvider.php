@@ -98,5 +98,29 @@ class AppServiceProvider extends ServiceProvider
                     ->response($blockedResponse),
             ];
         });
+
+        $aisKey = static fn (Request $request): string => 'ais-user:' . (string) ($request->user()?->id ?? 'guest') . '|ip:' . (string) $request->ip();
+        $aisBlockedResponse = static fn () => response()->json([
+            'success' => false,
+            'message' => 'AIS request limit reached. Please retry shortly.',
+        ], 429);
+
+        RateLimiter::for('ais-read', function (Request $request) use ($aisKey, $aisBlockedResponse) {
+            return Limit::perMinute(max(1, (int) config('ais.read_rate_limit', 120)))
+                ->by($aisKey($request))
+                ->response($aisBlockedResponse);
+        });
+
+        RateLimiter::for('ais-generate', function (Request $request) use ($aisKey, $aisBlockedResponse) {
+            return Limit::perMinute(max(1, (int) config('ais.generate_rate_limit', 12)))
+                ->by($aisKey($request))
+                ->response($aisBlockedResponse);
+        });
+
+        RateLimiter::for('ais-export', function (Request $request) use ($aisKey, $aisBlockedResponse) {
+            return Limit::perMinute(max(1, (int) config('ais.export_rate_limit', 20)))
+                ->by($aisKey($request))
+                ->response($aisBlockedResponse);
+        });
     }
 }

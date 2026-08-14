@@ -29,6 +29,9 @@ const MasterListsPage = lazy(() => import("./pages/core/MasterListsPage"));
 const SystemConfigurationPage = lazy(
   () => import("./pages/core/SystemConfigurationPage"),
 );
+const AdministrativeReportsPage = lazy(
+  () => import("./pages/core/AdministrativeReportsPage"),
+);
 const ActivityLogPage = lazy(() => import("./pages/core/ActivityLogPage"));
 const AuditTrailPage = lazy(() => import("./pages/core/AuditTrailPage"));
 const DocumentManagementPage = lazy(
@@ -151,6 +154,8 @@ const ArmisProviderMonitoringPage = lazy(
   () => import("./pages/armis/ArmisProviderMonitoringPage"),
 );
 const ProfilePage = lazy(() => import("./pages/core/ProfilePage"));
+const AisGovernancePage = lazy(() => import("./pages/ais/AisGovernancePage"));
+const AisReportsPage = lazy(() => import("./pages/ais/AisReportsPage"));
 
 const implementedCorePaths = new Set([
   "/office-registry",
@@ -166,6 +171,9 @@ const implementedCorePaths = new Set([
   "/workflow-management",
   "/notifications",
   "/system-configuration",
+  "/administrative-reports",
+  "/audit-intelligence-system",
+  "/audit-intelligence-system/reports",
   "/internal-audit-planning",
   "/internal-audit-planning/dashboard",
   "/internal-audit-planning/strategic-plan",
@@ -378,6 +386,16 @@ export default function App() {
               <ProtectedPage permission="notifications.view">
                 <Suspense fallback={<RouteLoading />}>
                   <NotificationCenterPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="administrative-reports"
+            element={
+              <ProtectedPage permission="administrative_reports.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AdministrativeReportsPage />
                 </Suspense>
               </ProtectedPage>
             }
@@ -1042,6 +1060,26 @@ export default function App() {
               <ProtectedPage permission="profile.view">
                 <Suspense fallback={<RouteLoading />}>
                   <ProfilePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-intelligence-system"
+            element={
+              <ProtectedPage permission="ais.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AisGovernancePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-intelligence-system/reports"
+            element={
+              <ProtectedPage permission="ais.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AisReportsPage />
                 </Suspense>
               </ProtectedPage>
             }

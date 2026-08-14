@@ -39,9 +39,12 @@ AEMS, CMS, and ARMIS surfaces. CMS is implemented through CMS-12B, including
 protected report and CSV/PDF export routes. ARMIS is implemented through
 ARMIS-7C, including provider monitoring and deployment-verification controls;
 the ARMIS deployment command and Render smoke script are operator tools rather
-than public API routes. AFR and AIS remain placeholders. AIS integration is not
-implemented, and ARMIS provider authority is activated only through its separate
-reconciliation gate.
+than public API routes. AFR remains a compatibility placeholder because AEMS
+owns Findings and Recommendations. AIS-4 provides a hardened read-only contract,
+aggregation, snapshot, analytical dashboard, review-indicator, report, and
+protected export routes; it does not mutate source modules or make professional
+decisions. ARMIS provider authority is
+activated only through its separate reconciliation gate.
 
 ## 2. Public/session endpoints
 
@@ -1706,9 +1709,11 @@ The following historical boundary note records the later increments.
 
 > Current-state correction: the preceding paragraph is the CMS-7A checkpoint
 > contract. CMS-8 through CMS-12B now provide closure, dispositions, reopening,
-> automation, reports, and protected CSV/PDF exports. AIS is not implemented;
-> ARMIS is documented separately and its provider authority is independently
-> gated.
+> automation, reports, and protected CSV/PDF exports. AIS-4 is implemented as a
+> hardened read-only analytical and protected reporting surface with private
+> responses, rate limits, and audit events; operational AIS writes
+> remain reserved for later phases. ARMIS is documented separately
+> and its provider authority is independently gated.
 
 ## CMS-8A closure API
 
@@ -1890,8 +1895,9 @@ never exposed. The CMS-12B React workspace is available at
 `/compliance-management/reports`, requires `cms.report.view`, and renders the
 backend columns, rows, checksums, scope summary, run history, and export
 metadata without recreating eligibility rules. CSV/PDF generation and download
-remain protected by `cms.report.export`. AIS is not implemented, and ARMIS
-provider integration is outside the CMS boundary.
+remain protected by `cms.report.export`. AIS-4 provides separate hardened
+read-only analytical and protected reporting views and does not mutate CMS records; ARMIS provider integration is
+outside the CMS boundary.
 
 ## AEMS-1A foundation contract
 

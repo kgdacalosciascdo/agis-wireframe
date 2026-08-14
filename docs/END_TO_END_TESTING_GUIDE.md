@@ -4,6 +4,10 @@ This guide is for a new tester who wants to exercise the implemented AGIS
 system from login through Core, IAP, AEMS, CMS, and ARMIS. It is a manual
 acceptance guide; the source code and feature tests remain the final authority.
 
+Read [AGIS As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md) for the
+page/function inventory and [AGIS Operational Playbooks](AGIS_OPERATIONAL_PLAYBOOKS.md)
+for the prerequisite/action/result sequence before starting a test.
+
 ## 1. Know what is currently testable
 
 The following areas are operational and should be included in acceptance
@@ -25,8 +29,10 @@ testing:
   assignments/actuals, reports/exports, provider reconciliation and authority,
   provider monitoring, and deployment/security checks.
 
-AFR and AIS remain placeholder modules. AEMS uses the configurable resource
-provider and defaults to the IAP interim provider; ARMIS shadow/authoritative
+AFR remains a navigation compatibility entry while AEMS owns Findings and
+Recommendations. AIS-5D is a read-only analytical/source-health workspace and
+must be tested for scope, confidentiality, freshness, lineage, no-write, and
+protected downloads. AEMS uses the configurable resource provider and defaults to the IAP interim provider; ARMIS shadow/authoritative
 provider modes require the documented reconciliation gate. CMS automation cannot
 make final professional decisions or issue escalation notices automatically.
 

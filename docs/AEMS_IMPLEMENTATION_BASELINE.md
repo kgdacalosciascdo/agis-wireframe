@@ -357,7 +357,7 @@ controlled successor records.
 | IAP | Supplies approved engagement authority, plan lineage, source scope, and existing risk references; AEMS reads approved source snapshots |
 | ARMIS | Supplies competency, availability, workload, planned/actual person-days, assignment data, reconciliation, and provider status |
 | CMS | Receives only formally issued/finalized recommendation snapshots; AEMS does not edit CMS Action Plans or monitoring state |
-| AIS | AIS-4 hardened read-only analytical dashboard, review indicators, immutable reports, protected exports, and audit/rate-limit controls are implemented outside the AEMS roadmap; AEMS remains a source module and no AIS operational write or professional decision is enabled |
+| AIS | AIS-5D verified integrated hardened read-only analytical dashboard, source-health diagnostics, immutable integration snapshots, responsive source-health workspace, review indicators, immutable reports, protected exports, and audit/rate-limit controls are implemented outside the AEMS roadmap; AEMS remains a source module and no AIS operational write or professional decision is enabled |
 
 No module may create a second copy of Core documents, permissions, audit logs,
 or notification infrastructure unless an explicit architecture decision is

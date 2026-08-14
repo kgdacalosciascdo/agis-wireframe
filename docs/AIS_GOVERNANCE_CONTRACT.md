@@ -1,13 +1,19 @@
-# AIS Governance and Data Contract (AIS-4)
+# AIS Governance and Data Contract (AIS-5D)
 
 ## Status
 
 AIS is read-only analytics and reporting in the current release. Contract
-version `AIS-4.0` provides scope-aware aggregation, immutable snapshots,
+version `AIS-5D.0` provides scope-aware aggregation, immutable snapshots,
 analytical dashboard views, status distributions, attention indicators,
 reproducible snapshot trends, immutable reports, review-only alerts, protected
 CSV/PDF exports, and deployment hardening. Operational write actions and
-professional decisions remain disabled.
+professional decisions remain disabled. AIS-5A adds a versioned, read-only
+integration contract for Core, IAP, AEMS, CMS, and ARMIS. AIS-5B adds health
+diagnostics and immutable integration-health snapshots. AIS-5C adds a
+responsive source-health workspace with authoritative-module links. AIS-5D
+records the verification and deployment gate for this read-only surface. The contract checks
+source availability, scope, confidentiality, lineage, freshness, and provider
+reconciliation before AIS aggregation or report generation.
 
 ## Ownership boundary
 
@@ -70,6 +76,58 @@ actor, checksum, source query version, and snapshot code.
   models, and the separate `ais.export` permission are rechecked on every
   protected operation.
 
+## AIS-5A integration contract
+
+AIS-5A does not create integration-owned copies of operational records. Every
+request obtains a fresh contract through the existing source boundary services:
+
+- **Core** rechecks the actor's office, role, permission, document, and
+  confidentiality scope against the live database.
+- **IAP** exposes only approved/current plan lineage through `IapPlanGuard`;
+  AIS cannot alter plans or risk decisions.
+- **AEMS** rechecks visible engagements and blocks planned engagements with
+  missing IAP lineage or source snapshots.
+- **CMS** exposes only finalized or transferred recommendation envelopes with
+  intact source snapshots through `CmsRecommendationScopeService`.
+- **ARMIS** reports provider mode, freshness, fallback support, authority
+  eligibility, and reconciliation status through `ResourcePlanningGateway`.
+  Explicit IAP fallback is visible as `DEGRADED_FALLBACK`; stale or ineligible
+  authoritative data blocks AIS.
+
+The aggregate reconciliation is `READ_ONLY_READY` only when all source
+adapters are available and eligible. Missing, stale, scope-mismatched, or
+unreconciled sources produce `READ_ONLY_BLOCKED` and a 503 response for
+aggregation/report generation. The contract is therefore fail-closed and
+records `sourceScopeRechecked`, `confidentialityRevalidated`,
+`lineagePinned`, `sourceWrites=false`, and `professionalDecisions=false`.
+
+## AIS-5B integration health and snapshots
+
+AIS-5B validates the AIS-5A contract on every health request. It reports a
+per-source diagnostic status, freshness, adapter, reconciliation result,
+scope/confidentiality rechecks, failed validation checks, and remediation
+codes such as `SOURCE_UNAVAILABLE`, `SOURCE_STALE`, and
+`RECONCILIATION_REQUIRED`. A healthy result is `HEALTHY`; any failed source or
+contract control produces `BLOCKED` and remains fail-closed.
+
+`ais_integration_snapshots` is the only new AIS-owned table. It stores the
+actor's scope, source statuses, diagnostics, reconciliation result, contract
+versions, and a SHA-256 hash of the observed source contract. It contains no
+operational source rows and has no ownership relationship to Core, IAP, AEMS,
+CMS, or ARMIS records. Updates and deletes are rejected by the model. Snapshot
+lists are limited to the authenticated actor's records.
+
+## AIS-5C integration dashboard
+
+The canonical route `/audit-intelligence-system/integration-health` provides
+source-system cards for Core, IAP, AEMS, CMS, and ARMIS. Each card displays
+availability, freshness, reconciliation, scope revalidation, confidentiality
+revalidation, and any exception codes. The page also presents the actor's
+office/engagement/confidentiality scope, failed contract checks, immutable
+snapshot history, and responsive loading, empty, and error states. Every card
+links back to the authoritative module; AIS remains read-only and does not
+resolve exceptions on behalf of the source owner.
+
 ## Permission and API contract
 
 - `ais.view` permits access to the governance contract and read-only foundation.
@@ -81,10 +139,23 @@ actor, checksum, source query version, and snapshot code.
   rate limits, cache policy, and enforced security checks without secrets.
 - `GET /api/ais/aggregations` returns live scope-aware source metrics and the
   actor's latest snapshot metadata.
+- `GET /api/ais/integration-contract` returns the authenticated actor's
+  versioned Core/IAP/AEMS/CMS/ARMIS source adapters, scope and confidentiality
+  rechecks, freshness, reconciliation status, ownership boundaries, and
+  fail-closed rules.
+- `GET /api/ais/integration-health` returns current per-source health,
+  reconciliation diagnostics, validation checks, and read-only controls.
+- `GET /api/ais/integration-health/snapshots` returns immutable integration
+  snapshots generated by the authenticated actor.
+- `POST /api/ais/integration-health/snapshots` captures an immutable health
+  snapshot, including blocked diagnostics when reconciliation is not ready.
+- `/audit-intelligence-system/integration-health` is the responsive source-health
+  workspace. It only presents diagnostics and links to authoritative modules;
+  it cannot mutate source records.
 - `GET /api/ais/dashboard` returns the AIS-2 analytical dashboard contract:
   headline indicators, status distributions, human-review attention items,
   and actor-owned snapshot trends.
-- `GET /api/ais/reports` returns the AIS-4 report catalog and export controls.
+- `GET /api/ais/reports` returns the AIS report catalog and export controls.
 - `GET /api/ais/reports/runs` and `GET /api/ais/reports/runs/{run}` return
   immutable reports generated by the authenticated actor.
 - `POST /api/ais/reports/{report}/generate` creates an immutable report run.
@@ -107,19 +178,30 @@ actor, checksum, source query version, and snapshot code.
 2. **AIS-2** - Intelligence dashboard and analytical views (implemented).
 3. **AIS-3** - Reports, trends, alerts, and protected exports (implemented).
 4. **AIS-4** - Security, performance, audit, and deployment hardening (implemented).
+5. **AIS-5A** - Read-only cross-module integration contract and fail-closed
+   source reconciliation (implemented).
+6. **AIS-5B** - Integration health and reconciliation backend (implemented).
+7. **AIS-5C** - Integration dashboard and source-health UI (implemented).
+8. **AIS-5D** - Integration verification and deployment gate (implemented).
 
 Each phase requires focused tests and a verification checkpoint before the next
 phase begins.
 
-## AIS-4 verification checkpoint
+## AIS-5D verification checkpoint
 
-The focused AIS regression suite covers scope isolation, permission separation,
-immutable snapshots and report runs, protected checksumed downloads, private
-response headers, hardening metadata, and Activity Log/Audit Trail events:
+The AIS-5D verification suite covers role and office scope isolation,
+confidentiality revalidation, stale and missing source fail-closed behavior,
+IAP/AEMS/CMS/ARMIS lineage contracts, immutable snapshots, no-write protection,
+protected checksumed downloads, private response headers, hardening metadata,
+and Activity Log/Audit Trail events:
 
 ```text
-php artisan test --filter='Ais(GovernanceContract|Aggregation|Report)Test'
-12 tests, 145 assertions passed
+php artisan test --filter='Ais(IntegrationContract|GovernanceContract|Aggregation|Report)Test'
+22 tests, 268 assertions passed
+npm.cmd run test:e2e -- tests/e2e/ais-reports.spec.js --project=desktop-chrome
+3 tests passed
+npm.cmd run test:e2e -- tests/e2e/ais-reports.spec.js --project=mobile-chrome
+3 tests passed
 npm.cmd run lint
 npm.cmd run build
 git diff --check
@@ -130,11 +212,38 @@ desktop and mobile dashboard/navigation, hardened status presentation, report
 generation, and authenticated protected-export download. The desktop acceptance
 group also covers AEMS sidebar navigation and CMS protected CSV download.
 
-The complete application Feature suite is a separate deployment gate. AIS-4
-does not add operational writes, automated decisions, or AIS-to-source module
-integration authority.
+### AIS-5D acceptance matrix
 
-The complete Feature suite was also executed in module groups to keep the
+| Control | Verification evidence |
+| --- | --- |
+| Role and office scope | `AisIntegrationContractTest::test_non_global_actor_receives_office_and_confidentiality_scoped_contract`; non-AIS users receive 403. |
+| Confidentiality | Source adapters report `confidentialityRevalidated`; restricted visibility is derived from the actor's Core document permissions. |
+| Stale/missing sources | ARMIS stale and unavailable provider tests produce `READ_ONLY_BLOCKED`/`BLOCKED` and prevent aggregation. |
+| IAP/AEMS/CMS/ARMIS lineage | Adapter contract test asserts approved-plan, scoped-engagement, finalized-recommendation, and provider/reconciliation gates. |
+| No-write protection | Health and snapshot tests compare source engagement timestamps; snapshots reject update and delete; all AIS controls advertise `sourceWrites=false`. |
+| Auditability | Health and snapshot generation assert both Activity Log and Audit Trail events. |
+| Desktop/mobile UI | The AIS Playwright spec passes on `desktop-chrome` and `mobile-chrome`, including the source-health cards and authoritative links. |
+
+Deployment review: run `php artisan migrate --force` against the deployment
+database, then `php artisan config:cache` and `php artisan route:cache` in the
+release pipeline. The AIS migration adds only `ais_integration_snapshots`;
+source-module migrations are not altered. Keep `AIS_READ_RATE_LIMIT`,
+`AIS_GENERATE_RATE_LIMIT`, and `AIS_EXPORT_RATE_LIMIT` configured, retain private
+storage for exports, and do not expose document or export URLs publicly.
+
+The complete application Feature suite is a separate deployment gate. AIS-5D
+does not add operational writes, automated decisions, duplicated ownership
+tables, or authority to any source module. AIS-4 hardening remains in force;
+the AIS-5A contract and AIS-5B health validation are evaluated before
+aggregation and report generation; AIS-5C/5D only present and verify those results.
+
+A direct `php artisan test --testsuite=Feature` run was also attempted during
+this checkpoint. The command-runner limit terminated it after 304 seconds
+without emitting a PHPUnit failure; the focused AIS suite above completed
+successfully. Keep the existing grouped Feature-suite procedure as the full
+release regression gate when the longer-running runner is available.
+
+Before AIS-5D, the complete Feature suite was executed in module groups to keep the
 verification run within the command-runner limit: 78 Feature files, 385 tests,
 and 4,549 assertions passed across Core, IAP, AEMS, CMS, ARMIS, AIS, and shared
 platform coverage. A direct single-process `php artisan test --testsuite=Feature`

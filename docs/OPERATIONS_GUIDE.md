@@ -1,5 +1,10 @@
 # AGIS Operations Guide
 
+Use [AGIS As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md) for the
+module contract and [AGIS Operational Playbooks](AGIS_OPERATIONAL_PLAYBOOKS.md)
+for operator procedures. This guide covers environment, deployment, and
+verification mechanics.
+
 ## 1. Requirements
 
 - Node.js and npm;
@@ -352,9 +357,11 @@ Accepted-Risk and No-Longer-Applicable dispositions, controlled reopening,
 scheduled automation/candidates, and protected reports/CSV/PDF exports. The
 older CMS-5B through CMS-7B notes above are historical deployment gates. ARMIS
 is operational through ARMIS-7C; its provider authority remains a separate
-reconciliation decision. AIS-4 is available as a hardened read-only analytical
-and protected reporting surface with private responses, rate limits, and audit
-events; operational AIS writes remain disabled.
+reconciliation decision. AIS-5D is available as an integrated hardened
+read-only analytical and protected reporting surface with per-source health
+diagnostics, immutable integration snapshots, private responses, rate limits,
+audit events, and fail-closed source reconciliation; operational AIS writes
+remain disabled.
 
 ## 11. Production checklist
 
@@ -618,9 +625,10 @@ infrastructure files were changed.
 
 The normal application startup applies additive migrations, runs approved
 seeders, caches Laravel configuration/views, and serves the compiled React SPA.
-The current operational modules are Core, IAP, AEMS, CMS through CMS-12B, and
-ARMIS through ARMIS-7C. AFR and AIS are placeholders. CMS and AEMS professional
-decisions remain human-controlled; scheduled automation only produces reminders
+The current operational modules are Core, IAP, AEMS, CMS through CMS-12B, ARMIS
+through ARMIS-7C, and AIS through AIS-5D. AFR is a navigation compatibility
+entry owned operationally by AEMS. AIS is read-only and must not mutate source
+modules. CMS and AEMS professional decisions remain human-controlled; scheduled automation only produces reminders
 or reviewable candidates. ARMIS provider authority is never changed by startup,
 the scheduler, or a generic configuration write.
 

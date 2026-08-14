@@ -155,6 +155,7 @@ const ArmisProviderMonitoringPage = lazy(
 );
 const ProfilePage = lazy(() => import("./pages/core/ProfilePage"));
 const AisGovernancePage = lazy(() => import("./pages/ais/AisGovernancePage"));
+const AisIntegrationHealthPage = lazy(() => import("./pages/ais/AisIntegrationHealthPage"));
 const AisReportsPage = lazy(() => import("./pages/ais/AisReportsPage"));
 
 const implementedCorePaths = new Set([
@@ -173,6 +174,7 @@ const implementedCorePaths = new Set([
   "/system-configuration",
   "/administrative-reports",
   "/audit-intelligence-system",
+  "/audit-intelligence-system/integration-health",
   "/audit-intelligence-system/reports",
   "/internal-audit-planning",
   "/internal-audit-planning/dashboard",
@@ -1070,6 +1072,16 @@ export default function App() {
               <ProtectedPage permission="ais.view">
                 <Suspense fallback={<RouteLoading />}>
                   <AisGovernancePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="audit-intelligence-system/integration-health"
+            element={
+              <ProtectedPage permission="ais.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <AisIntegrationHealthPage />
                 </Suspense>
               </ProtectedPage>
             }

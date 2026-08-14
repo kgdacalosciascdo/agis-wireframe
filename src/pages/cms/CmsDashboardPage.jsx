@@ -329,7 +329,7 @@ export default function CmsDashboardPage() {
             </span>
           </div>
 
-          <section aria-label="CMS summary metrics" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <section aria-label="CMS summary metrics" className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
             {metrics
               .filter(([key]) =>
                 Object.prototype.hasOwnProperty.call(data?.cards ?? {}, key),
@@ -349,7 +349,7 @@ export default function CmsDashboardPage() {
             <h3 className="mb-3 text-lg font-bold text-slate-800">
               Needs Attention
             </h3>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
               {attention.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -409,7 +409,7 @@ export default function CmsDashboardPage() {
             <h3 className="mb-3 text-lg font-bold text-slate-800">
               Portfolio summaries
             </h3>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
               <GroupPanel
                 items={data?.groups?.byResponsibleOffice}
                 title="Responsible office"

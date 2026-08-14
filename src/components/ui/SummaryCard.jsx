@@ -8,9 +8,9 @@ const styles = {
 export default function SummaryCard({ icon: Icon, label, value, tone }) {
   return (
     <div
-      className={`flex min-h-20 min-w-0 items-center gap-3 rounded-xl border px-3 py-3 shadow-sm transition duration-200 sm:px-4 ${styles[tone]} hover:-translate-y-1 hover:shadow-lg ${tone}`}
+      className={`group flex min-h-24 min-w-0 items-center gap-3 rounded-xl border px-3 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:px-4 ${styles[tone]} ${tone}`}
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/80 shadow-sm ring-1 ring-black/5">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/85 shadow-sm ring-1 ring-black/5 transition duration-200 group-hover:scale-105">
         <Icon size={20} strokeWidth={2} />
       </span>
       <span className="min-w-0">

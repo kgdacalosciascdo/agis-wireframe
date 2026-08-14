@@ -10,8 +10,8 @@ async function signIn(page) {
 
 function contract() {
   return {
-    contractVersion: "AIS-4.0",
-    status: "READ_ONLY_HARDENED",
+    contractVersion: "AIS-5D.0",
+    status: "READ_ONLY_VERIFIED",
     enabled: false,
     readOnlyDashboardEnabled: true,
     readOnlyReportsEnabled: true,
@@ -24,7 +24,7 @@ function contract() {
       checks: { authRequired: true, protectedDownloads: true, immutableReportRuns: true, diagnosticsRedacted: true, namedRateLimits: true },
       rateLimits: { readPerMinute: 120, generatePerMinute: 12, exportPerMinute: 20 },
     },
-    plannedCapabilities: [{ code: "AIS-4", label: "Security hardening", status: "IMPLEMENTED" }],
+    plannedCapabilities: [{ code: "AIS-5D", label: "Integration verification", status: "IMPLEMENTED" }],
   };
 }
 
@@ -67,7 +67,7 @@ test("AIS dashboard exposes hardened status and consistent sidebar navigation", 
 
   await page.goto("/audit-intelligence-system");
 
-  await expect(page.getByRole("heading", { name: "Audit Intelligence System", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Audit Intelligence System", exact: true }).last()).toBeVisible();
   await expect(page.getByText("Deployment hardening", { exact: true })).toBeVisible();
   await expect(page.getByText("ENFORCED", { exact: true })).toBeVisible();
   await expect(page.getByText("120 reads/min", { exact: false })).toBeVisible();
@@ -94,4 +94,44 @@ test("AIS report export is generated and downloaded through the protected endpoi
   await page.getByRole("button", { name: "Download" }).click();
   await downloadPromise;
   expect(downloadRequested).toBe(true);
+});
+
+test("AIS integration health shows source cards, scope controls, and authoritative links", async ({ page }) => {
+  await signIn(page);
+  const modules = ["CORE", "IAP", "AEMS", "CMS", "ARMIS"].map((module) => ({
+    module,
+    authority: module,
+    adapter: `${module}_READ_ONLY_GATE`,
+    mode: "READ_ONLY",
+    available: true,
+    freshness: { mode: "LIVE_DATABASE_QUERY", status: "CURRENT", observedAt: "2026-08-14T08:00:00Z" },
+    reconciliation: { status: "PASS", eligible: true },
+    scopeRevalidated: true,
+    confidentialityRevalidated: true,
+  }));
+  const health = {
+    healthContractVersion: "AIS-5B.0",
+    integrationContractVersion: "AIS-5A.0",
+    integrationStatus: "READ_ONLY_READY",
+    status: "HEALTHY",
+    mode: "READ_ONLY",
+    checkedAt: "2026-08-14T08:00:00Z",
+    scope: { officeScope: "ALL", engagementScope: "ALL", confidentiality: { confidential: true, restricted: true } },
+    sourceModules: modules,
+    reconciliation: { status: "PASS", eligible: true, blockedSources: [] },
+    validation: { status: "PASS", eligible: true, failedChecks: [] },
+    diagnostics: modules.map((source) => ({ module: source.module, status: "PASS", issues: [] })),
+    controls: { immutableSnapshots: true, sourceWrites: false, professionalDecisions: false, duplicateOwnershipTables: false, sourceContractRevalidated: true, failureMode: "FAIL_CLOSED" },
+  };
+  await page.route(/\/api\/ais\/integration-health$/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: health }) }));
+  await page.route(/\/api\/ais\/integration-health\/snapshots$/, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { snapshots: [] } }) }));
+
+  await page.goto("/audit-intelligence-system/integration-health");
+
+  await expect(page.getByRole("heading", { name: "AIS Integration Health", exact: true })).toBeVisible();
+  await expect(page.getByText("Source integration Healthy", { exact: true })).toBeVisible();
+  await expect(page.getByText("Core Records", { exact: true })).toBeVisible();
+  await expect(page.getByText("Scope rechecked", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open authoritative module" }).first()).toHaveAttribute("href", "/office-registry");
+  await expect(page.getByRole("complementary").getByRole("link", { name: "Integration Health" })).toBeVisible();
 });

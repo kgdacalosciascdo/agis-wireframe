@@ -103,6 +103,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware(['permission:ais.view', 'throttle:ais-read']);
     Route::get('/ais/hardening', [AisContractController::class, 'hardening'])
         ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/integration-contract', [AisContractController::class, 'integration'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/integration-health', [AisContractController::class, 'integrationHealth'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::get('/ais/integration-health/snapshots', [AisContractController::class, 'integrationSnapshots'])
+        ->middleware(['permission:ais.view', 'throttle:ais-read']);
+    Route::post('/ais/integration-health/snapshots', [AisContractController::class, 'captureIntegrationSnapshot'])
+        ->middleware(['permission:ais.view', 'throttle:ais-generate']);
     Route::get('/ais/aggregations', [AisAggregationController::class, 'overview'])
         ->middleware(['permission:ais.view', 'throttle:ais-read']);
     Route::get('/ais/dashboard', [AisAggregationController::class, 'dashboard'])

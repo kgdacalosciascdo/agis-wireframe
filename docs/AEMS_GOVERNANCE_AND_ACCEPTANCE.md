@@ -32,7 +32,7 @@ administrative closure.
 | Resource authority | Consume competencies, availability, workload, assignments, and actuals through the configured provider; retain fallback/reconciliation evidence | ARMIS provider boundary; IAP interim fallback |
 | Findings and recommendations | Own Issues, Findings, Recommendations, management dialogue, rejoinders, report provenance, and final snapshots | AEMS |
 | Post-issuance monitoring | Transfer finalized recommendation snapshots once | CMS owns Action Plans, monitoring, validation, dispositions, reopening, and CMS closure |
-| Intelligence | No AIS business workflow or integration is enabled | AIS remains outside this scope |
+| Intelligence | AEMS does not own an AIS business workflow or source mutation | AIS owns a separate read-only analytical/integration contract |
 
 ## 2. Current AEMS module surfaces
 

@@ -47,8 +47,9 @@ All final professional decisions remain explicit human actions. CMS automation
 creates reminders and reviewable candidates only; it cannot close, reopen,
 dispose, or issue an escalation notice. CMS report generation is backend-owned,
 scope/confidentiality-aware, reproducible from immutable snapshots, and served
-through authenticated downloads. AIS integration is not implemented, and ARMIS
-provider authority remains a separate gated boundary.
+through authenticated downloads. AIS-5D consumes CMS through a read-only,
+scope-aware adapter and never mutates CMS; ARMIS provider authority remains a
+separate gated boundary.
 
 ## 2. Record lineage
 
@@ -598,7 +599,8 @@ At the CMS-5A/B checkpoint, automated reminders, the escalation React workspace
 (CMS-7B), closure request/approval, Accepted-Risk, No-Longer-Applicable,
 reopening, recurrence analysis, reports, and exports were later phases. Those
 CMS capabilities are now implemented in CMS-7B through CMS-12B. AIS integration
-is not implemented, and ARMIS provider authority remains a separate boundary.
+is read-only through AIS-5D, and ARMIS provider authority remains a separate
+boundary.
 
 ### 13.6 CMS-5B React validation workspace
 
@@ -731,7 +733,7 @@ permission/status visibility until that contract is enriched. Laravel remains
 authoritative. At the CMS-7B checkpoint, automatic escalation, scheduled
 reminders, recommendation closure, dispositions, reopening, reports, and
 exports were still later increments. CMS-8 through CMS-12B now provide those
-capabilities; AIS integration remains unimplemented and ARMIS provider
+capabilities; AIS integration is read-only through AIS-5D and ARMIS provider
 authority remains separately gated.
 
 ## CMS-8A formal recommendation closure
@@ -859,8 +861,8 @@ and approval workflow remains the only path to formal closure.
 The CMS dashboard and Recommendation Detail contract expose automation counts,
 candidate summaries, and per-case readiness. CMS-11A is the backend contract and
 CMS-11B is the administrative React workspace. CMS-12A/12B provide the report
-and export backend/workspace. AIS integration is not implemented; ARMIS remains
-a separate provider boundary rather than a CMS dependency.
+and export backend/workspace. AIS integration is read-only through AIS-5D; ARMIS
+remains a separate provider boundary rather than a CMS dependency.
 
 ## CMS-11B automation administration workspace
 

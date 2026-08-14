@@ -11,6 +11,8 @@ interfaces, operations, and acceptance procedures.
 | Document | Audience | Contents |
 | --- | --- | --- |
 | [System Flow](SYSTEM_FLOW.md) | Product owners, developers, reviewers | End-to-end browser, API, database, file, authorization, logging, configuration, notification, IAP, AEMS, CMS, and integration flows |
+| [AGIS As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md) | New users, administrators, reviewers, developers, and testers | Consolidated module-by-module features, page functions, lifecycle rules, ownership boundaries, controls, and troubleshooting |
+| [AGIS Operational Playbooks](AGIS_OPERATIONAL_PLAYBOOKS.md) | Operators, auditors, reviewers, compliance monitors, and acceptance teams | Step-by-step procedures for create, review, return, approve, issue, transfer, decline, disposition, reopening, closure, exports, and blocked actions |
 | [As-Built Feature Catalog](AS_BUILT_FEATURE_CATALOG.md) | Product owners, reviewers, testers, and developers | Feature-by-feature comparison of Core, IAP, AEMS, CMS, ARMIS, shared controls, routes, workflows, boundaries, and verification evidence |
 | [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md) | Core administrators, analysts, developers | Authentication, registries, roles/scopes, master lists, documents, workflows, notifications, logs, and configuration |
 | [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) | CIAS management, auditors, analysts, developers | Strategic planning, Audit Universe, coexisting risk systems, prioritization, annual plans, schedules, capacity, approvals, and reports |
@@ -43,7 +45,7 @@ feature inventory unless they are explicitly marked as current.
 | CMS | CMS-1 through CMS-12B: intake, registry/detail, assignments, Action Plans, Progress Updates, Validation, extensions, escalations, closure, Accepted-Risk, No-Longer-Applicable, controlled reopening, automation/candidates, reports, and protected CSV/PDF exports | Complete in [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md), [API and Data Reference](API_AND_DATA_REFERENCE.md), [Operations Guide](OPERATIONS_GUIDE.md), and the end-to-end guide |
 | ARMIS | ARMIS-0 through ARMIS-7C: resource registry, competencies/certifications, planning/utilization, assignments/actuals, reports/exports, provider adapter, reconciliation/authority gate, monitoring, security regression, deployment preflight, and Render smoke verification | Complete in [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md), with API, operations, Render, and acceptance-testing references |
 | AFR | Placeholder navigation/routes only; AEMS currently owns its implemented Findings and Recommendations workspace | Explicitly documented as not implemented |
-| AIS | AIS-4 hardened read-only analytical dashboard, review indicators, immutable reports, protected CSV/PDF exports, private responses, rate limits, and audit events over scope-aware Core/IAP/AEMS/CMS/ARMIS metrics and AIS snapshots; operational writes remain disabled | Documented in [AIS Governance and Data Contract](AIS_GOVERNANCE_CONTRACT.md), with API, testing, and operations references |
+| AIS | AIS-5D verified read-only analytical dashboard, reporting, and responsive source-health workspace over scope-aware Core/IAP/AEMS/CMS/ARMIS adapters, with freshness/reconciliation checks, fail-closed aggregation, immutable integration snapshots, source cards, scope/confidentiality indicators, authoritative-module links, review indicators, immutable reports, protected CSV/PDF exports, private responses, rate limits, and audit events; operational writes remain disabled | Documented in [AIS Governance and Data Contract](AIS_GOVERNANCE_CONTRACT.md), with API, testing, and operations references |
 
 ### Integration boundaries
 
@@ -53,10 +55,14 @@ feature inventory unless they are explicitly marked as current.
   continues to use the configurable provider boundary; `IAP_INTERIM_FALLBACK`
   remains the default, while shadow/authoritative ARMIS modes require the
   documented reconciliation and authority gate.
-- AIS-4 provides hardened read-only analytical presentation, review indicators,
+- AIS-5D provides the verified hardened read-only analytical presentation, review indicators,
   immutable reports, and protected CSV/PDF exports. AIS does not mutate source
-  modules or make professional decisions; operational writes remain reserved
-  for later AIS phases.
+  modules or make professional decisions. Its integration contract rechecks
+  source scope, confidentiality, lineage, freshness, and reconciliation; the
+  health backend records immutable, actor-scoped diagnostics and fails closed
+  when a source is unavailable or ineligible. The source-health workspace links
+  each exception back to its authoritative module. Operational writes remain
+  reserved for later AIS phases.
 - CMS automation may create reminders or reviewable candidates only. It cannot
   make final professional decisions, close cases, reopen cases, or issue
   escalation notices automatically.
@@ -68,23 +74,22 @@ feature inventory unless they are explicitly marked as current.
 
 For a new developer:
 
-1. [System Flow](SYSTEM_FLOW.md)
-2. [As-Built Feature Catalog](AS_BUILT_FEATURE_CATALOG.md)
-3. [Development Standards](DEVELOPMENT_STANDARDS.md)
-4. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
-5. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
-6. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
-7. [AEMS Governance and Acceptance (compiled)](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
-8. [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md)
-9. [AEMS G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md)
-10. [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
-11. [AEMS G10E Final Acceptance](AEMS_G10E_FINAL_ACCEPTANCE.md)
-12. [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md)
-13. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
-14. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
-15. [API and Data Reference](API_AND_DATA_REFERENCE.md)
-16. [Operations Guide](OPERATIONS_GUIDE.md)
-17. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
+1. [AGIS As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md)
+2. [AGIS Operational Playbooks](AGIS_OPERATIONAL_PLAYBOOKS.md)
+3. [System Flow](SYSTEM_FLOW.md)
+4. [As-Built Feature Catalog](AS_BUILT_FEATURE_CATALOG.md)
+5. [Development Standards](DEVELOPMENT_STANDARDS.md)
+6. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
+7. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
+8. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
+9. [AEMS Governance and Acceptance (compiled)](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
+10. [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md)
+11. [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md)
+12. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
+13. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
+14. [API and Data Reference](API_AND_DATA_REFERENCE.md)
+15. [Operations Guide](OPERATIONS_GUIDE.md)
+16. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
 
 For a CIAS reviewer:
 

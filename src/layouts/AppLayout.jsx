@@ -75,7 +75,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="min-w-0 max-w-full border-b border-white/20 py-2">
+    <section className="w-full min-w-0 max-w-full border-b border-white/15 py-2.5 last:border-b-0">
       {section.title && (
         <button
           className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-blue-50 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300"
@@ -93,7 +93,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
 
       {(!section.title || expanded) && (
         <nav
-          className="grid min-w-0 max-w-full gap-1"
+          className="grid w-full min-w-0 max-w-full gap-1"
           aria-label={section.title ?? "Primary"}
         >
           {items.map((item) => {
@@ -111,10 +111,10 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
 
             return (
               <div className="grid gap-1" key={item.path}>
-              <div className="flex min-w-0 max-w-full items-center gap-1">
+                <div className="flex w-full min-w-0 max-w-full items-center gap-1">
                   <NavLink
                     className={({ isActive }) =>
-                      `group flex min-h-10 min-w-0 flex-1 items-center rounded-md px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
+                      `group flex min-h-10 min-w-0 flex-1 items-center rounded-lg px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
                         isActive || moduleActive
                           ? "bg-[#4a87cb] text-white shadow-sm"
                           : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
@@ -143,7 +143,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                     <button
                       aria-expanded={childExpanded}
                       aria-label={`${childExpanded ? "Hide" : "Show"} ${item.label} pages`}
-                      className="grid h-9 w-8 shrink-0 place-items-center rounded-md text-blue-100 transition hover:bg-white/12 hover:text-white"
+                      className="grid h-9 w-8 shrink-0 place-items-center rounded-lg text-blue-100 transition hover:bg-white/12 hover:text-white"
                       onClick={() =>
                         setExpandedItems((current) => ({
                           ...current,
@@ -164,7 +164,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                 {!collapsed && childItems.length > 0 && childExpanded && (
                   <nav
                     aria-label={`${item.label} pages`}
-                    className="ml-4 grid min-w-0 max-w-full gap-1 border-l border-blue-200/30 pl-3"
+                    className="ml-3 grid min-w-0 max-w-full gap-1 border-l border-blue-200/30 pl-3"
                   >
                     {childGroups.map((group) => (
                       <div className="grid gap-1" key={group.key}>
@@ -182,7 +182,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                           return (
                             <NavLink
                               className={({ isActive }) =>
-                                `flex min-h-9 items-center gap-2 rounded-md px-2.5 text-[12px] font-medium transition ${
+                                `flex min-h-9 min-w-0 items-center gap-2 rounded-lg px-2.5 text-[12px] font-medium transition ${
                                   isActive || childActive
                                     ? "bg-white/18 text-white shadow-sm"
                                     : "text-blue-100 hover:bg-white/10 hover:text-white"
@@ -313,7 +313,7 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen bg-[#f3f8fc] font-['Segoe_UI',Arial,sans-serif] text-slate-800">
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-[#28598f] text-white shadow-xl transition-all duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${sidebarWidth} ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden bg-[#28598f] text-white shadow-xl transition-all duration-300 lg:sticky lg:top-0 lg:h-screen lg:max-w-none lg:translate-x-0 ${sidebarWidth} ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -331,7 +331,7 @@ export default function AppLayout() {
           </button>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-1 pr-4 [scrollbar-color:rgba(255,255,255,.35)_transparent] [scrollbar-gutter:stable]">
+        <div className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto px-2 py-2 pr-2 [scrollbar-color:rgba(255,255,255,.35)_transparent] [scrollbar-gutter:stable]">
           {navigationSections.map((section) => (
             <NavigationSection
               key={section.key}
@@ -343,7 +343,7 @@ export default function AppLayout() {
           ))}
         </div>
 
-        <div className="border-t border-white/20 p-3">
+        <div className="shrink-0 border-t border-white/20 p-3">
           <div
             className={`flex items-center ${collapsed ? "lg:justify-center" : "gap-3"}`}
           >
@@ -382,8 +382,8 @@ export default function AppLayout() {
         />
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex min-h-16 items-center border-b border-slate-200 bg-white px-3 shadow-sm sm:px-5">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+        <header className="sticky top-0 z-30 flex min-h-16 min-w-0 items-center border-b border-slate-200/90 bg-white px-3 shadow-sm sm:px-5">
           <button
             className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-100 lg:hidden"
             type="button"
@@ -597,7 +597,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <div className="flex-1">
+        <div className="agis-route-content flex-1">
           <Outlet context={{ dateLabel }} />
         </div>
 

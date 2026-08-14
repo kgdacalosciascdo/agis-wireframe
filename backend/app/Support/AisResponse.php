@@ -4,7 +4,7 @@ namespace App\Support;
 
 use Illuminate\Http\JsonResponse;
 
-/** Applies the private-response controls required by the AIS-4 contract. */
+/** Applies the private-response controls retained by the AIS-4 hardening contract under AIS-5A. */
 final class AisResponse
 {
     public static function json(array $payload, int $status = 200, bool $cacheable = false): JsonResponse

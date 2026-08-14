@@ -88,15 +88,18 @@ report version, and transfer provenance.
 - Core document confidentiality and protected download checks remain in force.
 - Activity Log, Audit Trail, engagement events, and CMS events record the
   cross-module actions and identities.
-- AIS operational integration remains outside this phase. AIS-4 publishes a
-  governance contract, scope-aware read-only aggregation snapshots, analytical
-  views, review indicators, and protected reports/exports; AIS has no provider,
-  professional decision, or operational write integration enabled by AEMS-11.
+- AIS operational integration remains outside this phase. AIS-5D publishes a
+  versioned read-only Core/IAP/AEMS/CMS/ARMIS integration contract, health
+  diagnostics, immutable actor-scoped integration snapshots, scope-aware
+  aggregation snapshots, analytical views, review indicators, and protected
+  reports/exports; AIS has no provider, professional decision, or operational
+  write integration enabled by AEMS-11.
 
 ## Verification contract
 
 The focused `AemsCrossModuleIntegrationTest` verifies that an IAP source row is
 byte-for-byte unchanged after import, that AEMS owns the resulting lineage,
-that integration status is protected and scope-safe, and that AIS remains out
-of scope. Existing AEMS registry, IAP, ARMIS adapter, CMS intake, and report
-tests continue to protect the surrounding workflows.
+that integration status is protected and scope-safe, and that AIS remains a
+read-only consumer with no AEMS-owned write path. Existing AEMS registry, IAP,
+ARMIS adapter, CMS intake, and report tests continue to protect the surrounding
+workflows.

@@ -28,8 +28,11 @@ from the authenticated user's office and engagement scope. If the live
 contract is unavailable, the UI retains a safe layout fallback and displays a
 non-authoritative warning rather than treating fallback data as live.
 
-The previously documented static-dashboard note is obsolete; the current
+<!-- Historical wording superseded:
 “coming soon” messages. It must not be treated as an operational reporting
+-->
+The dashboard is live and scope-aware; any “coming soon” text in historical
+notes must not be treated as an operational reporting result.
 The protected Core Administrative Reports workspace provides scope-pinned
 immutable snapshots and authenticated CSV/PDF exports with checksums;
 spreadsheet formula prefixes are escaped in CSV output.

@@ -39,12 +39,14 @@ class AisAggregationService
         private readonly AemsAccessService $aems,
         private readonly CmsRecommendationScopeService $cms,
         private readonly ArmisResourceService $armis,
+        private readonly AisIntegrationHealthService $integration,
     ) {}
 
     /** @return array<string, mixed> */
     public function overview(User $user): array
     {
         $this->authorize($user);
+        $integration = $this->integration->assertReady($user);
         $metrics = $this->aggregate($user);
         $latest = $this->snapshots($user, 1)->first();
 
@@ -53,6 +55,11 @@ class AisAggregationService
             'sourceQueryVersion' => self::SOURCE_QUERY_VERSION,
             'generatedAt' => now()->toIso8601String(),
             'scope' => $this->scopeSnapshot($user),
+            'integration' => [
+                'contractVersion' => $integration['integrationContractVersion'],
+                'status' => $integration['integrationStatus'],
+                'reconciliation' => $integration['reconciliation'],
+            ],
             'metrics' => $metrics,
             'latestSnapshot' => $latest ? $this->snapshotData($latest) : null,
             'sourceModes' => collect(['CORE', 'IAP', 'AEMS', 'CMS', 'ARMIS'])
@@ -142,6 +149,7 @@ class AisAggregationService
     {
         $actor = $request->user();
         $this->authorize($actor);
+        $this->integration->assertReady($actor);
         $metrics = $this->aggregate($actor);
         $encoded = json_encode($metrics, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $snapshot = DB::transaction(function () use ($actor, $metrics, $encoded): AisAggregationSnapshot {

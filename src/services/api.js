@@ -195,6 +195,18 @@ export const aisContractApi = {
   async hardening() {
     return request("/api/ais/hardening");
   },
+  async integration() {
+    return request("/api/ais/integration-contract");
+  },
+  async integrationHealth() {
+    return request("/api/ais/integration-health");
+  },
+  async integrationSnapshots() {
+    return request("/api/ais/integration-health/snapshots");
+  },
+  async captureIntegrationSnapshot() {
+    return request("/api/ais/integration-health/snapshots", { method: "POST", csrf: true });
+  },
 };
 
 export const aisAggregationApi = {

@@ -10,11 +10,17 @@ use App\Models\User;
  * This service deliberately exposes metadata only. AIS does not own or mutate
  * operational records. AIS-1 adds read-only aggregation snapshots, AIS-2 adds
  * analytical presentation, AIS-3 adds immutable reports and protected exports,
- * and AIS-4 hardens the surface for authenticated deployment.
+ * and AIS-4 hardens the surface for authenticated deployment. AIS-5A adds a
+ * read-only, fail-closed integration contract over the source modules. AIS-5B
+ * adds health diagnostics and immutable integration snapshots. AIS-5C adds
+ * the responsive source-health workspace. AIS-5D records the verification
+ * and deployment gate for the read-only integration surface.
  */
 class AisContractService
 {
-    public const VERSION = 'AIS-4.0';
+    public const VERSION = 'AIS-5D.0';
+
+    public function __construct(private readonly AisIntegrationContractService $integration) {}
 
     /** @return array<string, mixed> */
     public function contract(User $user): array
@@ -23,7 +29,7 @@ class AisContractService
 
         return [
             'contractVersion' => self::VERSION,
-            'status' => 'READ_ONLY_HARDENED',
+            'status' => 'READ_ONLY_VERIFIED',
             'enabled' => false,
             'readOnlyDashboardEnabled' => true,
             'readOnlyReportsEnabled' => true,
@@ -81,11 +87,16 @@ class AisContractService
                 'humanReviewRequiredForPublishedInsight' => true,
             ],
             'hardening' => $this->hardening($user),
+            'integration' => $this->integration->contract($user),
             'plannedCapabilities' => [
                 ['code' => 'AIS-1', 'label' => 'Read-only data foundation and aggregation', 'status' => 'IMPLEMENTED'],
                 ['code' => 'AIS-2', 'label' => 'Intelligence dashboard and analytical views', 'status' => 'IMPLEMENTED'],
                 ['code' => 'AIS-3', 'label' => 'Reports, trends, alerts, and protected exports', 'status' => 'IMPLEMENTED'],
                 ['code' => 'AIS-4', 'label' => 'Security, performance, audit, and deployment hardening', 'status' => 'IMPLEMENTED'],
+                ['code' => 'AIS-5A', 'label' => 'Read-only cross-module integration contract', 'status' => 'IMPLEMENTED'],
+                ['code' => 'AIS-5B', 'label' => 'Integration health and reconciliation backend', 'status' => 'IMPLEMENTED'],
+                ['code' => 'AIS-5C', 'label' => 'Integration dashboard and source-health UI', 'status' => 'IMPLEMENTED'],
+                ['code' => 'AIS-5D', 'label' => 'Integration verification and deployment gate', 'status' => 'IMPLEMENTED'],
             ],
             'permissions' => [
                 'ais.view' => $user->hasPermission('ais.view'),

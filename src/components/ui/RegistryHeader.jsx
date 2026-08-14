@@ -6,10 +6,10 @@ export default function RegistryHeader({
   actions,
 }) {
   return (
-    <header className="mb-5 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <header className="mb-5 flex min-w-0 flex-col gap-4 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-700 sm:h-11 sm:w-11">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-sky-100 to-cyan-50 text-sky-700 shadow-sm ring-1 ring-sky-200/70 sm:h-11 sm:w-11">
             <Icon size={22} />
           </span>
           <div className="min-w-0 flex-1">
@@ -28,7 +28,7 @@ export default function RegistryHeader({
         )}
       </div>
       {actions && (
-        <div className="flex w-full flex-wrap gap-2 [&>button]:w-full sm:w-auto sm:max-w-[68%] sm:shrink-0 sm:justify-end sm:[&>button]:w-auto">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:max-w-[68%] sm:shrink-0 sm:justify-end [&>a]:w-full [&>button]:w-full sm:[&>a]:w-auto sm:[&>button]:w-auto">
           {actions}
         </div>
       )}

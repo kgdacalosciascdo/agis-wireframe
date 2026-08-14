@@ -46,7 +46,8 @@ the operational subset must not be read as full MDS/UID conformance.
 
 The aggregate engagement transition service and the formal engagement closure
 workflow are implemented in the current as-built system. CMS transfer is
-idempotent and AIS remains a placeholder module. ARMIS is available through the
+idempotent. AIS-5D provides a separate read-only analytical and integration
+health surface; it does not add AEMS-owned professional writes. ARMIS is available through the
 replaceable provider boundary, but `IAP_INTERIM_FALLBACK` remains the default
 until an explicit reconciliation and authority decision activates another mode.
 AEMS-3A adds versioned team safeguards, provider freshness/reconciliation
@@ -1807,8 +1808,8 @@ the transfer key/source identity make retries idempotent.
 `GET /api/aems/integrations/status` is protected by the existing AEMS view
 permission and scope policy. It reports provider ownership, referential-health
 checks, fallback state, and security flags; scoped users do not receive global
-IAP/CMS counts. AIS remains outside AEMS-11 and no AIS provider, table, or route
-is enabled.
+IAP/CMS counts. AIS remains outside AEMS workflow ownership; its provider,
+snapshots, routes, and read-only contract are maintained by AIS phases.
 
 ## AEMS-G1 professional-control hardening
 
@@ -1903,4 +1904,4 @@ language in this workflow document and records the resolved G0-01 through
 G0-14 decisions, current status compatibility, semantic Rule 1–35 tests, the
 32-SCR registry, six-role navigation matrix, full regression, migration
 rehearsal, and desktop/mobile Playwright acceptance. Compatibility aliases,
-reserved SCR-243, and AIS remain explicit boundaries.
+reserved SCR-243, and AIS read-only ownership remain explicit boundaries.

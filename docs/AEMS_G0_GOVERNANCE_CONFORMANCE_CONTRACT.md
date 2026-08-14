@@ -383,7 +383,8 @@ path.
 6. AEMS owns engagement execution and transfer provenance. IAP owns approved
    plan/risk source records, ARMIS owns authoritative resource data only after
    its authority gate, CMS owns post-transfer monitoring/validation/closure,
-   and AIS remains outside this contract.
+   and AIS remains a separate, read-only consumer outside AEMS professional
+   decision workflows.
 
 ## 6. G0 gate and final acceptance order
 
@@ -420,7 +421,8 @@ The historical implementation order after this documentation gate was:
    lint/build, protected-download checks, and documentation reconciliation.
 
 Those dependencies have now been exercised through G10E. AIS remains outside
-the AEMS scope, and the compatibility identifiers and both IAP risk systems
+AEMS operational ownership but its AIS-5D read-only integration contract is
+implemented separately; compatibility identifiers and both IAP risk systems
 remain intentionally preserved.
 
 ## 7. Verification record

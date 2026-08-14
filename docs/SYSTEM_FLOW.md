@@ -9,6 +9,8 @@ Trail, and runtime configuration.
 
 Detailed business specifications are in:
 
+- [AGIS As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md) for the consolidated module and page contract
+- [AGIS Operational Playbooks](AGIS_OPERATIONAL_PLAYBOOKS.md) for step-by-step user actions and decision paths
 - [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
 - [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
 - [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
@@ -16,6 +18,32 @@ Detailed business specifications are in:
 - [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
 - [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
 - [API and Data Reference](API_AND_DATA_REFERENCE.md)
+
+The manual is the fastest way to answer “what do I do next?”; this document is
+the request/data/control path that explains how the browser action is enforced.
+
+## 1.1 Business-system sequence
+
+```mermaid
+flowchart LR
+    IAP[IAP approved plan and finalized risk source] -->|immutable import snapshot| AEMS[AEMS engagement]
+    ARMIS[ARMIS provider or IAP fallback] -->|competency, availability, workload, actuals| AEMS
+    AEMS -->|fieldwork, evidence, finalized findings, issued report| CMS[CMS intake]
+    CMS -->|action plans, monitoring, validation, disposition, closure| CMS
+    CORE[Core identity, scope, documents, workflow, logs] -.shared controls.-> IAP
+    CORE -.shared controls.-> AEMS
+    CORE -.shared controls.-> CMS
+    CORE -.shared controls.-> ARMIS
+    IAP -->|read-only scoped adapter| AIS[AIS analytics]
+    AEMS -->|read-only scoped adapter| AIS
+    CMS -->|read-only scoped adapter| AIS
+    ARMIS -->|read-only scoped adapter| AIS
+```
+
+The arrows are ownership boundaries, not table-copy instructions. IAP owns its
+plan, AEMS owns the audit execution and recommendation source, CMS owns the
+post-transfer corrective-action case, ARMIS owns resource data only after the
+provider authority gate, and AIS owns no operational source record.
 
 ## 2. System context
 
@@ -602,7 +630,7 @@ Recommendation detail and dashboard payloads add backward-compatible,
 visibility-scoped validation summaries. CMS-5B adds the protected React
 validation workspace described below. Later CMS-6 through CMS-10 increments add
 extensions, escalation, closure, dispositions, and controlled reopening.
-Automation and reports/exports are implemented. AIS-4 read-only analytical
+Automation and reports/exports are implemented. AIS-5D verified read-only analytical
 views, review indicators, reports, protected exports, rate limits, private
 responses, and audit events are implemented; AIS operational writes
 remain reserved for later phases. ARMIS
@@ -900,8 +928,8 @@ recommendation-scoped React list/detail workspace, immutable version views,
 evidence controls, acknowledgement, response, follow-up, and resolution
 presentation. At the CMS-7B checkpoint, automatic creation, reminders,
 reporting, and exports were later phases. CMS-8 through CMS-12B now provide
-those capabilities; AIS remains unimplemented and ARMIS is a separate gated
-provider boundary.
+those capabilities; AIS-5D consumes CMS read-only and ARMIS is a separate
+gated provider boundary.
 ## CMS closure boundary
 
 CMS now distinguishes `IMPLEMENTED`, `FOR_CLOSURE`, and `CLOSED`. Management completion, accepted progress, extension approval, escalation resolution, and validation drafts do not close a recommendation. An independent finalized `IMPLEMENTED` validation supports a Closure Request; an independent review assessment and CIAS Management Closure Decision are required for formal closure.
@@ -952,7 +980,7 @@ records. CMS-11A adds scheduled, idempotent reminders and reviewable
 closure-readiness/escalation candidates. It does not make professional final
 decisions, directly close or reopen cases, or issue escalation notices. The
 CMS-11B workspace and CMS-12 reports/exports are separate completed phases;
-AIS-4 is implemented as a hardened read-only analytical and protected reporting surface; AIS operational writes
+AIS-5D is implemented as a verified hardened read-only analytical and protected reporting surface with a versioned source-integration contract, health diagnostics, immutable integration snapshots, and a responsive source-health workspace; AIS operational writes
 and professional decisions remain outside scope, and
 ARMIS remains outside the CMS provider boundary.
 

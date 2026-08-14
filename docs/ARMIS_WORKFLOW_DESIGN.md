@@ -71,7 +71,8 @@ versioned actuals, utilization reporting, or ARMIS scope model.
 
 ### Historical ARMIS-0 baseline: missing at that checkpoint
 
-AIS integration remains future scope. ARMIS-3A/3B, ARMIS-4A/4B, ARMIS-5A/5B,
+At the ARMIS-0 checkpoint AIS integration remained future scope. AIS-5D was
+implemented later as a separate read-only analytical contract. ARMIS-3A/3B, ARMIS-4A/4B, ARMIS-5A/5B,
 ARMIS-6A, and ARMIS-6B provide planning, assignment, actuals, conflict,
 notifications, administration status, protected report snapshots, private
 exports, adapter reads, reconciliation, authority decisions, and rollback.

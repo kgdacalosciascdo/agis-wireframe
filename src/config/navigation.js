@@ -571,6 +571,12 @@ export const aisPages = [
     icon: LayoutDashboard,
   },
   {
+    label: "Integration Health",
+    path: "/audit-intelligence-system/integration-health",
+    permission: "ais.view",
+    icon: Activity,
+  },
+  {
     label: "AIS Reports & Exports",
     path: "/audit-intelligence-system/reports",
     permission: "ais.view",

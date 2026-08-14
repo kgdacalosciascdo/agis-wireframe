@@ -241,7 +241,7 @@ export default function AisGovernancePage() {
               <h2 className="text-sm font-bold text-slate-900">Deployment hardening</h2>
               <StatusBadge tone="success">{contract?.hardening?.status || "ENFORCED"}</StatusBadge>
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-500">AIS-4 controls protect scope, exports, diagnostics, and immutable analytical records.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">AIS-5B controls protect source scope, reconciliation, exports, diagnostics, and immutable analytical records.</p>
             <div className="mt-3 grid gap-2">
               {Object.entries(contract?.hardening?.checks || {}).map(([key, value]) => (
                 <div className="flex items-center justify-between gap-3 text-xs" key={key}>

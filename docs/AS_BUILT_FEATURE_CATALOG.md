@@ -11,6 +11,11 @@ placeholder route or a navigation card.
 
 **Last reviewed:** 14 August 2026.
 
+For a user-oriented explanation of every page and action, read the [AGIS
+As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md). For executable
+step-by-step procedures (including return, decline, transfer, disposition,
+reopening, and closure), read [AGIS Operational Playbooks](AGIS_OPERATIONAL_PLAYBOOKS.md).
+
 ## 1. How to compare a requirement with the implementation
 
 For each requested feature, check the following columns in this document:
@@ -39,7 +44,7 @@ claimed.
 | CMS | Implemented through CMS-12B | `CMS_WORKFLOW_DESIGN.md`, CMS controllers/services/models | Owns post-issuance Action Plans, monitoring, validation, dispositions, reopening, closure, reports, and exports |
 | ARMIS | Implemented through ARMIS-7C | `ARMIS_WORKFLOW_DESIGN.md`, ARMIS controllers/services/models | Owns resource and allocation ledgers; AEMS consumes the configured provider boundary |
 | AFR standalone module | Reference only | `src/config/navigation.js` and route registry | Findings and Recommendations are owned by AEMS; no separate AFR business workflow is claimed |
-| AIS | AIS-4 hardened read-only analytical reporting | `AIS_GOVERNANCE_CONTRACT.md`, `AisContractService`, `AisAggregationService`, `AisReportService`, `AisAuditService`, `AisReportRun`, `AisReportExport`, `AisGovernancePage`, `AisReportsPage` | Scope-aware metrics, analytical dashboard, review-only alerts, immutable reports, protected CSV/PDF exports, checksums, private responses, named rate limits, and read audit events; operational writes and professional decisions remain disabled |
+| AIS | AIS-5D verified read-only analytical reporting and source-health workspace | `AIS_GOVERNANCE_CONTRACT.md`, `AisContractService`, `AisIntegrationContractService`, `AisIntegrationHealthService`, `AisIntegrationSnapshot`, `AisAggregationService`, `AisReportService`, `AisAuditService`, `AisReportRun`, `AisReportExport`, `AisGovernancePage`, `AisIntegrationHealthPage`, `AisReportsPage` | Scope-aware metrics, Core/IAP/AEMS/CMS/ARMIS source adapters, per-source freshness/reconciliation diagnostics, fail-closed aggregation/reporting, immutable integration-health snapshots, responsive source-health cards, scope/confidentiality indicators, authoritative-module links, analytical dashboard, review-only alerts, immutable reports, protected CSV/PDF exports, checksums, private responses, named rate limits, read audit events, and AIS-5D role/scope/confidentiality/lineage/no-write verification; operational writes, professional decisions, and duplicate ownership tables remain disabled |
 
 ## 3. Implementation authorities
 
@@ -333,7 +338,7 @@ hardening; React specs are `tests/e2e/armis-*.spec.js`.
 | Resource provider | ARMIS boundary | AEMS uses fallback/shadow/authoritative mode with reconciliation |
 | Recommendation transfer | AEMS | Finalized recommendation snapshot is sent to CMS once |
 | Compliance monitoring and closure | CMS | CMS owns Action Plans, monitoring, validation, dispositions and post-transfer closure |
-| AIS | Governance, analytics, and protected reporting | `/audit-intelligence-system`, `/audit-intelligence-system/reports`, `/api/ais/contract`, `/api/ais/hardening`, `/api/ais/aggregations`, `/api/ais/dashboard`, `/api/ais/reports` | AIS-1 through AIS-4 implemented; AIS remains read-only |
+| AIS | Governance, analytics, protected reporting, and read-only source integration | `/audit-intelligence-system`, `/audit-intelligence-system/integration-health`, `/audit-intelligence-system/reports`, `/api/ais/contract`, `/api/ais/hardening`, `/api/ais/integration-contract`, `/api/ais/integration-health`, `/api/ais/integration-health/snapshots`, `/api/ais/aggregations`, `/api/ais/dashboard`, `/api/ais/reports` | AIS-1 through AIS-5D implemented and verified; AIS remains read-only |
 
 ## 10. Documented exceptions and compatibility items
 

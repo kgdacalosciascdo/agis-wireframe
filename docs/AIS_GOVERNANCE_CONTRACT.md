@@ -130,6 +130,13 @@ desktop and mobile dashboard/navigation, hardened status presentation, report
 generation, and authenticated protected-export download. The desktop acceptance
 group also covers AEMS sidebar navigation and CMS protected CSV download.
 
-The complete application Feature suite remains a separate deployment gate.
-AIS-4 does not add operational writes, automated decisions, or AIS-to-source
-module integration authority.
+The complete application Feature suite is a separate deployment gate. AIS-4
+does not add operational writes, automated decisions, or AIS-to-source module
+integration authority.
+
+The complete Feature suite was also executed in module groups to keep the
+verification run within the command-runner limit: 78 Feature files, 385 tests,
+and 4,549 assertions passed across Core, IAP, AEMS, CMS, ARMIS, AIS, and shared
+platform coverage. A direct single-process `php artisan test --testsuite=Feature`
+invocation exceeded the five-minute runner limit without producing a test
+failure; the grouped run covered the same files successfully.

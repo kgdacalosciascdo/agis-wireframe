@@ -37,14 +37,14 @@ The following IAP capabilities are implemented:
 
 | Capability | Status | Primary frontend route |
 | --- | --- | --- |
-| IAP dashboard | Implemented with live aggregates | `/internal-audit-planning` |
+| IAP dashboard | Implemented with live aggregates | `/internal-audit-planning/dashboard` |
 | Strategic Internal Audit Plan | Implemented | `/internal-audit-planning/strategic-plan` |
 | Audit Universe Registry | Implemented | `/internal-audit-planning/audit-universe` |
 | Risk-assessment periods | Implemented | `/internal-audit-planning/risk-assessment` |
 | Audit prioritization | Implemented | `/internal-audit-planning/prioritization` |
-| Annual Internal Audit Plan | Implemented | `/internal-audit-planning/annual-plan` |
+| Annual Internal Audit Plan | Implemented | `/internal-audit-planning` (detail: `/internal-audit-planning/:planId`) |
 | Audit scheduling | Implemented | `/internal-audit-planning/scheduling` |
-| Temporary resource capacity | Implemented | `/internal-audit-planning/resources` |
+| Temporary resource capacity | Implemented | `/internal-audit-planning/resource-capacity` |
 | Supporting records and comments | Implemented in annual-plan workspace | Annual-plan detail route |
 | Reports and exports | Implemented | `/internal-audit-planning/reports` |
 

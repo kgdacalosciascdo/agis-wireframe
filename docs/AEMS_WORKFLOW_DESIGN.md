@@ -1,5 +1,10 @@
 # Audit Engagement Monitoring System (AEMS) Workflow Design
 
+> **Module reference:** Governance, phase status, route inventory, and
+> acceptance controls for all AEMS-G phases are compiled in
+> [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md). This
+> workflow document remains the detailed operational sequence reference.
+
 ## 1. Document purpose and status
 
 This document defines the controlled workflows and records the implemented

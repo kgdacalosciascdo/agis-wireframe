@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\Shared\HealthController;
 use Illuminate\Support\Facades\Route;
 
 // The React build is served by Apache for the root and unknown browser routes.

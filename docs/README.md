@@ -11,9 +11,11 @@ interfaces, operations, and acceptance procedures.
 | Document | Audience | Contents |
 | --- | --- | --- |
 | [System Flow](SYSTEM_FLOW.md) | Product owners, developers, reviewers | End-to-end browser, API, database, file, authorization, logging, configuration, notification, IAP, AEMS, CMS, and integration flows |
+| [As-Built Feature Catalog](AS_BUILT_FEATURE_CATALOG.md) | Product owners, reviewers, testers, and developers | Feature-by-feature comparison of Core, IAP, AEMS, CMS, ARMIS, shared controls, routes, workflows, boundaries, and verification evidence |
 | [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md) | Core administrators, analysts, developers | Authentication, registries, roles/scopes, master lists, documents, workflows, notifications, logs, and configuration |
 | [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) | CIAS management, auditors, analysts, developers | Strategic planning, Audit Universe, coexisting risk systems, prioritization, annual plans, schedules, capacity, approvals, and reports |
 | [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md) | CIAS management, auditors, auditee representatives, developers | Engagement authorization, planning, fieldwork, evidence, findings, responses, conferences, reporting, transfer, closure, and reopening |
+| [AEMS Governance and Acceptance (compiled)](AEMS_GOVERNANCE_AND_ACCEPTANCE.md) | CIAS authorities, product owners, reviewers, developers, and testers | Single module-level compilation of AEMS-G0 through G10E decisions, features, controls, routes, boundaries, and acceptance evidence |
 | [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md) | Product owners, architects, developers, reviewers | AEMS-0 through AEMS-G10E baseline, planning/team safeguard contracts, linked fieldwork execution workspace, Evidence Management workspace, operational queues, records/closure workspace, procedure and finding traceability gates, cross-module boundaries, migration rules, and phase gates |
 | [AEMS G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md) | Product owners, CIAS authorities, architects, developers, testers | Resolved authority/signatory, direct AFR, evidence, response-extension, retention, planning-unit, signature/transmittal, status, completion, and rule-to-code-to-test decisions |
 | [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md) | CIAS authorities, reviewers, auditors, developers, testers | Evidence eligibility, immutable assessment/request versions, required Finding conclusions, direct-Finding authority, Planning Package KPI/progress gates, API contract, and verification |
@@ -64,20 +66,22 @@ feature inventory unless they are explicitly marked as current.
 For a new developer:
 
 1. [System Flow](SYSTEM_FLOW.md)
-2. [Development Standards](DEVELOPMENT_STANDARDS.md)
-3. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
-4. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
-5. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
-6. [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md)
-7. [AEMS G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md)
-8. [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
-9. [AEMS G10E Final Acceptance](AEMS_G10E_FINAL_ACCEPTANCE.md)
-10. [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md)
-11. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
-12. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
-13. [API and Data Reference](API_AND_DATA_REFERENCE.md)
-14. [Operations Guide](OPERATIONS_GUIDE.md)
-15. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
+2. [As-Built Feature Catalog](AS_BUILT_FEATURE_CATALOG.md)
+3. [Development Standards](DEVELOPMENT_STANDARDS.md)
+4. [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
+5. [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
+6. [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
+7. [AEMS Governance and Acceptance (compiled)](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
+8. [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md)
+9. [AEMS G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md)
+10. [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
+11. [AEMS G10E Final Acceptance](AEMS_G10E_FINAL_ACCEPTANCE.md)
+12. [AEMS Cross-Module Integration](AEMS_CROSS_MODULE_INTEGRATION.md)
+13. [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
+14. [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
+15. [API and Data Reference](API_AND_DATA_REFERENCE.md)
+16. [Operations Guide](OPERATIONS_GUIDE.md)
+17. [End-to-End Testing Guide](END_TO_END_TESTING_GUIDE.md)
 
 For a CIAS reviewer:
 

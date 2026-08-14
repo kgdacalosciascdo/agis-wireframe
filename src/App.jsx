@@ -2,9 +2,9 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import AuthProvider from "./auth/AuthProvider";
 import AppLayout from "./layouts/AppLayout";
-import LoginPage from "./pages/LoginPage";
-import ModulePage from "./pages/ModulePage";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
+import LoginPage from "./pages/shared/LoginPage";
+import ModulePage from "./pages/shared/ModulePage";
+import UnauthorizedPage from "./pages/shared/UnauthorizedPage";
 import { pageRoutes } from "./config/navigation";
 import ToastProvider from "./ui/ToastProvider";
 import {
@@ -13,144 +13,144 @@ import {
   RequirePermission,
 } from "./routes/guards";
 
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const OfficeRegistryPage = lazy(() => import("./pages/OfficeRegistryPage"));
+const DashboardPage = lazy(() => import("./pages/core/DashboardPage"));
+const OfficeRegistryPage = lazy(() => import("./pages/core/OfficeRegistryPage"));
 const AuditAreaRegistryPage = lazy(
-  () => import("./pages/AuditAreaRegistryPage"),
+  () => import("./pages/core/AuditAreaRegistryPage"),
 );
 const AuditFocusRegistryPage = lazy(
-  () => import("./pages/AuditFocusRegistryPage"),
+  () => import("./pages/core/AuditFocusRegistryPage"),
 );
-const UserRegistryPage = lazy(() => import("./pages/UserRegistryPage"));
+const UserRegistryPage = lazy(() => import("./pages/core/UserRegistryPage"));
 const AccessControlRegistryPage = lazy(
-  () => import("./pages/AccessControlRegistryPage"),
+  () => import("./pages/core/AccessControlRegistryPage"),
 );
-const MasterListsPage = lazy(() => import("./pages/MasterListsPage"));
+const MasterListsPage = lazy(() => import("./pages/core/MasterListsPage"));
 const SystemConfigurationPage = lazy(
-  () => import("./pages/SystemConfigurationPage"),
+  () => import("./pages/core/SystemConfigurationPage"),
 );
-const ActivityLogPage = lazy(() => import("./pages/ActivityLogPage"));
-const AuditTrailPage = lazy(() => import("./pages/AuditTrailPage"));
+const ActivityLogPage = lazy(() => import("./pages/core/ActivityLogPage"));
+const AuditTrailPage = lazy(() => import("./pages/core/AuditTrailPage"));
 const DocumentManagementPage = lazy(
-  () => import("./pages/DocumentManagementPage"),
+  () => import("./pages/core/DocumentManagementPage"),
 );
 const WorkflowManagementPage = lazy(
-  () => import("./pages/WorkflowManagementPage"),
+  () => import("./pages/core/WorkflowManagementPage"),
 );
 const NotificationCenterPage = lazy(
-  () => import("./pages/NotificationCenterPage"),
+  () => import("./pages/core/NotificationCenterPage"),
 );
 const IapPlanRegistryPage = lazy(
-  () => import("./pages/IapPlanRegistryPage"),
+  () => import("./pages/iap/IapPlanRegistryPage"),
 );
-const IapDashboardPage = lazy(() => import("./pages/IapDashboardPage"));
+const IapDashboardPage = lazy(() => import("./pages/iap/IapDashboardPage"));
 const SiapPlanRegistryPage = lazy(
-  () => import("./pages/SiapPlanRegistryPage"),
+  () => import("./pages/iap/SiapPlanRegistryPage"),
 );
 const IapAuditUniversePage = lazy(
-  () => import("./pages/IapAuditUniversePage"),
+  () => import("./pages/iap/IapAuditUniversePage"),
 );
 const IapRiskAssessmentPeriodsPage = lazy(
-  () => import("./pages/IapRiskAssessmentPeriodsPage"),
+  () => import("./pages/iap/IapRiskAssessmentPeriodsPage"),
 );
 const IapPrioritizationPage = lazy(
-  () => import("./pages/IapPrioritizationPage"),
+  () => import("./pages/iap/IapPrioritizationPage"),
 );
 const IapPlanWorkspacePage = lazy(
-  () => import("./pages/IapPlanWorkspacePage"),
+  () => import("./pages/iap/IapPlanWorkspacePage"),
 );
-const IapSchedulingPage = lazy(() => import("./pages/IapSchedulingPage"));
+const IapSchedulingPage = lazy(() => import("./pages/iap/IapSchedulingPage"));
 const IapResourceCapacityPage = lazy(
-  () => import("./pages/IapResourceCapacityPage"),
+  () => import("./pages/iap/IapResourceCapacityPage"),
 );
-const IapReportsPage = lazy(() => import("./pages/IapReportsPage"));
+const IapReportsPage = lazy(() => import("./pages/iap/IapReportsPage"));
 const AemsEngagementRegistryPage = lazy(
-  () => import("./pages/AemsEngagementRegistryPage"),
+  () => import("./pages/aems/AemsEngagementRegistryPage"),
 );
-const AemsDashboardPage = lazy(() => import("./pages/AemsDashboardPage"));
-const AemsTeamPage = lazy(() => import("./pages/AemsTeamPage"));
-const AemsAeoPage = lazy(() => import("./pages/AemsAeoPage"));
-const AemsAepPage = lazy(() => import("./pages/AemsAepPage"));
+const AemsDashboardPage = lazy(() => import("./pages/aems/AemsDashboardPage"));
+const AemsTeamPage = lazy(() => import("./pages/aems/AemsTeamPage"));
+const AemsAeoPage = lazy(() => import("./pages/aems/AemsAeoPage"));
+const AemsAepPage = lazy(() => import("./pages/aems/AemsAepPage"));
 const AemsPlanningPackagePage = lazy(
-  () => import("./pages/AemsPlanningPackagePage"),
+  () => import("./pages/aems/AemsPlanningPackagePage"),
 );
 const AemsAuditProgramPage = lazy(
-  () => import("./pages/AemsAuditProgramPage"),
+  () => import("./pages/aems/AemsAuditProgramPage"),
 );
 const AemsExecutionWorkspacePage = lazy(
-  () => import("./pages/AemsExecutionWorkspacePage"),
+  () => import("./pages/aems/AemsExecutionWorkspacePage"),
 );
 const AemsWorkingPapersPage = lazy(
-  () => import("./pages/AemsWorkingPapersPage"),
+  () => import("./pages/aems/AemsWorkingPapersPage"),
 );
 const AemsEvidenceManagementPage = lazy(
-  () => import("./pages/AemsEvidenceManagementPage"),
+  () => import("./pages/aems/AemsEvidenceManagementPage"),
 );
-const AemsFindingsPage = lazy(() => import("./pages/AemsFindingsPage"));
-const AemsIssuesPage = lazy(() => import("./pages/AemsIssuesPage"));
-const AemsResponsesPage = lazy(() => import("./pages/AemsResponsesPage"));
+const AemsFindingsPage = lazy(() => import("./pages/aems/AemsFindingsPage"));
+const AemsIssuesPage = lazy(() => import("./pages/aems/AemsIssuesPage"));
+const AemsResponsesPage = lazy(() => import("./pages/aems/AemsResponsesPage"));
 const AemsExitConferencesPage = lazy(
-  () => import("./pages/AemsExitConferencesPage"),
+  () => import("./pages/aems/AemsExitConferencesPage"),
 );
 const AemsConferenceDialoguePage = lazy(
-  () => import("./pages/AemsConferenceDialoguePage"),
+  () => import("./pages/aems/AemsConferenceDialoguePage"),
 );
-const AemsReportsPage = lazy(() => import("./pages/AemsReportsPage"));
+const AemsReportsPage = lazy(() => import("./pages/aems/AemsReportsPage"));
 const AemsEngagementDetailPage = lazy(
-  () => import("./pages/AemsEngagementDetailPage"),
+  () => import("./pages/aems/AemsEngagementDetailPage"),
 );
 const AemsEntryConferencePage = lazy(
-  () => import("./pages/AemsEntryConferencePage"),
+  () => import("./pages/aems/AemsEntryConferencePage"),
 );
 const AemsOperationalQueuesPage = lazy(
-  () => import("./pages/AemsOperationalQueuesPage"),
+  () => import("./pages/aems/AemsOperationalQueuesPage"),
 );
-const AemsCalendarPage = lazy(() => import("./pages/AemsCalendarPage"));
-const AemsRegistersPage = lazy(() => import("./pages/AemsRegistersPage"));
+const AemsCalendarPage = lazy(() => import("./pages/aems/AemsCalendarPage"));
+const AemsRegistersPage = lazy(() => import("./pages/aems/AemsRegistersPage"));
 const AemsRecordsClosurePage = lazy(
-  () => import("./pages/AemsRecordsClosurePage"),
+  () => import("./pages/aems/AemsRecordsClosurePage"),
 );
-const CmsDashboardPage = lazy(() => import("./pages/CmsDashboardPage"));
+const CmsDashboardPage = lazy(() => import("./pages/cms/CmsDashboardPage"));
 const CmsRecommendationRegistryPage = lazy(
-  () => import("./pages/CmsRecommendationRegistryPage"),
+  () => import("./pages/cms/CmsRecommendationRegistryPage"),
 );
 const CmsRecommendationDetailPage = lazy(
-  () => import("./pages/CmsRecommendationDetailPage"),
+  () => import("./pages/cms/CmsRecommendationDetailPage"),
 );
 const CmsActionPlanPage = lazy(
-  () => import("./pages/CmsActionPlanPage"),
+  () => import("./pages/cms/CmsActionPlanPage"),
 );
 const CmsProgressUpdatesPage = lazy(
-  () => import("./pages/CmsProgressUpdatesPage"),
+  () => import("./pages/cms/CmsProgressUpdatesPage"),
 );
 const CmsValidationsPage = lazy(
-  () => import("./pages/CmsValidationsPage"),
+  () => import("./pages/cms/CmsValidationsPage"),
 );
-const CmsExtensionsPage = lazy(() => import("./pages/CmsExtensionsPage"));
-const CmsEscalationsPage = lazy(() => import("./pages/CmsEscalationsPage"));
-const CmsClosureRequestsPage = lazy(() => import("./pages/CmsClosureRequestsPage"));
-const CmsDispositionsPage = lazy(() => import("./pages/CmsDispositionsPage"));
-const CmsReopeningPage = lazy(() => import("./pages/CmsReopeningPage"));
-const CmsAutomationPage = lazy(() => import("./pages/CmsAutomationPage"));
-const CmsReportsPage = lazy(() => import("./pages/CmsReportsPage"));
+const CmsExtensionsPage = lazy(() => import("./pages/cms/CmsExtensionsPage"));
+const CmsEscalationsPage = lazy(() => import("./pages/cms/CmsEscalationsPage"));
+const CmsClosureRequestsPage = lazy(() => import("./pages/cms/CmsClosureRequestsPage"));
+const CmsDispositionsPage = lazy(() => import("./pages/cms/CmsDispositionsPage"));
+const CmsReopeningPage = lazy(() => import("./pages/cms/CmsReopeningPage"));
+const CmsAutomationPage = lazy(() => import("./pages/cms/CmsAutomationPage"));
+const CmsReportsPage = lazy(() => import("./pages/cms/CmsReportsPage"));
 const ArmisResourceRegistryPage = lazy(
-  () => import("./pages/ArmisResourceRegistryPage"),
+  () => import("./pages/armis/ArmisResourceRegistryPage"),
 );
 const ArmisCompetencyPage = lazy(
-  () => import("./pages/ArmisCompetencyPage"),
+  () => import("./pages/armis/ArmisCompetencyPage"),
 );
-const ArmisPlanningPage = lazy(() => import("./pages/ArmisPlanningPage"));
+const ArmisPlanningPage = lazy(() => import("./pages/armis/ArmisPlanningPage"));
 const ArmisAssignmentsPage = lazy(
-  () => import("./pages/ArmisAssignmentsPage"),
+  () => import("./pages/armis/ArmisAssignmentsPage"),
 );
-const ArmisReportsPage = lazy(() => import("./pages/ArmisReportsPage"));
+const ArmisReportsPage = lazy(() => import("./pages/armis/ArmisReportsPage"));
 const ArmisProviderReconciliationPage = lazy(
-  () => import("./pages/ArmisProviderReconciliationPage"),
+  () => import("./pages/armis/ArmisProviderReconciliationPage"),
 );
 const ArmisProviderMonitoringPage = lazy(
-  () => import("./pages/ArmisProviderMonitoringPage"),
+  () => import("./pages/armis/ArmisProviderMonitoringPage"),
 );
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const ProfilePage = lazy(() => import("./pages/core/ProfilePage"));
 
 const implementedCorePaths = new Set([
   "/office-registry",

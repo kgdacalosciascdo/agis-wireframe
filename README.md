@@ -2,6 +2,11 @@
 
 AGIS uses a React 19 + Vite frontend styled with Tailwind CSS, Lucide React icons, Recharts dashboard visualizations, React Router for page URLs, and a Laravel 12 API backed by PostgreSQL. Authentication uses Laravel Sanctum's first-party SPA cookie sessions; passwords and permissions are verified by the backend and are no longer stored in browser storage.
 
+For a feature-by-feature comparison of the current implementation, start with
+the [As-Built Feature Catalog](docs/AS_BUILT_FEATURE_CATALOG.md). The complete
+documentation index is in [docs/README.md](docs/README.md); source code and
+automated tests remain authoritative when a reference specification differs.
+
 ## Requirements
 
 - Node.js and npm

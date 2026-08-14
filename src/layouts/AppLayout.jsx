@@ -75,7 +75,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="border-b border-white/20 py-2">
+    <section className="min-w-0 max-w-full border-b border-white/20 py-2">
       {section.title && (
         <button
           className="flex w-full items-center justify-between rounded px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-blue-50 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300"
@@ -92,7 +92,10 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
       )}
 
       {(!section.title || expanded) && (
-        <nav className="grid gap-1" aria-label={section.title ?? "Primary"}>
+        <nav
+          className="grid min-w-0 max-w-full gap-1"
+          aria-label={section.title ?? "Primary"}
+        >
           {items.map((item) => {
             const ItemIcon = item.icon;
             const childItems = visibleFor(user, item.children ?? []);
@@ -108,7 +111,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
 
             return (
               <div className="grid gap-1" key={item.path}>
-                <div className="flex items-center gap-1">
+              <div className="flex min-w-0 max-w-full items-center gap-1">
                   <NavLink
                     className={({ isActive }) =>
                       `group flex min-h-10 min-w-0 flex-1 items-center rounded-md px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
@@ -161,7 +164,7 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
                 {!collapsed && childItems.length > 0 && childExpanded && (
                   <nav
                     aria-label={`${item.label} pages`}
-                    className="ml-4 grid gap-1 border-l border-blue-200/30 pl-3"
+                    className="ml-4 grid min-w-0 max-w-full gap-1 border-l border-blue-200/30 pl-3"
                   >
                     {childGroups.map((group) => (
                       <div className="grid gap-1" key={group.key}>
@@ -328,7 +331,7 @@ export default function AppLayout() {
           </button>
         </div>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-1 [scrollbar-color:rgba(255,255,255,.35)_transparent]">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-1 pr-4 [scrollbar-color:rgba(255,255,255,.35)_transparent] [scrollbar-gutter:stable]">
           {navigationSections.map((section) => (
             <NavigationSection
               key={section.key}

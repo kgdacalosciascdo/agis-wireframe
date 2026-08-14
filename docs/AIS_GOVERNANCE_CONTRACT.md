@@ -125,6 +125,11 @@ npm.cmd run build
 git diff --check
 ```
 
+Browser acceptance coverage is in `tests/e2e/ais-reports.spec.js` and covers
+desktop and mobile dashboard/navigation, hardened status presentation, report
+generation, and authenticated protected-export download. The desktop acceptance
+group also covers AEMS sidebar navigation and CMS protected CSV download.
+
 The complete application Feature suite remains a separate deployment gate.
 AIS-4 does not add operational writes, automated decisions, or AIS-to-source
 module integration authority.

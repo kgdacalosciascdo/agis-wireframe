@@ -19,6 +19,8 @@ class SiapWorkflowService
     public function __construct(
         private readonly SiapPlanGuard $guard,
         private readonly IapSupport $support,
+        private readonly IapBaicsIntegrationService $baicsIntegrations,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     /** @return array{complete: bool, errors: list<string>} */
@@ -96,6 +98,9 @@ class SiapWorkflowService
                 throw ValidationException::withMessages([
                     'approver' => ['The user who submitted the strategic plan cannot approve it.'],
                 ]);
+            }
+            if ($action === 'approve' && $this->runtime->boolean('baics_integration_required')) {
+                $this->baicsIntegrations->assertStrategicPlanReady($locked);
             }
             if ($action === 'complete' && ! $completionConfirmed) {
                 throw ValidationException::withMessages([

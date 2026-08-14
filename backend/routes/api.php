@@ -64,12 +64,16 @@ use App\Http\Controllers\Api\Shared\DemoAccountController;
 use App\Http\Controllers\Api\Core\DocumentController;
 use App\Http\Controllers\Api\Shared\HealthController;
 use App\Http\Controllers\Api\Iap\IapAuditUniverseController;
+use App\Http\Controllers\Api\Iap\IapBaicsController;
+use App\Http\Controllers\Api\Iap\IapBaicsControlAssessmentController;
+use App\Http\Controllers\Api\Iap\IapBaicsIntegrationController;
 use App\Http\Controllers\Api\Iap\IapDashboardController;
 use App\Http\Controllers\Api\Iap\IapEngagementController;
 use App\Http\Controllers\Api\Iap\IapPlanController;
 use App\Http\Controllers\Api\Iap\IapPlanPrioritizationController;
 use App\Http\Controllers\Api\Iap\IapPrioritizationController;
 use App\Http\Controllers\Api\Iap\IapReportController;
+use App\Http\Controllers\Api\Iap\IapBaicsControlUniverseController;
 use App\Http\Controllers\Api\Iap\IapResourceCapacityController;
 use App\Http\Controllers\Api\Iap\IapRiskAssessmentController;
 use App\Http\Controllers\Api\Iap\IapRiskPeriodController;
@@ -908,6 +912,84 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:iap.view');
     Route::get('/iap/reports/{report}/export', [IapReportController::class, 'export'])
         ->middleware('permission:iap.export');
+
+    Route::get('/iap/baics', [IapBaicsController::class, 'index'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics', [IapBaicsController::class, 'store'])
+        ->middleware('permission:iap.baics.create');
+    Route::get('/iap/baics/integrations/candidates', [IapBaicsIntegrationController::class, 'candidates'])
+        ->middleware('permission:iap.baics.view|iap.baics.integration.view');
+    Route::get('/iap/baics/integrations/readiness', [IapBaicsIntegrationController::class, 'readiness'])
+        ->middleware('permission:iap.baics.view|iap.baics.integration.view');
+    Route::post('/iap/baics/integrations/{integration}/transitions/{action}', [IapBaicsIntegrationController::class, 'transition']);
+    Route::get('/iap/baics/{assessment}', [IapBaicsController::class, 'show'])
+        ->middleware('permission:iap.baics.view');
+    Route::put('/iap/baics/{assessment}', [IapBaicsController::class, 'update'])
+        ->middleware('permission:iap.baics.update');
+    Route::delete('/iap/baics/{assessment}', [IapBaicsController::class, 'destroy'])
+        ->middleware('permission:iap.baics.archive');
+    Route::post('/iap/baics/{assessment}/restore', [IapBaicsController::class, 'restore'])
+        ->middleware('permission:iap.baics.archive');
+    Route::get('/iap/baics/{assessment}/versions', [IapBaicsController::class, 'versions'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/transitions/{action}', [IapBaicsController::class, 'transition']);
+    Route::post('/iap/baics/{assessment}/revisions', [IapBaicsController::class, 'revision'])
+        ->middleware('permission:iap.baics.update');
+    Route::post('/iap/baics/{assessment}/assignments', [IapBaicsController::class, 'storeAssignment'])
+        ->middleware('permission:iap.baics.assign');
+    Route::delete('/iap/baics/{assessment}/assignments/{assignment}', [IapBaicsController::class, 'endAssignment'])
+        ->middleware('permission:iap.baics.assign');
+    Route::get('/iap/baics/{assessment}/integrations', [IapBaicsIntegrationController::class, 'index'])
+        ->middleware('permission:iap.baics.view|iap.baics.integration.view');
+    Route::post('/iap/baics/{assessment}/integrations', [IapBaicsIntegrationController::class, 'store'])
+        ->middleware('permission:iap.baics.manage-controls|iap.baics.update|iap.baics.integration.create');
+    Route::put('/iap/baics/{assessment}/integrations/{integration}', [IapBaicsIntegrationController::class, 'update'])
+        ->middleware('permission:iap.baics.manage-controls|iap.baics.update|iap.baics.integration.update');
+    Route::get('/iap/baics/{assessment}/controls', [IapBaicsControlUniverseController::class, 'controls'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/controls', [IapBaicsControlUniverseController::class, 'storeControl'])
+        ->middleware('permission:iap.baics.manage-controls');
+    Route::put('/iap/baics/{assessment}/controls/{control}', [IapBaicsControlUniverseController::class, 'updateControl'])
+        ->middleware('permission:iap.baics.manage-controls');
+    Route::post('/iap/baics/{assessment}/controls/{control}/transitions/{action}', [IapBaicsControlUniverseController::class, 'transitionControl']);
+    Route::get('/iap/baics/{assessment}/interim-analyses', [IapBaicsControlUniverseController::class, 'interimAnalyses'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/interim-analyses', [IapBaicsControlUniverseController::class, 'storeInterimAnalysis'])
+        ->middleware('permission:iap.baics.manage-controls');
+    Route::put('/iap/baics/{assessment}/interim-analyses/{analysis}', [IapBaicsControlUniverseController::class, 'updateInterimAnalysis'])
+        ->middleware('permission:iap.baics.manage-controls');
+    Route::post('/iap/baics/{assessment}/interim-analyses/{analysis}/transitions/{action}', [IapBaicsControlUniverseController::class, 'transitionInterimAnalysis']);
+    Route::get('/iap/baics/{assessment}/reports', [IapBaicsControlUniverseController::class, 'reports'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/reports', [IapBaicsControlUniverseController::class, 'storeReport'])
+        ->middleware('permission:iap.baics.manage-controls');
+    Route::put('/iap/baics/{assessment}/reports/{report}', [IapBaicsControlUniverseController::class, 'updateReport'])
+        ->middleware('permission:iap.baics.manage-controls');
+    Route::post('/iap/baics/{assessment}/reports/{report}/transitions/{action}', [IapBaicsControlUniverseController::class, 'transitionReport']);
+    Route::get('/iap/baics/{assessment}/reports/{report}/export', [IapBaicsControlUniverseController::class, 'export'])
+        ->middleware('permission:iap.baics.export');
+    Route::get('/iap/baics/{assessment}/readiness', [IapBaicsControlAssessmentController::class, 'readiness'])
+        ->middleware('permission:iap.baics.view');
+    Route::get('/iap/baics/{assessment}/components', [IapBaicsControlAssessmentController::class, 'components'])
+        ->middleware('permission:iap.baics.view');
+    Route::get('/iap/baics/{assessment}/components/{component}', [IapBaicsControlAssessmentController::class, 'showComponent'])
+        ->middleware('permission:iap.baics.view');
+    Route::put('/iap/baics/{assessment}/components/{component}', [IapBaicsControlAssessmentController::class, 'updateComponent']);
+    Route::post('/iap/baics/{assessment}/components/{component}/transitions/{action}', [IapBaicsControlAssessmentController::class, 'transitionComponent']);
+    Route::get('/iap/baics/{assessment}/components/{component}/methods', [IapBaicsControlAssessmentController::class, 'methods'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/components/{component}/methods', [IapBaicsControlAssessmentController::class, 'storeMethod']);
+    Route::put('/iap/baics/{assessment}/components/{component}/methods/{method}', [IapBaicsControlAssessmentController::class, 'updateMethod']);
+    Route::post('/iap/baics/{assessment}/components/{component}/methods/{method}/transitions/{action}', [IapBaicsControlAssessmentController::class, 'transitionMethod']);
+    Route::get('/iap/baics/{assessment}/components/{component}/evidence', [IapBaicsControlAssessmentController::class, 'evidence'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/components/{component}/evidence', [IapBaicsControlAssessmentController::class, 'storeEvidence']);
+    Route::delete('/iap/baics/{assessment}/components/{component}/evidence/{link}', [IapBaicsControlAssessmentController::class, 'destroyEvidence']);
+    Route::get('/iap/baics/{assessment}/exceptions', [IapBaicsControlAssessmentController::class, 'exceptions'])
+        ->middleware('permission:iap.baics.view');
+    Route::post('/iap/baics/{assessment}/exceptions', [IapBaicsControlAssessmentController::class, 'storeException']);
+    Route::put('/iap/baics/{assessment}/exceptions/{exception}', [IapBaicsControlAssessmentController::class, 'updateException']);
+    Route::post('/iap/baics/{assessment}/exceptions/{exception}/transitions/{action}', [IapBaicsControlAssessmentController::class, 'transitionException']);
 
     Route::get('/iap/strategic-plans', [SiapPlanController::class, 'index'])
         ->middleware('permission:iap.view');

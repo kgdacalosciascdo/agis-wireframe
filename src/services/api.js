@@ -1245,6 +1245,194 @@ export const auditUniverseApi = {
   },
 };
 
+export const baicsApi = {
+  async list(filters = {}) {
+    const query = queryFrom(filters);
+    const data = await request(`/api/iap/baics${query.size ? `?${query.toString()}` : ""}`);
+    return {
+      assessments: Array.isArray(data?.assessments) ? data.assessments : [],
+      pagination: data?.pagination ?? { currentPage: 1, lastPage: 1, perPage: 25, total: 0 },
+    };
+  },
+  async show(id) {
+    const data = await request(`/api/iap/baics/${id}`);
+    return data?.assessment ?? null;
+  },
+  async create(payload) {
+    const data = await request("/api/iap/baics", { method: "POST", body: payload, csrf: true });
+    return data?.assessment ?? null;
+  },
+  async update(id, payload) {
+    const data = await request(`/api/iap/baics/${id}`, { method: "PUT", body: payload, csrf: true });
+    return data?.assessment ?? null;
+  },
+  async transition(id, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.assessment ?? null;
+  },
+  async revision(id) {
+    const data = await request(`/api/iap/baics/${id}/revisions`, { method: "POST", body: {}, csrf: true });
+    return data?.assessment ?? null;
+  },
+  async versions(id) {
+    const data = await request(`/api/iap/baics/${id}/versions`);
+    return Array.isArray(data?.versions) ? data.versions : [];
+  },
+  async assign(id, payload) {
+    const data = await request(`/api/iap/baics/${id}/assignments`, { method: "POST", body: payload, csrf: true });
+    return data?.assignment ?? null;
+  },
+  async endAssignment(id, assignmentId) {
+    await request(`/api/iap/baics/${id}/assignments/${assignmentId}`, { method: "DELETE", csrf: true });
+  },
+  async archive(id) { await request(`/api/iap/baics/${id}`, { method: "DELETE", csrf: true }); },
+  async restore(id) {
+    const data = await request(`/api/iap/baics/${id}/restore`, { method: "POST", csrf: true });
+    return data?.assessment ?? null;
+  },
+  async readiness(id) {
+    const data = await request(`/api/iap/baics/${id}/readiness`);
+    return data?.readiness ?? null;
+  },
+  async components(id) {
+    const data = await request(`/api/iap/baics/${id}/components`);
+    return { components: Array.isArray(data?.components) ? data.components : [], readiness: data?.readiness ?? null };
+  },
+  async component(id, componentId) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}`);
+    return data?.component ?? null;
+  },
+  async updateComponent(id, componentId, payload) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.component ?? null;
+  },
+  async transitionComponent(id, componentId, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.component ?? null;
+  },
+  async methods(id, componentId) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/methods`);
+    return { methods: Array.isArray(data?.methods) ? data.methods : [], readiness: data?.readiness ?? null };
+  },
+  async createMethod(id, componentId, payload) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/methods`, { method: "POST", body: payload, csrf: true });
+    return data?.method ?? null;
+  },
+  async updateMethod(id, componentId, methodId, payload) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/methods/${methodId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.method ?? null;
+  },
+  async transitionMethod(id, componentId, methodId, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/methods/${methodId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.method ?? null;
+  },
+  async evidence(id, componentId) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/evidence`);
+    return Array.isArray(data?.evidence) ? data.evidence : [];
+  },
+  async linkEvidence(id, componentId, payload) {
+    const data = await request(`/api/iap/baics/${id}/components/${componentId}/evidence`, { method: "POST", body: payload, csrf: true });
+    return data?.evidence ?? null;
+  },
+  async unlinkEvidence(id, componentId, linkId) {
+    await request(`/api/iap/baics/${id}/components/${componentId}/evidence/${linkId}`, { method: "DELETE", csrf: true });
+  },
+  async exceptions(id) {
+    const data = await request(`/api/iap/baics/${id}/exceptions`);
+    return Array.isArray(data?.exceptions) ? data.exceptions : [];
+  },
+  async createException(id, payload) {
+    const data = await request(`/api/iap/baics/${id}/exceptions`, { method: "POST", body: payload, csrf: true });
+    return data?.exception ?? null;
+  },
+  async updateException(id, exceptionId, payload) {
+    const data = await request(`/api/iap/baics/${id}/exceptions/${exceptionId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.exception ?? null;
+  },
+  async transitionException(id, exceptionId, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/exceptions/${exceptionId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.exception ?? null;
+  },
+  async controls(id) {
+    const data = await request(`/api/iap/baics/${id}/controls`);
+    return { controls: Array.isArray(data?.controls) ? data.controls : [], readiness: data?.readiness ?? null };
+  },
+  async createControl(id, payload) {
+    const data = await request(`/api/iap/baics/${id}/controls`, { method: "POST", body: payload, csrf: true });
+    return data?.control ?? null;
+  },
+  async updateControl(id, controlId, payload) {
+    const data = await request(`/api/iap/baics/${id}/controls/${controlId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.control ?? null;
+  },
+  async transitionControl(id, controlId, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/controls/${controlId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.control ?? null;
+  },
+  async interimAnalyses(id) {
+    const data = await request(`/api/iap/baics/${id}/interim-analyses`);
+    return Array.isArray(data?.interimAnalyses) ? data.interimAnalyses : [];
+  },
+  async createInterimAnalysis(id, payload) {
+    const data = await request(`/api/iap/baics/${id}/interim-analyses`, { method: "POST", body: payload, csrf: true });
+    return data?.interimAnalysis ?? null;
+  },
+  async updateInterimAnalysis(id, analysisId, payload) {
+    const data = await request(`/api/iap/baics/${id}/interim-analyses/${analysisId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.interimAnalysis ?? null;
+  },
+  async transitionInterimAnalysis(id, analysisId, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/interim-analyses/${analysisId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.interimAnalysis ?? null;
+  },
+  async reports(id) {
+    const data = await request(`/api/iap/baics/${id}/reports`);
+    return { reports: Array.isArray(data?.reports) ? data.reports : [], readiness: data?.readiness ?? null };
+  },
+  async createReport(id, payload) {
+    const data = await request(`/api/iap/baics/${id}/reports`, { method: "POST", body: payload, csrf: true });
+    return data?.report ?? null;
+  },
+  async updateReport(id, reportId, payload) {
+    const data = await request(`/api/iap/baics/${id}/reports/${reportId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.report ?? null;
+  },
+  async transitionReport(id, reportId, action, payload) {
+    const data = await request(`/api/iap/baics/${id}/reports/${reportId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.report ?? null;
+  },
+  async downloadReport(id, reportId, format) {
+    const response = await fetch(`/api/iap/baics/${id}/reports/${reportId}/export?format=${encodeURIComponent(format)}`, { credentials: "include", headers: { Accept: "application/octet-stream", "X-Requested-With": "XMLHttpRequest" } });
+    if (!response.ok) { const payload = await parseResponse(response); throw errorFromResponse(payload, response.status); }
+    const blob = await response.blob(); const disposition = response.headers.get("content-disposition") ?? ""; const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^;"]+)/i); const fileName = match ? decodeURIComponent(match[1]) : `baseline-assessment-report.${format}`; const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = fileName; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  },
+  async integrationCandidates() {
+    const data = await request("/api/iap/baics/integrations/candidates");
+    return data ?? {};
+  },
+  async integrations(id) {
+    const data = await request(`/api/iap/baics/${id}/integrations`);
+    return Array.isArray(data?.integrations) ? data.integrations : [];
+  },
+  async createIntegration(id, payload) {
+    const data = await request(`/api/iap/baics/${id}/integrations`, { method: "POST", body: payload, csrf: true });
+    return data?.integration ?? null;
+  },
+  async updateIntegration(id, integrationId, payload) {
+    const data = await request(`/api/iap/baics/${id}/integrations/${integrationId}`, { method: "PUT", body: payload, csrf: true });
+    return data?.integration ?? null;
+  },
+  async transitionIntegration(integrationId, action, payload) {
+    const data = await request(`/api/iap/baics/integrations/${integrationId}/transitions/${action}`, { method: "POST", body: payload, csrf: true });
+    return data?.integration ?? null;
+  },
+  async integrationReadiness(consumerType, consumerId) {
+    const query = new URLSearchParams({ consumerType, consumerId: String(consumerId) });
+    const data = await request(`/api/iap/baics/integrations/readiness?${query.toString()}`);
+    return data?.readiness ?? null;
+  },
+};
+
 export const riskPeriodApi = {
   async list(filters = {}) {
     const query = queryFrom(filters);

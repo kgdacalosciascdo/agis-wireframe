@@ -14,7 +14,16 @@ class EnsureUserHasPermission
 {
     public function handle(Request $request, Closure $next, string $permission): Response|JsonResponse
     {
-        if (! $request->user()?->hasPermission($permission)) {
+        // A pipe-delimited contract supports compatibility aliases while
+        // keeping one route registration. Existing single permissions remain
+        // unchanged.
+        $permissions = collect(preg_split('/[|,]/', $permission) ?: [])
+            ->map(fn (string $value): string => trim($value))
+            ->filter()
+            ->values()
+            ->all();
+
+        if (! $request->user()?->hasAnyPermission($permissions)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to perform this action.',

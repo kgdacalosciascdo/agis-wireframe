@@ -43,7 +43,7 @@ class AemsG10EAcceptanceTest extends TestCase
 
     public function test_status_compatibility_map_matches_runtime_codes(): void
     {
-        $contract = (string) file_get_contents(base_path('../docs/AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md'));
+        $contract = (string) file_get_contents(base_path('../docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md'));
         foreach (['COMPLETED', 'CLOSED', 'ACKNOWLEDGED', 'EXTENSION_REQUESTED', 'ADMINISTRATIVELY_CLOSED', 'WITHDRAWN', 'ACCEPTED', 'CLOSED_WITHOUT_SUBMISSION'] as $status) {
             $this->assertStringContainsString($status, $contract);
         }

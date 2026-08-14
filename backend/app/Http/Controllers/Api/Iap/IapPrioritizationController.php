@@ -12,6 +12,7 @@ use App\Models\IapPrioritizationRun;
 use App\Models\IapRiskPeriod;
 use App\Models\User;
 use App\Services\IapSupport;
+use App\Services\IapBaicsIntegrationService;
 use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class IapPrioritizationController extends Controller
     public function __construct(
         private readonly IapSupport $support,
         private readonly RuntimeConfiguration $runtime,
+        private readonly IapBaicsIntegrationService $baicsIntegrations,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -347,6 +349,9 @@ class IapPrioritizationController extends Controller
             }
             if ($action === 'FINALIZE') {
                 $this->assertValidatedLineage($locked);
+                if ($this->runtime->boolean('baics_integration_required')) {
+                    $this->baicsIntegrations->assertPrioritizationReady($locked);
+                }
             }
             if ($action === 'FINALIZE' && $locked->submitted_by === $request->user()->id) {
                 throw ValidationException::withMessages([

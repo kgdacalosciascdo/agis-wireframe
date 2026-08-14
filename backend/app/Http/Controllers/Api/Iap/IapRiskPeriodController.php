@@ -10,6 +10,7 @@ use App\Models\IapRiskPeriodCriterion;
 use App\Models\IapRiskPeriodEvent;
 use App\Models\User;
 use App\Services\IapSupport;
+use App\Services\IapBaicsIntegrationService;
 use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class IapRiskPeriodController extends Controller
     public function __construct(
         private readonly IapSupport $support,
         private readonly RuntimeConfiguration $runtime,
+        private readonly IapBaicsIntegrationService $baicsIntegrations,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -207,6 +209,9 @@ class IapRiskPeriodController extends Controller
             }
             if ($action === 'VALIDATE' && $locked->submitted_by === $request->user()->id) {
                 throw ValidationException::withMessages(['validator' => ['The submitter cannot validate the same period.']]);
+            }
+            if ($action === 'VALIDATE' && $this->runtime->boolean('baics_integration_required')) {
+                $this->baicsIntegrations->assertRiskPeriodReady($locked);
             }
 
             $oldStatus = $locked->status;

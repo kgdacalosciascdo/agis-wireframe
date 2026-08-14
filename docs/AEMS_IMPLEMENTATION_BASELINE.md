@@ -7,7 +7,7 @@ Management module. It records the current as-built state, the screen and
 navigation contract, the cross-module boundaries, and the migration and
 verification rules. The professional decisions that were previously implicit
 or unresolved are now consolidated in the [AEMS-G0 Governance and Conformance
-Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md).
+Contract](AEMS_GOVERNANCE_AND_ACCEPTANCE.md).
 
 The source code and automated tests remain authoritative for current behavior.
 The MDS-200, UID-200, and DGM-200 reference artifacts define the target design,
@@ -69,10 +69,10 @@ by existing tests:
   locking, Activity Log, Audit Trail, and workflow notifications.
 
 G10C adds dedicated operational queue, calendar, and register/export surfaces
-over these contracts. See [AEMS-G10C Operational Queues and Output Surfaces](AEMS_G10C_OPERATIONAL_QUEUES_OUTPUTS.md).
+over these contracts. See [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md).
 G10D adds the dedicated Records and Administrative Closure workspace over the
 existing retention, records, closure-checklist, archive, legal-hold, and
-disposition services. See [AEMS-G10D Records and Administrative Closure](AEMS_G10D_RECORDS_ADMINISTRATIVE_CLOSURE.md).
+disposition services. See [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md).
 
 The current implementation is the accepted operational AEMS contract for the
 approved MDS/UID scope. G10C and G10D close the dedicated queue/output-surface
@@ -436,7 +436,7 @@ AEMS-0 is complete when:
   and AIS decisions are fixed;
 - global sidebar and engagement tab navigation are defined;
 - the SCR route/permission contract is defined;
-- the [AEMS-G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md)
+- the [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
   resolves the authority, status, evidence, retention, signature/transmittal,
   planning-unit, completion, and rule-to-code-to-test decisions;
 - migration and compatibility rules are defined;
@@ -813,7 +813,7 @@ reason, consequence assessment, and before/after snapshots.
 The additive migration is
 `2026_08_31_000000_add_aems_g4_authority_controls.php`. The detailed contract,
 status rules, permissions, and API endpoints are in
-`docs/AEMS_G4_AEO_TEAM_AUTHORITY.md`.
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`.
 
 Verification for this checkpoint:
 
@@ -858,7 +858,7 @@ Verification recorded for this checkpoint:
 | `npm.cmd run build` | Passed |
 | `git diff --check` | Passed |
 
-See [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
+See [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
 for the detailed API and evidence eligibility contract.
 
 ## AEMS-10A/10B Dashboard and work-queue checkpoint
@@ -1050,7 +1050,7 @@ The Planning Package and Audit Program now expose structured Process Flow,
 multi-matrix risk planning, Rule-35 Risk Matrix Item, program/procedure, KPI,
 sampling, and planned Working Paper requirements. The strict backend
 `fieldworkReady` contract is documented in
-`docs/AEMS_G3_PLANNING_CONFORMANCE.md`; aggregate `START_FIELDWORK` is blocked
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`; aggregate `START_FIELDWORK` is blocked
 until it passes. The existing compatibility `ready` field is retained for
 legacy clients while new clients should use `fieldworkReady`.
 
@@ -1145,7 +1145,7 @@ IAU Head/LCE authority decisions, signatory and transmittal records,
 confidentiality-aware reproducible PDF/CSV exports, and supervisor-controlled
 administrative closure. The issued version remains locked; closure and report
 successors operate at the report-family level. See
-`docs/AEMS_G7_REPORTING_DISTRIBUTION.md` for the contract and protected routes.
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for the contract and protected routes.
 
 ## AEMS-G8 checkpoint
 
@@ -1155,12 +1155,12 @@ Audit Calendar with optimistic-locked milestones. Legal holds and overdue
 required milestones now enter the atomic Closure blocker register. `COMPLETED`
 and `CLOSED` remain distinct lifecycle states; recording disposition never
 physically deletes Core DocumentVersions. See
-`docs/AEMS_G8_RECORDS_CALENDAR_CLOSURE.md` for the API, permissions, data model,
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for the API, permissions, data model,
 and verification contract.
 
 ## AEMS-G9 verification and documentation truth pass
 
-The current verification contract is in `docs/AEMS_G9_VERIFICATION_AND_TRUTH.md`.
+The current verification contract is in `docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`.
 The G9 backend index contains 35 independent Rule tests and 32 independent
 SCR registry tests. Frontend verification covers the explicit-versus-generic
 route boundary, the six seeded role navigation matrix, mutation payloads,
@@ -1182,7 +1182,7 @@ criteria traceability link. Links may be supplied by API clients or derived
 from cited Working Paper and Fieldwork Record Versions; cross-engagement
 procedure IDs are rejected. Finding revisions and communication/finalization
 snapshots preserve the procedure IDs. See
-`docs/AEMS_G10A_BACKEND_CONFORMANCE.md`.
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`.
 
 This bounded pass does not claim complete MDS/UID conformance. Dedicated queue
 operations, records/archive operations, and unresolved governance decisions
@@ -1196,7 +1196,7 @@ can select approved-program procedures, and Finding detail displays the
 procedure-to-criteria traceability chain returned by the backend. The SCR-212
 Scope workspace now warns about invalid Area/Focus links and prevents saving
 until the relationship is corrected. See
-`docs/AEMS_G10B_FRONTEND_CONFORMANCE.md` and
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` and
 `tests/e2e/aems-g10b-conformance.spec.js`.
 
 ## AEMS-G10E governance and final acceptance
@@ -1207,5 +1207,5 @@ reflects the current runtime values, and `AemsG10EAcceptanceTest` executes all
 35 Rule rows against runtime classes, methods, and status constants. The
 canonical 32-SCR and six-role navigation contracts remain covered by the G9
 and G10E Playwright suites. See
-`docs/AEMS_G10E_FINAL_ACCEPTANCE.md` for the final command contract and
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for the final command contract and
 release boundaries.

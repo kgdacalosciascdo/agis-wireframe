@@ -40,7 +40,7 @@ claimed.
 | --- | --- | --- | --- |
 | Core | Implemented | `src/config/navigation.js`, Core controllers/services/models | Owns identity, office/area/focus registries, roles/scopes, documents, workflows, notifications, logs, configuration, and numbering |
 | IAP | Implemented | `IAP_WORKFLOW_DESIGN.md`, IAP controllers/services/models | Owns strategic and annual planning; AEMS consumes approved engagement-plan lineage read-only |
-| AEMS | Implemented through G10E acceptance | `AEMS_WORKFLOW_DESIGN.md`, `AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md`, `AEMS_G10E_FINAL_ACCEPTANCE.md` | Owns engagement execution, findings, recommendations, reports, transfer provenance, completion, and closure |
+| AEMS | Implemented through G10E acceptance | `AEMS_WORKFLOW_DESIGN.md`, `AEMS_GOVERNANCE_AND_ACCEPTANCE.md`, `AEMS_CROSS_MODULE_INTEGRATION.md` | Owns engagement execution, findings, recommendations, reports, transfer provenance, completion, and closure |
 | CMS | Implemented through CMS-12B | `CMS_WORKFLOW_DESIGN.md`, CMS controllers/services/models | Owns post-issuance Action Plans, monitoring, validation, dispositions, reopening, closure, reports, and exports |
 | ARMIS | Implemented through ARMIS-7C | `ARMIS_WORKFLOW_DESIGN.md`, ARMIS controllers/services/models | Owns resource and allocation ledgers; AEMS consumes the configured provider boundary |
 | AFR standalone module | Reference only | `src/config/navigation.js` and route registry | Findings and Recommendations are owned by AEMS; no separate AFR business workflow is claimed |
@@ -137,6 +137,7 @@ Protected API behavior is covered by `CoreModuleTest`, `AuthenticationTest`,
 | IAP Dashboard | `/internal-audit-planning/dashboard` | Live planning, risk, prioritization, annual-plan, schedule, approval, and capacity aggregates |
 | Strategic Audit Plan | `/internal-audit-planning/strategic-plan` | Multi-year objectives/themes, area links, draft/review/return/resubmit/approve/activate/complete, revision and immutable approved versions |
 | Audit Universe | `/internal-audit-planning/audit-universe` | Auditable subjects, office/area ownership, classification, rationale, risk-period links, history and scope |
+| Baseline Assessment (BAICS) | `/internal-audit-planning/baics`, `/internal-audit-planning/baics/control-universe`, and `/internal-audit-planning/baics/integration` | BAICS-1A/1B through BAICS-5: five component assessments, distinct methods, independent review, exact Core Document Version evidence, corroboration exceptions, traceable Control Universe, interim analysis, BAR assembly, approval, immutable histories, protected PDF/CSV exports, approved BAR/legacy IAP-consumer decisions, granular integration permissions, participant eligibility and scoped deduplicated workflow notifications |
 | Risk Assessment | `/internal-audit-planning/risk-assessment` | Risk periods, assessment records, scoring, validation, approval/lock, history; legacy and universe risk systems coexist |
 | Audit Prioritization | `/internal-audit-planning/prioritization` | Prioritization runs, scoring/weights, selected subjects, final decisions, locking and history |
 | Annual Audit Plan | `/internal-audit-planning` | Annual plan engagements, IAP lineage, team/capacity inputs, draft/review/return/resubmit/approve/activate/complete, revisions and supporting records |
@@ -158,12 +159,20 @@ Protected API behavior is covered by `CoreModuleTest`, `AuthenticationTest`,
 - IAP is the source of approved engagement-plan lineage. AEMS may import an
   approved source once, record source identifiers, and add engagement-specific
   attributes; it must not mutate the IAP source.
+- BAICS-1A/1B through BAICS-5 are implemented as an IAP capability between
+  Audit Universe and Risk Assessment. The five components, distinct method
+  records, exact Core evidence links, corroboration exceptions and readiness
+  gates are operational. Control Universe, BAR and the approved risk-consumption
+  ledger, integration permission aliases and participant-scoped notifications
+  are operational. See [BAICS Governance Contract](BAICS_GOVERNANCE_CONTRACT.md).
 
 Protected backend coverage includes `IapFoundationTest`, `IapWorkflowTest`,
 `IapAuditUniverseTest`, `IapRiskPeriodWorkflowTest`,
 `IapPlanPrioritizationTest`, `IapPrioritizationWorkflowTest`,
 `IapSchedulingTest`, `IapResourceCapacityTest`, `IapSupportingRecordsTest`,
-`IapReportsTest`, and `IapDashboardTest`.
+`IapReportsTest`, `IapDashboardTest`, `IapBaicsFoundationTest`,
+`IapBaicsControlAssessmentTest`, `IapBaicsControlUniverseTest`, and
+`IapBaicsIntegrationTest`.
 
 ## 6. Audit Engagement Management (AEMS)
 
@@ -250,7 +259,7 @@ and final acceptance tests. Frontend coverage includes shell, planning,
 execution, evidence, issues/findings, conferences/dialogue, reporting,
 responsive navigation, G9/G10 conformance, operational queues, and records/
 closure specs. The current acceptance record is
-[AEMS G10E Final Acceptance](AEMS_G10E_FINAL_ACCEPTANCE.md).
+[AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md).
 
 ## 7. Compliance Management (CMS)
 
@@ -354,6 +363,38 @@ hardening; React specs are `tests/e2e/armis-*.spec.js`.
   checkpoint. The current status is the module summary in section 2 plus the
   latest acceptance documents.
 
+## 10.1 Deferred standards-governance roadmap
+
+The following items are deliberately recorded as future governance scope. They
+are not implemented merely because related audit, risk, competency or
+lessons-learned features exist:
+
+1. **BAICS / Baseline Assessment of Internal Control System** — foundation
+   cycle, source lineage, assignments and lifecycle are implemented; the
+   five-component instruments, Control Universe, BAR and IAP risk-consumption
+   gate are implemented through BAICS-4; final verification and future
+   governance enhancements remain separately tracked.
+2. **Internal Audit Charter and organizational independence governance** — no
+   Charter version/approval lifecycle, Head of Internal Audit authority and
+   reporting relationship record, access-rights confirmation, or periodic
+   organizational-independence declaration.
+3. **IASPPS QAIP** — no dedicated ongoing monitoring, internal assessment,
+   external assessment, remediation, or QAIP reporting workflow. Informational
+   QAIP references do not close this gap.
+4. **Professional development and CPD/CPE compliance** — ARMIS competencies,
+   certifications, availability and training-conflict checks exist, but a
+   complete development-plan, CPE ledger, needs assessment, completion and
+   competency-gap remediation lifecycle is not implemented.
+5. **Standards traceability and control-component mapping** — no complete
+   PGIAM/IASPPS/NGICS/ICSPPS requirement-to-code-to-test-to-evidence matrix or
+   universal structured mapping of the five internal-control components.
+
+These gaps do not invalidate AGIS's operational audit workflows. They prevent
+an unconditional formal IASPPS/PGIAM/NGICS/ICSPPS conformance claim until the
+governance decisions, supporting records and (for IASPPS) QAIP assessments are
+completed. See the detailed roadmap and implementation rules in [AEMS
+Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md#14-deferred-standards-governance-roadmap).
+
 ## 11. Comparison checklist
 
 When comparing a new external specification, record each row as:
@@ -374,8 +415,7 @@ behavior changes.
 - [AGIS Core Workflow Design](CORE_WORKFLOW_DESIGN.md)
 - [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md)
 - [AEMS Workflow Design](AEMS_WORKFLOW_DESIGN.md)
-- [AEMS G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md)
-- [AEMS G10E Final Acceptance](AEMS_G10E_FINAL_ACCEPTANCE.md)
+- [AEMS Governance and Acceptance (compiled G0-G10E)](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
 - [CMS Workflow Design](CMS_WORKFLOW_DESIGN.md)
 - [ARMIS Workflow and Implementation Checkpoint](ARMIS_WORKFLOW_DESIGN.md)
 - [API and Data Reference](API_AND_DATA_REFERENCE.md)

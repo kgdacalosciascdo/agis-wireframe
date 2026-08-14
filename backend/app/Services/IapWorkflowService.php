@@ -26,6 +26,8 @@ class IapWorkflowService
     public function __construct(
         private readonly IapPlanGuard $guard,
         private readonly IapSupport $support,
+        private readonly IapBaicsIntegrationService $baicsIntegrations,
+        private readonly RuntimeConfiguration $runtime,
     ) {}
 
     /** @return array{complete: bool, errors: list<string>} */
@@ -160,6 +162,9 @@ class IapWorkflowService
                 throw ValidationException::withMessages([
                     'approver' => ['The user who submitted the plan cannot approve it.'],
                 ]);
+            }
+            if ($action === 'approve' && $this->runtime->boolean('baics_integration_required')) {
+                $this->baicsIntegrations->assertAnnualPlanReady($locked);
             }
             if ($action === 'complete' && ! $completionConfirmed) {
                 throw ValidationException::withMessages([

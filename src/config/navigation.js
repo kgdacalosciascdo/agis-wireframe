@@ -24,6 +24,7 @@ import {
   KeyRound,
   LayoutDashboard,
   ListChecks,
+  Link2,
   MessageSquareText,
   Network,
   Play,
@@ -55,6 +56,24 @@ export const iapPages = [
     path: "/internal-audit-planning/audit-universe",
     permission: "iap.view",
     icon: Blocks,
+  },
+  {
+    label: "Baseline Assessment (BAICS)",
+    path: "/internal-audit-planning/baics",
+    permission: "iap.baics.view",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Control Universe & BAR",
+    path: "/internal-audit-planning/baics/control-universe",
+    permission: "iap.baics.view",
+    icon: ShieldCheck,
+  },
+  {
+    label: "BAICS IAP Integration",
+    path: "/internal-audit-planning/baics/integration",
+    permission: "iap.baics.view",
+    icon: Link2,
   },
   {
     label: "Risk Assessment",

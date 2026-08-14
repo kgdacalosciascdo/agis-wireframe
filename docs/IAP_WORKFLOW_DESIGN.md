@@ -31,6 +31,25 @@ flowchart LR
     K --> L[Dashboard and reports]
 ```
 
+BAICS is a governed planning stage between the Audit Universe and Risk
+Assessment. The [BAICS Governance Contract](BAICS_GOVERNANCE_CONTRACT.md)
+defines its scope, five-component assessment, Control Universe, Baseline
+Assessment Report, evidence rules and approval gates. BAICS-1A/1B implements
+the foundation cycle, source lineage, assignments, guarded lifecycle, version
+history and IAP workspace. BAICS-2A/2B implements the five component records,
+distinct assessment methods, exact Core evidence links, corroboration
+exceptions, component readiness and independent review. BAICS-3A/3B adds the
+traceable Control Universe, interim analysis, Baseline Assessment Report
+assembly, immutable report versions and protected PDF/CSV exports. BAICS-4
+adds an auditable, read-only integration ledger for approved BAR versions and
+time-limited legacy exceptions consumed by risk periods, universe risk
+assessments, prioritization runs, strategic plans, annual plans, and
+annual-plan engagements.
+BAICS-5 hardens this boundary with granular `iap.baics.integration.*`
+permissions, active reviewer/authority eligibility, transition-level
+separation rules, and scoped post-commit Core notifications with
+recipient/version deduplication.
+
 ## 2. Implementation status
 
 The following IAP capabilities are implemented:
@@ -40,6 +59,7 @@ The following IAP capabilities are implemented:
 | IAP dashboard | Implemented with live aggregates | `/internal-audit-planning/dashboard` |
 | Strategic Internal Audit Plan | Implemented | `/internal-audit-planning/strategic-plan` |
 | Audit Universe Registry | Implemented | `/internal-audit-planning/audit-universe` |
+| Baseline Assessment (BAICS) | BAICS-1A/1B through BAICS-5 implemented: five-component instruments, Control Universe, interim analysis, BAR assembly, immutable versions, protected exports, approved BAR/legacy integration decisions, readiness checks, granular integration permissions, participant-scoped notifications, and IAP approval gates | `/internal-audit-planning/baics`, `/internal-audit-planning/baics/control-universe`, `/internal-audit-planning/baics/integration` |
 | Risk-assessment periods | Implemented | `/internal-audit-planning/risk-assessment` |
 | Audit prioritization | Implemented | `/internal-audit-planning/prioritization` |
 | Annual Internal Audit Plan | Implemented | `/internal-audit-planning` (detail: `/internal-audit-planning/:planId`) |

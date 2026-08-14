@@ -56,6 +56,16 @@ class RolePermissionSeeder extends Seeder
             'restore',
             'export',
         ],
+        'iap.baics' => [
+            'view', 'create', 'update', 'assign', 'submit', 'review', 'return',
+            'approve', 'publish', 'archive', 'export', 'manage-controls',
+        ],
+        // A dedicated integration family prevents a user who can maintain
+        // BAICS instruments from implicitly receiving IAP-consumer authority.
+        // The legacy iap.baics.* permissions remain supported by the API.
+        'iap.baics.integration' => [
+            'view', 'create', 'update', 'submit', 'review', 'return', 'approve', 'retire',
+        ],
         'aem' => ['view', 'create', 'update', 'assign', 'manage_workpapers', 'review', 'close'],
         'aems.engagement' => [
             'view', 'create', 'update', 'transition', 'authorize', 'suspend', 'cancel',
@@ -265,7 +275,7 @@ class RolePermissionSeeder extends Seeder
                     'roles.view', 'roles.create', 'roles.clone', 'roles.update', 'roles.delete', 'roles.restore',
                     'permissions.view', 'permissions.update',
                     'master_lists.view', 'master_lists.manage',
-                    'iap.view', 'aem.view', 'afr.view', 'cms.view', 'arms.view', 'ais.view',
+                    'iap.view', 'iap.baics.view', 'aem.view', 'afr.view', 'cms.view', 'arms.view', 'ais.view',
                     'cms.administration.monitor',
                     'cms.automation.view', 'cms.automation.manage', 'cms.automation.run',
                     'cms.report.view', 'cms.report.export',
@@ -303,11 +313,12 @@ class RolePermissionSeeder extends Seeder
                 'permissions' => [
                     'dashboard.view', 'offices.view', 'audit_areas.view', 'audit_focus.view',
                     'users.view', 'master_lists.view',
-                    'iap.view', 'iap.create', 'iap.update', 'iap.assess_risk',
+                    'iap.view', 'iap.create', 'iap.update', 'iap.assess_risk', 'iap.baics.view',
                     'iap.manage_universe',
                     'iap.manage_engagements', 'iap.assign_team', 'iap.submit',
                     'iap.review', 'iap.approve', 'iap.activate', 'iap.complete',
                     'iap.create_revision', 'iap.archive', 'iap.restore', 'iap.export',
+                    ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'iap.baics.'))->all(),
                     'aem.view', 'aem.create', 'aem.update', 'aem.assign', 'aem.review', 'aem.close',
                     ...collect(array_keys($permissionIds))
                         ->filter(fn (string $code): bool => str_starts_with($code, 'aems.'))
@@ -362,6 +373,7 @@ class RolePermissionSeeder extends Seeder
                     'dashboard.view',
                     'offices.view', 'audit_areas.view', 'audit_focus.view', 'master_lists.view',
                     'iap.view', 'iap.update', 'iap.assess_risk',
+                    ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'iap.baics.'))->all(),
                     'iap.manage_engagements', 'iap.assign_team',
                     'aem.view', 'aem.update', 'aem.manage_workpapers',
                      'aems.engagement.view', 'aems.engagement.update',
@@ -524,7 +536,7 @@ class RolePermissionSeeder extends Seeder
                 'engagement_access_scope' => 'ALL',
                 'permissions' => [
                     'dashboard.view', 'offices.view', 'audit_areas.view', 'audit_focus.view',
-                    'master_lists.view', 'iap.view', 'aem.view', 'afr.view', 'cms.view',
+                    'master_lists.view', 'iap.view', 'iap.baics.view', 'aem.view', 'afr.view', 'cms.view',
                     'cms.dashboard.view', 'cms.recommendation.view',
                     'cms.action-plan.view',
                     'cms.progress.view',

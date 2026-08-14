@@ -41,7 +41,7 @@ immutable versions, audit/activity records, notifications, and tests. The
 reference-alignment gaps and target navigation contract are recorded in the
 [AEMS Implementation Baseline](AEMS_IMPLEMENTATION_BASELINE.md). The resolved
 professional decisions and the rule-to-code-to-test conformance index are in
-the [AEMS-G0 Governance and Conformance Contract](AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md);
+the [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md);
 the operational subset must not be read as full MDS/UID conformance.
 
 The aggregate engagement transition service and the formal engagement closure
@@ -1835,7 +1835,7 @@ reporting progress gates are evaluated from the approved Planning Package
 baseline; legacy packages explicitly report that the optional control is not
 configured rather than relying on an unconditional hard-coded pass.
 
-See [AEMS G1 Professional-Control Hardening](AEMS_G1_PROFESSIONAL_CONTROLS.md)
+See [AEMS Governance and Acceptance](AEMS_GOVERNANCE_AND_ACCEPTANCE.md)
 for the complete rule and API contract.
 ## AEMS-G3 Planning conformance
 
@@ -1846,7 +1846,7 @@ procedure definitions, KPI or documented KPI non-applicability, sampling, and
 planned Working Paper/evidence requirements. The aggregate
 `START_FIELDWORK` transition is the enforcement point; it reports all failed
 checks and does not bypass child workflows. See
-`docs/AEMS_G3_PLANNING_CONFORMANCE.md` for the data and API contract.
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for the data and API contract.
 
 ## AEMS-G4 AEO and team authority
 
@@ -1860,7 +1860,7 @@ Only issued AEO versions can be transmitted. Distribution records preserve the
 recipient, transmittal method/reference, sent timestamp, and acknowledgement
 actor, note, and timestamp. Team assignment changes now create immutable
 authority/consequence records and separate access grant/revocation history.
-See `docs/AEMS_G4_AEO_TEAM_AUTHORITY.md` for the endpoint and permission
+See `docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for the endpoint and permission
 contract.
 
 ## AEMS-G7 Reporting and distribution
@@ -1874,7 +1874,7 @@ signatories and transmittals, and locks the issued source version. Protected
 PDF/CSV exports are generated from the locked version/manifest and record file
 and source checksums. Supervisors may administratively close an issued report
 family without altering its locked version. See
-`docs/AEMS_G7_REPORTING_DISTRIBUTION.md`.
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`.
 
 ## AEMS-G8 Records, calendar, and closure hardening
 
@@ -1883,12 +1883,12 @@ controls. Records remain in Core DocumentVersions; AEMS records only the
 authorized archive, legal-hold release, destruction-eligibility review, and
 external/provider disposition reference. Each disposition action is immutable.
 The engagement detail workspace provides Records & Disposition and Audit
-Calendar tabs. See `docs/AEMS_G8_RECORDS_CALENDAR_CLOSURE.md`.
+Calendar tabs. See `docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`.
 
 ### AEMS-G9 verification contract
 
 The source-of-truth verification index is
-`docs/AEMS_G9_VERIFICATION_AND_TRUTH.md`. It defines 35 Rule rows and 32 SCR
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`. It defines 35 Rule rows and 32 SCR
 rows, verifies that each operational AEMS path is explicitly registered once,
 and checks the generic route fallback exclusion. Role visibility is evaluated
 from seeded permission codes, not role-name conditionals. Browser contracts
@@ -1899,7 +1899,7 @@ not introduce a new workflow transition.
 ### AEMS-G10E governance and final acceptance
 
 The final acceptance contract is in
-`docs/AEMS_G10E_FINAL_ACCEPTANCE.md`. It supersedes historical checkpoint
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`. It supersedes historical checkpoint
 language in this workflow document and records the resolved G0-01 through
 G0-14 decisions, current status compatibility, semantic Rule 1–35 tests, the
 32-SCR registry, six-role navigation matrix, full regression, migration

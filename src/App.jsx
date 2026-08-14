@@ -53,6 +53,13 @@ const SiapPlanRegistryPage = lazy(
 const IapAuditUniversePage = lazy(
   () => import("./pages/iap/IapAuditUniversePage"),
 );
+const IapBaicsPage = lazy(() => import("./pages/iap/IapBaicsPage"));
+const IapBaicsControlUniversePage = lazy(
+  () => import("./pages/iap/IapBaicsControlUniversePage"),
+);
+const IapBaicsIntegrationPage = lazy(
+  () => import("./pages/iap/IapBaicsIntegrationPage"),
+);
 const IapRiskAssessmentPeriodsPage = lazy(
   () => import("./pages/iap/IapRiskAssessmentPeriodsPage"),
 );
@@ -180,6 +187,10 @@ const implementedCorePaths = new Set([
   "/internal-audit-planning/dashboard",
   "/internal-audit-planning/strategic-plan",
   "/internal-audit-planning/audit-universe",
+  "/internal-audit-planning/baics",
+  "/internal-audit-planning/baics/control-universe",
+  "/internal-audit-planning/baics/integration",
+  "/internal-audit-planning/baics/reports",
   "/internal-audit-planning/risk-assessment",
   "/internal-audit-planning/prioritization",
   "/internal-audit-planning/scheduling",
@@ -438,6 +449,46 @@ export default function App() {
               <ProtectedPage permission="iap.view">
                 <Suspense fallback={<RouteLoading />}>
                   <IapAuditUniversePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/baics"
+            element={
+              <ProtectedPage permission="iap.baics.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapBaicsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/baics/control-universe"
+            element={
+              <ProtectedPage permission="iap.baics.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapBaicsControlUniversePage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/baics/integration"
+            element={
+              <ProtectedPage permission="iap.baics.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapBaicsIntegrationPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="internal-audit-planning/baics/reports"
+            element={
+              <ProtectedPage permission="iap.baics.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <IapBaicsControlUniversePage />
                 </Suspense>
               </ProtectedPage>
             }

@@ -10,8 +10,8 @@ const root = path.resolve(process.cwd());
 
 test.describe("AEMS-G10E final governance and acceptance contract", () => {
   test("governance decisions, status map, rules, and role matrix are published", () => {
-    const governance = fs.readFileSync(path.join(root, "docs/AEMS_G0_GOVERNANCE_CONFORMANCE_CONTRACT.md"), "utf8");
-    const acceptance = fs.readFileSync(path.join(root, "docs/AEMS_G10E_FINAL_ACCEPTANCE.md"), "utf8");
+    const governance = fs.readFileSync(path.join(root, "docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md"), "utf8");
+    const acceptance = governance;
     const backendAcceptance = fs.readFileSync(path.join(root, "backend/tests/Feature/Api/AemsG10EAcceptanceTest.php"), "utf8");
     expect(governance).toContain("G0-14");
     expect(governance).toContain("Status compatibility map");

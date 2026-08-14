@@ -186,6 +186,64 @@ links[]
 
 ## 4. IAP endpoints
 
+BAICS-1A/1B foundation, BAICS-2A/2B assessment, BAICS-3A/3B Control
+Universe/BAR, and BAICS-4/BAICS-5 integration endpoints are part of the IAP inventory.
+They manage cycle scope, five control components, distinct methods, exact Core
+evidence links, corroboration exceptions, traceable controls, interim
+analysis, BAR assembly, immutable report versions and protected exports. BAICS-4
+adds approved BAR/legacy-exception decisions for IAP consumers without
+mutating source records; BAICS-5 adds granular integration authorization and
+participant-scoped, deduplicated Core notifications.
+
+| Method | Endpoint | Permission | Purpose |
+| --- | --- | --- | --- |
+| GET | `/iap/baics` | `iap.baics.view` | Scope-aware cycle register |
+| POST | `/iap/baics` | `iap.baics.create` | Create cycle and immutable Audit Universe source snapshots |
+| GET | `/iap/baics/{assessment}` | `iap.baics.view` | Cycle detail, readiness, assignments and versions |
+| PUT | `/iap/baics/{assessment}` | `iap.baics.update` | Edit an eligible draft/revision with lock version |
+| DELETE / POST | `/iap/baics/{assessment}`, `/restore` | `iap.baics.archive` | Soft archive/restore |
+| POST | `/iap/baics/{assessment}/transitions/{action}` | action-specific BAICS permission | Guarded lifecycle transition |
+| POST | `/iap/baics/{assessment}/revisions` | `iap.baics.update` | Create a new immutable revision family member |
+| GET | `/iap/baics/{assessment}/versions` | `iap.baics.view` | Version snapshot metadata and hashes |
+| POST / DELETE | `/iap/baics/{assessment}/assignments` | `iap.baics.assign` | Add/end assessment assignments |
+| GET | `/iap/baics/{assessment}/readiness` | `iap.baics.view` | Five-component and cycle readiness diagnostics |
+| GET | `/iap/baics/{assessment}/components` | `iap.baics.view` | Component register and readiness |
+| GET / PUT | `/iap/baics/{assessment}/components/{component}` | view / `iap.baics.manage-controls` | Inspect or save component conclusion, assessor and reviewer |
+| POST | `/iap/baics/{assessment}/components/{component}/transitions/{action}` | action-specific | Submit, return or approve a component |
+| GET / POST | `/iap/baics/{assessment}/components/{component}/methods` | view / `iap.baics.manage-controls` | List or record distinct assessment methods |
+| PUT | `/iap/baics/{assessment}/components/{component}/methods/{method}` | `iap.baics.manage-controls` | Edit an eligible method with optimistic lock |
+| POST | `/iap/baics/{assessment}/components/{component}/methods/{method}/transitions/{action}` | action-specific | Submit, return or independently approve a method |
+| GET / POST / DELETE | `/iap/baics/{assessment}/components/{component}/evidence` | view / `iap.baics.manage-controls` | Inspect, link or unlink exact Core Document Versions |
+| GET / POST | `/iap/baics/{assessment}/exceptions` | view / `iap.baics.manage-controls` | List or draft a time-limited corroboration exception |
+| PUT | `/iap/baics/{assessment}/exceptions/{exception}` | `iap.baics.manage-controls` | Edit a draft exception with optimistic lock |
+| POST | `/iap/baics/{assessment}/exceptions/{exception}/transitions/{action}` | action-specific | Submit, return, approve or reject an exception |
+| GET / POST / PUT | `/iap/baics/{assessment}/controls`, `/controls/{control}` | view / `iap.baics.manage-controls` | Control Universe register and editable draft controls |
+| POST | `/iap/baics/{assessment}/controls/{control}/transitions/{action}` | action-specific | Submit, return or independently approve a control |
+| GET / POST / PUT | `/iap/baics/{assessment}/interim-analyses`, `/interim-analyses/{analysis}` | view / `iap.baics.manage-controls` | Interim analysis sources and revisions |
+| POST | `/iap/baics/{assessment}/interim-analyses/{analysis}/transitions/{action}` | action-specific | Submit, return or approve interim analysis |
+| GET / POST / PUT | `/iap/baics/{assessment}/reports`, `/reports/{report}` | view / `iap.baics.manage-controls` | BAR assembly from selected Control Universe and interim analysis sources |
+| POST | `/iap/baics/{assessment}/reports/{report}/transitions/{action}` | action-specific | Submit, return, approve, issue or supersede a BAR |
+| GET | `/iap/baics/{assessment}/reports/{report}/export?format=pdf|csv` | `iap.baics.export` | Authenticated protected deterministic BAR export |
+| GET | `/iap/baics/integrations/candidates` | `iap.baics.integration.view` or legacy `iap.baics.view` | Scope-aware IAP consumers, enforcement flag, and ARMIS provider status |
+| GET | `/iap/baics/integrations/readiness?consumerType=...&consumerId=...` | `iap.baics.integration.view` or legacy `iap.baics.view` | Readiness and active approved decision for one IAP consumer |
+| GET | `/iap/baics/{assessment}/integrations` | `iap.baics.integration.view` or legacy `iap.baics.view` | Integration decisions and immutable version history for a BAICS cycle |
+| POST / PUT | `/iap/baics/{assessment}/integrations`, `/integrations/{integration}` | `iap.baics.integration.create/update` or legacy `iap.baics.manage-controls`/`iap.baics.update` | Draft or revise a BAR-backed or legacy-exception decision with optimistic lock |
+| POST | `/iap/baics/integrations/{integration}/transitions/{action}` | matching `iap.baics.integration.*` permission or documented legacy alias | Submit, independently review, return, approve, or retire a decision; participant eligibility and separation are rechecked by the service |
+
+Foundation tables are `iap_baics_assessments`, `iap_baics_scope_items`,
+`iap_baics_assignments`, and `iap_baics_versions`. BAICS-2 adds
+`iap_baics_components`, `iap_baics_methods`, `iap_baics_component_versions`,
+`iap_baics_method_versions`, `iap_baics_evidence_links`, and
+`iap_baics_exceptions`/`iap_baics_exception_versions`. BAICS-3 adds
+`iap_baics_controls`, `iap_baics_control_versions`, control-method/evidence
+trace tables, `iap_baics_interim_analyses`/versions, and
+`iap_baics_reports`/`iap_baics_report_versions` with report source-manifest and
+checksum metadata. They reference Core users,
+offices, Areas, Focuses, and IAP Audit Universe records; they do not duplicate
+those owners. BAICS-4 adds `iap_baics_integrations` and immutable
+`iap_baics_integration_versions`; the ledger stores consumer/source/provider
+snapshots, reviewer/authority decisions, expiry, hashes and lock versions.
+
 ### 4.1 Dashboard and reports
 
 | Method | Endpoint |
@@ -2332,7 +2390,7 @@ direct source links; Evidence links include the exact Core
 `document_version_id` and checksum. Authority decisions, signatories,
 transmittals, and protected export records are append-only and version-bound.
 The report-family `ADMINISTRATIVELY_CLOSED` status does not mutate the locked
-issued version. See `docs/AEMS_G7_REPORTING_DISTRIBUTION.md` for the endpoint
+issued version. See `docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for the endpoint
 and permission matrix.
 
 ### AEMS-G8 Records and Audit Calendar API
@@ -2345,7 +2403,7 @@ routes using lock versions. Retention actions use `/retention/{retention}`
 archive, `legal-hold-release`, `destruction-review`, and `disposition` routes.
 The permission contract is `aems.records.*`, `aems.calendar.*`, and the
 controlled `aems.retention.*` action permissions. See
-`docs/AEMS_G8_RECORDS_CALENDAR_CLOSURE.md` for state rules and blocker behavior.
+`docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md` for state rules and blocker behavior.
 
 ### AEMS-G9 verification and migration rehearsal
 
@@ -2375,4 +2433,4 @@ review gates require at least one procedure link.
 `AemsG10EAcceptanceTest` is the semantic Rule 1–35 runtime contract. The
 canonical SCR registry remains 32 unique identifiers and the role/navigation
 matrix covers six seeded roles. Final command and migration-rehearsal results
-are recorded in `docs/AEMS_G10E_FINAL_ACCEPTANCE.md`.
+are recorded in `docs/AEMS_GOVERNANCE_AND_ACCEPTANCE.md`.

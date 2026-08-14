@@ -743,6 +743,21 @@ flowchart TD
 
 See [IAP Workflow Design](IAP_WORKFLOW_DESIGN.md) for every state and rule.
 
+BAICS is an IAP planning stage governed by
+[BAICS Governance Contract](BAICS_GOVERNANCE_CONTRACT.md). The BAICS-1A/1B
+foundation now sits between Audit Universe and the risk period, providing
+scoped cycles, source snapshots, assignments and guarded lifecycle/version
+history. BAICS-2A/2B adds the five component assessments, distinct methods,
+Core evidence links, corroboration exceptions and component readiness.
+BAICS-3A/3B adds a traceable Control Universe, approved interim-analysis
+sources, BAR assembly, immutable versions and protected exports. BAICS-4 adds
+the approved BAR/legacy-exception integration ledger and optional enforcement
+gates for IAP risk periods, prioritization, strategic plans and annual plans.
+The ledger stores immutable source snapshots and never mutates the authoritative
+IAP or BAICS records. Enforcement is staged behind the Core
+`baics_integration_required` runtime setting (default `false`) so existing
+approved IAP records can be reconciled before activation.
+
 ## 16. Search, sort, filter, and pagination flow
 
 Large registries accept server-side parameters where implemented:

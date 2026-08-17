@@ -24,6 +24,22 @@
     "autoload": {
         "psr-4": {
             "App\\": "app/",
+            "App\\Models\\": [
+                "app/Models",
+                "app/Models/Core",
+                "app/Models/Iap",
+                "app/Models/Aems",
+                "app/Models/Cms",
+                "app/Models/Armis",
+                "app/Models/Ais"
+            ],
+            "App\\Services\\": [
+                "app/Services",
+                "app/Services/Core",
+                "app/Services/Aems",
+                "app/Services/Iap",
+                "app/Services/Armis"
+            ],
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

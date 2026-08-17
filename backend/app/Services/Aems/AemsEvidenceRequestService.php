@@ -430,7 +430,7 @@ class AemsEvidenceRequestService
                 ? in_array($value, ['NO', 'ADEQUATE'], true)
                 : in_array($value, ['YES', 'HIGH', 'ADEQUATE'], true);
             if (! $acceptable) {
-                $reasons[] = str($dimension)->headline()->toString().' is incomplete or professionally negative.';
+                $reasons[] = str($dimension)->lower()->headline()->toString().' is incomplete or professionally negative.';
             }
         }
         if (blank($assessment->confidentiality)) {

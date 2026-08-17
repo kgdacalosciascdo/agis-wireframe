@@ -26,10 +26,10 @@ class ArmisPlanningController extends Controller
             'success' => true,
             'data' => [
                 'statuses' => collect(ArmisAvailabilityPeriod::STATUSES)->map(fn (string $code): array => [
-                    'code' => $code, 'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                    'code' => $code, 'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
                 ])->values(),
                 'availabilityTypes' => collect(ArmisAvailabilityPeriod::TYPES)->map(fn (string $code): array => [
-                    'code' => $code, 'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                    'code' => $code, 'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
                 ])->values(),
                 'fiscalYears' => range((int) now()->year - 1, (int) now()->year + 5),
                 'reviewDecisions' => [

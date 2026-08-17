@@ -41,12 +41,21 @@ class ArmisFoundationTest extends TestCase
         ] as $permission) {
             $this->assertDatabaseHas('permissions', ['code' => $permission]);
         }
+
+        Sanctum::actingAs($this->user('agisadmin'));
+        $this->getJson('/api/armis/metadata')
+            ->assertOk()
+            ->assertJsonPath('data.categories.0.label', 'Audit Resource')
+            ->assertJsonPath('data.categories.1.label', 'Specialist')
+            ->assertJsonPath('data.categories.2.label', 'Reviewer')
+            ->assertJsonPath('data.categories.3.label', 'Support');
     }
 
     public function test_resource_registry_is_scoped_audited_and_optimistically_locked(): void
     {
         $admin = $this->user('agisadmin');
         $auditor = $this->user('auditor');
+        $initialProfileCount = ArmisResourceProfile::query()->count();
         Sanctum::actingAs($admin);
 
         $response = $this->postJson('/api/armis/resources', [
@@ -78,10 +87,10 @@ class ArmisFoundationTest extends TestCase
             'lockVersion' => 1,
         ])->assertUnprocessable()->assertJsonValidationErrors('lockVersion');
 
-        $this->getJson('/api/armis/resources')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson('/api/armis/resources')->assertOk()->assertJsonPath('meta.total', $initialProfileCount + 1);
         $this->getJson('/api/armis/foundation')
             ->assertOk()
-            ->assertJsonPath('meta.profileCount', 1)
+            ->assertJsonPath('meta.profileCount', $initialProfileCount + 1)
             ->assertJsonPath('meta.provider.mode', 'IAP_INTERIM_FALLBACK');
         $this->getJson("/api/armis/resources/{$profileId}/events")
             ->assertOk()

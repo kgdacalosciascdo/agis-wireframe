@@ -1227,7 +1227,7 @@ class CoreRegistryController extends Controller
         ActivityRecorder::record(
             $request,
             $action,
-            Str::headline(str_replace('.', ' ', $action)).': '.($label ?: class_basename($subject).' #'.$subject->getKey()),
+            Str::headline(strtolower(str_replace('.', ' ', $action))).': '.($label ?: class_basename($subject).' #'.$subject->getKey()),
             oldValues: $oldValues,
             newValues: $newValues,
             metadata: ['module' => 'CORE', 'recordType' => $subject::class, 'recordId' => $subject->getKey()],

@@ -45,6 +45,9 @@ class AemsPlanningPackageService
             'planningPackage.versions.kpis.responsibleOffice',
             'planningPackage.versions.plannedWorkingPaperRequirements',
             'planningPackage.versions.reviews.reviewer',
+            'planningPackage.reviews.reviewer',
+            'planningPackage.reviews.version',
+            'auditAreas:id',
         ]);
         $package = $engagement->planningPackage;
         $versions = $package?->versions ?? collect();
@@ -153,7 +156,15 @@ class AemsPlanningPackageService
         return DB::transaction(function () use ($request, $engagement, $package, $lockVersion, $reason): AemsPlanningPackage {
             $locked = $this->lockPackage($engagement, $package, $lockVersion);
             if ($locked->status !== 'APPROVED') throw ValidationException::withMessages(['status' => ['Only an approved planning package can start a formal revision.']]);
-            $source = $locked->latestVersion()->firstOrFail()->load(['objectives', 'processFlows', 'riskMatrices.items', 'kpis', 'plannedWorkingPaperRequirements']);
+            $source = $locked->latestVersion()->firstOrFail()->load([
+                'objectives',
+                'processFlows',
+                'riskMatrices.items.objectives',
+                'riskMatrices.items.procedures',
+                'riskMatrices.items.workingPaperLinks',
+                'kpis',
+                'plannedWorkingPaperRequirements',
+            ]);
             $number = $locked->current_version_number + 1;
             $payload = [
                 'preliminarySurvey' => $source->preliminary_survey,
@@ -176,10 +187,20 @@ class AemsPlanningPackageService
     public function readiness(AuditEngagement $engagement, AemsPlanningPackage $package, AemsPlanningPackageVersion $version, $procedures = null): array
     {
         $procedures ??= AuditProgramProcedure::query()->with('program')->whereHas('program', fn ($q) => $q->where('audit_engagement_id', $engagement->id)->where('is_current_revision', true)->where('is_active', true))->get();
+        $version->loadMissing([
+            'objectives',
+            'processFlows',
+            'riskMatrices.items.objectives',
+            'riskMatrices.items.procedures',
+            'riskMatrices.items.workingPaperLinks.workingPaper',
+            'kpis',
+            'plannedWorkingPaperRequirements',
+        ]);
+        $engagement->loadMissing('auditAreas:id');
         $survey = $version->preliminary_survey ?? [];
-        $objectives = $version->objectives()->get();
-        $flows = $version->processFlows()->get();
-        $matrices = $version->riskMatrices()->with('items')->get();
+        $objectives = $version->objectives;
+        $flows = $version->processFlows;
+        $matrices = $version->riskMatrices;
         $items = $matrices->flatMap(fn ($matrix) => $matrix->items);
         $program = $procedures->first()?->program;
         $legacyChecks = [
@@ -188,23 +209,23 @@ class AemsPlanningPackageService
             ['key' => 'objectives', 'label' => 'At least one planning objective exists', 'met' => $objectives->isNotEmpty()],
             ['key' => 'processFlows', 'label' => 'Process flow documentation is complete', 'met' => $flows->isNotEmpty() && $flows->every(fn ($flow) => filled($flow->title) && (filled($flow->description) || filled($flow->document_version_id) || filled($flow->source_reference)))],
             ['key' => 'riskMatrix', 'label' => 'Risk matrix and risk items exist', 'met' => $matrices->isNotEmpty() && $items->isNotEmpty()],
-            ['key' => 'riskObjectives', 'label' => 'Every risk links to an objective in this version', 'met' => $items->every(fn ($item) => $item->objectives()->where('aems_planning_objectives.planning_package_version_id', $version->id)->exists()) && $items->isNotEmpty()],
-            ['key' => 'riskProcedures', 'label' => 'Every risk links to an approved-program procedure', 'met' => $items->every(fn ($item) => $item->procedures()->whereIn('audit_program_procedure_id', $procedures->pluck('id'))->exists()) && $items->isNotEmpty()],
-            ['key' => 'riskWorkingPapers', 'label' => 'Every risk has a working-paper reference', 'met' => $items->every(fn ($item) => $item->workingPaperLinks()->where(function ($query) use ($engagement) { $query->whereNull('working_paper_id')->orWhereHas('workingPaper', fn ($paper) => $paper->where('audit_engagement_id', $engagement->id)); })->exists()) && $items->isNotEmpty()],
+            ['key' => 'riskObjectives', 'label' => 'Every risk links to an objective in this version', 'met' => $items->every(fn ($item) => $item->objectives->contains(fn ($objective) => (int) $objective->planning_package_version_id === (int) $version->id)) && $items->isNotEmpty()],
+            ['key' => 'riskProcedures', 'label' => 'Every risk links to an approved-program procedure', 'met' => $items->every(fn ($item) => $item->procedures->contains(fn ($procedure) => $procedures->contains(fn ($required) => (int) $required->id === (int) $procedure->id))) && $items->isNotEmpty()],
+            ['key' => 'riskWorkingPapers', 'label' => 'Every risk has a working-paper reference', 'met' => $items->every(fn ($item) => $item->workingPaperLinks->contains(fn ($link) => $link->working_paper_id === null || ($link->workingPaper && (int) $link->workingPaper->audit_engagement_id === (int) $engagement->id))) && $items->isNotEmpty()],
             ['key' => 'approvedAep', 'label' => 'Current AEP is approved', 'met' => $engagement->engagementPlan?->status === 'APPROVED'],
             ['key' => 'approvedProgram', 'label' => 'Current Audit Program is approved', 'met' => (bool) $program && in_array($program->status, ['APPROVED','ACTIVE','COMPLETED'], true)],
         ];
-        $requiredAreaIds = $engagement->auditAreas()->pluck('audit_areas.id');
+        $requiredAreaIds = collect($engagement->auditAreas->modelKeys());
         $structuredFlow = $flows->isNotEmpty() && $flows->every(fn ($flow) => filled($flow->scope_statement) && is_array($flow->steps) && $flow->steps !== [] && is_array($flow->inputs) && is_array($flow->outputs) && is_array($flow->controls) && is_array($flow->risk_points));
         $matrixCoverage = $matrices->isNotEmpty() && ($requiredAreaIds->isEmpty() || $requiredAreaIds->every(fn ($areaId) => $matrices->contains(fn ($matrix) => (int) $matrix->audit_area_id === (int) $areaId)));
         $rule35 = $items->isNotEmpty() && $items->every(fn ($item) => filled($item->process_name) && filled($item->risk_area) && filled($item->planned_audit_approach) && filled($item->criteria) && $item->audit_area_id && $item->process_flow_id);
         $programDefinition = (bool) $program && $program->audit_area_id && filled($program->audit_period_start) && filled($program->audit_period_end) && filled($program->audit_criteria) && filled($program->sampling_approach);
         $procedureDefinition = $procedures->isNotEmpty() && $procedures->every(fn ($procedure) => $procedure->audit_area_id && filled($procedure->process_name) && filled($procedure->audit_method) && filled($procedure->audit_criteria) && (float) $procedure->planned_person_days > 0 && is_array($procedure->sampling_requirement) && filled(data_get($procedure->sampling_requirement, 'method')) && is_array($procedure->planned_working_paper_requirement) && filled(data_get($procedure->planned_working_paper_requirement, 'reference')));
-        $kpis = $version->kpis()->get();
+        $kpis = $version->kpis;
         $kpiDecision = strtoupper((string) data_get($version->planning_attributes, 'kpis.decision', ''));
         $kpiReady = $kpis->isNotEmpty() && $kpis->every(fn ($kpi) => filled($kpi->name) && filled($kpi->target) && filled($kpi->measurement_method));
         $kpiReady = $kpiReady || ($kpiDecision === 'NOT_APPLICABLE' && filled(data_get($version->planning_attributes, 'kpis.reason')));
-        $plannedWps = $version->plannedWorkingPaperRequirements()->where('is_required', true)->get();
+        $plannedWps = $version->plannedWorkingPaperRequirements->where('is_required', true);
         $plannedWpReady = $plannedWps->isNotEmpty() && $plannedWps->every(fn ($wp) => filled($wp->working_paper_reference) && filled($wp->title) && filled($wp->required_evidence));
         $conformanceChecks = [
             ['key' => 'structuredProcessFlows', 'label' => 'Process flows include scope, steps, inputs, outputs, controls, and risk points', 'met' => $structuredFlow],
@@ -289,7 +310,7 @@ class AemsPlanningPackageService
     private function emptyReadiness(): array { return ['ready' => false, 'checks' => [['key'=>'package','label'=>'Planning package exists','met'=>false]]]; }
     private function logChange(Request $request, AuditEngagement $engagement, AemsPlanningPackage $package, AemsPlanningPackageVersion $version, string $action, $old, $new, ?string $comment): void { $this->support->event($request, $engagement, 'PLANNING_PACKAGE_'.$action, $package->status, 'DRAFT', is_object($old) ? ['versionNumber'=>$old->version_number] : null, ['versionNumber'=>$version->version_number], $comment, 'PLANNING_PACKAGE', $package->id, $version->version_number, $package->package_code); $this->support->audit($request, 'aems.planning-package.'.str($action)->lower(), $engagement, null, ['versionNumber'=>$version->version_number], ['planningPackageId'=>$package->id]); }
     /** @return array<string,mixed> */
-    private function packageSnapshot(AemsPlanningPackage $package, ?AemsPlanningPackageVersion $version, $versions = null): array { return ['id'=>$package->id,'packageCode'=>$package->package_code,'status'=>$package->status,'currentVersionNumber'=>$package->current_version_number,'approvedVersionNumber'=>$package->approved_version_number,'lockVersion'=>$package->lock_version,'preparedBy'=>$package->preparer?->only(['id','name','employee_id']),'submittedBy'=>$package->submitter?->only(['id','name','employee_id']),'submittedAt'=>$package->submitted_at?->toISOString(),'approvedBy'=>$package->approver?->only(['id','name','employee_id']),'approvedAt'=>$package->approved_at?->toISOString(),'latestVersion'=>$version ? $this->versionSnapshot($version) : null,'versions'=>collect($versions ?? $package->versions)->map(fn ($entry)=>$this->versionSnapshot($entry))->values(),'reviews'=>$package->reviews()->with('reviewer','version')->get()->map(fn ($review)=>['id'=>$review->id,'versionNumber'=>$review->version?->version_number,'result'=>$review->result,'comment'=>$review->comment,'reviewedAt'=>$review->reviewed_at?->toISOString(),'reviewer'=>$review->reviewer?->only(['id','name','employee_id'])])->values()]; }
+    private function packageSnapshot(AemsPlanningPackage $package, ?AemsPlanningPackageVersion $version, $versions = null): array { $reviews = $package->relationLoaded('reviews') ? $package->reviews : $package->reviews()->with('reviewer','version')->get(); return ['id'=>$package->id,'packageCode'=>$package->package_code,'status'=>$package->status,'currentVersionNumber'=>$package->current_version_number,'approvedVersionNumber'=>$package->approved_version_number,'lockVersion'=>$package->lock_version,'preparedBy'=>$package->preparer?->only(['id','name','employee_id']),'submittedBy'=>$package->submitter?->only(['id','name','employee_id']),'submittedAt'=>$package->submitted_at?->toISOString(),'approvedBy'=>$package->approver?->only(['id','name','employee_id']),'approvedAt'=>$package->approved_at?->toISOString(),'latestVersion'=>$version ? $this->versionSnapshot($version) : null,'versions'=>collect($versions ?? $package->versions)->map(fn ($entry)=>$this->versionSnapshot($entry))->values(),'reviews'=>$reviews->map(fn ($review)=>['id'=>$review->id,'versionNumber'=>$review->version?->version_number,'result'=>$review->result,'comment'=>$review->comment,'reviewedAt'=>$review->reviewed_at?->toISOString(),'reviewer'=>$review->reviewer?->only(['id','name','employee_id'])])->values()]; }
     /** @return array<string,mixed> */
     private function versionSnapshot(AemsPlanningPackageVersion $version): array
     {

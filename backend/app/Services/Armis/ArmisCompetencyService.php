@@ -294,11 +294,11 @@ class ArmisCompetencyService
         return [
             'statuses' => collect(ArmisCompetency::STATUSES)->map(fn (string $code): array => [
                 'code' => $code,
-                'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
             ])->values(),
             'proficiencyLevels' => collect(ArmisCompetency::PROFICIENCY_LEVELS)->map(fn (string $code): array => [
                 'code' => $code,
-                'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
             ])->values(),
             'competencies' => $items->map(fn (MasterListItem $item): array => [
                 'id' => $item->id,

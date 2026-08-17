@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             $this->call([
                 DemoUserSeeder::class,
                 CoreUserSeeder::class,
+                ArmisResourceProfileSeeder::class,
                 AuditUniverseSeeder::class,
                 SiapSeeder::class,
                 IapRiskPeriodSeeder::class,

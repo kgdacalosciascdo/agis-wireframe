@@ -194,7 +194,7 @@ class RolePermissionSeeder extends Seeder
                 $permission = Permission::query()->updateOrCreate(
                     ['code' => $code],
                     [
-                        'name' => str("{$action} {$module}")->replace('_', ' ')->headline()->toString(),
+                        'name' => str("{$action} {$module}")->replace('_', ' ')->lower()->headline()->toString(),
                         'module' => $module,
                         'action' => $action,
                         'description' => "Allows the {$action} action in the {$module} module.",

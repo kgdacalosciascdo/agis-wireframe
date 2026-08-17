@@ -80,7 +80,7 @@ class IapSupport
         ActivityRecorder::record(
             $request,
             $action,
-            Str::headline(str_replace('.', ' ', $action)).': '.$this->subjectLabel($subject),
+            Str::headline(strtolower(str_replace('.', ' ', $action))).': '.$this->subjectLabel($subject),
             oldValues: $oldValues,
             newValues: $newValues,
             metadata: ['module' => 'IAP', 'recordType' => $subject::class, 'recordId' => $subject->getKey(), ...($metadata ?? [])],

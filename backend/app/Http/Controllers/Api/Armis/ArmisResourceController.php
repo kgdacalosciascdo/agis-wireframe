@@ -25,14 +25,14 @@ class ArmisResourceController extends Controller
             'data' => [
                 'statuses' => collect(ArmisResourceProfile::STATUSES)->map(fn (string $code): array => [
                     'code' => $code,
-                    'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                    'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
                 ])->values(),
                 'categories' => collect(ArmisResourceProfile::CATEGORIES)->map(fn (string $code): array => [
                     'code' => $code,
-                    'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                    'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
                 ])->values(),
                 'proficiencyLevels' => collect(['BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'])
-                    ->map(fn (string $code): array => ['code' => $code, 'label' => str($code)->headline()->toString()])
+                    ->map(fn (string $code): array => ['code' => $code, 'label' => str($code)->lower()->headline()->toString()])
                     ->values(),
                 'provider' => app(ResourcePlanningGateway::class)->status(),
             ],

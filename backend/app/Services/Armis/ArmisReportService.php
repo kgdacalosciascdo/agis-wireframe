@@ -489,7 +489,7 @@ class ArmisReportService
                     'resource' => $assignment->resourceProfile?->user?->name
                         ?? $assignment->resourceProfile?->resource_code,
                     'office' => $assignment->resourceProfile?->office?->code,
-                    'role' => str($assignment->assignment_role_code)->replace('_', ' ')->headline()->toString(),
+                    'role' => str($assignment->assignment_role_code)->replace('_', ' ')->lower()->headline()->toString(),
                     'assignedFrom' => $assignment->assigned_from?->toDateString(),
                     'assignedUntil' => $assignment->assigned_until?->toDateString(),
                     'status' => $assignment->status,

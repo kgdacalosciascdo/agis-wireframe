@@ -43,7 +43,7 @@ class AemsSupport
         ActivityRecorder::record(
             $request,
             $action,
-            Str::headline(str_replace('.', ' ', $action)).': '.$engagement->engagement_code,
+            Str::headline(strtolower(str_replace('.', ' ', $action))).': '.$engagement->engagement_code,
             oldValues: $oldValues,
             newValues: $newValues,
             metadata: [

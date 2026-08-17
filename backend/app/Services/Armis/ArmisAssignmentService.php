@@ -37,19 +37,19 @@ class ArmisAssignmentService
         return [
             'assignmentStatuses' => collect(ArmisEngagementAssignment::STATUSES)->map(fn (string $code): array => [
                 'code' => $code,
-                'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
             ])->values(),
             'actualStatuses' => collect(ArmisActualPersonDay::STATUSES)->map(fn (string $code): array => [
                 'code' => $code,
-                'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
             ])->values(),
             'assignmentRoles' => collect(ArmisEngagementAssignment::ROLES)->map(fn (string $code): array => [
                 'code' => $code,
-                'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
             ])->values(),
             'proficiencyLevels' => collect(self::PROFICIENCY_LEVELS)->map(fn (string $code): array => [
                 'code' => $code,
-                'label' => str($code)->replace('_', ' ')->headline()->toString(),
+                'label' => str($code)->replace('_', ' ')->lower()->headline()->toString(),
             ])->values(),
             'workflow' => [
                 'editableStatuses' => ['DRAFT', 'RETURNED'],

@@ -44,9 +44,7 @@ function displayDate(value) {
 }
 
 function modeTone(mode) {
-  if (mode === "ARMIS_AUTHORITATIVE") return "success";
-  if (mode === "ARMIS_SHADOW") return "info";
-  return "warning";
+  return mode === "ARMIS_AUTHORITATIVE" ? "success" : "warning";
 }
 
 function statusTone(status) {
@@ -80,9 +78,9 @@ function ErrorState({ message, onRetry }) {
   );
 }
 
-function ProviderStatus({ status, canRollback, onRollback }) {
+function ProviderStatus({ status }) {
   const provider = status?.provider || {};
-  const mode = provider.mode || "IAP_INTERIM_FALLBACK";
+  const mode = "ARMIS_AUTHORITATIVE";
   const latest = status?.latestReconciliation;
   const review = status?.latestReview;
 
@@ -104,12 +102,7 @@ function ProviderStatus({ status, canRollback, onRollback }) {
           <div>
             <h2 className="font-bold text-slate-900">Provider authority status</h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-              {mode === "ARMIS_AUTHORITATIVE"
-                ? "ARMIS is the active resource provider for AEMS. Any return to IAP must use the protected rollback decision."
-                : mode === "ARMIS_SHADOW"
-                  ? "ARMIS is available for comparison while AEMS continues to use the IAP interim provider."
-                  : "AEMS currently uses the IAP interim provider. ARMIS can be prepared through a shadow reconciliation."
-              }
+              ARMIS is the sole active resource provider for AEMS. Reconciliation snapshots compare historical IAP planning lineage with ARMIS without changing operational ownership.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <StatusBadge tone={modeTone(mode)}>{readable(mode)}</StatusBadge>
@@ -119,11 +112,6 @@ function ProviderStatus({ status, canRollback, onRollback }) {
             </div>
           </div>
         </div>
-        {mode === "ARMIS_AUTHORITATIVE" && canRollback && (
-          <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-300 bg-white/80 px-3 text-xs font-bold text-emerald-900 hover:bg-white" onClick={onRollback} type="button">
-            <RotateCcw size={15} /> Rollback to IAP
-          </button>
-        )}
       </div>
       <div className="mt-5 grid gap-3 border-t border-black/5 pt-4 sm:grid-cols-3">
         <div>
@@ -139,9 +127,9 @@ function ProviderStatus({ status, canRollback, onRollback }) {
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Authority gate</p>
           <p className="mt-1 text-sm font-bold text-slate-900">
-            {status?.authorityEligible ? "Ready for approval" : "Not ready"}
+            ARMIS active
           </p>
-          <p className="text-xs text-slate-600">{status?.authorityControls?.genericConfigurationCannotSwitchAuthority ? "Protected decision required" : "Controlled by ARMIS"}</p>
+          <p className="text-xs text-slate-600">ARMIS is permanently active</p>
         </div>
       </div>
     </section>
@@ -202,11 +190,11 @@ function RunList({ runs, selectedId, onSelect }) {
   );
 }
 
-function RunDetail({ run, onReview, onActivate, canReview, canActivate, currentUserId }) {
+function RunDetail({ run, onReview, canReview, currentUserId }) {
   if (!run) {
     return (
       <section className="grid min-h-72 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-        <div><GitCompareArrows className="mx-auto text-slate-400" size={34} /><h2 className="mt-3 font-bold text-slate-800">Select a reconciliation snapshot</h2><p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">Compare IAP and ARMIS values, record every discrepancy decision, and proceed through the protected authority gate.</p></div>
+        <div><GitCompareArrows className="mx-auto text-slate-400" size={34} /><h2 className="mt-3 font-bold text-slate-800">Select a reconciliation snapshot</h2><p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">Compare historical IAP planning lineage with ARMIS values and record every discrepancy decision.</p></div>
       </section>
     );
   }
@@ -214,12 +202,11 @@ function RunDetail({ run, onReview, onActivate, canReview, canActivate, currentU
   const items = collection(run.resultSnapshot);
   const discrepancies = items.filter((item) => item.status === "DISCREPANCY");
   const review = collection(run.reviews)[0];
-  const authority = collection(run.authorityDecisions)[0];
+  const authority = null;
   const generatorId = Number(run.generatedBy?.id || 0);
   const reviewerId = Number(review?.reviewedBy?.id || 0);
   const sameActor = currentUserId && (generatorId === currentUserId || reviewerId === currentUserId);
   const reviewDisabled = Boolean(review) || !canReview || Boolean(sameActor);
-  const activateDisabled = Boolean(authority) || !canActivate || run.providerMode !== "ARMIS_SHADOW" || review?.decision !== "ACCEPTED" || Boolean(sameActor);
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -230,7 +217,6 @@ function RunDetail({ run, onReview, onActivate, canReview, canActivate, currentU
         </div>
         <div className="flex flex-wrap gap-2">
           {canReview && <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-xs font-bold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={reviewDisabled} onClick={onReview} type="button"><ClipboardCheck size={15} />{review ? "Review recorded" : sameActor ? "Separation required" : "Record review"}</button>}
-          {canActivate && run.providerMode === "ARMIS_SHADOW" && <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={activateDisabled} onClick={onActivate} type="button"><ShieldCheck size={15} />{authority ? "Authority decided" : "Activate ARMIS"}</button>}
         </div>
       </header>
       <div className="grid gap-3 border-b border-slate-100 bg-slate-50 p-4 sm:grid-cols-4">
@@ -267,8 +253,6 @@ export default function ArmisProviderReconciliationPage() {
 
   const canReconcile = hasPermission(user, "armis.provider.reconcile");
   const canReview = hasPermission(user, "armis.provider.review");
-  const canSwitch = hasPermission(user, "armis.provider.switch");
-  const canRollback = hasPermission(user, "armis.provider.rollback");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -336,24 +320,8 @@ export default function ArmisProviderReconciliationPage() {
   }
 
   async function submitAuthorityDecision() {
-    if (!decisionReason.trim() || decisionReason.trim().length < 10) return;
-    setSaving(true);
-    try {
-      if (decisionTarget === "activate" && selectedRun) {
-        await armisProviderApi.activate(selectedRun.id, decisionReason.trim());
-        toast.success("ARMIS provider authority activated through the protected gate.");
-      } else {
-        await armisProviderApi.rollback(decisionReason.trim());
-        toast.success("ARMIS provider authority rolled back to IAP.");
-      }
-      setDecisionTarget("");
-      setDecisionReason("");
-      await load();
-    } catch (requestError) {
-      toast.error(requestError.message || "Unable to record the provider authority decision.");
-    } finally {
-      setSaving(false);
-    }
+    setDecisionTarget("");
+    setDecisionReason("");
   }
 
   return (
@@ -366,15 +334,17 @@ export default function ArmisProviderReconciliationPage() {
       />
       {error && <div className="mb-5"><ErrorState message={error} onRetry={load} /></div>}
       {loading ? <div aria-label="Loading ARMIS provider reconciliation" className="grid gap-3 md:grid-cols-3"><div className="h-32 animate-pulse rounded-xl bg-slate-200" /><div className="h-32 animate-pulse rounded-xl bg-slate-200" /><div className="h-32 animate-pulse rounded-xl bg-slate-200" /></div> : <>
-        <ProviderStatus canRollback={canRollback} onRollback={() => { setDecisionTarget("rollback"); setDecisionReason(""); }} status={status} />
-        <div className="mt-5 grid gap-3 sm:grid-cols-3"><SummaryCard icon={History} label="Snapshots" value={runs.length} note="Immutable reconciliation runs" /><SummaryCard icon={AlertTriangle} label="Latest differences" value={status?.latestReconciliation?.summary?.discrepancies ?? 0} note="Require explicit review" tone="amber" /><SummaryCard icon={ShieldCheck} label="Authority gate" value={status?.authorityEligible ? "Ready" : "Controlled"} note="No direct configuration switch" tone="emerald" /></div>
-        <section className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950"><strong>Control boundary:</strong> reconciliation never mutates IAP or ARMIS ledgers. Activation requires an accepted shadow review by an independent reviewer and a separate authority actor. Automated or generic configuration changes cannot switch provider authority.</section>
-        <div className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[19rem_minmax(0,1fr)]"><RunList onSelect={setSelectedRun} runs={runs} selectedId={selectedRun?.id} /><RunDetail canActivate={canSwitch && status?.authorityEligible} canReview={canReview} currentUserId={Number(user?.id || 0)} onActivate={() => { setDecisionTarget("activate"); setDecisionReason(""); }} onReview={openReview} run={selectedRun} /></div>
+        <ProviderStatus status={status} />
+        <div className="mt-5 grid gap-3 sm:grid-cols-3"><SummaryCard icon={History} label="Snapshots" value={runs.length} note="Immutable reconciliation runs" /><SummaryCard icon={AlertTriangle} label="Latest differences" value={status?.latestReconciliation?.summary?.discrepancies ?? 0} note="Require explicit review" tone="amber" /><SummaryCard icon={ShieldCheck} label="Operational provider" value="ARMIS active" note="No provider switch" tone="emerald" /></div>
+        <section className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950"><strong>Control boundary:</strong> reconciliation never mutates IAP or ARMIS ledgers. IAP is retained only as historical planning lineage; ARMIS remains the sole operational resource provider and no provider switch is available.</section>
+        <div className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[19rem_minmax(0,1fr)]"><RunList onSelect={setSelectedRun} runs={runs} selectedId={selectedRun?.id} /><RunDetail canReview={canReview} currentUserId={Number(user?.id || 0)} onReview={openReview} run={selectedRun} /></div>
       </>}
       <Modal description="Every discrepancy must have an explicit ACCEPT or REJECT decision. This review is immutable and must be performed by a different actor from the snapshot generator." footer={<><button className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700" disabled={saving} onClick={() => setReviewOpen(false)} type="button">Cancel</button><button className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={saving || reviewComment.trim().length < 10} onClick={submitReview} type="button"><ClipboardCheck size={15} />{saving ? "Saving…" : "Record immutable review"}</button></>} onClose={() => !saving && setReviewOpen(false)} open={reviewOpen} size="xl" title={`Review ${selectedRun?.displayCode || "reconciliation"}`}>
         <div className="grid gap-4"><label className="text-sm font-semibold text-slate-700">Overall decision<select aria-label="Reconciliation decision" className={inputClass()} onChange={(event) => setReviewDecision(event.target.value)} value={reviewDecision}><option value="ACCEPTED">Accept reconciliation</option><option value="REJECTED">Reject reconciliation</option></select></label><label className="text-sm font-semibold text-slate-700">Independent review comment (minimum 10 characters)<textarea aria-label="Review comment" className={inputClass("min-h-28 py-3")} onChange={(event) => setReviewComment(event.target.value)} placeholder="Explain the basis for your independent assessment..." value={reviewComment} /></label>{discrepancies.length > 0 && <div><h3 className="text-sm font-bold text-slate-800">Discrepancy decisions</h3><div className="mt-2 grid gap-2">{discrepancies.map((item) => <label className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs sm:flex-row sm:items-center sm:justify-between" key={item.key}><span className="font-semibold text-slate-700">{readable(item.category)} · {item.key}</span><select aria-label={`Decision for ${item.key}`} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700" onChange={(event) => setDiscrepancyDecisions((current) => ({ ...current, [item.key]: event.target.value }))} value={discrepancyDecisions[item.key] || "ACCEPT"}><option value="ACCEPT">Accept difference</option><option value="REJECT">Reject difference</option></select></label>)}</div></div>}</div>
       </Modal>
+      {decisionTarget && (
       <Modal description={decisionTarget === "activate" ? "This will switch the configured AEMS resource provider to ARMIS after the backend gate validates the accepted shadow review." : "This will return provider authority to the IAP interim provider. A new shadow reconciliation will be required before ARMIS can be activated again."} footer={<><button className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700" disabled={saving} onClick={() => setDecisionTarget("")} type="button">Cancel</button><button className={`inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${decisionTarget === "activate" ? "bg-emerald-700 hover:bg-emerald-800" : "bg-amber-700 hover:bg-amber-800"}`} disabled={saving || decisionReason.trim().length < 10} onClick={submitAuthorityDecision} type="button">{decisionTarget === "activate" ? <ShieldCheck size={15} /> : <RotateCcw size={15} />}{saving ? "Saving…" : decisionTarget === "activate" ? "Activate ARMIS authority" : "Rollback to IAP"}</button></>} onClose={() => !saving && setDecisionTarget("")} open={Boolean(decisionTarget)} size="md" title={decisionTarget === "activate" ? "Activate ARMIS authority" : "Rollback provider authority"}><label className="text-sm font-semibold text-slate-700">Decision reason (minimum 10 characters)<textarea aria-label="Authority decision reason" className={inputClass("min-h-32 py-3")} onChange={(event) => setDecisionReason(event.target.value)} placeholder="Record the professional and operational basis for this decision..." value={decisionReason} /></label></Modal>
+      )}
     </main>
   );
 }

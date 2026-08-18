@@ -102,8 +102,10 @@ Prerequisites: current audit universe and risk source.
 3. Submit, review/return/resubmit, and approve with separation of duties.
 4. Activate the plan, then open Audit Scheduling to place approved items on
    dates/milestones. A schedule revision records the old/new date and reason.
-5. Use Resource Capacity to review IAP fallback capacity, leave, skills, and
-   requirements before handing a plan to AEMS.
+5. Use ARMIS Planning and Utilization to review current capacity, leave,
+   competencies, and requirements before handing a plan to AEMS. IAP resource
+   values are historical planning lineage only and are not an operational
+   fallback.
 
 ## 4. AEMS engagement execution
 
@@ -126,13 +128,39 @@ has the AEMS create/import permission.
 2. Complete objective, authority, scope/office, period, team/roles, signatory
    matrix, recipients, transmittal method, and attachments.
 3. Save and run readiness. Fix missing signature/distribution fields.
-4. Select Submit. An independent reviewer selects Return with reason or Approve.
-5. On Approved, the authorized issuer records signature, issue date, recipients,
+4. Select Submit. The assigned reviewer records review or selects Return with a
+   reason. If the preparer is the active CIAS Head, she may record the AEO
+   review herself under the documented exception. When no alternate CIAS
+   Management authority is available, she may also approve and issue it.
+5. Otherwise, an active CIAS Management account approves the reviewed AEO. A
+   different active CIAS Management account then records the issuing signature,
+   issue date, recipients,
    transmittal, and acknowledgement requirements, then selects Issue.
 6. Verify status ISSUED, immutable version/checksum, and notifications.
-7. To correct an issued AEO, select Amend/Supersede and create a new version.
+   Auditee recipients do not open the internal AEMS workspace. They use the
+   CMS **AEO Acknowledgements** page (or its notification link) to acknowledge
+   the issued transmittal addressed to their user or office. The page shows
+   the exact issued AEO version (authority, objectives, scope, dates, office,
+   audit areas, and signatories) and offers an authenticated **Download
+   approved AEO** action. The transmittal recipient is selected from the
+   engagement-scoped office or active auditee-representative user list; IDs
+   must not be typed manually.
+7. Open the engagement **Lifecycle** tab and select **Issue Authorization**.
+   This is the aggregate gate that follows child AEO issuance and changes the
+   engagement status to **AUTHORIZED**. If the active CIAS Head is the sole
+   CIAS Management authority, she may execute this gate for an engagement she
+   created; the exception is restricted to this authorization action and is
+   logged. Then select **Start Planning** to move to **ENGAGEMENT_PLANNING**.
+8. To correct an issued AEO, select Amend/Supersede and create a new version.
    Cancel/Void is reserved for the authorized invalidation decision and requires
    a reason; it does not delete the prior version.
+
+When the active CIAS Head is the sole active CIAS Management authority, the
+same controlled exception applies to her own AEMS review/acceptance actions in
+planning, execution, findings, reporting, transfer, and closure. The exception
+does not skip readiness, evidence, version-lock, status, or audit requirements;
+it only permits the same account to act where no alternate CIAS Management
+reviewer or approver exists.
 
 ### 4.3 Prepare the AEP and Planning Package
 
@@ -344,12 +372,12 @@ Exit:
    person-day records for independent review.
 3. Resolve warnings for leave/training, workload, missing competency, stale
    provider, and independence before approval.
-4. Run Provider Reconciliation against the IAP interim ledger. Review every
-   discrepancy and record accepted/rejected decisions.
-5. Activate ARMIS authority only through the authority decision after a shadow
-   review. Verify provider monitoring after activation.
-6. If health becomes stale/unavailable, rollback or return to fallback through
-   the explicit authority action. Do not silently approve AEMS assignments.
+4. Open ARMIS Provider Monitoring and run the protected health check. A
+   historical provider comparison is not required for current assignments.
+5. Resolve missing, stale, or conflicting ARMIS records in the ARMIS owner
+   workspace before approving the assignment.
+6. ARMIS remains the sole operational resource provider. Do not restore an IAP
+   fallback or attempt a provider-switch action.
 
 ## 7. AIS read-only operations
 
@@ -404,4 +432,3 @@ Exit:
   unauthorized/error states are safe.
 - Run lint/build, focused Feature tests, migration rehearsal, and relevant
   Playwright suites from END_TO_END_TESTING_GUIDE.md.
-

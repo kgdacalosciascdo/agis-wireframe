@@ -601,6 +601,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:aems.aeo.acknowledge');
     Route::get('/aems/engagements/{engagement}/aeo/{order}/pdf', [AemsAeoController::class, 'pdf'])
         ->middleware('permission:aems.aeo.view');
+    Route::get('/aems/aeo-acknowledgements', [AemsAeoController::class, 'recipientAcknowledgements'])
+        ->middleware('permission:aems.aeo.acknowledge');
+    Route::post('/aems/aeo-acknowledgements/{distribution}/acknowledge', [AemsAeoController::class, 'acknowledgeRecipient'])
+        ->middleware('permission:aems.aeo.acknowledge');
+    Route::get('/aems/aeo-acknowledgements/{distribution}/pdf', [AemsAeoController::class, 'recipientPdf'])
+        ->middleware('permission:aems.aeo.acknowledge');
     Route::get('/aems/engagements/{engagement}/aep', [AemsAepController::class, 'show'])
         ->middleware('permission:aems.aep.view');
     Route::post('/aems/engagements/{engagement}/aep', [AemsAepController::class, 'store'])

@@ -69,6 +69,13 @@ src/pages/cms/     Compliance Management pages
 src/pages/armis/   Audit Resource Management pages
 src/pages/shared/  Login, generic module, and unauthorized pages
 
+backend/app/Models/Core/    Core identity, scope, documents, workflow, and log models
+backend/app/Models/Iap/     Internal Audit Planning and BAICS models
+backend/app/Models/Aems/    Audit Engagement Management models
+backend/app/Models/Cms/     Compliance Management models
+backend/app/Models/Armis/   Audit Resource Management models
+backend/app/Models/Ais/     Audit Intelligence System models
+
 backend/app/Http/Controllers/Api/Core/
 backend/app/Http/Controllers/Api/Iap/
 backend/app/Http/Controllers/Api/Aems/
@@ -81,6 +88,18 @@ backend/app/Http/Requests/Iap/        IAP request validation
 backend/app/Http/Requests/Aems/       AEMS request validation
 backend/app/Http/Requests/Cms/        CMS request validation
 backend/app/Http/Requests/Auth/       Shared authentication requests
+
+backend/app/Services/Core/    Core services
+backend/app/Services/Iap/     IAP and BAICS services
+backend/app/Services/Aems/    AEMS services
+backend/app/Services/Cms/     CMS services
+backend/app/Services/Armis/   ARMIS services
+backend/app/Services/Ais/     AIS services
+
+Model and service classes retain their existing `App\Models` and
+`App\Services` namespaces for compatibility. Composer uses explicit module
+directory mappings, so moving a class into a module folder does not change
+imports, route payloads, or persisted relationships.
 ```
 
 Backend controller and request namespaces match these folders; route URLs and
@@ -137,12 +156,12 @@ Protected API behavior is covered by `CoreModuleTest`, `AuthenticationTest`,
 | IAP Dashboard | `/internal-audit-planning/dashboard` | Live planning, risk, prioritization, annual-plan, schedule, approval, and capacity aggregates |
 | Strategic Audit Plan | `/internal-audit-planning/strategic-plan` | Multi-year objectives/themes, area links, draft/review/return/resubmit/approve/activate/complete, revision and immutable approved versions |
 | Audit Universe | `/internal-audit-planning/audit-universe` | Auditable subjects, office/area ownership, classification, rationale, risk-period links, history and scope |
-| Baseline Assessment (BAICS) | `/internal-audit-planning/baics`, `/internal-audit-planning/baics/control-universe`, and `/internal-audit-planning/baics/integration` | BAICS-1A/1B through BAICS-5: five component assessments, distinct methods, independent review, exact Core Document Version evidence, corroboration exceptions, traceable Control Universe, interim analysis, BAR assembly, approval, immutable histories, protected PDF/CSV exports, approved BAR/legacy IAP-consumer decisions, granular integration permissions, participant eligibility and scoped deduplicated workflow notifications |
+| Baseline Assessment (BAICS) | `/internal-audit-planning/baics`, `/internal-audit-planning/baics/control-universe`, and `/internal-audit-planning/baics/integration` | BAICS-1A/1B through BAICS-6: five component assessments, distinct methods, independent review, exact Core Document Version evidence, corroboration exceptions, traceable Control Universe, interim analysis, BAR assembly, approval, immutable histories, protected PDF/CSV exports, approved BAR/legacy IAP-consumer decisions, granular integration permissions, participant eligibility and scoped deduplicated workflow notifications, role/scope/SoD conformance, migration rehearsal, shared-owner checks, and canonical navigation verification |
 | Risk Assessment | `/internal-audit-planning/risk-assessment` | Risk periods, assessment records, scoring, validation, approval/lock, history; legacy and universe risk systems coexist |
 | Audit Prioritization | `/internal-audit-planning/prioritization` | Prioritization runs, scoring/weights, selected subjects, final decisions, locking and history |
 | Annual Audit Plan | `/internal-audit-planning` | Annual plan engagements, IAP lineage, team/capacity inputs, draft/review/return/resubmit/approve/activate/complete, revisions and supporting records |
 | Audit Scheduling | `/internal-audit-planning/scheduling` | Schedule windows, assignment conflicts, due dates, status, calendar views and changes |
-| Resource Capacity | `/internal-audit-planning/resource-capacity` | Interim IAP capacity, unavailability, skills, workload and conflict warnings |
+| Resource Capacity | `/audit-resource-management/planning` | ARMIS-owned capacity, availability, competencies, workload and conflict inputs consumed by IAP |
 | IAP Reports | `/internal-audit-planning/reports` | Scope-aware planning reports and exports |
 
 ### 5.2 IAP controls and boundary
@@ -159,12 +178,13 @@ Protected API behavior is covered by `CoreModuleTest`, `AuthenticationTest`,
 - IAP is the source of approved engagement-plan lineage. AEMS may import an
   approved source once, record source identifiers, and add engagement-specific
   attributes; it must not mutate the IAP source.
-- BAICS-1A/1B through BAICS-5 are implemented as an IAP capability between
+- BAICS-1A/1B through BAICS-6 are implemented as an IAP capability between
   Audit Universe and Risk Assessment. The five components, distinct method
   records, exact Core evidence links, corroboration exceptions and readiness
   gates are operational. Control Universe, BAR and the approved risk-consumption
   ledger, integration permission aliases and participant-scoped notifications
-  are operational. See [BAICS Governance Contract](BAICS_GOVERNANCE_CONTRACT.md).
+  are operational. BAICS-6 adds the final role/scope/SoD, migration, ownership
+  and navigation conformance checks. See [BAICS Governance Contract](BAICS_GOVERNANCE_CONTRACT.md).
 
 Protected backend coverage includes `IapFoundationTest`, `IapWorkflowTest`,
 `IapAuditUniverseTest`, `IapRiskPeriodWorkflowTest`,
@@ -172,7 +192,8 @@ Protected backend coverage includes `IapFoundationTest`, `IapWorkflowTest`,
 `IapSchedulingTest`, `IapResourceCapacityTest`, `IapSupportingRecordsTest`,
 `IapReportsTest`, `IapDashboardTest`, `IapBaicsFoundationTest`,
 `IapBaicsControlAssessmentTest`, `IapBaicsControlUniverseTest`, and
-`IapBaicsIntegrationTest`.
+`IapBaicsIntegrationTest`, plus `IapBaicsG6AcceptanceTest` for the final
+role/scope/SoD, schema, ownership, and navigation conformance contract.
 
 ## 6. Audit Engagement Management (AEMS)
 
@@ -181,7 +202,7 @@ Protected backend coverage includes `IapFoundationTest`, `IapWorkflowTest`,
 | Screen | Route | SCR / permission | Main functions |
 | --- | --- | --- | --- |
 | AEMS Dashboard | `/audit-engagement-management/dashboard` | Portfolio / `aems.engagement.view` | Scope-aware phase cards, overdue procedures, WP review, evidence gaps, findings, responses, conferences, reports, transfer exceptions, closure readiness, queues, and export actions |
-| Engagement Registry | `/audit-engagement-management` | SCR-210 / `aems.engagement.view` | IAP import or special engagement creation, one-office scope, filters, status, archive/restore, detail launch |
+| Engagement Registry | `/audit-engagement-management` | SCR-210 / `aems.engagement.view` | IAP import or special engagement creation (both start as Draft), editable foundation metadata before authorization/planning, one-office scope, filters, status, archive/restore, detail launch |
 | Audit Team | `/audit-engagement-management/team` | SCR-213 / `aems.team.view` | Assign members, roles, competencies, availability, workload, objectivity/independence, conflicts, ARMIS provider status, person-days and approval |
 | Engagement Orders | `/audit-engagement-management/aeo` | SCR-214 / `aems.aeo.view` | AEO preparation, signatures, review, approval, issue, distribution, transmittal, acknowledgement, amendment, supersession, cancel/void |
 | Planning Package | `/audit-engagement-management/planning-package` | SCR-221 / `aems.planning-package.view` | Preliminary survey, process flow, risk matrices/items, objective/risk/procedure/WP traceability, KPI and sampling/planned-WP readiness, review, approval, return and immutable baseline |
@@ -229,6 +250,21 @@ IAP approved source / special authorization
 - A finding requires Conclusion. Finding authors cannot validate their own
   finding. Recommendations become immutable at finalization and transfer to
   CMS only once.
+- AEO authority guidance is visible in the AEO workspace: the preparer submits,
+  an assigned reviewer records review, an active `cias_management` account
+  approves, and an active `cias_management` account issues. If the preparer is
+  the sole active CIAS Head, that account may perform the complete review,
+  approval, and issuance sequence as a controlled exception. Auditee office
+  heads and the City Mayor receive/acknowledge issued AEOs through the
+  recipient-scoped CMS portal; they are not internal AEO approvers or issuers.
+  The matrix shows candidate accounts and the immutable actor, username,
+  position, timestamp, and status once acted.
+- When that active CIAS Head is the sole active CIAS Management authority, the
+  same controlled exception permits her to review and approve her own AEMS
+  inputs across planning, execution, findings, reporting, transfer, and
+  closure. Readiness, evidence, immutable-version, status, and audit controls
+  remain enforced, and the exception is unavailable when another active CIAS
+  Management authority exists.
 - Auditee access is restricted to findings formally communicated to the office.
   Every response/rejoinder/conference exchange records actor, timestamp,
   content, attachments, version, engagement, and linked finding/conference.
@@ -269,6 +305,7 @@ closure specs. The current acceptance record is
 | --- | --- | --- |
 | CMS Dashboard | `/compliance-management/dashboard` | Scope-aware cases, phases, overdue responses, validation, extensions, escalations, closure readiness and candidate monitoring |
 | Recommendation Registry | `/compliance-management/recommendations` | Immutable AEMS intake registry, search/filter, office/risk/status/assignment views and detail launch |
+| AEO Acknowledgements | `/compliance-management/aeo-acknowledgements` | Recipient-scoped issued AEO transmittals; auditee users inspect the immutable issued AEO details, download its protected approved PDF, and acknowledge copies addressed to their account or office without internal AEMS access |
 | Automation & Candidates | `/compliance-management/automation` | Configurable reminders/rules, run history, closure-readiness candidates, escalation candidates, administrative review; no automatic final decisions |
 | Reports & Exports | `/compliance-management/reports` | Backend-generated scope/confidentiality-aware reports, protected CSV/PDF exports, reproducible runs and authenticated downloads |
 
@@ -310,23 +347,32 @@ specs are under `tests/e2e/cms-*.spec.js`.
 | Competencies & Certifications | `/audit-resource-management/competencies` | Competency catalogue, certifications, specializations, evidence and expiry |
 | Planning & Utilization | `/audit-resource-management/planning` | Availability, capacity, workload allocations, planned person-days and utilization |
 | Assignments & Actuals | `/audit-resource-management/assignments` | Engagement assignments, required competencies, planned/actual days, conflicts and approvals |
-| Provider Reconciliation | `/audit-resource-management/provider-reconciliation` | IAP-versus-ARMIS snapshots, discrepancy review, authority activation/rollback |
-| Provider Monitoring | `/audit-resource-management/provider-monitoring` | Provider health, cutover checks, stale/missing data, notifications and protected history |
+| Provider Monitoring | `/audit-resource-management/provider-monitoring` | Current ARMIS provider health, read-path checks, notifications and protected history |
 | Reports & Administration | `/audit-resource-management/reports` | Scope-pinned reports, CSV/PDF exports, administration status and protected downloads |
 
 ### 8.2 ARMIS controls and provider boundary
 
 - ARMIS owns resource, competency, availability, assignment, actual-person-day,
-  provider, reconciliation, monitoring, and report records.
-- AEMS reads `ResourcePlanningGateway` data. Supported modes are
-  `IAP_INTERIM_FALLBACK`, `ARMIS_SHADOW`, and gated
-  `ARMIS_AUTHORITATIVE`; authority requires accepted reconciliation and can be
-  rolled back with an immutable decision.
-- IAP interim tables remain for historical compatibility and are not silently
-  migrated, renamed, or overwritten.
+  provider monitoring, and report records.
+- AEMS reads ARMIS `ResourcePlanningGateway` data. `ARMIS_AUTHORITATIVE` is the
+  only operational mode. Historical `ARMIS_SHADOW` and
+  `IAP_INTERIM_FALLBACK` values remain only in lineage/reconciliation snapshots
+  and are not runtime options or active providers.
+- IAP interim resource tables remain only for historical compatibility and
+  lineage. They are backfilled into ARMIS by `ArmisResourceBackfillService`,
+  are no longer current write sources, and are not read by AEMS readiness.
+- The former ARMIS provider-reconciliation route is retained only as a
+  compatibility redirect to Provider Monitoring. Historical comparison tables
+  and APIs are not an operational gate and cannot switch ownership back to IAP.
 - ARMIS assignments enforce competency, availability, capacity, leave/training,
   conflict-of-interest, independence, planned/actual reconciliation, and
   optimistic locking rules.
+- The demo/reference roster is seeded idempotently by
+  `ArmisResourceProfileSeeder`: four auditors, five CIAS administrative/support
+  staff, one CIAS head, and one AGIS project-manager consultant (eleven ARMIS
+  resource profiles). Core users remain the identity source; ARMIS stores the
+  resource profile and category only. The historical `cias.employee` login is
+  retained as a non-roster compatibility alias and has no ARMIS profile.
 
 ARMIS backend tests cover foundation, competency, planning, assignments,
 reports, provider adapter, reconciliation, monitoring, security, and deployment
@@ -344,7 +390,7 @@ hardening; React specs are `tests/e2e/armis-*.spec.js`.
 | Activity Log and Audit Trail | Core | Every material mutation, transition, download, assignment and authority decision |
 | Runtime configuration and numbering | Core | Module codes, report/export metadata, engagement/AEO/program numbering |
 | IAP lineage | IAP | AEMS imports approved plans once and preserves source references |
-| Resource provider | ARMIS boundary | AEMS uses fallback/shadow/authoritative mode with reconciliation |
+| Resource provider | ARMIS boundary | ARMIS is the sole operational provider; historical fallback/shadow values are lineage-only |
 | Recommendation transfer | AEMS | Finalized recommendation snapshot is sent to CMS once |
 | Compliance monitoring and closure | CMS | CMS owns Action Plans, monitoring, validation, dispositions and post-transfer closure |
 | AIS | Governance, analytics, protected reporting, and read-only source integration | `/audit-intelligence-system`, `/audit-intelligence-system/integration-health`, `/audit-intelligence-system/reports`, `/api/ais/contract`, `/api/ais/hardening`, `/api/ais/integration-contract`, `/api/ais/integration-health`, `/api/ais/integration-health/snapshots`, `/api/ais/aggregations`, `/api/ais/dashboard`, `/api/ais/reports` | AIS-1 through AIS-5D implemented and verified; AIS remains read-only |
@@ -372,8 +418,9 @@ lessons-learned features exist:
 1. **BAICS / Baseline Assessment of Internal Control System** — foundation
    cycle, source lineage, assignments and lifecycle are implemented; the
    five-component instruments, Control Universe, BAR and IAP risk-consumption
-   gate are implemented through BAICS-4; final verification and future
-   governance enhancements remain separately tracked.
+   gate are implemented through BAICS-4; BAICS-5 and BAICS-6 harden the
+   integration permissions/notifications and complete final conformance
+   verification. Future governance enhancements remain separately tracked.
 2. **Internal Audit Charter and organizational independence governance** — no
    Charter version/approval lifecycle, Head of Internal Audit authority and
    reporting relationship record, access-rights confirmation, or periodic

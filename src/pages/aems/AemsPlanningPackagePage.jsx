@@ -510,9 +510,12 @@ export default function AemsPlanningPackagePage() {
     setErrors({});
     setStaleLock(false);
     try {
+      const configuredMatrices = form.riskMatrices?.length
+        ? form.riskMatrices
+        : [form.riskMatrix].filter((matrix) => matrix?.code?.trim() || matrix?.title?.trim());
       const payload = {
         ...form,
-        riskMatrices: (form.riskMatrices?.length ? form.riskMatrices : [form.riskMatrix]).map((matrix, index) => ({
+        riskMatrices: configuredMatrices.map((matrix, index) => ({
           ...matrix,
           riskItems: index === 0 ? form.riskItems : (matrix.riskItems ?? []),
         })),
@@ -756,6 +759,12 @@ export default function AemsPlanningPackagePage() {
             <div className="mb-5 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900" data-testid="planning-fieldwork-blocker" role="status">
               <ShieldAlert className="mt-0.5 shrink-0" size={20} />
               <div><strong>Fieldwork is blocked.</strong> The aggregate engagement lifecycle requires an approved Planning Package whose current version matches the approved version and passes every planning conformance gate before `START_FIELDWORK` can proceed.</div>
+            </div>
+          )}
+
+          {!packageRecord && (
+            <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-6 text-sky-900" role="note">
+              <strong>Planning Package sequence.</strong> Create the package draft here first; an Audit Program is not required to create the draft. Before this package can be approved and fieldwork can start, the AEP must be approved, the Audit Program must be approved, and the package readiness checks must pass. If the Create draft action returns an error, review the validation details above and confirm you are in the engagement-planning stage with the planning-package permission.
             </div>
           )}
 

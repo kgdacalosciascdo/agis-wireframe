@@ -207,7 +207,8 @@ class AemsFieldworkService
                 if (! in_array($from, ['SUBMITTED', 'RESUBMITTED'], true)) {
                     throw ValidationException::withMessages(['status' => ['Only submitted Fieldwork Records can be reviewed.']]);
                 }
-                if ((int) $request->user()->id === (int) $locked->prepared_by) {
+                if ((int) $request->user()->id === (int) $locked->prepared_by
+                    && ! $this->access->mayUseSingleCiasHeadReviewException($request->user(), 'aems.fieldwork.review')) {
                     throw ValidationException::withMessages(['reviewer' => ['The preparer cannot independently review the Fieldwork Record.']]);
                 }
                 $locked->update([
@@ -244,7 +245,8 @@ class AemsFieldworkService
                     throw ValidationException::withMessages(['status' => ['Only submitted Fieldwork Records can be finalized.']]);
                 }
                 $this->ensureIndependentReviewer($request, $locked);
-                if ((int) $locked->reviewer_id === (int) $request->user()->id) {
+                if ((int) $locked->reviewer_id === (int) $request->user()->id
+                    && ! $this->access->mayUseSingleCiasHeadReviewException($request->user(), 'aems.fieldwork.finalize')) {
                     throw ValidationException::withMessages(['reviewer' => ['The finalizer must be different from the independent reviewer.']]);
                 }
                 $this->ensureReadyForFinalization($version);
@@ -488,7 +490,8 @@ class AemsFieldworkService
 
     private function ensureIndependentReviewer(Request $request, AemsFieldworkRecord $record): void
     {
-        if ((int) $request->user()->id === (int) $record->prepared_by) {
+        if ((int) $request->user()->id === (int) $record->prepared_by
+            && ! $this->access->mayUseSingleCiasHeadReviewException($request->user(), 'aems.fieldwork.finalize')) {
             throw ValidationException::withMessages(['reviewer' => ['The preparer cannot independently review or finalize the Fieldwork Record.']]);
         }
         if ($record->reviewer_id && (int) $record->reviewer_id !== (int) $request->user()->id) {
@@ -501,7 +504,8 @@ class AemsFieldworkService
 
     private function ensureNotPreparer(Request $request, AemsFieldworkRecord $record): void
     {
-        if ((int) $request->user()->id === (int) $record->prepared_by) {
+        if ((int) $request->user()->id === (int) $record->prepared_by
+            && ! $this->access->mayUseSingleCiasHeadReviewException($request->user(), 'aems.fieldwork.review')) {
             throw ValidationException::withMessages(['reviewer' => ['The preparer cannot independently review or return the Fieldwork Record.']]);
         }
     }

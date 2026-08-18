@@ -32,7 +32,7 @@ class DatabaseFoundationTest extends TestCase
 
         $accounts = collect(config('demo.accounts'));
 
-        $this->assertDatabaseCount('users', 89);
+        $this->assertDatabaseCount('users', 97);
 
         Role::query()
             ->withCount('users')

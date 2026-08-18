@@ -10,14 +10,13 @@ planned workload, and utilization; ARMIS-3B provides its protected React
 workspace. ARMIS-4A provides separate assignment and actual-person-day
 ledgers with conflict and capacity rules. The mode-aware
 `ConfigurableResourcePlanningGateway` now protects the replaceable boundary.
-`IAP_INTERIM_FALLBACK` remains the default, and `ARMIS_SHADOW` is available for
-non-authoritative preparation. ARMIS-6B adds immutable IAP-versus-ARMIS
-reconciliation snapshots, independent review, and an explicit authority gate;
-ARMIS authority can only be activated through an accepted shadow review and can
-be rolled back to IAP with an immutable decision. No IAP records were migrated
-or changed. ARMIS-6C provides the protected React reconciliation workspace for
-snapshot history, discrepancy review, and authority decisions. ARMIS-6D adds
-read-only post-authority monitoring and immutable cutover-verification checks.
+ARMIS is the sole operational resource owner and the only active provider.
+Historical IAP/shadow values remain only in immutable lineage records. They
+are never selected for AEMS operational reads, never act as an IAP fallback,
+and cannot be used to switch provider ownership. The former provider-
+reconciliation workspace is retired from navigation; its compatibility route
+redirects to read-only Provider Monitoring. Current assignment readiness uses
+approved ARMIS records directly.
 
 ## ARMIS-0 scope
 
@@ -29,28 +28,28 @@ IAP or AEMS workflow behavior, switch the provider, or start AIS integration.
 
 | Area | Current state | Evidence |
 | --- | --- | --- |
-| Navigation | ARMIS exposes Resource Registry, Competencies & Certifications, Planning & Utilization, Assignments & Actuals, Provider Reconciliation, Provider Monitoring, and Reports & Administration pages | `src/config/navigation.js` |
-| Workspace/API | Protected resource, competency, planning, assignment/actuals, provider reconciliation, provider monitoring, and reports/administration React workspaces consume dedicated ARMIS APIs | `src/App.jsx`, `backend/routes/api.php` |
+| Navigation | ARMIS exposes Resource Registry, Competencies & Certifications, Planning & Utilization, Assignments & Actuals, Provider Monitoring, and Reports & Administration pages | `src/config/navigation.js` |
+| Workspace/API | Protected resource, competency, planning, assignment/actuals, provider monitoring, and reports/administration React workspaces consume dedicated ARMIS APIs | `src/App.jsx`, `backend/routes/api.php` |
 | Permissions | Granular `armis.*` permissions govern registry, competency, planning, actuals, reports, and exports; compatibility permissions remain | `RolePermissionSeeder` |
-| Resource data | Temporary capacity, unavailability, skills, and IAP requirements are stored by IAP | IAP resource migrations/models/controller |
+| Resource data | ARMIS owns current capacity, unavailability, competencies, requirements, workload, and actual person-days; IAP tables are historical lineage only | ARMIS planning models/services, `ArmisResourceBackfillService` |
 | AEMS consumption | AEMS reads a replaceable `ResourcePlanningGateway` | `ResourcePlanningGateway`, `ConfigurableResourcePlanningGateway` |
-| Provider mode | `IAP_INTERIM_FALLBACK` (default), `ARMIS_SHADOW`, or gated `ARMIS_AUTHORITATIVE` | `ConfigurableResourcePlanningGateway`, authority gate, and ARMIS-6B tests |
+| Provider mode | `ARMIS_AUTHORITATIVE` only; historical fallback/shadow values are not active settings | `ConfigurableResourcePlanningGateway`, runtime configuration, and cutover migration |
 | ARMIS adapter | Approved/current ARMIS capacity, availability, competency, requirement, assignment, and actual ledgers are exposed in the AEMS gateway shape | `ArmisResourcePlanningGateway` |
 | Reports/API | ARMIS-5A provides immutable scope-pinned report runs, protected CSV/PDF exports, private downloads, administration status, and hardening flags | `ArmisReportService`, `ArmisReportController`, `armis_report_runs`, `armis_report_exports` |
-| Reconciliation and authority | Immutable comparison snapshots, independent discrepancy review, atomic activation, rollback, and provider status | `ArmisProviderReconciliationService`, provider routes, ARMIS-6B tests |
+| Historical compatibility | Legacy comparison records/routes remain available for migration lineage only; they are not an operational gate and cannot switch provider ownership | `ArmisProviderReconciliationService`, compatibility redirect, ARMIS provider tests |
 | Provider monitoring | Immutable health and cutover checks, failure notifications, protected history, and read-only monitoring workspace | `ArmisProviderMonitoringController`, `armis_provider_monitoring_checks`, `tests/e2e/armis-provider-monitoring.spec.js` |
 | Security and deployment | Full protected-route regression, migration/provider preflight, private-disk and security-header hardening, and Render smoke verification | ARMIS-7A/7B/7C tests, `ArmisDeploymentCheckCommand`, `scripts/verify-armis-render.ps1` |
 | Tests | ARMIS foundation, competency, planning, assignment, report, resource, provider adapter, reconciliation, and desktop/mobile workspace tests protect the module | `backend/tests/Feature/Armis*Test.php`, `tests/e2e/armis-*.spec.js` |
 
 ### Fully implemented before ARMIS-1A
 
-The IAP interim resource boundary is implemented and consumed by AEMS for
-capacity, skills, unavailability, planned requirements, and warning-only team
-validation. Integration status makes the provider and authority explicit.
+The historical IAP resource boundary is retained for lineage and
+reconciliation. Current AEMS and IAP scheduling reads use ARMIS capacity,
+competencies, availability, requirements, and workload ledgers.
 
 ### ARMIS-1A implemented
 
-ARMIS now has a separate, scope-aware foundation for resource profiles,
+ARMIS now has the authoritative, scope-aware foundation for resource profiles,
 competencies, availability periods, capacity submissions, requirements,
 workload allocations, actual person-day versions, and immutable workflow event
 timelines. Profiles link to Core users and offices. Competency evidence links
@@ -59,9 +58,9 @@ to an exact immutable Core `document_versions` record.
 The profile registry API is protected by granular `armis.resource.*`
 permissions and supports optimistic locking, draft-to-active lifecycle
 transitions, soft archive/restore, office scope filtering, Activity Log,
-Audit Trail, and ARMIS workflow events. ARMIS records are now available through
-the ARMIS-6A adapter, but AEMS remains on the IAP interim provider in both
-supported modes.
+Audit Trail, and ARMIS workflow events. ARMIS records are consumed directly by
+AEMS and IAP scheduling. The legacy IAP Resource Capacity route redirects to
+ARMIS Planning and its mutation endpoints are blocked with a replacement link.
 
 ### Historical ARMIS-0 baseline: partially implemented
 
@@ -306,9 +305,10 @@ and Returned records, submission, independent Approve/Return review, locking,
 and correction revisions only when the signed-in user has the corresponding
 granular permission. Approved and Locked records are presented as immutable.
 Fiscal-year and status filters, search, responsive tables, and hoverable
-summary cards are included for desktop and mobile use. The provider boundary is
-explicitly shown as `IAP_INTERIM_FALLBACK`; ARMIS-3B does not expose actual
-person-days, switch AEMS to ARMIS, or create public document URLs.
+summary cards are included for desktop and mobile use. The historical ARMIS-3B
+checkpoint displayed the then-current `IAP_INTERIM_FALLBACK`; the current
+provider is ARMIS after the resource cutover. The workspace does not create
+public document URLs.
 
 Focused browser coverage protects both desktop and mobile rendering and the
 capacity draft/submission flow in `tests/e2e/armis-planning.spec.js`.
@@ -350,9 +350,9 @@ Submission and approval enforce these hard rules:
 The APIs are protected by `armis.assignment.*` and existing
 `armis.actuals.*` permissions. Mutations create ARMIS workflow events, Core
 Activity Log entries, Audit Trail entries, and after-commit review/outcome
-notifications. The ARMIS-4A ledger remains outside the AEMS
-`ResourcePlanningGateway`; AEMS continues to use `IAP_INTERIM_FALLBACK` and no
-IAP/AEMS records are migrated or overwritten.
+notifications. The ARMIS-4A ledger is consumed through the AEMS
+`ResourcePlanningGateway`. Historical IAP/AEMS records are preserved; the
+resource backfill never overwrites them.
 
 ## ARMIS-4B assignment and actuals React checkpoint
 
@@ -436,7 +436,7 @@ provider authority, shadow reconciliation, rollback, and ARMIS-owned actuals
 were later ARMIS-6 scope and are now implemented. AIS integration remains out
 of scope.
 
-## ARMIS-6A provider adapter checkpoint
+## Historical ARMIS-6A provider adapter checkpoint
 
 ARMIS-6A adds the backend provider adapter and controlled mode boundary. The
 `ArmisResourcePlanningGateway` reads only approved/current ARMIS capacity,
@@ -444,16 +444,17 @@ availability, competency, requirement, assignment, and actual-person-day
 records and maps them to the stable AEMS `ResourcePlanningGateway` contract.
 
 `ConfigurableResourcePlanningGateway` is now the container binding used by
-AEMS. The supported runtime modes are:
+AEMS. The supported runtime modes at that historical checkpoint were:
 
 - `IAP_INTERIM_FALLBACK` — the default; AEMS reads IAP and ARMIS remains a
   separately available adapter;
 - `ARMIS_SHADOW` — ARMIS is prepared for comparison, but AEMS still reads IAP.
 
 The runtime configuration key is `armis_provider_mode` and is restricted to
-those two values. `ARMIS_AUTHORITATIVE` is intentionally unavailable in
-ARMIS-6A. The integration status reports the active provider, shadow adapter,
-supported modes, authority-gate blocker, and actual-person-day ownership.
+those two values. `ARMIS_AUTHORITATIVE` was intentionally unavailable in the
+original ARMIS-6A checkpoint. The integration status reported the active
+provider, shadow adapter, supported modes, authority-gate blocker, and
+actual-person-day ownership.
 Configuration changes use the existing protected Core System Configuration
 endpoint, so Activity Log and Audit Trail entries are preserved.
 
@@ -462,7 +463,21 @@ or add AIS integration. Those actions require the later reconciliation and
 authority-gate phases. Focused backend coverage is in
 `backend/tests/Feature/ArmisProviderAdapterTest.php`.
 
-## ARMIS-6B reconciliation and authority-gate checkpoint
+### Current resource ownership after the cutover
+
+The historical ARMIS-6A text above describes the original fallback boundary.
+The current provider is `ARMIS_AUTHORITATIVE`: AEMS and IAP scheduling read
+ARMIS. Historical `ARMIS_SHADOW` and `IAP_INTERIM_FALLBACK` values are retained
+only in old snapshots and compatibility classes; they are not active resource
+paths, runtime options, or UI actions. The cutover migration normalizes existing
+runtime configuration to ARMIS and preserves historical IAP records unchanged.
+
+## Historical ARMIS-6B reconciliation and authority-gate checkpoint
+
+This section describes the superseded migration checkpoint. It is retained as
+an audit-history reference only. It is not part of the current assignment
+workflow: ARMIS is already authoritative, AEMS does not require a recent
+reconciliation, and no rollback to IAP is available.
 
 ARMIS-6B adds the protected provider integration API. A reconciliation run
 compares the IAP interim provider with the approved/current ARMIS adapter for
@@ -508,7 +523,7 @@ professional decision, mutate IAP/AEMS ledgers, or provide a browser-side
 authority shortcut. Focused coverage is in
 `backend/tests/Feature/ArmisProviderReconciliationTest.php`.
 
-## ARMIS-6C reconciliation and authority React checkpoint
+## Historical ARMIS-6C reconciliation and authority React checkpoint
 
 ARMIS-6C adds the protected workspace at
 `/audit-resource-management/provider-reconciliation`. It consumes only the
@@ -544,11 +559,11 @@ direct runtime-configuration authority changes. Browser coverage is in
 
 ARMIS-6D adds a read-only operational monitoring boundary at
 `/audit-resource-management/provider-monitoring`. It verifies the effective
-provider mode against runtime configuration, confirms the AEMS active read
-path, checks authority-decision consistency, reports reconciliation freshness,
-and confirms ARMIS adapter availability. A check is `HEALTHY` when all checks
-pass, `DEGRADED` when only freshness warnings exist, and `FAILED` when a
-provider or authority consistency check fails.
+ARMIS provider mode against runtime configuration, confirms the AEMS active
+read path, checks provider consistency, and confirms ARMIS adapter
+availability. A check is `HEALTHY` when all checks pass and `FAILED` when a
+provider consistency or adapter check fails; reconciliation freshness is not
+checked because no reconciliation is required for the sole-provider design.
 
 Every requested check is an immutable, scope-pinned
 `armis_provider_monitoring_checks` snapshot with its source query version,

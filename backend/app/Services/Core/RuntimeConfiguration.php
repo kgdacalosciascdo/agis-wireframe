@@ -16,9 +16,8 @@ class RuntimeConfiguration
 {
     public const CACHE_KEY = 'agis.runtime_configuration.v1';
 
+    /** ARMIS is the only active resource provider. */
     public const ARMIS_PROVIDER_MODES = [
-        'IAP_INTERIM_FALLBACK',
-        'ARMIS_SHADOW',
         'ARMIS_AUTHORITATIVE',
     ];
 
@@ -61,7 +60,7 @@ class RuntimeConfiguration
         'default_workflow_sla_hours' => 72,
         'workflow_mapping_core' => 'CORE_DOCUMENT_REVIEW',
         'workflow_mapping_iap' => 'IAP_ANNUAL_PLAN_APPROVAL',
-        'armis_provider_mode' => 'IAP_INTERIM_FALLBACK',
+        'armis_provider_mode' => 'ARMIS_AUTHORITATIVE',
         'logo_url' => '/logo.png',
         'mail_enabled' => false,
         'mail_mailer' => 'smtp',
@@ -85,12 +84,18 @@ class RuntimeConfiguration
                     return self::DEFAULTS;
                 }
 
-                return [
+                $values = [
                     ...self::DEFAULTS,
                     ...SystemConfiguration::query()
                         ->pluck('value', 'key')
                         ->all(),
                 ];
+
+                // Never expose or return a historical fallback/shadow value
+                // as an active runtime setting after the ARMIS cutover.
+                $values['armis_provider_mode'] = 'ARMIS_AUTHORITATIVE';
+
+                return $values;
             } catch (Throwable) {
                 return self::DEFAULTS;
             }
@@ -216,11 +221,10 @@ class RuntimeConfiguration
 
     public function armisProviderMode(): string
     {
-        $mode = strtoupper(trim($this->string('armis_provider_mode')));
-
-        return in_array($mode, self::ARMIS_PROVIDER_MODES, true)
-            ? $mode
-            : 'IAP_INTERIM_FALLBACK';
+        // Historical configuration values are normalized at read time. IAP
+        // remains available only as source lineage/reconciliation history;
+        // it is never selected as an operational resource provider.
+        return 'ARMIS_AUTHORITATIVE';
     }
 
     public function apply(): void
@@ -301,7 +305,7 @@ class RuntimeConfiguration
             'aems_reminder_due_hours' => ['rules' => ['required', 'integer', 'min:1', 'max:720'], 'min' => 1, 'max' => 720, 'runtimeEffect' => 'Hours before an AEMS task becomes due-soon for reminder delivery'],
             'aems_response_reminder_days' => ['rules' => ['required', 'integer', 'min:1', 'max:90'], 'min' => 1, 'max' => 90, 'runtimeEffect' => 'Days ahead for management-response reminders'],
             'aems_conference_reminder_days' => ['rules' => ['required', 'integer', 'min:1', 'max:90'], 'min' => 1, 'max' => 90, 'runtimeEffect' => 'Days ahead for entry and exit conference reminders'],
-            'iap_default_annual_person_days' => ['rules' => ['required', 'integer', 'min:1', 'max:365'], 'min' => 1, 'max' => 365, 'runtimeEffect' => 'Fallback annual capacity for auditors'],
+            'iap_default_annual_person_days' => ['rules' => ['required', 'integer', 'min:1', 'max:365'], 'min' => 1, 'max' => 365, 'runtimeEffect' => 'Legacy IAP planning baseline retained for historical lineage; ARMIS supplies operational capacity'],
             'document_number_format' => ['rules' => ['required', 'string', 'max:80', 'regex:/\\{YEAR\\}/'], 'runtimeEffect' => 'Codes assigned to new repository documents; supports {YEAR} and {SEQ:n}'],
             'aems_engagement_number_format' => ['rules' => ['required', 'string', 'max:80', 'regex:/\\{YEAR\\}/'], 'runtimeEffect' => 'Codes assigned to new AEMS engagements; supports {YEAR} and {SEQ:n}'],
             'iap_plan_number_format' => ['rules' => ['required', 'string', 'max:80', 'regex:/\\{YEAR\\}/'], 'runtimeEffect' => 'Codes assigned to new annual internal audit plans'],
@@ -316,9 +320,9 @@ class RuntimeConfiguration
             'workflow_mapping_core' => ['rules' => ['nullable', 'string', 'max:80'], 'runtimeEffect' => 'Default published workflow for Core records'],
             'workflow_mapping_iap' => ['rules' => ['nullable', 'string', 'max:80'], 'runtimeEffect' => 'Default published workflow for IAP records'],
             'armis_provider_mode' => [
-                'rules' => ['required', 'string', 'in:IAP_INTERIM_FALLBACK,ARMIS_SHADOW'],
-                'options' => ['IAP_INTERIM_FALLBACK', 'ARMIS_SHADOW'],
-                'runtimeEffect' => 'ARMIS provider mode; shadow mode keeps AEMS on the IAP provider until reconciliation and authority approval are complete',
+                'rules' => ['required', 'string', 'in:ARMIS_AUTHORITATIVE'],
+                'options' => ['ARMIS_AUTHORITATIVE'],
+                'runtimeEffect' => 'ARMIS is the sole operational resource provider; historical IAP comparisons do not switch runtime ownership.',
             ],
             'logo_url' => ['rules' => ['required', 'string', 'max:500'], 'runtimeEffect' => 'Application, login, and sidebar logo'],
             'mail_enabled' => ['rules' => ['required', 'boolean'], 'options' => [true, false], 'runtimeEffect' => 'Delivery of configured outbound email'],

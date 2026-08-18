@@ -71,7 +71,7 @@ test("AIS dashboard exposes hardened status and consistent sidebar navigation", 
   await expect(page.getByText("Deployment hardening", { exact: true })).toBeVisible();
   await expect(page.getByText("ENFORCED", { exact: true })).toBeVisible();
   await expect(page.getByText("120 reads/min", { exact: false })).toBeVisible();
-  await expect(page.getByRole("complementary").getByRole("link", { name: "Audit Intelligence System" })).toBeVisible();
+  await expect(page.getByRole("complementary").getByRole("button", { name: /Expand|Collapse Audit Intelligence System/ })).toBeVisible();
 });
 
 test("AIS report export is generated and downloaded through the protected endpoint", async ({ page }) => {

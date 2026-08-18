@@ -137,8 +137,9 @@ function date(value) {
 }
 
 /**
- * Functional AEMS entry point for approved-IAP imports and authorized special
- * engagements. Detail views use their own route instead of oversized modals.
+ * Functional AEMS entry point for approved-IAP imports and special/unplanned
+ * engagement drafts. Detail views use their own route instead of oversized
+ * modals.
  */
 export default function AemsEngagementRegistryPage() {
   const { user } = useAuth();
@@ -520,7 +521,7 @@ export default function AemsEngagementRegistryPage() {
             )}
           </>
         }
-        description="Create engagements from approved IAP items or separately authorized special audits while preserving complete source lineage."
+        description="Create Draft engagements from approved IAP items or separately authorized special audits while preserving complete source lineage."
         icon={BriefcaseBusiness}
         readOnly={!canCreate}
         title="Engagement Registry"
@@ -672,7 +673,7 @@ export default function AemsEngagementRegistryPage() {
                 form="create-special-engagement-form"
                 type="submit"
               >
-                {saving ? "Creating..." : "Create authorized engagement"}
+                {saving ? "Creating..." : "Create engagement draft"}
               </button>
             )}
           </>

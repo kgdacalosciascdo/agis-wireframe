@@ -74,7 +74,7 @@ test("IAP scheduling and reports remain usable at the active viewport", async ({
     const drawer = page.getByRole("complementary");
     await expect(drawer.getByText("AGIS", { exact: true })).toBeVisible();
     await expect(
-      drawer.getByRole("link", { name: "Internal Audit Planning" }),
+      drawer.getByRole("button", { name: /Expand|Collapse Internal Audit Planning/ }),
     ).toBeVisible();
     await page
       .getByRole("complementary")

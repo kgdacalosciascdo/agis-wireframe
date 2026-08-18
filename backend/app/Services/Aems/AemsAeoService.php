@@ -7,7 +7,9 @@ use App\Models\AuditEngagementOrder;
 use App\Models\AuditEngagementOrderVersion;
 use App\Models\AemsAeoDistribution;
 use App\Models\AemsAeoSignatory;
+use App\Models\EngagementTeam;
 use App\Models\EngagementEvent;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,6 +33,7 @@ class AemsAeoService
     public function workspace(AuditEngagement $engagement): array
     {
         $engagement->loadMissing([
+            'offices:id,code,name',
             'teamMembers' => fn ($query) => $query
                 ->where('is_active', true)
                 ->whereNull('ended_at')
@@ -40,6 +43,8 @@ class AemsAeoService
             'engagementOrder.submitter',
             'engagementOrder.approver',
             'engagementOrder.issuer',
+            'engagementOrder.signatories.user',
+            'engagementOrder.signatories.signer',
         ]);
         $order = $engagement->engagementOrder;
 
@@ -55,8 +60,10 @@ class AemsAeoService
                 'plannedEndDate' => $engagement->planned_end_date?->toDateString(),
             ],
             'order' => $order ? $this->order($order, $engagement) : null,
+            'authorityMatrix' => $this->authorityMatrix($engagement, $order),
             'teamReady' => $this->teamErrors($engagement) === [],
             'teamErrors' => $this->teamErrors($engagement),
+            'recipientOptions' => $this->recipientOptions($engagement),
         ];
     }
 
@@ -196,13 +203,19 @@ class AemsAeoService
                 }
             }
             if ($action === 'APPROVE') {
+                $preparedBy = User::query()->find($locked->prepared_by);
+                $preparedByMayReview = $preparedBy
+                    && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.review');
                 $reviewed = EngagementEvent::query()
                     ->where('audit_engagement_id', $engagement->id)
                     ->where('subject_type', 'AEO')
                     ->where('subject_id', $locked->id)
                     ->where('subject_version', $locked->current_version_number)
                     ->where('action', 'AEO_REVIEW')
-                    ->where('actor_id', '<>', $locked->prepared_by)
+                    ->when(
+                        ! $preparedByMayReview,
+                        fn ($query) => $query->where('actor_id', '<>', $locked->prepared_by),
+                    )
                     ->exists();
                 if (! $reviewed) {
                     throw ValidationException::withMessages([
@@ -401,13 +414,36 @@ class AemsAeoService
             if ($recipientType === 'OFFICE' && empty($attributes['recipientOfficeId'])) {
                 throw ValidationException::withMessages(['recipientOfficeId' => ['An office recipient is required.']]);
             }
+            $engagementOfficeIds = $engagement->offices()->pluck('offices.id');
+            if ($recipientType === 'OFFICE' && ! $engagementOfficeIds->contains((int) $attributes['recipientOfficeId'])) {
+                throw ValidationException::withMessages(['recipientOfficeId' => ['Select an office within this engagement scope.']]);
+            }
+            $recipient = null;
+            if ($recipientType === 'USER') {
+                $recipient = User::query()
+                    ->whereKey($attributes['recipientUserId'])
+                    ->whereIn('office_id', $engagementOfficeIds)
+                    ->where('is_active', true)
+                    ->where(function ($query): void {
+                        $query
+                            ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
+                            ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                    })
+                    ->first();
+                if (! $recipient) {
+                    throw ValidationException::withMessages(['recipientUserId' => ['Select an active auditee representative within this engagement scope.']]);
+                }
+            }
+            $office = $recipientType === 'OFFICE'
+                ? $engagement->offices()->whereKey($attributes['recipientOfficeId'])->first()
+                : null;
             $distribution = AemsAeoDistribution::query()->create([
                 'audit_engagement_order_id' => $locked->id,
                 'version_number' => $locked->current_version_number,
                 'recipient_type' => $recipientType,
-                'recipient_user_id' => $attributes['recipientUserId'] ?? null,
-                'recipient_office_id' => $attributes['recipientOfficeId'] ?? null,
-                'recipient_name' => $attributes['recipientName'] ?? null,
+                'recipient_user_id' => $recipientType === 'USER' ? $recipient->id : null,
+                'recipient_office_id' => $recipientType === 'OFFICE' ? $office?->id : null,
+                'recipient_name' => $recipient?->name ?? $office?->name ?? ($attributes['recipientName'] ?? null),
                 'transmittal_method' => $attributes['transmittalMethod'],
                 'transmittal_reference' => $attributes['transmittalReference'] ?? null,
                 'status' => 'SENT',
@@ -416,8 +452,105 @@ class AemsAeoService
             ]);
             $this->support->event($request, $engagement, 'AEO_DISTRIBUTED', $locked->status, $locked->status, null, ['distributionId' => $distribution->id, 'versionNumber' => $locked->current_version_number], $attributes['transmittalReference'] ?? null, 'AEO', $locked->id, $locked->current_version_number, $locked->order_code);
             $this->support->audit($request, 'aems.aeo.distributed', $engagement, null, $distribution->toArray(), ['aeoId' => $locked->id]);
+            $this->notifications->aeoDistributed($request, $engagement, $locked, $distribution);
             return $distribution->load(['recipient', 'office', 'acknowledger']);
         });
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function recipientAcknowledgements(User $user): array
+    {
+        return AemsAeoDistribution::query()
+            ->with([
+                'recipient',
+                'office',
+                'acknowledger',
+                'order.engagement.offices:id,code,name',
+                'order.engagement.auditAreas:id,code,name',
+                'order.versions.creator',
+                'order.preparer',
+                'order.approver',
+                'order.issuer',
+            ])
+            ->whereIn('status', ['SENT', 'ACKNOWLEDGED'])
+            ->whereHas('order', fn ($query) => $query->where('status', 'ISSUED'))
+            ->where(function ($query) use ($user): void {
+                $query
+                    ->where('recipient_user_id', $user->id)
+                    ->orWhere(function ($office) use ($user): void {
+                        $office->whereNotNull('recipient_office_id')
+                            ->where('recipient_office_id', $user->office_id);
+                    });
+            })
+            ->latest('sent_at')
+            ->get()
+            ->map(fn (AemsAeoDistribution $distribution): array => $this->recipientDistribution($distribution))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Return the exact issued version and its approved/issued actors for a
+     * recipient-safe PDF request. This deliberately does not expose the
+     * internal AEO workspace or permit arbitrary version selection.
+     *
+     * @return array{engagement: AuditEngagement, order: AuditEngagementOrder, version: AuditEngagementOrderVersion, approvalEvent:?EngagementEvent, issueEvent:?EngagementEvent}
+     */
+    public function recipientPdfContext(User $user, AemsAeoDistribution $distribution): array
+    {
+        $distribution->loadMissing([
+            'order.engagement.offices:id,code,name',
+            'order.engagement.auditAreas:id,code,name',
+            'order.versions.creator',
+            'order.preparer',
+            'order.approver',
+            'order.issuer',
+        ]);
+        $order = $distribution->order;
+        $engagement = $order?->engagement;
+        $isRecipient = $distribution->recipient_user_id
+            && (int) $distribution->recipient_user_id === (int) $user->id
+            || $distribution->recipient_office_id
+            && (int) $distribution->recipient_office_id === (int) $user->office_id;
+        if (! $order || ! $engagement || $order->status !== 'ISSUED' || $distribution->status === 'VOIDED' || ! $isRecipient) {
+            throw ValidationException::withMessages(['distribution' => ['This issued AEO is not available to your account.']]);
+        }
+
+        $version = $order->versions()->where('version_number', $distribution->version_number)->first();
+        $approvalEvent = EngagementEvent::query()
+            ->where('audit_engagement_id', $engagement->id)
+            ->where('subject_type', 'AEO')
+            ->where('subject_id', $order->id)
+            ->where('subject_version', $distribution->version_number)
+            ->where('action', 'AEO_APPROVE')
+            ->with('actor')
+            ->latest('created_at')
+            ->first();
+        $issueEvent = EngagementEvent::query()
+            ->where('audit_engagement_id', $engagement->id)
+            ->where('subject_type', 'AEO')
+            ->where('subject_id', $order->id)
+            ->where('subject_version', $distribution->version_number)
+            ->where('action', 'AEO_ISSUE')
+            ->with('actor')
+            ->latest('created_at')
+            ->first();
+        if (! $version || ! $approvalEvent || ! $issueEvent) {
+            throw ValidationException::withMessages(['distribution' => ['Only an approved and issued AEO version can be downloaded.']]);
+        }
+
+        return compact('engagement', 'order', 'version', 'approvalEvent', 'issueEvent');
+    }
+
+    public function acknowledgeRecipient(Request $request, AemsAeoDistribution $distribution, string $note): AemsAeoDistribution
+    {
+        $distribution->loadMissing(['order.engagement']);
+        $order = $distribution->order;
+        if (! $order || ! $order->engagement) {
+            throw ValidationException::withMessages(['distribution' => ['The AEO transmittal is no longer available.']]);
+        }
+
+        return $this->acknowledge($request, $order->engagement, $order, $distribution, $note);
     }
 
     public function acknowledge(Request $request, AuditEngagement $engagement, AuditEngagementOrder $order, AemsAeoDistribution $distribution, string $note): AemsAeoDistribution
@@ -521,13 +654,19 @@ class AemsAeoService
             if (! $review) {
                 // Preserve compatibility with pre-G4 review events by materializing
                 // the immutable signatory record from the already-audited action.
+                $preparedBy = User::query()->find($order->prepared_by);
+                $preparedByMayReview = $preparedBy
+                    && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.review');
                 $reviewEvent = EngagementEvent::query()
                     ->where('audit_engagement_id', $engagement->id)
                     ->where('subject_type', 'AEO')
                     ->where('subject_id', $order->id)
                     ->where('subject_version', $version->version_number)
                     ->where('action', 'AEO_REVIEW')
-                    ->where('actor_id', '<>', $order->prepared_by)
+                    ->when(
+                        ! $preparedByMayReview,
+                        fn ($query) => $query->where('actor_id', '<>', $order->prepared_by),
+                    )
                     ->latest('created_at')->first();
                 if ($reviewEvent) {
                     $reviewEntry = AemsAeoSignatory::query()->firstOrCreate([
@@ -551,11 +690,17 @@ class AemsAeoService
                     $review = $reviewEntry->fresh();
                 }
             }
-            if (! $review || (int) $review->signed_by === (int) $request->user()->id) {
+            $mayUseSingleCiasAuthority = $this->access->mayUseCiasHeadAeoReviewException(
+                $request->user(),
+                'aems.aeo.approve',
+            );
+            if (! $review || ((int) $review->signed_by === (int) $request->user()->id && ! $mayUseSingleCiasAuthority)) {
                 throw ValidationException::withMessages(['signature' => ['An independent reviewer must sign before approval.']]);
             }
         }
-        if ($role === 'ISSUING_AUTHORITY' && (int) $order->approved_by === (int) $request->user()->id) {
+        if ($role === 'ISSUING_AUTHORITY'
+            && (int) $order->approved_by === (int) $request->user()->id
+            && ! $this->access->mayUseCiasHeadAeoReviewException($request->user(), 'aems.aeo.issue')) {
             throw ValidationException::withMessages(['signature' => ['The approving authority cannot also issue the same AEO.']]);
         }
         $entry->fill([
@@ -597,6 +742,87 @@ class AemsAeoService
             'acknowledgedBy' => $this->user($distribution->acknowledger),
             'acknowledgementNote' => $distribution->acknowledgement_note,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function recipientDistribution(AemsAeoDistribution $distribution): array
+    {
+        $payload = $this->distribution($distribution);
+        $engagement = $distribution->order?->engagement;
+        $version = $distribution->order?->versions
+            ?->first(fn (AuditEngagementOrderVersion $candidate): bool => (int) $candidate->version_number === (int) $distribution->version_number);
+        $approvalEvent = $distribution->order && $engagement
+            ? EngagementEvent::query()
+                ->where('audit_engagement_id', $engagement->id)
+                ->where('subject_type', 'AEO')
+                ->where('subject_id', $distribution->order->id)
+                ->where('subject_version', $distribution->version_number)
+                ->where('action', 'AEO_APPROVE')
+                ->with('actor')
+                ->latest('created_at')
+                ->first()
+            : null;
+        $issueEvent = $distribution->order && $engagement
+            ? EngagementEvent::query()
+                ->where('audit_engagement_id', $engagement->id)
+                ->where('subject_type', 'AEO')
+                ->where('subject_id', $distribution->order->id)
+                ->where('subject_version', $distribution->version_number)
+                ->where('action', 'AEO_ISSUE')
+                ->with('actor')
+                ->latest('created_at')
+                ->first()
+            : null;
+
+        return [
+            ...$payload,
+            'engagementId' => $engagement?->id,
+            'engagementCode' => $engagement?->engagement_code,
+            'engagementTitle' => $engagement?->title,
+            'orderId' => $distribution->order?->id,
+            'orderCode' => $distribution->order?->order_code,
+            'aeo' => $version ? [
+                ...$this->versionSnapshot($version),
+                'auditeeOffices' => $engagement?->offices?->map->only(['id', 'code', 'name'])->values()->all() ?? [],
+                'auditAreas' => $engagement?->auditAreas?->map->only(['id', 'code', 'name'])->values()->all() ?? [],
+                'approvedBy' => $this->user($approvalEvent?->actor ?? $distribution->order?->approver),
+                'approvedAt' => $approvalEvent?->created_at?->toISOString() ?? $distribution->order?->approved_at?->toISOString(),
+                'issuedBy' => $this->user($issueEvent?->actor ?? $distribution->order?->issuer),
+                'issuedAt' => $issueEvent?->created_at?->toISOString() ?? $distribution->order?->issued_at?->toISOString(),
+            ] : null,
+        ];
+    }
+
+    /** @return array{offices:list<array<string,mixed>>,users:list<array<string,mixed>>} */
+    private function recipientOptions(AuditEngagement $engagement): array
+    {
+        $officeIds = $engagement->offices->pluck('id');
+        $offices = $engagement->offices->map(fn ($office): array => [
+            'id' => $office->id,
+            'code' => $office->code,
+            'name' => $office->name,
+        ])->values()->all();
+        $users = User::query()
+            ->whereIn('office_id', $officeIds)
+            ->where('is_active', true)
+            ->where(function ($query): void {
+                $query
+                    ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
+                    ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+            })
+            ->with('office:id,code,name')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user): array => [
+                ...$this->user($user),
+                'office' => $user->office ? [
+                    'id' => $user->office->id,
+                    'code' => $user->office->code,
+                    'name' => $user->office->name,
+                ] : null,
+            ])->values()->all();
+
+        return compact('offices', 'users');
     }
 
     /** @param array<string, mixed> $attributes */
@@ -797,6 +1023,114 @@ class AemsAeoService
         ];
     }
 
+    /**
+     * Return the responsible account guidance for every AEO authority step.
+     * Candidates are informational; the API still authorizes every action and
+     * records the actual actor on the immutable event/signatory record.
+     *
+     * @return array{preparedBy:?array,roles:list<array<string,mixed>>}
+     */
+    private function authorityMatrix(AuditEngagement $engagement, ?AuditEngagementOrder $order): array
+    {
+        $preparedBy = $order?->preparer;
+        $signatories = $order?->signatories
+            ->where('version_number', $order->current_version_number)
+            ->keyBy('signatory_role') ?? collect();
+
+        $reviewerCandidates = $engagement->teamMembers()
+            ->where('is_active', true)
+            ->whereNull('ended_at')
+            ->where('assignment_role_code', 'REVIEWER')
+            ->with('user')
+            ->get()
+            ->map(fn (EngagementTeam $member): ?array => $this->user($member->user))
+            ->filter()
+            ->values();
+
+        if ($preparedBy && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.review')) {
+            $reviewerCandidates = $reviewerCandidates
+                ->prepend($this->user($preparedBy))
+                ->unique('id')
+                ->values();
+        }
+
+        $managementCandidates = User::query()
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->where('code', 'cias_management'))
+            ->with('roles')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user): array => $this->user($user))
+            ->values();
+
+        $preparedByMayUseSingleAuthority = $preparedBy
+            && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.approve');
+        $approverCandidates = $managementCandidates
+            ->reject(fn (?array $user): bool => $preparedBy
+                && (int) $user['id'] === (int) $preparedBy->id
+                && ! $preparedByMayUseSingleAuthority)
+            ->values();
+        $approvedBy = $order?->approver;
+        $issuerCandidates = $managementCandidates
+            ->reject(fn (?array $user): bool => $preparedBy
+                && (int) $user['id'] === (int) $preparedBy->id
+                && ! $preparedByMayUseSingleAuthority)
+            ->reject(fn (?array $user): bool => $approvedBy
+                && (int) $user['id'] === (int) $approvedBy->id
+                && ! ($preparedByMayUseSingleAuthority
+                    && $preparedBy
+                    && $approvedBy
+                    && (int) $approvedBy->id === (int) $preparedBy->id))
+            ->values();
+
+        return [
+            'preparedBy' => $this->user($preparedBy),
+            'roles' => [
+                $this->authorityEntry(
+                    'INDEPENDENT_REVIEWER',
+                    'Independent reviewer',
+                    'Assigned AEMS REVIEWER; the CIAS Head may use the documented self-review exception when she prepared this AEO.',
+                    $signatories->get('INDEPENDENT_REVIEWER'),
+                    $reviewerCandidates,
+                ),
+                $this->authorityEntry(
+                    'APPROVING_AUTHORITY',
+                    'Approving authority',
+                    'CIAS Management authority. When the preparer is the sole active CIAS Head, that account may approve her own AEO.',
+                    $signatories->get('APPROVING_AUTHORITY'),
+                    $approverCandidates,
+                ),
+                $this->authorityEntry(
+                    'ISSUING_AUTHORITY',
+                    'Issuing authority',
+                    'CIAS Management authority. When the CIAS Head is the sole authority and approved her own AEO, that account may also issue it.',
+                    $signatories->get('ISSUING_AUTHORITY'),
+                    $issuerCandidates,
+                ),
+            ],
+        ];
+    }
+
+    /** @param \Illuminate\Support\Collection<int, array<string, mixed>> $candidates */
+    private function authorityEntry(
+        string $role,
+        string $label,
+        string $rule,
+        ?AemsAeoSignatory $signatory,
+        $candidates,
+    ): array {
+        return [
+            'role' => $role,
+            'label' => $label,
+            'rule' => $rule,
+            'status' => $signatory?->status ?? 'PENDING',
+            'account' => $this->user($signatory?->user),
+            'signedBy' => $this->user($signatory?->signer),
+            'candidates' => $candidates->all(),
+            'requiresSeparateAccount' => false,
+        ];
+    }
+
     /** @return array<string, mixed> */
     private function versionSnapshot(AuditEngagementOrderVersion $version): array
     {
@@ -823,8 +1157,10 @@ class AemsAeoService
         return $user ? [
             'id' => $user->id,
             'employeeId' => $user->employee_id,
+            'username' => $user->username,
             'name' => $user->name,
             'initials' => $user->initials,
+            'position' => $user->position,
         ] : null;
     }
 

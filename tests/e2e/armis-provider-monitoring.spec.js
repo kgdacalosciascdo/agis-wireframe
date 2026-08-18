@@ -9,9 +9,8 @@ async function signIn(page) {
 }
 
 const checks = [
-  { code: "CONFIGURATION_CONSISTENCY", status: "PASS", message: "Configured and effective provider modes agree.", observed: { configuredMode: "ARMIS_SHADOW", effectiveMode: "ARMIS_SHADOW" } },
-  { code: "AEMS_READ_PATH", status: "PASS", message: "AEMS active reads resolve to the provider selected by the effective mode.", observed: { activeProvider: "App\\Integrations\\Aems\\InterimIapResourcePlanningGateway" } },
-  { code: "RECONCILIATION_FRESHNESS", status: "WARN", message: "No immutable reconciliation has been generated yet.", observed: {} },
+  { code: "CONFIGURATION_CONSISTENCY", status: "PASS", message: "Configured and effective provider modes agree.", observed: { configuredMode: "ARMIS_AUTHORITATIVE", effectiveMode: "ARMIS_AUTHORITATIVE" } },
+  { code: "AEMS_READ_PATH", status: "PASS", message: "AEMS active reads resolve to ARMIS, the sole operational provider.", observed: { activeProvider: "App\\Integrations\\Aems\\ArmisResourcePlanningGateway" } },
 ];
 
 function monitoringCheck(overrides = {}) {
@@ -19,9 +18,9 @@ function monitoringCheck(overrides = {}) {
     id: 101,
     displayCode: "ARMIS-MON-000101",
     sourceQueryVersion: "ARMIS-6D-v1",
-    providerMode: "ARMIS_SHADOW",
-    configuredMode: "ARMIS_SHADOW",
-    overallStatus: "DEGRADED",
+    providerMode: "ARMIS_AUTHORITATIVE",
+    configuredMode: "ARMIS_AUTHORITATIVE",
+    overallStatus: "HEALTHY",
     checks,
     resultChecksumSha256: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     performedAt: "2026-08-11T09:00:00Z",
@@ -33,11 +32,11 @@ function monitoringCheck(overrides = {}) {
 async function mockMonitoring(page) {
   let currentCheck = monitoringCheck();
   await page.route(/\/api\/armis\/provider\/monitoring\/status$/, async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { providerMode: "ARMIS_SHADOW", configuredMode: "ARMIS_SHADOW", overallStatus: currentCheck.overallStatus, checks: currentCheck.checks, providerSnapshot: { latestReconciliation: null }, latestCheck: currentCheck, monitoringControls: { freshnessThresholdDays: 30, checkIsReadOnly: true } } }) });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { providerMode: "ARMIS_AUTHORITATIVE", configuredMode: "ARMIS_AUTHORITATIVE", overallStatus: currentCheck.overallStatus, checks: currentCheck.checks, providerSnapshot: { provider: { mode: "ARMIS_AUTHORITATIVE" } }, latestCheck: currentCheck, monitoringControls: { checkIsReadOnly: true } } }) });
   });
   await page.route(/\/api\/armis\/provider\/monitoring\/checks$/, async (route) => {
     if (route.request().method() === "POST") {
-      currentCheck = monitoringCheck({ id: 102, displayCode: "ARMIS-MON-000102", overallStatus: "HEALTHY", checks: checks.map((check) => check.code === "RECONCILIATION_FRESHNESS" ? { ...check, status: "PASS", message: "The latest immutable reconciliation is within the configured 30-day monitoring window." } : check) });
+      currentCheck = monitoringCheck({ id: 102, displayCode: "ARMIS-MON-000102", overallStatus: "HEALTHY" });
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ success: true, data: { check: currentCheck } }) });
       return;
     }

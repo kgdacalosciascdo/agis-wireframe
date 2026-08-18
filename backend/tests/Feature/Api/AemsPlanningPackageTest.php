@@ -72,6 +72,33 @@ class AemsPlanningPackageTest extends TestCase
         AemsPlanningPackageVersion::query()->firstOrFail()->update(['change_reason' => 'tamper']);
     }
 
+    public function test_sole_cias_head_may_review_and_approve_own_planning_package(): void
+    {
+        [$prepared, $reviewer, $approver, $engagement, $procedure] = $this->fixture();
+        $prepared->update(['is_office_head' => true]);
+        User::query()
+            ->whereIn('id', [$reviewer->id, $approver->id])
+            ->update(['is_active' => false]);
+
+        Sanctum::actingAs($prepared);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $this->completePayload($procedure->id))
+            ->assertCreated();
+        $package = $engagement->planningPackage()->firstOrFail();
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}/transition", [
+            'action' => 'SUBMIT',
+            'lockVersion' => 1,
+        ])->assertOk();
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}/transition", [
+            'action' => 'REVIEW',
+            'lockVersion' => 2,
+            'comment' => 'Sole CIAS Head planning review recorded.',
+        ])->assertOk();
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}/transition", [
+            'action' => 'APPROVE',
+            'lockVersion' => 3,
+        ])->assertOk()->assertJsonPath('data.package.status', 'APPROVED');
+    }
+
     public function test_g3_strict_fieldwork_conformance_is_reported_and_multiple_matrices_are_supported(): void
     {
         [$prepared, , , $engagement, $procedure] = $this->fixture();

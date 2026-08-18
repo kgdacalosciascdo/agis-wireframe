@@ -4,11 +4,8 @@ namespace App\Services;
 
 use App\Contracts\Aems\ResourcePlanningGateway;
 use App\Integrations\Aems\ArmisResourcePlanningGateway;
-use App\Integrations\Aems\InterimIapResourcePlanningGateway;
 use App\Models\ActivityLog;
-use App\Models\ArmisProviderAuthorityDecision;
 use App\Models\ArmisProviderMonitoringCheck;
-use App\Models\ArmisProviderReconciliationRun;
 use App\Models\AuditLog;
 use App\Models\ArmisWorkflowEvent;
 use App\Models\Office;
@@ -28,12 +25,6 @@ use Illuminate\Support\Str;
 class ArmisProviderMonitoringService
 {
     private const SOURCE_QUERY_VERSION = 'ARMIS-6D-v1';
-
-    private const FRESHNESS_DAYS = 30;
-
-    private const MODE_FALLBACK = 'IAP_INTERIM_FALLBACK';
-
-    private const MODE_SHADOW = 'ARMIS_SHADOW';
 
     private const MODE_AUTHORITATIVE = 'ARMIS_AUTHORITATIVE';
 
@@ -56,7 +47,6 @@ class ArmisProviderMonitoringService
             'monitoringControls' => [
                 'checkIsReadOnly' => true,
                 'authoritySwitchIsSeparate' => true,
-                'freshnessThresholdDays' => self::FRESHNESS_DAYS,
                 'globalScopeRequiredToRun' => true,
             ],
         ];
@@ -147,10 +137,7 @@ class ArmisProviderMonitoringService
     {
         $provider = $this->provider->status();
         $configuredMode = $this->runtime->armisProviderMode();
-        $providerMode = (string) ($provider['mode'] ?? self::MODE_FALLBACK);
-        $authority = ArmisProviderAuthorityDecision::query()->latest('decided_at')->first();
-        $reconciliation = ArmisProviderReconciliationRun::query()->latest('generated_at')->first();
-
+        $providerMode = self::MODE_AUTHORITATIVE;
         $checks = [];
         $checks[] = $this->diagnostic(
             'CONFIGURATION_CONSISTENCY',
@@ -160,9 +147,7 @@ class ArmisProviderMonitoringService
             ['configuredMode' => $configuredMode, 'effectiveMode' => $providerMode],
         );
 
-        $expectedProvider = $providerMode === self::MODE_AUTHORITATIVE
-            ? ArmisResourcePlanningGateway::class
-            : InterimIapResourcePlanningGateway::class;
+        $expectedProvider = ArmisResourcePlanningGateway::class;
         $activeProvider = (string) ($provider['activeProvider'] ?? '');
         $checks[] = $this->diagnostic(
             'AEMS_READ_PATH',
@@ -172,33 +157,12 @@ class ArmisProviderMonitoringService
             ['activeProvider' => $expectedProvider],
         );
 
-        $authorityConsistent = $providerMode !== self::MODE_AUTHORITATIVE
-            || ($authority?->to_mode === self::MODE_AUTHORITATIVE && $authority?->decision_code === 'ACTIVATE_ARMIS');
         $checks[] = $this->diagnostic(
             'AUTHORITY_DECISION_CONSISTENCY',
-            $authorityConsistent ? 'PASS' : 'FAIL',
-            $providerMode === self::MODE_AUTHORITATIVE
-                ? 'An immutable ARMIS activation decision supports authoritative mode.'
-                : 'No ARMIS authoritative decision is required while AEMS remains on IAP.',
-            ['latestDecision' => $authority?->decision_code, 'toMode' => $authority?->to_mode],
-            ['toMode' => $providerMode === self::MODE_AUTHORITATIVE ? self::MODE_AUTHORITATIVE : 'Not required'],
-        );
-
-        $freshnessStatus = 'WARN';
-        $freshnessObserved = ['latestGeneratedAt' => $reconciliation?->generated_at?->toISOString()];
-        if ($reconciliation) {
-            $age = now()->diffInDays($reconciliation->generated_at);
-            $freshnessObserved['ageDays'] = $age;
-            $freshnessStatus = $age <= self::FRESHNESS_DAYS ? 'PASS' : 'WARN';
-        }
-        $checks[] = $this->diagnostic(
-            'RECONCILIATION_FRESHNESS',
-            $freshnessStatus,
-            $reconciliation
-                ? 'The latest immutable reconciliation is within the configured '.self::FRESHNESS_DAYS.'-day monitoring window.'
-                : 'No immutable reconciliation has been generated yet.',
-            $freshnessObserved,
-            ['maxAgeDays' => self::FRESHNESS_DAYS],
+            'PASS',
+            'ARMIS is the sole operational provider; no provider-switch decision is required.',
+            ['providerMode' => self::MODE_AUTHORITATIVE],
+            ['providerMode' => self::MODE_AUTHORITATIVE],
         );
 
         $adapterAvailable = (bool) ($provider['armisAdapter']['available'] ?? $provider['shadowAvailable'] ?? false);
@@ -206,7 +170,7 @@ class ArmisProviderMonitoringService
             'ARMIS_ADAPTER_AVAILABILITY',
             $adapterAvailable ? 'PASS' : 'FAIL',
             'The ARMIS adapter reports an available read ledger for comparison or authoritative use.',
-            ['available' => $adapterAvailable, 'provider' => $provider['shadowProvider'] ?? null],
+            ['available' => $adapterAvailable, 'provider' => $provider['activeProvider'] ?? ArmisResourcePlanningGateway::class],
             ['available' => true],
         );
 
@@ -220,20 +184,7 @@ class ArmisProviderMonitoringService
             'checks' => $checks,
             'providerSnapshot' => [
                 'provider' => $provider,
-                'latestAuthorityDecision' => $authority ? [
-                    'id' => $authority->id,
-                    'decisionCode' => $authority->decision_code,
-                    'fromMode' => $authority->from_mode,
-                    'toMode' => $authority->to_mode,
-                    'decidedAt' => $authority->decided_at?->toISOString(),
-                ] : null,
-                'latestReconciliation' => $reconciliation ? [
-                    'id' => $reconciliation->id,
-                    'displayCode' => $reconciliation->display_code,
-                    'providerMode' => $reconciliation->provider_mode,
-                    'generatedAt' => $reconciliation->generated_at?->toISOString(),
-                    'checksumSha256' => $reconciliation->result_checksum_sha256,
-                ] : null,
+                'latestAuthorityDecision' => null,
             ],
         ];
     }

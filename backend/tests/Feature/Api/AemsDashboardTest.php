@@ -8,6 +8,10 @@ use App\Models\AuditEngagementOrder;
 use App\Models\AuditEngagementPlan;
 use App\Models\AuditFinding;
 use App\Models\AuditLog;
+use App\Models\AemsEffortReconciliation;
+use App\Models\ArmisActualPersonDay;
+use App\Models\ArmisEngagementAssignment;
+use App\Models\ArmisResourceProfile;
 use App\Models\AuditProgram;
 use App\Models\AuditProgramProcedure;
 use App\Models\AuditRecommendation;
@@ -143,8 +147,8 @@ class AemsDashboardTest extends TestCase
             ->assertJsonPath('data.integrations.core.available', true)
             ->assertJsonPath('data.integrations.iap.mode', 'APPROVED_PLAN_IMPORT')
             ->assertJsonPath('data.integrations.cms.mode', 'IMMUTABLE_INTAKE')
-            ->assertJsonPath('data.integrations.armis.mode', 'IAP_INTERIM_FALLBACK')
-            ->assertJsonPath('data.integrations.armis.authoritative', false)
+            ->assertJsonPath('data.integrations.armis.mode', 'ARMIS_AUTHORITATIVE')
+            ->assertJsonPath('data.integrations.armis.authoritative', true)
             ->assertJsonCount(2, 'data.engagements');
         $this->assertIsInt($response->json('data.notifications.unread'));
 
@@ -458,5 +462,62 @@ class AemsDashboardTest extends TestCase
             'issued_at' => now(),
             'issued_by' => $actor->id,
         ])->save();
+
+        // ARMIS is authoritative after the resource ownership cutover. Keep
+        // the ready-for-closure fixture explicit about its approved effort
+        // reconciliation instead of relying on the retired IAP fallback.
+        AemsEffortReconciliation::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'version_number' => 1,
+            'provider_mode' => 'ARMIS_AUTHORITATIVE',
+            'status' => 'APPROVED',
+            'planned_person_days' => (float) $engagement->planned_person_days,
+            'aems_actual_person_days' => (float) $engagement->actual_person_days,
+            'provider_actual_person_days' => (float) $engagement->actual_person_days,
+            'variance_person_days' => 0,
+            'source_snapshot_json' => ['fixture' => true, 'provider' => 'ARMIS'],
+            'generated_by' => $actor->id,
+            'generated_at' => now(),
+            'approved_by' => $actor->id,
+            'approved_at' => now(),
+        ]);
+        $profile = ArmisResourceProfile::query()
+            ->where('user_id', $actor->id)
+            ->where('status', 'ACTIVE')
+            ->firstOrFail();
+        $assignment = ArmisEngagementAssignment::query()->create([
+            'assignment_family_uuid' => (string) Str::uuid(),
+            'audit_engagement_id' => $engagement->id,
+            'resource_profile_id' => $profile->id,
+            'version_number' => 1,
+            'is_current_revision' => true,
+            'assignment_role_code' => 'SUPERVISOR',
+            'assigned_from' => now()->subMonth()->toDateString(),
+            'assigned_until' => now()->addMonth()->toDateString(),
+            'planned_person_days' => (float) $engagement->planned_person_days,
+            'status' => 'LOCKED',
+            'created_by' => $actor->id,
+            'updated_by' => $actor->id,
+            'approved_by' => $actor->id,
+            'approved_at' => now(),
+        ]);
+        ArmisActualPersonDay::query()->create([
+            'actual_family_uuid' => (string) Str::uuid(),
+            'resource_profile_id' => $profile->id,
+            'assignment_id' => $assignment->id,
+            'source_module' => 'AEMS',
+            'source_type' => 'AEMS_ENGAGEMENT',
+            'source_id' => $engagement->id,
+            'period_start' => now()->subMonth()->toDateString(),
+            'period_end' => now()->toDateString(),
+            'version_number' => 1,
+            'actual_person_days' => (float) $engagement->actual_person_days,
+            'status' => 'LOCKED',
+            'is_current_revision' => true,
+            'created_by' => $actor->id,
+            'updated_by' => $actor->id,
+            'approved_by' => $actor->id,
+            'approved_at' => now(),
+        ]);
     }
 }

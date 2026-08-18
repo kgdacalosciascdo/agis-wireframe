@@ -56,9 +56,9 @@ class AemsIntegrationBoundaryTest extends TestCase
         $this->assertSame(0, $status['cms']['transferredRecommendations']);
         $this->assertSame(0, $status['cms']['operationalCases']);
         $this->assertTrue($status['cms']['caseCoverageComplete']);
-        $this->assertFalse($status['armis']['authoritative']);
-        $this->assertSame('IAP_INTERIM_FALLBACK', $status['armis']['mode']);
-        $this->assertSame('AEMS_UNTIL_ARMIS_AUTHORITY_GATE', $status['armis']['actualPersonDaysOwner']);
-        $this->assertSame('ARMIS', $status['armis']['futureAuthoritativeProvider']);
+        $this->assertTrue($status['armis']['authoritative']);
+        $this->assertSame('ARMIS_AUTHORITATIVE', $status['armis']['mode']);
+        $this->assertSame('ARMIS', $status['armis']['actualPersonDaysOwner']);
+        $this->assertNull($status['armis']['futureAuthoritativeProvider']);
     }
 }

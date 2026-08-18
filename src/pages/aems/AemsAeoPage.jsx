@@ -74,6 +74,22 @@ function roleLabel(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function accountLabel(account) {
+  if (!account?.name) return "Pending authority";
+  return account.username ? `${account.name} (${account.username})` : account.name;
+}
+
+function actionAuthorityRole(action) {
+  return {
+    SUBMIT: "PREPARER",
+    RESUBMIT: "PREPARER",
+    REVIEW: "INDEPENDENT_REVIEWER",
+    RETURN: "INDEPENDENT_REVIEWER",
+    APPROVE: "APPROVING_AUTHORITY",
+    ISSUE: "ISSUING_AUTHORITY",
+  }[action];
+}
+
 function Detail({ label, children }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
@@ -191,6 +207,12 @@ export default function AemsAeoPage() {
   }));
   const order = workspace?.order;
   const version = order?.latestVersion;
+  const recipientOptions = workspace?.recipientOptions ?? { offices: [], users: [] };
+  const authorityMatrix = workspace?.authorityMatrix;
+  const authorityRoles = useMemo(
+    () => authorityMatrix?.roles ?? [],
+    [authorityMatrix?.roles],
+  );
 
   const actions = useMemo(() => {
     if (!order) return [];
@@ -229,6 +251,14 @@ export default function AemsAeoPage() {
     }
     return items;
   }, [canAmend, canApprove, canCancel, canIssue, canPrepare, canReview, canRevise, canSupersede, canVoid, order]);
+
+  const nextAuthority = useMemo(() => {
+    const relevant = actions
+      .map(([action]) => authorityRoles.find((entry) => entry.role === actionAuthorityRole(action)))
+      .filter(Boolean)
+      .filter((entry, index, entries) => entries.findIndex((item) => item.role === entry.role) === index);
+    return relevant;
+  }, [actions, authorityRoles]);
 
   function openForm() {
     setErrors({});
@@ -339,6 +369,20 @@ export default function AemsAeoPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function selectRecipient(event) {
+    const id = event.target.value;
+    const options = distributionForm.recipientType === "OFFICE"
+      ? recipientOptions.offices
+      : recipientOptions.users;
+    const selected = options.find((option) => String(option.id) === String(id));
+    setDistributionForm((current) => ({
+      ...current,
+      recipientName: selected?.name ?? "",
+      recipientOfficeId: current.recipientType === "OFFICE" ? id : "",
+      recipientUserId: current.recipientType === "USER" ? id : "",
+    }));
   }
 
   async function acknowledge(distribution) {
@@ -506,7 +550,7 @@ export default function AemsAeoPage() {
             </div>
 
             <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4 sm:p-5">
-              <Detail label="Prepared by">{order.preparedBy?.name}</Detail>
+              <Detail label="Prepared by">{accountLabel(order.preparedBy)}</Detail>
               <Detail label="Submitted">
                 {order.submittedAt
                   ? `${order.submittedBy?.name} · ${date(order.submittedAt, true)}`
@@ -568,6 +612,19 @@ export default function AemsAeoPage() {
                 The backend validates status, role, assignment, independent
                 review, and lock version.
               </p>
+              {!!nextAuthority.length && (
+                <div className="mt-3 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs text-slate-700">
+                  <strong className="text-sky-800">Responsible account guidance:</strong>{" "}
+                  {nextAuthority.map((entry, index) => (
+                    <span key={entry.role}>
+                      {index > 0 ? " · " : ""}
+                      {entry.label}: {entry.account?.name || entry.candidates?.length
+                        ? accountLabel(entry.account || entry.candidates[0])
+                        : "No eligible account currently designated"}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 {actions.map(([action, label, Icon, tone]) => (
                   <button
@@ -676,6 +733,41 @@ export default function AemsAeoPage() {
                 ))}
                 {!order.distributions?.length && <p className="text-xs text-slate-500">No transmittal recorded for this version.</p>}
               </div>
+            </div>
+            <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-5">
+              <div className="flex items-start gap-2">
+                <UsersRound className="mt-0.5 shrink-0 text-sky-700" size={16} />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Responsible accounts and authority rules</h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    The account shown beside a signed role is the immutable actor who performed that step. Pending candidates are guidance only; the backend still authorizes and records the actual account.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 lg:grid-cols-3">
+                {authorityRoles.map((entry) => (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs" key={entry.role}>
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="text-slate-800">{entry.label}</strong>
+                      <StatusBadge tone={entry.status === "SIGNED" ? "active" : "warning"}>{entry.status}</StatusBadge>
+                    </div>
+                    <p className="mt-1 font-semibold text-slate-700">
+                      {entry.account ? accountLabel(entry.account) : entry.signedBy ? accountLabel(entry.signedBy) : "Pending authority"}
+                    </p>
+                    <p className="mt-1 leading-5 text-slate-500">{entry.rule}</p>
+                    {!entry.account && !entry.signedBy && (
+                      <p className="mt-2 text-sky-800">
+                        Candidates: {entry.candidates?.length
+                          ? entry.candidates.map(accountLabel).join(", ")
+                          : "No eligible account currently designated"}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+                AEO approval and issuance belong to active CIAS Management accounts. When the CIAS Head is the sole available management authority, the same account may review, approve, and issue the AEO she prepared. Auditee office heads and the City Mayor receive issued copies and acknowledge them through the CMS recipient portal.
+              </p>
             </div>
           </section>
 
@@ -845,9 +937,23 @@ export default function AemsAeoPage() {
 
       <Modal open={distributionOpen} onClose={() => !saving && setDistributionOpen(false)} title="Record AEO transmittal" description="Record the protected delivery method and reference for the issued AEO." footer={<><button className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold" onClick={() => setDistributionOpen(false)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white" disabled={saving} onClick={distribute} type="button">{saving ? "Saving…" : "Record transmittal"}</button></>}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-700">Recipient type<select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.recipientType} onChange={(event) => setDistributionForm((current) => ({ ...current, recipientType: event.target.value }))}><option value="OFFICE">Office</option><option value="USER">User</option></select></label>
-          <label className="text-sm font-semibold text-slate-700">Recipient name<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.recipientName} onChange={(event) => setDistributionForm((current) => ({ ...current, recipientName: event.target.value }))} /></label>
-          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Recipient ID<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" placeholder={distributionForm.recipientType === "OFFICE" ? "Office ID" : "User ID"} value={distributionForm.recipientType === "OFFICE" ? distributionForm.recipientOfficeId : distributionForm.recipientUserId} onChange={(event) => setDistributionForm((current) => ({ ...current, ...(current.recipientType === "OFFICE" ? { recipientOfficeId: event.target.value } : { recipientUserId: event.target.value }) }))} /></label>
+          <label className="text-sm font-semibold text-slate-700">Recipient type
+            <select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.recipientType} onChange={(event) => setDistributionForm((current) => ({ ...current, recipientType: event.target.value, recipientUserId: "", recipientOfficeId: "", recipientName: "" }))}>
+              <option value="OFFICE">Office</option><option value="USER">User</option>
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-slate-700">Recipient name
+            <input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 font-normal" readOnly value={distributionForm.recipientName} placeholder="Select a recipient" />
+          </label>
+          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Recipient ID
+            <select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal" value={distributionForm.recipientType === "OFFICE" ? distributionForm.recipientOfficeId : distributionForm.recipientUserId} onChange={selectRecipient}>
+              <option value="">Select {distributionForm.recipientType === "OFFICE" ? "an office" : "a user"}</option>
+              {(distributionForm.recipientType === "OFFICE" ? recipientOptions.offices : recipientOptions.users).map((option) => (
+                <option key={option.id} value={option.id}>{option.name}{option.code ? ` (${option.code})` : ""}{option.employeeId ? ` · ${option.employeeId}` : ""}</option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-500">Only recipients within this engagement’s auditee office scope are available.</span>
+          </label>
           <label className="text-sm font-semibold text-slate-700">Transmittal method<select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.transmittalMethod} onChange={(event) => setDistributionForm((current) => ({ ...current, transmittalMethod: event.target.value }))}><option value="SECURE_PORTAL">Secure portal</option><option value="OFFICIAL_EMAIL">Official email</option><option value="PHYSICAL_TRANSMITTAL">Physical transmittal</option><option value="IN_PERSON">In person</option></select></label>
           <label className="text-sm font-semibold text-slate-700">Reference<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.transmittalReference} onChange={(event) => setDistributionForm((current) => ({ ...current, transmittalReference: event.target.value }))} /></label>
         </div>

@@ -46,7 +46,6 @@ const tabs = [
       "/audit-engagement-management/execution",
       "/audit-engagement-management/working-papers",
       "/audit-engagement-management/evidence",
-      "/audit-engagement-management/audit-program",
     ],
   },
   {
@@ -96,7 +95,6 @@ const tabs = [
       "aems.calendar.view",
     ],
     href: ({ id }) => `/audit-engagement-management/${id}?tab=completion-assessment`,
-    paths: ["/audit-engagement-management/"],
     queryTabs: [
       "completion-assessment",
       "closure",
@@ -143,10 +141,10 @@ export default function AemsEngagementWorkspaceNav({ engagementId }) {
   return (
     <nav
       aria-label="Engagement workspace tabs"
-      className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+      className="mb-4 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
       data-testid="aems-engagement-tabs"
     >
-      <div className="flex min-w-max gap-1">
+      <div className="flex flex-wrap gap-1">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const active = isCurrentTab(
@@ -158,7 +156,7 @@ export default function AemsEngagementWorkspaceNav({ engagementId }) {
           return (
             <Link
               aria-current={active ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-3.5 text-xs font-bold transition sm:px-4 sm:text-sm ${
+              className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 transition sm:flex-none sm:px-4 sm:text-sm ${
                 active
                   ? "bg-sky-700 text-white shadow-sm"
                   : "text-slate-600 hover:bg-slate-100 hover:text-sky-800"

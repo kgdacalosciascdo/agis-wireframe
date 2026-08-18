@@ -204,7 +204,7 @@ class AemsEngagementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Authorized special engagement created successfully.',
+            'message' => 'Special engagement draft created successfully.',
             'data' => [
                 'engagement' => new AemsEngagementResource(
                     $this->loadEngagement($engagement),

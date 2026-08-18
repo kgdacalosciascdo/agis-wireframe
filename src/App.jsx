@@ -70,9 +70,6 @@ const IapPlanWorkspacePage = lazy(
   () => import("./pages/iap/IapPlanWorkspacePage"),
 );
 const IapSchedulingPage = lazy(() => import("./pages/iap/IapSchedulingPage"));
-const IapResourceCapacityPage = lazy(
-  () => import("./pages/iap/IapResourceCapacityPage"),
-);
 const IapReportsPage = lazy(() => import("./pages/iap/IapReportsPage"));
 const AemsEngagementRegistryPage = lazy(
   () => import("./pages/aems/AemsEngagementRegistryPage"),
@@ -124,6 +121,9 @@ const CmsDashboardPage = lazy(() => import("./pages/cms/CmsDashboardPage"));
 const CmsRecommendationRegistryPage = lazy(
   () => import("./pages/cms/CmsRecommendationRegistryPage"),
 );
+const CmsAeoAcknowledgementsPage = lazy(
+  () => import("./pages/cms/CmsAeoAcknowledgementsPage"),
+);
 const CmsRecommendationDetailPage = lazy(
   () => import("./pages/cms/CmsRecommendationDetailPage"),
 );
@@ -154,9 +154,6 @@ const ArmisAssignmentsPage = lazy(
   () => import("./pages/armis/ArmisAssignmentsPage"),
 );
 const ArmisReportsPage = lazy(() => import("./pages/armis/ArmisReportsPage"));
-const ArmisProviderReconciliationPage = lazy(
-  () => import("./pages/armis/ArmisProviderReconciliationPage"),
-);
 const ArmisProviderMonitoringPage = lazy(
   () => import("./pages/armis/ArmisProviderMonitoringPage"),
 );
@@ -194,7 +191,6 @@ const implementedCorePaths = new Set([
   "/internal-audit-planning/risk-assessment",
   "/internal-audit-planning/prioritization",
   "/internal-audit-planning/scheduling",
-  "/internal-audit-planning/resource-capacity",
   "/internal-audit-planning/reports",
   "/audit-engagement-management",
   "/audit-engagement-management/dashboard",
@@ -220,6 +216,7 @@ const implementedCorePaths = new Set([
   "/compliance-management",
   "/compliance-management/dashboard",
   "/compliance-management/recommendations",
+  "/compliance-management/aeo-acknowledgements",
   "/compliance-management/automation",
   "/compliance-management/reports",
   "/audit-resource-management",
@@ -228,7 +225,6 @@ const implementedCorePaths = new Set([
   "/audit-resource-management/planning",
   "/audit-resource-management/assignments",
   "/audit-resource-management/reports",
-  "/audit-resource-management/provider-reconciliation",
   "/audit-resource-management/provider-monitoring",
 ]);
 
@@ -525,13 +521,7 @@ export default function App() {
           />
           <Route
             path="internal-audit-planning/resource-capacity"
-            element={
-              <ProtectedPage permission="iap.view">
-                <Suspense fallback={<RouteLoading />}>
-                  <IapResourceCapacityPage />
-                </Suspense>
-              </ProtectedPage>
-            }
+            element={<Navigate to="/audit-resource-management/planning" replace />}
           />
           <Route
             path="internal-audit-planning/reports"
@@ -820,6 +810,16 @@ export default function App() {
             }
           />
           <Route
+            path="compliance-management/aeo-acknowledgements"
+            element={
+              <ProtectedPage permission="aems.aeo.acknowledge">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsAeoAcknowledgementsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
             path="compliance-management/automation"
             element={
               <ProtectedPage permission="cms.automation.view">
@@ -1051,13 +1051,7 @@ export default function App() {
           />
           <Route
             path="audit-resource-management/provider-reconciliation"
-            element={
-              <ProtectedPage permission="armis.provider.view">
-                <Suspense fallback={<RouteLoading />}>
-                  <ArmisProviderReconciliationPage />
-                </Suspense>
-              </ProtectedPage>
-            }
+            element={<Navigate to="/audit-resource-management/provider-monitoring" replace />}
           />
           <Route
             path="audit-resource-management/provider-monitoring"

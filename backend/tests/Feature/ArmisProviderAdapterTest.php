@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Integrations\Aems\ArmisResourcePlanningGateway;
-use App\Integrations\Aems\InterimIapResourcePlanningGateway;
 use App\Models\ArmisActualPersonDay;
 use App\Models\ArmisAssignmentCompetency;
 use App\Models\ArmisAvailabilityPeriod;
@@ -37,25 +36,25 @@ class ArmisProviderAdapterTest extends TestCase
         $this->seed(DatabaseSeeder::class);
     }
 
-    public function test_armis_6a_defaults_to_iap_fallback_and_exposes_a_non_authoritative_boundary(): void
+    public function test_armis_resource_cutover_defaults_to_armis_authority(): void
     {
         $administrator = $this->user('admin');
         $status = app(AemsIntegrationStatusService::class)->status($administrator)['armis'];
 
-        $this->assertSame('IAP_INTERIM_FALLBACK', $status['mode']);
-        $this->assertSame(InterimIapResourcePlanningGateway::class, $status['activeProvider']);
-        $this->assertSame(ArmisResourcePlanningGateway::class, $status['shadowProvider']);
-        $this->assertFalse($status['authoritative']);
+        $this->assertSame('ARMIS_AUTHORITATIVE', $status['mode']);
+        $this->assertSame(ArmisResourcePlanningGateway::class, $status['activeProvider']);
+        $this->assertNull($status['shadowProvider']);
+        $this->assertTrue($status['authoritative']);
         $this->assertFalse($status['authoritySwitchAllowed']);
         $this->assertSame(
-            ['IAP_INTERIM_FALLBACK', 'ARMIS_SHADOW', 'ARMIS_AUTHORITATIVE'],
+            ['ARMIS_AUTHORITATIVE'],
             $status['supportedModes'],
         );
-        $this->assertSame('IAP_INTERIM_FALLBACK', app(RuntimeConfiguration::class)->armisProviderMode());
+        $this->assertSame('ARMIS_AUTHORITATIVE', app(RuntimeConfiguration::class)->armisProviderMode());
         $this->assertDatabaseHas('system_configurations', ['key' => 'armis_provider_mode']);
     }
 
-    public function test_shadow_mode_keeps_iap_active_and_authority_switch_blocked(): void
+    public function test_historical_provider_modes_are_rejected_and_armis_remains_active(): void
     {
         $administrator = $this->user('admin');
         Sanctum::actingAs($administrator);
@@ -64,19 +63,18 @@ class ArmisProviderAdapterTest extends TestCase
             'configurations' => [
                 ['key' => 'armis_provider_mode', 'value' => 'ARMIS_SHADOW'],
             ],
-        ])->assertOk()
-            ->assertJsonPath('data.configuration.armisProviderMode', 'ARMIS_SHADOW');
+        ])->assertUnprocessable();
 
         $status = app(AemsIntegrationStatusService::class)->status($administrator)['armis'];
-        $this->assertSame('ARMIS_SHADOW', $status['mode']);
-        $this->assertSame(InterimIapResourcePlanningGateway::class, $status['activeProvider']);
-        $this->assertSame(ArmisResourcePlanningGateway::class, $status['shadowProvider']);
+        $this->assertSame('ARMIS_AUTHORITATIVE', $status['mode']);
+        $this->assertSame(ArmisResourcePlanningGateway::class, $status['activeProvider']);
+        $this->assertNull($status['shadowProvider']);
         $this->assertSame('ARMIS_ADAPTER', $status['armisAdapter']['mode']);
-        $this->assertFalse($status['authoritative']);
+        $this->assertTrue($status['authoritative']);
         $this->assertFalse($status['authoritySwitchAllowed']);
     }
 
-    public function test_authoritative_mode_is_not_an_armis_6a_configuration_option(): void
+    public function test_authoritative_mode_is_the_only_writable_provider_setting(): void
     {
         Sanctum::actingAs($this->user('admin'));
 
@@ -84,9 +82,9 @@ class ArmisProviderAdapterTest extends TestCase
             'configurations' => [
                 ['key' => 'armis_provider_mode', 'value' => 'ARMIS_AUTHORITATIVE'],
             ],
-        ])->assertUnprocessable();
+        ])->assertOk();
 
-        $this->assertSame('IAP_INTERIM_FALLBACK', app(RuntimeConfiguration::class)->armisProviderMode());
+        $this->assertSame('ARMIS_AUTHORITATIVE', app(RuntimeConfiguration::class)->armisProviderMode());
     }
 
     public function test_armis_adapter_reads_approved_current_ledgers_in_the_gateway_shape(): void

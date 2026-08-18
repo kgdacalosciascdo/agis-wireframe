@@ -28,6 +28,9 @@ class AemsProgramService
     {
         $engagement->loadMissing([
             'engagementPlan.latestVersion',
+            'auditAreas:id,code,name',
+            'auditFocuses:id,audit_area_id,code,name',
+            'auditType:id,code,label',
             'teamMembers' => fn ($query) => $query
                 ->where('is_active', true)
                 ->whereNull('ended_at')
@@ -55,6 +58,23 @@ class AemsProgramService
                 'engagementCode' => $engagement->engagement_code,
                 'title' => $engagement->title,
                 'status' => $engagement->status,
+                'auditAreas' => $engagement->auditAreas->map(fn ($area): array => [
+                    'id' => $area->id,
+                    'code' => $area->code,
+                    'name' => $area->name,
+                ])->values(),
+                'auditFocuses' => $engagement->auditFocuses->map(fn ($focus): array => [
+                    'id' => $focus->id,
+                    'auditAreaId' => $focus->audit_area_id,
+                    'code' => $focus->code,
+                    'name' => $focus->name,
+                ])->values(),
+                'auditTypeId' => $engagement->audit_type_id,
+                'auditType' => $engagement->auditType ? [
+                    'id' => $engagement->auditType->id,
+                    'code' => $engagement->auditType->code,
+                    'label' => $engagement->auditType->label,
+                ] : null,
             ],
             'approvedAep' => $engagement->engagementPlan?->status === 'APPROVED',
             'aep' => $engagement->engagementPlan ? [
@@ -90,6 +110,7 @@ class AemsProgramService
 
         return DB::transaction(function () use ($request, $engagement, $attributes): AuditProgram {
             $lockedEngagement = AuditEngagement::query()->lockForUpdate()->findOrFail($engagement->id);
+            $this->validateEngagementSelections($lockedEngagement, $attributes);
             $aep = $this->approvedAep($lockedEngagement);
             $program = AuditProgram::query()->create([
                 'audit_engagement_id' => $lockedEngagement->id,
@@ -143,6 +164,7 @@ class AemsProgramService
         return DB::transaction(function () use ($request, $engagement, $program, $attributes): AuditProgram {
             $locked = $this->lockProgram($engagement, $program, (int) $attributes['lockVersion']);
             $this->ensureDefinitionEditable($locked);
+            $this->validateEngagementSelections($engagement, $attributes);
             $before = $this->programSnapshot($locked);
             $locked->update([
                 'title' => $attributes['title'],
@@ -190,6 +212,7 @@ class AemsProgramService
             $locked = $this->lockProgram($engagement, $program, (int) $attributes['programLockVersion']);
             $this->ensureDefinitionEditable($locked);
             $this->ensureAssignee($engagement, (int) $attributes['assignedTo']);
+            $this->validateProcedureSelections($engagement, $attributes);
             $procedure = AuditProgramProcedure::query()->create([
                 'audit_program_id' => $locked->id,
                 'procedure_code' => $attributes['procedureCode'],
@@ -267,6 +290,7 @@ class AemsProgramService
             $this->ensureDefinitionEditable($lockedProgram);
             $locked = $this->lockProcedure($lockedProgram, $procedure, (int) $attributes['lockVersion']);
             $this->ensureAssignee($engagement, (int) $attributes['assignedTo']);
+            $this->validateProcedureSelections($engagement, $attributes);
             $before = $this->procedureSnapshot($locked->loadMissing('assignee'));
             $locked->update([
                 'procedure_code' => $attributes['procedureCode'],
@@ -408,13 +432,20 @@ class AemsProgramService
                 $this->ensureSubmittable($locked);
             }
             if ($action === 'APPROVE') {
+                $mayUseSingleCiasAuthority = $this->access->mayUseSingleCiasHeadReviewException(
+                    $request->user(),
+                    'aems.program.approve',
+                );
                 $reviewed = EngagementEvent::query()
                     ->where('audit_engagement_id', $engagement->id)
                     ->where('subject_type', 'AUDIT_PROGRAM')
                     ->where('subject_id', $locked->id)
                     ->where('subject_version', $locked->revision_number)
                     ->where('action', 'PROGRAM_REVIEW')
-                    ->where('actor_id', '<>', $locked->prepared_by)
+                    ->when(
+                        ! $mayUseSingleCiasAuthority,
+                        fn ($query) => $query->where('actor_id', '<>', $locked->prepared_by),
+                    )
                     ->exists();
                 if (! $reviewed) {
                     throw ValidationException::withMessages([
@@ -793,6 +824,78 @@ class AemsProgramService
         }
 
         return $aep;
+    }
+
+    /**
+     * Program definitions inherit their scope from the engagement. Rejecting
+     * unrelated registry IDs here prevents a caller from bypassing the
+     * engagement-scoped selectors in the React workspace.
+     *
+     * @param array<string,mixed> $attributes
+     */
+    private function validateEngagementSelections(AuditEngagement $engagement, array $attributes): void
+    {
+        $areaId = filled($attributes['auditAreaId'] ?? null)
+            ? (int) $attributes['auditAreaId']
+            : null;
+        $typeId = filled($attributes['auditTypeId'] ?? null)
+            ? (int) $attributes['auditTypeId']
+            : null;
+        $selectedAreaIds = $engagement->auditAreas()->pluck('audit_areas.id');
+
+        if ($selectedAreaIds->isNotEmpty() && $areaId === null) {
+            throw ValidationException::withMessages([
+                'auditAreaId' => ['Select an audit area from the engagement scope.'],
+            ]);
+        }
+        if ($areaId !== null && ! $selectedAreaIds->contains($areaId)) {
+            throw ValidationException::withMessages([
+                'auditAreaId' => ['The audit area must be selected in the engagement scope.'],
+            ]);
+        }
+
+        if ($engagement->audit_type_id !== null && $typeId === null) {
+            throw ValidationException::withMessages([
+                'auditTypeId' => ['Select the audit type configured on the engagement.'],
+            ]);
+        }
+        if ($typeId !== null && (int) $engagement->audit_type_id !== $typeId) {
+            throw ValidationException::withMessages([
+                'auditTypeId' => ['The audit type must match the engagement configuration.'],
+            ]);
+        }
+    }
+
+    /** @param array<string,mixed> $attributes */
+    private function validateProcedureSelections(AuditEngagement $engagement, array $attributes): void
+    {
+        $areaId = filled($attributes['auditAreaId'] ?? null)
+            ? (int) $attributes['auditAreaId']
+            : null;
+        $focusId = filled($attributes['auditFocusId'] ?? null)
+            ? (int) $attributes['auditFocusId']
+            : null;
+        $selectedAreaIds = $engagement->auditAreas()->pluck('audit_areas.id');
+        $selectedFocuses = $engagement->auditFocuses()->get(['audit_focuses.id', 'audit_focuses.audit_area_id']);
+
+        if ($areaId !== null && ! $selectedAreaIds->contains($areaId)) {
+            throw ValidationException::withMessages([
+                'auditAreaId' => ['The procedure audit area must be selected in the engagement scope.'],
+            ]);
+        }
+        if ($focusId !== null && ! $selectedFocuses->contains('id', $focusId)) {
+            throw ValidationException::withMessages([
+                'auditFocusId' => ['The procedure audit focus must be selected in the engagement scope.'],
+            ]);
+        }
+        if ($focusId !== null && $areaId !== null) {
+            $focus = $selectedFocuses->firstWhere('id', $focusId);
+            if ($focus && (int) $focus->audit_area_id !== $areaId) {
+                throw ValidationException::withMessages([
+                    'auditFocusId' => ['The selected audit focus does not belong to the selected audit area.'],
+                ]);
+            }
+        }
     }
 
     private function lockProgram(

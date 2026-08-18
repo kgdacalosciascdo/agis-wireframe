@@ -89,7 +89,12 @@ class AemsCompletionTransferService
     public function approve(Request $request, AuditEngagement $engagement, string $type, int $id, int $lockVersion, string $comment): array
     {
         $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.completion-transfer.approve');
-        abort_if((int) $request->user()->id === $this->generatedBy($type, $id), 403, 'The reconciliation generator cannot approve the same snapshot.');
+        abort_if(
+            (int) $request->user()->id === $this->generatedBy($type, $id)
+                && ! $this->access->mayUseSingleCiasHeadReviewException($request->user(), 'aems.completion-transfer.approve'),
+            403,
+            'The reconciliation generator cannot approve the same snapshot.',
+        );
 
         if ($type === 'MANIFEST') {
             $record = AemsCompletionTransferManifest::query()->lockForUpdate()->findOrFail($id);
@@ -130,9 +135,9 @@ class AemsCompletionTransferService
             && $manifest->exception_count === 0);
         $effort = AemsEffortReconciliation::query()->where('audit_engagement_id', $engagement->id)->latest('version_number')->first();
         $provider = $this->providerStatus($engagement);
-        $fallback = $provider['mode'] === ConfigurableResourcePlanningGateway::IAP_INTERIM_FALLBACK
-            && (float) $engagement->actual_person_days > 0;
-        $effortReady = $fallback || ($effort && in_array($effort->status, ['RECONCILED', 'APPROVED'], true));
+        // ARMIS is the sole operational effort provider. An AEMS-local actual
+        // value cannot bypass the immutable ARMIS reconciliation gate.
+        $effortReady = $effort && in_array($effort->status, ['RECONCILED', 'APPROVED'], true);
 
         return [
             'manifestReady' => (bool) $manifestReady,
@@ -189,11 +194,9 @@ class AemsCompletionTransferService
     private function reconcileEffort(Request $request, AuditEngagement $engagement): AemsEffortReconciliation
     {
         $provider = $this->providerStatus($engagement);
-        $mode = $provider['mode'];
+        $mode = ConfigurableResourcePlanningGateway::ARMIS_AUTHORITATIVE;
         $aemsActual = round((float) $engagement->actual_person_days, 2);
-        $providerActual = $mode === ConfigurableResourcePlanningGateway::IAP_INTERIM_FALLBACK
-            ? $aemsActual
-            : round((float) $this->armis->engagementActualPersonDays($engagement), 2);
+        $providerActual = round((float) $this->armis->engagementActualPersonDays($engagement), 2);
         $next = ((int) AemsEffortReconciliation::query()->where('audit_engagement_id', $engagement->id)->max('version_number')) + 1;
         $status = $providerActual > 0 ? 'RECONCILED' : 'EXCEPTION';
         $reconciliation = AemsEffortReconciliation::query()->create([
@@ -210,7 +213,7 @@ class AemsCompletionTransferService
             'generated_at' => now(),
         ]);
         $this->support->audit($request, 'aems.completion_transfer.effort_reconciled', $engagement, null, $this->effortData($reconciliation), ['subjectType' => 'AEMS_EFFORT_RECONCILIATION', 'subjectId' => $reconciliation->id]);
-        $this->support->event($request, $engagement, 'aems.completion_transfer.effort_reconciled', 'DRAFT', $reconciliation->status, null, $this->effortData($reconciliation), 'ARMIS/IAP effort reconciliation generated.', 'AEMS_EFFORT_RECONCILIATION', $reconciliation->id, $reconciliation->version_number, $engagement->engagement_code, null, []);
+        $this->support->event($request, $engagement, 'aems.completion_transfer.effort_reconciled', 'DRAFT', $reconciliation->status, null, $this->effortData($reconciliation), 'ARMIS effort reconciliation generated.', 'AEMS_EFFORT_RECONCILIATION', $reconciliation->id, $reconciliation->version_number, $engagement->engagement_code, null, []);
         return $reconciliation;
     }
 

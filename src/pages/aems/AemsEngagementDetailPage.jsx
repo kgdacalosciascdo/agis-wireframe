@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   ClipboardList,
+  Edit3,
   FileClock,
   Files,
   Link2,
@@ -28,11 +29,21 @@ import AemsCalendarWorkspace from "../../components/aems/AemsCalendarWorkspace";
 import AemsRecordsWorkspace from "../../components/aems/AemsRecordsWorkspace";
 import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
 import AemsScopeWorkspace from "../../components/aems/AemsScopeWorkspace";
+import AemsSpecialEngagementForm from "../../components/aems/AemsSpecialEngagementForm";
+import Modal from "../../components/ui/Modal";
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import StatusBadge from "../../components/ui/StatusBadge";
 import { hasPermission } from "../../config/navigation";
 import useRecordView from "../../hooks/useRecordView";
-import { aemsEngagementApi } from "../../services/api";
+import {
+  aemsEngagementApi,
+  ApiError,
+  auditAreaApi,
+  auditFocusApi,
+  masterListApi,
+  officeApi,
+  userApi,
+} from "../../services/api";
 
 const labels = {
   DRAFT: "Draft",
@@ -159,6 +170,67 @@ export default function AemsEngagementDetailPage() {
   const [engagement, setEngagement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErrors, setEditErrors] = useState({});
+  const [editOptions, setEditOptions] = useState({
+    offices: [],
+    auditAreas: [],
+    auditFocuses: [],
+    users: [],
+    masterLists: [],
+  });
+
+  const canEditEngagement = hasPermission(
+    user,
+    "aems.foundation.manage_scope",
+  );
+
+  async function openEdit() {
+    setEditOpen(true);
+    setEditErrors({});
+    setEditLoading(true);
+    try {
+      const [offices, auditAreas, auditFocuses, users, masterLists] =
+        await Promise.all([
+          officeApi.list(),
+          auditAreaApi.list(),
+          auditFocusApi.list(),
+          userApi.list().catch(() => []),
+          masterListApi.list(),
+        ]);
+      setEditOptions({
+        offices,
+        auditAreas,
+        auditFocuses,
+        users:
+          users.length || !engagement.specialAuthorityApprover
+            ? users
+            : [engagement.specialAuthorityApprover],
+        masterLists,
+      });
+    } catch (reason) {
+      setEditErrors({ form: [reason instanceof Error ? reason.message : "Unable to load edit options."] });
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function saveEdit(payload) {
+    setEditSaving(true);
+    setEditErrors({});
+    try {
+      const updated = await aemsEngagementApi.update(engagement.id, payload);
+      setEngagement(updated);
+      setEditOpen(false);
+    } catch (reason) {
+      if (reason instanceof ApiError) setEditErrors(reason.errors ?? {});
+      else setEditErrors({ form: [reason instanceof Error ? reason.message : "Unable to save engagement details."] });
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -212,7 +284,7 @@ export default function AemsEngagementDetailPage() {
   const tabs = [
     ["overview", "Overview"],
     ...(hasPermission(user, "aems.foundation.view")
-      ? [["scope", "Scope (SCR-212)"]]
+      ? [["scope", "Scope"]]
       : []),
     ["lifecycle", "Lifecycle"],
     ...(hasPermission(user, "aems.entry-conference.view")
@@ -259,12 +331,27 @@ export default function AemsEngagementDetailPage() {
         description={`${engagement.engagementCode} · ${
           engagement.sourceType === "PLANNED"
             ? "Imported from approved IAP"
-            : "Separately authorized special engagement"
+            : engagement.status === "DRAFT"
+              ? "Special / unplanned engagement draft"
+              : "Separately authorized special engagement"
         }`}
         icon={BriefcaseBusiness}
         title={engagement.title}
         actions={
-          <>
+          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {canEditEngagement &&
+              !engagement.isArchived &&
+              ["DRAFT", "AUTHORIZATION_PREPARATION", "AUTHORIZED"].includes(
+                engagement.status,
+              ) && (
+                <button
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  onClick={openEdit}
+                  type="button"
+                >
+                  <Edit3 size={16} /> Edit engagement
+                </button>
+              )}
             {hasPermission(user, "aems.team.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-sky-300 bg-white px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
@@ -275,7 +362,7 @@ export default function AemsEngagementDetailPage() {
             )}
             {hasPermission(user, "aems.aeo.view") && (
               <Link
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white hover:bg-sky-800"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-sky-300 bg-white px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
                 to={`/audit-engagement-management/aeo?engagementId=${engagement.id}`}
               >
                 <ClipboardList size={16} /> Engagement Order
@@ -330,7 +417,7 @@ export default function AemsEngagementDetailPage() {
                 <FileClock size={16} /> Audit Reports
               </Link>
             )}
-          </>
+          </div>
         }
       />
 
@@ -338,12 +425,12 @@ export default function AemsEngagementDetailPage() {
 
       <nav
         aria-label="Engagement workspace sections"
-        className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+        className="mb-5 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
       >
         {tabs.map(([value, label]) => (
           <button
             aria-current={activeTab === value ? "page" : undefined}
-            className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-bold transition ${
+            className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center px-3 py-2.5 text-center text-sm font-bold leading-4 transition sm:flex-none sm:px-4 ${
               activeTab === value
                 ? "bg-sky-700 text-white"
                 : "text-slate-600 hover:bg-slate-100"
@@ -692,6 +779,80 @@ export default function AemsEngagementDetailPage() {
       </div>
         </>
       )}
+
+      <Modal
+        footer={
+          <>
+            <button
+              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              disabled={editSaving}
+              onClick={() => setEditOpen(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="min-h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white hover:bg-sky-800 disabled:opacity-50"
+              disabled={editSaving || editLoading}
+              form="edit-engagement-form"
+              type="submit"
+            >
+              {editSaving ? "Saving..." : "Save engagement"}
+            </button>
+          </>
+        }
+        onClose={() => !editSaving && setEditOpen(false)}
+        open={editOpen}
+        size="xl"
+        title="Edit engagement details"
+      >
+        {editErrors.form?.[0] && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+            {editErrors.form[0]}
+          </div>
+        )}
+        {editLoading ? (
+          <div className="grid min-h-56 place-items-center">
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-sky-700" />
+          </div>
+        ) : (
+          <AemsSpecialEngagementForm
+            auditAreas={editOptions.auditAreas}
+            auditFocuses={editOptions.auditFocuses}
+            editing
+            errors={editErrors}
+            formId="edit-engagement-form"
+            initialValues={{
+              engagementCode: engagement.engagementCode ?? "",
+              title: engagement.title ?? "",
+              specialAuthorityReference: engagement.specialAuthorityReference ?? "",
+              specialAuthorityTypeCode: engagement.specialAuthorityTypeCode ?? "",
+              specialAuthorityClass: engagement.specialAuthorityClass ?? "SPECIAL",
+              specialAuthorityDate: engagement.specialAuthorityDate ?? "",
+              specialAuthorityApprovedBy: engagement.specialAuthorityApprovedBy ?? "",
+              auditTypeId: engagement.auditTypeId ?? "",
+              engagementApproachId: engagement.engagementApproachId ?? "",
+              background: engagement.background ?? "",
+              objectives: engagement.objectives ?? "",
+              scope: engagement.scope ?? "",
+              exclusions: engagement.exclusions ?? "",
+              plannedStartDate: engagement.plannedStartDate ?? "",
+              plannedEndDate: engagement.plannedEndDate ?? "",
+              expectedReportDate: engagement.expectedReportDate ?? "",
+              plannedPersonDays: engagement.plannedPersonDays ?? "",
+              officeIds: (engagement.offices ?? []).map((office) => office.id),
+              auditAreaIds: (engagement.auditAreas ?? []).map((area) => area.id),
+              auditFocusIds: (engagement.auditFocuses ?? []).map((focus) => focus.id),
+              lockVersion: engagement.lockVersion,
+            }}
+            masterLists={editOptions.masterLists}
+            offices={editOptions.offices}
+            onSubmit={saveEdit}
+            sourceType={engagement.sourceType}
+            users={editOptions.users}
+          />
+        )}
+      </Modal>
     </main>
   );
 }

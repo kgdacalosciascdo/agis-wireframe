@@ -42,7 +42,7 @@ class AemsTeamSafeguardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Safeguard declaration submitted for independent review.',
+            'message' => 'Safeguard declaration submitted for authorized review.',
             'data' => ['declaration' => $declaration],
         ], 201);
     }
@@ -57,7 +57,10 @@ class AemsTeamSafeguardController extends Controller
             $request->user(),
             $engagement,
             'aems.team.safeguard_review',
-            $declaration->submitted_by,
+            // CIAS Management is explicitly authorized to prepare and review
+            // a declaration on behalf of a team member. The service still
+            // blocks all other originators through separation-of-duties.
+            $request->user()->hasRole('cias_management') ? null : $declaration->submitted_by,
         );
         $validated = $request->validate([
             'decision' => ['required', Rule::in(['ACCEPT', 'RETURN'])],

@@ -48,8 +48,8 @@ function inputClass() {
 }
 
 /**
- * Maintains temporary IAP auditor capacity, unavailability, and skill data
- * until the dedicated ARMIS module becomes the authoritative source.
+ * Legacy compatibility screen. Current resource records are maintained in
+ * ARMIS Planning; the canonical route redirects there from the application.
  */
 export default function IapResourceCapacityPage() {
   const { user } = useAuth();
@@ -206,7 +206,7 @@ export default function IapResourceCapacityPage() {
   return (
     <main className="p-3 sm:p-5">
       <RegistryHeader
-        description="Temporary annual-capacity configuration designed to connect cleanly with ARMIS when that module becomes available."
+        description="Historical planning view. ARMIS is the sole operational source for capacity, availability, skills, and workload."
         icon={UsersRound}
         title="IAP Resource Capacity"
       />

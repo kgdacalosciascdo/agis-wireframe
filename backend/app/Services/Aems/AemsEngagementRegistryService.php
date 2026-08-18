@@ -131,7 +131,10 @@ class AemsEngagementRegistryService
                 ]);
             }
             $this->validateCoverage($validated);
-            $projection = AuditEngagement::lifecycleProjectionForStatus('AUTHORIZED');
+            // Special/unplanned authority is recorded at creation, but the
+            // aggregate still starts as a Draft so the engagement package can
+            // be reviewed and completed before authorization is issued.
+            $projection = AuditEngagement::lifecycleProjectionForStatus('DRAFT');
             $year = (int) substr((string) $validated['specialAuthorityDate'], 0, 4);
             $engagement = AuditEngagement::query()->create([
                 ...$this->mutableAttributes($validated),
@@ -155,7 +158,7 @@ class AemsEngagementRegistryService
                         'approvedBy' => $validated['specialAuthorityApprovedBy'],
                     ],
                 ],
-                'status' => 'AUTHORIZED',
+                'status' => 'DRAFT',
                 ...$projection,
                 'engagement_office_id' => (int) $validated['officeIds'][0],
                 'created_by' => $request->user()->id,
@@ -171,7 +174,7 @@ class AemsEngagementRegistryService
                 $engagement,
                 'CREATE_SPECIAL',
                 null,
-                'AUTHORIZED',
+                'DRAFT',
                 null,
                 $newValues,
                 'Created from separately approved special or unplanned authority.',
@@ -418,6 +421,14 @@ class AemsEngagementRegistryService
         })->values()->all();
         $areaIds = collect($normalized)->pluck('auditAreaId')->unique()->values();
         $focusIds = collect($normalized)->flatMap(fn (array $item) => $item['focusIds'])->unique()->values();
+        $invalidFocusIds = $focusIds->diff(
+            AuditFocus::query()->whereIn('id', $focusIds)->pluck('id')->map(fn ($id): int => (int) $id),
+        );
+        if ($invalidFocusIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'areaCoverage' => ['Every selected focus must reference an active Audit Focus record.'],
+            ]);
+        }
         if ($focusIds->isNotEmpty()
             && AuditFocus::query()->whereIn('id', $focusIds)->whereNotIn('audit_area_id', $areaIds)->exists()) {
             throw ValidationException::withMessages([

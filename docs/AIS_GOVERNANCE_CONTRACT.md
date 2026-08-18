@@ -89,10 +89,10 @@ request obtains a fresh contract through the existing source boundary services:
   missing IAP lineage or source snapshots.
 - **CMS** exposes only finalized or transferred recommendation envelopes with
   intact source snapshots through `CmsRecommendationScopeService`.
-- **ARMIS** reports provider mode, freshness, fallback support, authority
-  eligibility, and reconciliation status through `ResourcePlanningGateway`.
-  Explicit IAP fallback is visible as `DEGRADED_FALLBACK`; stale or ineligible
-  authoritative data blocks AIS.
+- **ARMIS** reports sole-provider mode, freshness, authority eligibility, and
+  reconciliation status through `ResourcePlanningGateway`. Historical IAP
+  comparisons are lineage evidence only; stale or ineligible ARMIS data blocks
+  AIS.
 
 The aggregate reconciliation is `READ_ONLY_READY` only when all source
 adapters are available and eligible. Missing, stale, scope-mismatched, or

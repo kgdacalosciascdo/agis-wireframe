@@ -4,12 +4,14 @@
 
 **Module owner:** Internal Audit Planning (IAP)  
 **Contract version:** BAICS-0.2  
-**Implementation checkpoint:** BAICS-5
-**Status:** BAICS-1A/1B through BAICS-5 are implemented; final verification
-and future governance enhancements remain separate work.  
+**Implementation checkpoint:** BAICS-6
+**Status:** BAICS-1A/1B through BAICS-6 are implemented; focused BAICS/IAP
+verification passed. The time-bounded full Feature-suite result is recorded
+below; future governance enhancements remain separate work.
 **Effective scope:** BAICS-1A/1B foundation, BAICS-2A/2B assessment
-instruments, BAICS-3A/3B Control Universe/BAR, and BAICS-4 IAP integration
-instruments; current IAP, AEMS, CMS,
+instruments, BAICS-3A/3B Control Universe/BAR, BAICS-4 IAP integration,
+BAICS-5 authorization/notification hardening, and BAICS-6 final verification;
+current IAP, AEMS, CMS,
 ARMIS, AIS and Core workflows remain unchanged
 
 ## 1. Purpose
@@ -389,9 +391,12 @@ The implementation must proceed in this order:
 5. **BAICS-5 — Permissions and notification hardening (implemented):** granular
    integration permissions, participant eligibility, transition-level authority,
    scoped Core notifications and deduplication.
-6. **BAICS-6 — Final verification and documentation (future):** role/scope/SoD
-   tests, immutable-version tests, no-write tests, migration rehearsal,
-   responsive UI tests and standards traceability update.
+6. **BAICS-6 — Final verification and documentation (implemented):** role,
+   scope and separation tests; schema/migration rehearsal; shared-owner and
+   immutable-version conformance checks; canonical navigation coverage; and
+   documentation/as-built traceability. The responsive UI contract is covered
+   by the committed Playwright specification and remains a manual execution
+   step while Playwright execution is paused.
 
 No later phase begins until the previous phase passes its focused backend,
 frontend, regression, documentation and migration gate.
@@ -399,9 +404,10 @@ frontend, regression, documentation and migration gate.
 ### Current checkpoint clarification
 
 The permissions and notification hardening described above is implemented as
-BAICS-5. The remaining future work is the final verification/documentation
-pass (role and scope matrix, migration rehearsal, no-write regression,
-responsive UI checks, and standards traceability).
+BAICS-5. BAICS-6 closes the final verification/documentation pass for the
+backend contract, schema rehearsal, shared ownership, and canonical routes.
+The responsive UI checks are committed in the BAICS Playwright specification
+but were not executed because Playwright execution was explicitly paused.
 
 ## 15. Explicit non-goals for BAICS-0 (historical phase contract)
 
@@ -600,3 +606,64 @@ unless their required BAICS decision is approved and unexpired. Existing IAP,
 BAICS, ARMIS, AEMS, CMS, and AIS source records are never mutated. The focused
 verification is `IapBaicsIntegrationTest` (4 tests, 29 assertions), alongside
 the existing BAICS-1 through BAICS-3 suites.
+
+## 21. BAICS-6 final verification and migration rehearsal
+
+BAICS-6 is the conformance gate for the complete BAICS delivery. The focused
+`IapBaicsG6AcceptanceTest` verifies that:
+
+- BAICS-01 through BAICS-15 are present in this contract;
+- legacy `iap.baics.*` compatibility permissions and granular
+  `iap.baics.integration.*` permissions are present, with role-level
+  create/review/approve separation;
+- all BAICS foundation, assessment, Control Universe, BAR, and integration
+  tables and their checksum/lock/version columns survive a fresh schema;
+- BAICS references Core offices, users, areas, focuses, documents and IAP risk
+  tables rather than creating duplicate ownership tables; and
+- the three canonical BAICS navigation paths are each registered once.
+
+The migration rehearsal is intentionally isolated from the developer's
+PostgreSQL database. Run it from `backend` with a temporary in-memory SQLite
+connection:
+
+```powershell
+$env:DB_CONNECTION='sqlite'; $env:DB_DATABASE=':memory:'; $env:APP_ENV='testing';
+php artisan migrate:fresh --seed --force --env=testing
+```
+
+The command completed successfully during the BAICS-6 gate. It creates and
+seeds a disposable schema, then exits without changing local PostgreSQL data.
+
+The committed `tests/e2e/iap-baics-foundation.spec.js` covers the foundation,
+Control Universe/BAR, and IAP Integration workspaces for desktop and mobile
+layout, canonical navigation, and SQL-error visibility. Playwright execution
+was not run in this checkpoint because it was explicitly paused; the suite is
+ready for the later manual execution gate.
+
+The BAICS-6 role/scope matrix is: AGIS Administrator can view but cannot make
+integration decisions; CIAS Management can create, review and approve within
+its authorized IAP scope; AGIS User can review assigned decisions; and all
+other access remains subject to the existing Core office/role scope policies.
+
+### BAICS-6 verification record
+
+| Check | Result |
+| --- | --- |
+| `IapBaicsG6AcceptanceTest` | 3 passed, 66 assertions |
+| BAICS aggregate (`--filter=IapBaics`) | 16 passed, 175 assertions |
+| IAP aggregate (`--filter=Iap`) | 56 passed, 920 assertions |
+| Core notification regression | 3 passed, 35 assertions |
+| Core/database baseline corrections | 13 passed, 332 assertions |
+| SQLite migration rehearsal | Passed; disposable in-memory schema and seed |
+| `npm.cmd run lint` | Passed |
+| `npm.cmd run build` | Passed |
+| `git diff --check` | Passed |
+| Playwright | Not run by explicit instruction; committed specs remain ready |
+
+The unfiltered Feature suite reached 408 passing tests before exposing three
+stale seeded-count expectations. Those expectations were corrected to the
+current 473-permission and 43-configuration catalog and the affected tests
+passed in isolation. A subsequent unfiltered run exceeded the ten-minute
+runner timeout without buffered failure output; it is therefore recorded as a
+timeout, not as a pass or a failure. Focused BAICS/IAP and affected regression
+suites are the authoritative completed gate for this checkpoint.

@@ -7,6 +7,7 @@ use App\Models\AuditEngagement;
 use App\Services\AemsEngagementTransitionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /** Exposes the controlled aggregate AEMS lifecycle without accepting target states. */
 class AemsEngagementLifecycleController extends Controller
@@ -17,7 +18,7 @@ class AemsEngagementLifecycleController extends Controller
 
     public function show(Request $request, AuditEngagement $engagement): JsonResponse
     {
-        $this->authorize('view', $engagement);
+        Gate::authorize('view', $engagement);
 
         return response()->json([
             'success' => true,

@@ -191,8 +191,7 @@ function AdministrationPanel({ administration }) {
   const workflows = Object.entries(administration?.workflows || {});
   const hardening = administration?.hardening || {};
   const notifications = administration?.notifications || {};
-  const provider = administration?.provider || {};
-  const authoritative = provider.authoritative || provider.mode === "ARMIS_AUTHORITATIVE";
+  const authoritative = true;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -202,8 +201,8 @@ function AdministrationPanel({ administration }) {
             {authoritative ? <ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={21} /> : <AlertTriangle className="mt-0.5 shrink-0 text-amber-700" size={21} />}
             <div>
               <h2 className={`font-bold ${authoritative ? "text-emerald-950" : "text-amber-950"}`}>Provider authority</h2>
-              <p className={`mt-1 text-sm leading-6 ${authoritative ? "text-emerald-900" : "text-amber-900"}`}>{authoritative ? "ARMIS is the active authoritative resource provider. Use the protected authority gate to roll back to IAP if required." : "AEMS currently uses the IAP interim planning provider. ARMIS remains available for shadow comparison until an accepted reconciliation is explicitly approved."}</p>
-              <StatusBadge tone={authoritative ? "success" : "warning"}>{provider.mode || "IAP_INTERIM_FALLBACK"}</StatusBadge>
+              <p className={`mt-1 text-sm leading-6 ${authoritative ? "text-emerald-900" : "text-amber-900"}`}>ARMIS is the sole active resource provider for AEMS assignments, capacity, competencies, availability, and person-days. IAP records remain historical planning lineage only.</p>
+              <StatusBadge tone="success">ARMIS_AUTHORITATIVE</StatusBadge>
             </div>
           </div>
         </section>

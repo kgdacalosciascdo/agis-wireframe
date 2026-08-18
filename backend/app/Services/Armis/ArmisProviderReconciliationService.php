@@ -12,7 +12,6 @@ use App\Models\ArmisWorkflowEvent;
 use App\Models\AuditEngagement;
 use App\Models\EngagementTeam;
 use App\Models\Office;
-use App\Models\SystemConfiguration;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +23,7 @@ use App\Models\ActivityLog;
 use App\Models\AuditLog;
 
 /**
- * Compares IAP and ARMIS read ledgers and governs the explicit authority gate.
+ * Compares historical IAP and ARMIS read ledgers for quality evidence.
  *
  * Reconciliation snapshots and all review/authority decisions are append-only.
  * No comparison or decision writes either provider's operational records.
@@ -32,10 +31,6 @@ use App\Models\AuditLog;
 class ArmisProviderReconciliationService
 {
     private const SOURCE_QUERY_VERSION = 'ARMIS-6B-v1';
-
-    private const MODE_FALLBACK = 'IAP_INTERIM_FALLBACK';
-
-    private const MODE_SHADOW = 'ARMIS_SHADOW';
 
     private const MODE_AUTHORITATIVE = 'ARMIS_AUTHORITATIVE';
 
@@ -56,12 +51,9 @@ class ArmisProviderReconciliationService
 
         $fiscalYear = (int) ($filters['fiscalYear'] ?? $this->runtime->currentFiscalYear());
         abort_if($fiscalYear < 2000 || $fiscalYear > 2200, 422, 'The fiscal year is invalid.');
-        $mode = $this->runtime->armisProviderMode();
-        abort_if(
-            $mode === self::MODE_AUTHORITATIVE,
-            409,
-            'Reconciliation must be prepared in IAP fallback or ARMIS shadow mode.',
-        );
+        // Reconciliation is now a historical/source-quality snapshot only.
+        // ARMIS remains the sole active provider throughout the operation.
+        $mode = self::MODE_AUTHORITATIVE;
 
         $officeIds = $this->scopeOfficeIds($actor);
         $profiles = \App\Models\ArmisResourceProfile::query()
@@ -277,83 +269,12 @@ class ArmisProviderReconciliationService
 
     public function activate(Request $request, int $runId, string $reason): ArmisProviderAuthorityDecision
     {
-        $actor = $this->actor($request);
-        $this->authorize($actor, 'armis.provider.switch');
-        $this->requireGlobalScope($actor);
-        $reason = trim($reason);
-        abort_if(mb_strlen($reason) < 10, 422, 'An authority activation reason of at least 10 characters is required.');
-
-        [$decision, $run] = DB::transaction(function () use ($request, $actor, $runId, $reason): array {
-            $configuration = SystemConfiguration::query()->where('key', 'armis_provider_mode')->lockForUpdate()->firstOrFail();
-            $fromMode = strtoupper((string) $configuration->value);
-            abort_if($fromMode === self::MODE_AUTHORITATIVE, 409, 'ARMIS is already the authoritative provider.');
-            abort_unless(in_array($fromMode, [self::MODE_FALLBACK, self::MODE_SHADOW], true), 409, 'The current ARMIS provider mode is invalid.');
-            $latestAuthority = ArmisProviderAuthorityDecision::query()->latest('decided_at')->first();
-            abort_if($latestAuthority?->to_mode === self::MODE_AUTHORITATIVE, 409, 'The provider authority history is inconsistent with the configured mode.');
-
-            $run = ArmisProviderReconciliationRun::query()->with(['reviews', 'authorityDecisions'])->lockForUpdate()->findOrFail($runId);
-            $review = $run->reviews->sortByDesc('reviewed_at')->first();
-            abort_unless($run->provider_mode === self::MODE_SHADOW, 409, 'Authority activation requires a reconciliation generated in ARMIS shadow mode.');
-            abort_unless($review?->decision === 'ACCEPTED', 409, 'An independently accepted reconciliation review is required before authority activation.');
-            abort_if($latestAuthority?->to_mode === self::MODE_FALLBACK && $latestAuthority->decided_at?->gte($run->generated_at), 409, 'A new shadow reconciliation is required after a provider rollback.');
-            abort_if((int) $run->generated_by === (int) $actor->id || (int) $review->reviewed_by === (int) $actor->id, 403, 'The reconciliation generator or reviewer cannot activate provider authority.');
-
-            $decision = ArmisProviderAuthorityDecision::query()->create([
-                'reconciliation_run_id' => $run->id,
-                'decision_code' => 'ACTIVATE_ARMIS',
-                'from_mode' => $fromMode,
-                'to_mode' => self::MODE_AUTHORITATIVE,
-                'reason' => $reason,
-                'decided_by' => $actor->id,
-                'decided_at' => now(),
-            ]);
-            $configuration->update(['value' => self::MODE_AUTHORITATIVE, 'updated_by' => $actor->id]);
-            $this->event($decision, 'ARMIS_PROVIDER_AUTHORITY_ACTIVATED', $fromMode, self::MODE_AUTHORITATIVE, $actor, $reason, ['runId' => $run->id]);
-            $this->record($request, 'armis.provider.authority.activated', 'Activated ARMIS as the authoritative resource provider after an accepted reconciliation review.', $decision, ['mode' => $fromMode], ['mode' => self::MODE_AUTHORITATIVE, 'runId' => $run->id]);
-
-            return [$decision, $run];
-        });
-
-        $this->runtime->forget();
-        $this->runtime->apply();
-        DB::afterCommit(fn () => $this->notifyAuthorityDecision($decision, $run, $actor));
-
-        return $decision->load(['run', 'decider']);
+        abort(409, 'ARMIS is already the sole operational resource provider; provider activation is not available.');
     }
 
     public function rollback(Request $request, string $reason): ArmisProviderAuthorityDecision
     {
-        $actor = $this->actor($request);
-        $this->authorize($actor, 'armis.provider.rollback');
-        $this->requireGlobalScope($actor);
-        $reason = trim($reason);
-        abort_if(mb_strlen($reason) < 10, 422, 'A rollback reason of at least 10 characters is required.');
-
-        $decision = DB::transaction(function () use ($request, $actor, $reason): ArmisProviderAuthorityDecision {
-            $configuration = SystemConfiguration::query()->where('key', 'armis_provider_mode')->lockForUpdate()->firstOrFail();
-            $fromMode = strtoupper((string) $configuration->value);
-            abort_unless($fromMode === self::MODE_AUTHORITATIVE, 409, 'ARMIS is not currently the authoritative provider.');
-            $decision = ArmisProviderAuthorityDecision::query()->create([
-                'reconciliation_run_id' => null,
-                'decision_code' => 'ROLLBACK_TO_IAP',
-                'from_mode' => $fromMode,
-                'to_mode' => self::MODE_FALLBACK,
-                'reason' => $reason,
-                'decided_by' => $actor->id,
-                'decided_at' => now(),
-            ]);
-            $configuration->update(['value' => self::MODE_FALLBACK, 'updated_by' => $actor->id]);
-            $this->event($decision, 'ARMIS_PROVIDER_AUTHORITY_ROLLED_BACK', $fromMode, self::MODE_FALLBACK, $actor, $reason);
-            $this->record($request, 'armis.provider.authority.rolled_back', 'Rolled ARMIS provider authority back to the IAP interim provider.', $decision, ['mode' => $fromMode], ['mode' => self::MODE_FALLBACK]);
-
-            return $decision;
-        });
-
-        $this->runtime->forget();
-        $this->runtime->apply();
-        DB::afterCommit(fn () => $this->notifyAuthorityRollback($decision, $actor));
-
-        return $decision->load('decider');
+        abort(409, 'ARMIS is the sole operational resource provider; rollback to another provider is not available.');
     }
 
     /** @return array<string, mixed> */
@@ -383,11 +304,11 @@ class ArmisProviderReconciliationService
                 'decidedAt' => $authority->decided_at?->toISOString(),
                 'decidedBy' => $authority->decider?->only(['id', 'name']),
             ] : null,
-            'authorityEligible' => $run?->provider_mode === self::MODE_SHADOW && $review?->decision === 'ACCEPTED' && $this->runtime->armisProviderMode() !== self::MODE_AUTHORITATIVE,
+            'authorityEligible' => false,
             'authorityControls' => [
-                'activationRequiresAcceptedShadowReview' => true,
-                'rollbackRequiresAuthoritativeMode' => true,
-                'genericConfigurationCannotSwitchAuthority' => true,
+                'providerSwitchingEnabled' => false,
+                'armisSoleOperationalProvider' => true,
+                'historicalReconciliationReviewRequired' => true,
             ],
         ];
     }
@@ -552,44 +473,6 @@ class ArmisProviderReconciliationService
             'subjectId' => $run->id,
             'subjectCode' => $run->display_code,
             'dedupeKey' => "armis-reconciliation:{$run->id}:authority",
-        ]);
-    }
-
-    private function notifyAuthorityDecision(ArmisProviderAuthorityDecision $decision, ArmisProviderReconciliationRun $run, User $actor): void
-    {
-        $this->notifications->send(User::query()->where('is_active', true)->where('users.id', '<>', $actor->id)->pluck('id'), [
-            'actorId' => $actor->id,
-            'type' => 'ARMIS_AUTHORITY',
-            'category' => 'SYSTEM',
-            'priority' => 'HIGH',
-            'moduleCode' => 'ARMIS',
-            'title' => $decision->decision_code === 'ACTIVATE_ARMIS' ? 'ARMIS provider authority activated' : 'ARMIS provider authority rolled back',
-            'message' => "{$run->display_code} provider decision changed mode from {$decision->from_mode} to {$decision->to_mode}.",
-            'actionUrl' => '/audit-resource-management/reports',
-            'actionLabel' => 'View ARMIS provider status',
-            'subjectType' => $decision::class,
-            'subjectId' => $decision->id,
-            'subjectCode' => $run->display_code,
-            'dedupeKey' => "armis-authority:{$decision->id}",
-        ]);
-    }
-
-    private function notifyAuthorityRollback(ArmisProviderAuthorityDecision $decision, User $actor): void
-    {
-        $this->notifications->send(User::query()->where('is_active', true)->where('users.id', '<>', $actor->id)->pluck('id'), [
-            'actorId' => $actor->id,
-            'type' => 'ARMIS_AUTHORITY',
-            'category' => 'SYSTEM',
-            'priority' => 'HIGH',
-            'moduleCode' => 'ARMIS',
-            'title' => 'ARMIS provider authority rolled back',
-            'message' => "Provider authority returned from {$decision->from_mode} to {$decision->to_mode}.",
-            'actionUrl' => '/audit-resource-management/reports',
-            'actionLabel' => 'View ARMIS provider status',
-            'subjectType' => $decision::class,
-            'subjectId' => $decision->id,
-            'subjectCode' => 'ARMIS-PROVIDER-ROLLBACK',
-            'dedupeKey' => "armis-authority:rollback:{$decision->id}",
         ]);
     }
 

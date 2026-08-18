@@ -132,7 +132,7 @@ class CoreUserSeeder extends Seeder
                 'role_id' => $role->id,
                 'office_id' => $office->id,
                 'employee_id' => $employeeId ?? Str::upper(str_replace('.', '-', $username)),
-                'email' => str_replace('.', '-', $username).'@agis.local',
+                'email' => str_replace('.', '-', $username) . '@agis.local',
                 ...$normalizedName,
                 'position' => $position,
                 'employment_type' => $employmentType,

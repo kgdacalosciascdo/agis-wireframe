@@ -361,7 +361,104 @@ class AemsAccessService
             );
         }
 
-        $this->enforceSeparationOfDuties($user, $permission, $originatorId);
+        $this->enforceSeparationOfDuties($user, $permission, $originatorId, $engagement);
+    }
+
+    /**
+     * The active CIAS Head is the controlled single-authority exception for
+     * an AEO she prepared. In a deployment with no alternate CIAS Management
+     * authority, the same account may review, approve, and issue that AEO.
+     * This exception is limited to AEO authority actions and is never a
+     * general bypass for other AEMS workflows.
+     */
+    public function mayUseCiasHeadAeoReviewException(User $user, string $permission): bool
+    {
+        if (! in_array($permission, [
+            'aems.aeo.review',
+            'aems.aeo.approve',
+            'aems.aeo.issue',
+        ], true) || ! $user->hasRole('cias_management') || ! (bool) $user->is_office_head) {
+            return false;
+        }
+
+        return ! User::query()
+            ->where('is_active', true)
+            ->where('id', '<>', $user->id)
+            ->where(function ($query): void {
+                $query
+                    ->whereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
+                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
+            })
+            ->exists();
+    }
+
+    /**
+     * The aggregate engagement authorization is the final controlled gate
+     * after the AEO itself has been approved and issued. In a deployment with
+     * one active CIAS Management authority, the CIAS Head may perform that
+     * aggregate authorization even when she prepared the engagement. This is
+     * deliberately limited to the authorization transition and does not grant
+     * any other self-approval capability.
+     */
+    public function mayUseSingleCiasEngagementAuthorization(
+        User $user,
+        string $permission,
+        ?AuditEngagement $engagement = null,
+    ): bool
+    {
+        if ($permission !== 'aems.engagement.authorize'
+            || ! $user->hasRole('cias_management')
+            || ! (bool) $user->is_office_head
+            || ! $engagement) {
+            return false;
+        }
+
+        $order = $engagement->engagementOrder;
+        if (! $order
+            || $order->status !== 'ISSUED'
+            || (int) $order->prepared_by !== (int) $user->id
+            || (int) $order->approved_by !== (int) $user->id
+            || (int) $order->issued_by !== (int) $user->id) {
+            return false;
+        }
+
+        return ! User::query()
+            ->where('is_active', true)
+            ->where('id', '<>', $user->id)
+            ->where(function ($query): void {
+                $query
+                    ->whereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
+                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
+            })
+            ->exists();
+    }
+
+    /**
+     * In a deployment with one active CIAS Management authority, the CIAS
+     * Head may review or approve her own AEMS submission when no alternate
+     * professional authority exists. This is a controlled deployment
+     * exception, not a general role bypass: the caller must still supply the
+     * originating record to authorizeEngagementAction, and every action is
+     * recorded with its actual actor and immutable version.
+     */
+    public function mayUseSingleCiasHeadReviewException(User $user, string $permission): bool
+    {
+        if ($permission === 'aems.engagement.authorize'
+            || ! in_array($permission, self::INDEPENDENT_ACTIONS, true)
+            || ! $user->hasRole('cias_management')
+            || ! (bool) $user->is_office_head) {
+            return false;
+        }
+
+        return ! User::query()
+            ->where('is_active', true)
+            ->where('id', '<>', $user->id)
+            ->where(function ($query): void {
+                $query
+                    ->whereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
+                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
+            })
+            ->exists();
     }
 
     public function authorizeEvidenceRequestAcknowledgement(User $user, AemsEvidenceRequest $record): void
@@ -561,10 +658,14 @@ class AemsAccessService
         User $user,
         string $permission,
         ?int $originatorId,
+        AuditEngagement $engagement,
     ): void {
         if ($originatorId !== null
             && $originatorId === $user->id
-            && in_array($permission, self::INDEPENDENT_ACTIONS, true)) {
+            && in_array($permission, self::INDEPENDENT_ACTIONS, true)
+            && ! $this->mayUseCiasHeadAeoReviewException($user, $permission)
+            && ! $this->mayUseSingleCiasEngagementAuthorization($user, $permission, $engagement)
+            && ! $this->mayUseSingleCiasHeadReviewException($user, $permission)) {
             throw ValidationException::withMessages([
                 'action' => ['The preparer or originator cannot perform this independent AEMS action.'],
             ]);

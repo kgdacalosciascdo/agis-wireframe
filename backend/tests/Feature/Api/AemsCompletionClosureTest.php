@@ -6,6 +6,9 @@ use App\Models\AuditArea;
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementOrder;
 use App\Models\AuditEngagementPlan;
+use App\Models\ArmisActualPersonDay;
+use App\Models\ArmisEngagementAssignment;
+use App\Models\ArmisResourceProfile;
 use App\Models\AuditProgram;
 use App\Models\AuditProgramProcedure;
 use App\Models\AuditReport;
@@ -101,7 +104,13 @@ class AemsCompletionClosureTest extends TestCase
             ['lockVersion' => $retention->lock_version],
         )->assertOk();
 
+        // ARMIS is authoritative after the resource cutover. Reconcile the
+        // provider snapshot before creating the formal Closure record.
         Sanctum::actingAs($auditor);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/completion-transfer/reconcile", [])
+            ->assertOk()
+            ->assertJsonPath('data.effortReconciliation.status', 'RECONCILED');
+
         $workspace = $this->postJson("/api/aems/engagements/{$engagement->id}/closure", [
             'completionAssessmentId' => $assessment['id'],
             'closureSummary' => 'The engagement objectives and reporting obligations are complete.',
@@ -466,6 +475,44 @@ class AemsCompletionClosureTest extends TestCase
             'planned_person_days' => 20,
             'actual_person_days' => 19,
             'is_active' => true,
+        ]);
+        $profile = ArmisResourceProfile::query()
+            ->where('user_id', $auditor->id)
+            ->where('status', 'ACTIVE')
+            ->firstOrFail();
+        $assignment = ArmisEngagementAssignment::query()->create([
+            'assignment_family_uuid' => (string) str()->uuid(),
+            'audit_engagement_id' => $engagement->id,
+            'resource_profile_id' => $profile->id,
+            'version_number' => 1,
+            'is_current_revision' => true,
+            'assignment_role_code' => 'TEAM_LEADER',
+            'assigned_from' => today()->subMonth(),
+            'assigned_until' => today()->addDay(),
+            'planned_person_days' => 20,
+            'status' => 'LOCKED',
+            'created_by' => $auditor->id,
+            'updated_by' => $management->id,
+            'approved_by' => $management->id,
+            'approved_at' => now(),
+        ]);
+        ArmisActualPersonDay::query()->create([
+            'actual_family_uuid' => (string) str()->uuid(),
+            'resource_profile_id' => $profile->id,
+            'assignment_id' => $assignment->id,
+            'source_module' => 'AEMS',
+            'source_type' => 'AEMS_ENGAGEMENT',
+            'source_id' => $engagement->id,
+            'period_start' => today()->subMonth(),
+            'period_end' => today(),
+            'version_number' => 1,
+            'actual_person_days' => 19,
+            'status' => 'APPROVED',
+            'is_current_revision' => true,
+            'created_by' => $auditor->id,
+            'updated_by' => $management->id,
+            'approved_by' => $management->id,
+            'approved_at' => now(),
         ]);
         AuditEngagementOrder::query()->create([
             'audit_engagement_id' => $engagement->id,

@@ -170,8 +170,8 @@ class ArmisDeploymentCheckCommand extends Command
             return [
                 $activated,
                 $activated
-                    ? 'Authoritative mode has an immutable activation decision.'
-                    : 'Authoritative mode has no immutable activation decision.',
+                    ? 'Provider mode is ARMIS_AUTHORITATIVE; authoritative mode has an immutable activation decision.'
+                    : 'Provider mode is ARMIS_AUTHORITATIVE but has no immutable activation decision.',
             ];
         } catch (Throwable $exception) {
             return [false, 'The ARMIS provider mode could not be verified.'];

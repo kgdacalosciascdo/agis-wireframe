@@ -100,8 +100,6 @@ export default function IapSchedulingPage() {
   });
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
-  const [capacityTarget, setCapacityTarget] = useState(null);
-  const [capacityValue, setCapacityValue] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
@@ -252,25 +250,6 @@ export default function IapSchedulingPage() {
     }
   }
 
-  async function updateCapacity() {
-    if (!capacityTarget) return;
-    setSaving(true);
-    try {
-      await schedulingApi.updateCapacity(capacityTarget.userId, {
-        fiscalYear: capacityTarget.fiscalYear,
-        availablePersonDays: Number(capacityValue),
-      });
-      toast.success("Auditor capacity updated.");
-      setCapacityTarget(null);
-      await load();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to update capacity.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
 
   const columns = [
     {
@@ -432,7 +411,7 @@ export default function IapSchedulingPage() {
   return (
     <main className="p-3 sm:p-5">
       <RegistryHeader
-        description="Coordinate planned audits, proposed teams, reporting dates, person-day capacity, and scheduling conflicts."
+        description="Coordinate planned audits and dates using ARMIS-authoritative team capacity, availability, and conflict checks."
         icon={CalendarClock}
         title="Audit Scheduling"
       />
@@ -642,8 +621,8 @@ export default function IapSchedulingPage() {
             Auditor Capacity · {selectedYear}
           </h2>
           <p className="mt-1 text-xs text-slate-500">
-            Scheduled person-days compared with the annual IAP capacity
-            baseline.
+            Scheduled person-days compared with the ARMIS annual capacity
+            ledger. Resource changes are managed in ARMIS Planning.
           </p>
         </header>
         <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -674,18 +653,9 @@ export default function IapSchedulingPage() {
                       {auditor?.employeeId}
                     </p>
                   </div>
-                  {isManagement && (
-                    <button
-                      className="text-xs font-bold text-sky-700 hover:text-sky-900"
-                      onClick={() => {
-                        setCapacityTarget(capacity);
-                        setCapacityValue(capacity.availablePersonDays);
-                      }}
-                      type="button"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Managed in ARMIS
+                  </span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
                   <div
@@ -944,48 +914,6 @@ export default function IapSchedulingPage() {
         </div>
       </Modal>
 
-      <Modal
-        footer={
-          <>
-            <button
-              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
-              disabled={saving}
-              onClick={() => setCapacityTarget(null)}
-              type="button"
-            >
-              Cancel
-            </button>
-            <button
-              className="min-h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white hover:bg-sky-800 disabled:opacity-50"
-              disabled={saving || Number(capacityValue) < 0}
-              onClick={updateCapacity}
-              type="button"
-            >
-              Save capacity
-            </button>
-          </>
-        }
-        onClose={() => !saving && setCapacityTarget(null)}
-        open={Boolean(capacityTarget)}
-        size="sm"
-        title="Set annual auditor capacity"
-      >
-        {capacityTarget && (
-          <label>
-            <span className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Available person-days for {capacityTarget.fiscalYear}
-            </span>
-            <input
-              className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-              min="0"
-              onChange={(event) => setCapacityValue(event.target.value)}
-              step="0.5"
-              type="number"
-              value={capacityValue}
-            />
-          </label>
-        )}
-      </Modal>
     </main>
   );
 }

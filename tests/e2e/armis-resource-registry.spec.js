@@ -36,7 +36,7 @@ async function mockArmis(page) {
     body: JSON.stringify({ success: true, data: {
       statuses: ["DRAFT", "ACTIVE", "SUSPENDED", "INACTIVE", "ARCHIVED"].map((code) => ({ code, label: code })),
       categories: [{ code: "AUDIT_RESOURCE", label: "Audit Resource" }, { code: "SPECIALIST", label: "Specialist" }],
-      provider: { mode: "IAP_INTERIM_FALLBACK", authoritative: false },
+      provider: { mode: "ARMIS_AUTHORITATIVE", authoritative: true },
     } }),
   }));
   await page.route(/\/api\/armis\/identities$/, (route) => route.fulfill({

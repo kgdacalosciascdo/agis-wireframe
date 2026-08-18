@@ -762,6 +762,15 @@ class CoreRegistryController extends Controller
                 [],
                 ['value' => "configuration value for {$item['key']}"],
             )->validate();
+
+            if ($item['key'] === 'armis_provider_mode'
+                && strtoupper((string) $item['value']) !== 'ARMIS_AUTHORITATIVE') {
+                throw ValidationException::withMessages([
+                    "configurations.{$index}.value" => [
+                        'ARMIS_AUTHORITATIVE is the only supported operational resource-provider mode.',
+                    ],
+                ]);
+            }
         }
 
         DB::transaction(function () use ($request, $validated): void {

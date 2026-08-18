@@ -91,7 +91,7 @@ class ArmisFoundationTest extends TestCase
         $this->getJson('/api/armis/foundation')
             ->assertOk()
             ->assertJsonPath('meta.profileCount', $initialProfileCount + 1)
-            ->assertJsonPath('meta.provider.mode', 'IAP_INTERIM_FALLBACK');
+            ->assertJsonPath('meta.provider.mode', 'ARMIS_AUTHORITATIVE');
         $this->getJson("/api/armis/resources/{$profileId}/events")
             ->assertOk()
             ->assertJsonCount(2, 'data');

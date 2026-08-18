@@ -58,10 +58,10 @@ These items are not implemented by the current acceptance baseline.
 
 - IAP supplies approved engagement plans to AEMS.
 - AEMS transfers finalized recommendations to CMS exactly once.
-- ARMIS is operational as a standalone resource and allocation module. AEMS
-  continues to use the configurable provider boundary; `IAP_INTERIM_FALLBACK`
-  remains the default, while shadow/authoritative ARMIS modes require the
-  documented reconciliation and authority gate.
+- ARMIS is the sole operational resource and allocation provider. AEMS and IAP
+  scheduling read ARMIS directly. Historical IAP resource records remain for
+  planning lineage and reconciliation evidence only; fallback/shadow values
+  are not runtime options or active provider paths.
 - AIS-5D provides the verified hardened read-only analytical presentation, review indicators,
   immutable reports, and protected CSV/PDF exports. AIS does not mutate source
   modules or make professional decisions. Its integration contract rechecks

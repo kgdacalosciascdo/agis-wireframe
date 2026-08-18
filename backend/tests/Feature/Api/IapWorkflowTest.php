@@ -3,12 +3,14 @@
 namespace Tests\Feature\Api;
 
 use App\Models\AuditArea;
+use App\Models\IapEngagementSkillRequirement;
 use App\Models\IapPlanEngagement;
 use App\Models\IapWorkflowEvent;
 use App\Models\InternalAuditPlan;
 use App\Models\MasterListItem;
 use App\Models\Office;
 use App\Models\User;
+use App\Services\ArmisResourceBackfillService;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\IapSchedulingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -328,17 +330,26 @@ class IapWorkflowTest extends TestCase
             'teamRoleId' => $member->team_role_id,
             'plannedPersonDays' => (float) $member->planned_person_days,
         ])->values()->all();
+        $specialization = $this->item('IAP_AUDITOR_SPECIALIZATION', 'COMPLIANCE');
         $this->putJson("/api/iap/resources/engagements/{$sourceEngagement->id}/requirements", [
             'requirements' => [[
-                'specializationId' => $this->item(
-                    'IAP_AUDITOR_SPECIALIZATION',
-                    'COMPLIANCE',
-                )->id,
+                'specializationId' => $specialization->id,
                 'minimumAuditors' => 1,
                 'minimumProficiency' => 'INTERMEDIATE',
                 'notes' => 'Required for the approved compliance audit schedule.',
             ]],
-        ])->assertOk();
+        ])->assertStatus(409)->assertJsonPath('sourceOfTruth', 'ARMIS');
+        // Preserve this row as historical IAP lineage, then copy the demand
+        // into ARMIS—the current resource authority used by scheduling.
+        IapEngagementSkillRequirement::query()->create([
+            'plan_engagement_id' => $sourceEngagement->id,
+            'specialization_id' => $specialization->id,
+            'minimum_auditors' => 1,
+            'minimum_proficiency' => 'INTERMEDIATE',
+            'notes' => 'Required for the approved compliance audit schedule.',
+        ]);
+        $this->app->make(ArmisResourceBackfillService::class)
+            ->backfill($this->user('departmenthead'), true);
         $this->putJson("/api/iap/schedules/{$sourceEngagement->id}", [
             'plannedStartDate' => '2027-02-01',
             'plannedEndDate' => '2027-03-31',
@@ -377,7 +388,7 @@ class IapWorkflowTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('status');
         $this->putJson("/api/iap/resources/engagements/{$sourceEngagement->id}/requirements", [
             'requirements' => [],
-        ])->assertUnprocessable()->assertJsonValidationErrors('status');
+        ])->assertStatus(409)->assertJsonPath('sourceOfTruth', 'ARMIS');
 
         $revision = $this->postJson("/api/iap/plans/{$source->id}/revisions", [
             'lockVersion' => $source->lock_version,

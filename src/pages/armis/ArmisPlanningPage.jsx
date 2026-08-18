@@ -565,9 +565,9 @@ export default function ArmisPlanningPage() {
 
   return (
     <main className="mx-auto min-w-0 max-w-[1500px] p-4 sm:p-6">
-      <RegistryHeader actions={<div className="flex flex-wrap gap-2"><button aria-label="Refresh ARMIS planning" className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60" disabled={loading || saving} onClick={load} type="button"><RefreshCw className={loading ? "animate-spin" : ""} size={16} /> Refresh</button></div>} description="Plan resource availability, approved capacity, and workload utilization without changing the IAP interim provider." icon={CalendarRange} title="ARMIS Planning & Utilization" />
+      <RegistryHeader actions={<div className="flex flex-wrap gap-2"><button aria-label="Refresh ARMIS planning" className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60" disabled={loading || saving} onClick={load} type="button"><RefreshCw className={loading ? "animate-spin" : ""} size={16} /> Refresh</button></div>} description="Plan resource availability, approved capacity, and workload utilization for ARMIS, the sole operational resource provider." icon={CalendarRange} title="ARMIS Planning & Utilization" />
 
-      <section className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>Planning boundary:</strong> ARMIS planning records are scope-aware and independently reviewed. AEMS continues to use the IAP interim provider until a later authority-switch phase.</section>
+      <section className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900"><strong>Planning boundary:</strong> ARMIS planning records are scope-aware and independently reviewed. AEMS consumes ARMIS for operational resource decisions; IAP values are retained only as historical planning lineage.</section>
       {provider && <p className="mb-4 text-xs font-semibold text-slate-500">Current provider boundary: <span className="text-slate-700">{provider.mode || provider}</span> · ARMIS planning remains non-authoritative.</p>}
       {error && <ErrorState message={error} onRetry={load} />}
 

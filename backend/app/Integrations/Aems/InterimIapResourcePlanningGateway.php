@@ -10,7 +10,7 @@ use App\Models\IapAuditorUnavailability;
 use App\Services\IapScheduleConflictService;
 use Carbon\CarbonInterface;
 
-/** Temporary resource provider that can be replaced by ARMIS without changing AEMS. */
+/** Historical IAP lineage adapter used only for ARMIS reconciliation snapshots. */
 class InterimIapResourcePlanningGateway implements ResourcePlanningGateway
 {
     public function __construct(private readonly IapScheduleConflictService $capacity) {}
@@ -93,9 +93,10 @@ class InterimIapResourcePlanningGateway implements ResourcePlanningGateway
         return [
             'module' => 'ARMIS',
             'provider' => self::class,
-            'mode' => 'IAP_INTERIM_FALLBACK',
+            'mode' => 'IAP_HISTORICAL_LINEAGE',
             'available' => true,
             'authoritative' => false,
+            'operational' => false,
             'capabilities' => [
                 'availability',
                 'workload',
@@ -103,8 +104,8 @@ class InterimIapResourcePlanningGateway implements ResourcePlanningGateway
                 'planned_person_days',
                 'actual_person_days',
             ],
-            'actualPersonDaysOwner' => 'AEMS_UNTIL_ARMIS',
-            'futureAuthoritativeProvider' => 'ARMIS',
+            'actualPersonDaysOwner' => 'HISTORICAL_ONLY',
+            'futureAuthoritativeProvider' => null,
         ];
     }
 }

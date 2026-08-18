@@ -264,7 +264,7 @@ class IapFoundationTest extends TestCase
             'attachments.document',
         ]);
 
-        $this->assertSame('CIAS-AUD-001', $loaded->preparer->employee_id);
+        $this->assertSame('CIAS-AUD-004', $loaded->preparer->employee_id);
         $this->assertCount(1, $loaded->riskAssessments);
         $this->assertCount(1, $loaded->riskAssessments->first()->scores);
         $this->assertCount(1, $loaded->engagements);

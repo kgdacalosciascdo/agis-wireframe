@@ -187,13 +187,17 @@ links[]
 ## 4. IAP endpoints
 
 BAICS-1A/1B foundation, BAICS-2A/2B assessment, BAICS-3A/3B Control
-Universe/BAR, and BAICS-4/BAICS-5 integration endpoints are part of the IAP inventory.
+Universe/BAR, BAICS-4/BAICS-5 integration endpoints, and BAICS-6 conformance
+verification are part of the IAP inventory.
 They manage cycle scope, five control components, distinct methods, exact Core
 evidence links, corroboration exceptions, traceable controls, interim
 analysis, BAR assembly, immutable report versions and protected exports. BAICS-4
 adds approved BAR/legacy-exception decisions for IAP consumers without
 mutating source records; BAICS-5 adds granular integration authorization and
-participant-scoped, deduplicated Core notifications.
+participant-scoped, deduplicated Core notifications. BAICS-6 verifies the
+role/scope/SoD permission matrix, migration-rehearsed schema, shared-owner
+boundaries and unique canonical navigation paths. The focused acceptance test
+is `IapBaicsG6AcceptanceTest`; Playwright remains committed but paused.
 
 | Method | Endpoint | Permission | Purpose |
 | --- | --- | --- | --- |
@@ -815,7 +819,7 @@ enforce preparer/originator separation.
 | `GET` | `/api/aems/engagements` | Search, filter, sort, paginate, and include archived engagements |
 | `GET` | `/api/aems/engagements/import-options` | List approved IAP engagements that have never been imported |
 | `POST` | `/api/aems/engagements/import` | Create an engagement from an approved IAP item |
-| `POST` | `/api/aems/engagements` | Create an independently authorized special or unplanned engagement |
+| `POST` | `/api/aems/engagements` | Create a Draft special/unplanned engagement with recorded external authority; internal authorization remains a controlled lifecycle transition |
 | `GET` | `/api/aems/engagements/{engagement}` | Return coverage, team, event, lineage, and snapshot details |
 | `GET` | `/api/aems/engagements/{engagement}/scope` | SCR-212 scope contract, one-office status, structured Area/Focus coverage, and lineage discriminator |
 | `PUT` | `/api/aems/engagements/{engagement}/scope` | Save one-office scope boundaries, limitations, source variance, and structured Area/Focus metadata with optimistic locking |
@@ -848,44 +852,57 @@ engagement's planning baseline.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/aems/engagements/{engagement}/team/safeguards` | Provider status, ARMIS reconciliation freshness, competency/capacity/availability checks, person-day reconciliation, declarations, and assessment history |
+| `GET` | `/api/aems/engagements/{engagement}/team/safeguards` | ARMIS provider status, competency/capacity/availability checks, person-day reconciliation, declarations, and assessment history |
 | `POST` | `/api/aems/engagements/{engagement}/team/safeguards/assess` | Record an immutable pending provider and independence assessment for separate decision |
 | `POST` | `/api/aems/engagements/{engagement}/team/safeguards/approve` | Independently approve a blocker-free assessment and create an immutable approved baseline |
 | `POST` | `/api/aems/engagements/{engagement}/team/{member}/safeguards/declarations` | Submit a versioned Objectivity, Conflict-of-Interest, or Independence declaration |
-| `POST` | `/api/aems/engagements/{engagement}/team/{member}/safeguards/declarations/{declaration}/review` | Independently accept or return a current declaration |
+| `POST` | `/api/aems/engagements/{engagement}/team/{member}/safeguards/declarations/{declaration}/review` | Accept or return a current declaration; the assigned resource is view-only, while CIAS Management may review a declaration it prepared for that resource |
 
 Safeguard declaration payloads require `declarationType`, `outcome`, and a
 statement. `DISCLOSED` outcomes require a mitigation plan before assessment;
 `CONFLICT` remains a blocker. An accepted declaration cannot be overwritten;
 submitting a correction requires `revisionReason` and creates a new version.
 Optional `evidenceDocumentVersionId` values must reference an exact Core
-`document_versions` row. Assessments capture the resolved provider mode,
-reconciliation snapshot, checks, blockers, warnings, and actor decisions.
+`document_versions` row. Assessments capture the resolved ARMIS provider mode,
+current ARMIS checks, effort reconciliation, blockers, warnings, and actor
+decisions.
 
 The permission codes are `aems.team.safeguard_view`,
 `aems.team.safeguard_declare`, `aems.team.safeguard_review`, and
 `aems.team.safeguard_approve`. Approval is CIAS Management-only and is
-separate from the reviewer/assessor. `IAP_INTERIM_FALLBACK` is explicit and
-non-authoritative; `ARMIS_SHADOW` cannot approve; `ARMIS_AUTHORITATIVE`
-requires an accepted, fresh (30-day) reconciliation and blocks on missing or
-stale provider data, competency/capacity/leave/workload conflicts, unresolved
-declarations, or unreconciled person-days. The aggregate AEMS authorization and
-fieldwork gates consume the same blockers.
+separate from the reviewer/assessor. `ARMIS_AUTHORITATIVE` is the only
+operational mode; no IAP fallback or provider-reconciliation freshness gate is
+used. Missing ARMIS data, competency/capacity/leave/workload conflicts,
+unresolved declarations, or unreconciled person-days still block the aggregate
+AEMS authorization and fieldwork gates.
 
 ### 8.4 Audit Engagement Order endpoints
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/aems/engagements/{engagement}/aeo` | AEO workspace, versions, workflow events, and readiness |
+| `GET` | `/api/aems/engagements/{engagement}/aeo` | AEO workspace, versions, workflow events, readiness, and the responsible-account authority matrix |
 | `POST` | `/api/aems/engagements/{engagement}/aeo` | Create the initial immutable draft version |
 | `PUT` | `/api/aems/engagements/{engagement}/aeo/{order}` | Create a new immutable content version |
 | `POST` | `/api/aems/engagements/{engagement}/aeo/{order}/transition` | Submit, review, return, resubmit, approve, or issue |
 | `POST` | `/api/aems/engagements/{engagement}/aeo/{order}/revise` | Start a formal revision from an approved or issued order |
 | `GET` | `/api/aems/engagements/{engagement}/aeo/{order}/pdf` | Download the exact approved AEO version |
+| `GET` | `/api/aems/aeo-acknowledgements` | Recipient-scoped issued AEO transmittals for the signed-in user or office |
+| `POST` | `/api/aems/aeo-acknowledgements/{distribution}/acknowledge` | Record recipient acknowledgement without opening the internal AEMS workspace |
+| `GET` | `/api/aems/aeo-acknowledgements/{distribution}/pdf` | Protected download of the exact approved and issued AEO version addressed to the signed-in recipient |
 
-All AEO mutations require the current `lockVersion`. Review and approval enforce
-preparer separation, and approval additionally requires an independent review
-event for the current version.
+All AEO mutations require the current `lockVersion`. The active CIAS Head may
+record review of an AEO she prepared as the documented single-authority
+exception and, when no alternate CIAS Management authority is available, may
+also approve and issue that same AEO. Otherwise approval and issuance use the
+separate active `cias_management` authorities. The workspace authority matrix
+identifies candidate accounts while workflow events and signatories record the
+actual actor, username, position, timestamp, and signature reference. Auditee
+recipients acknowledge issued copies through the recipient-scoped CMS portal;
+they do not receive internal AEMS workspace access. The AEO workspace exposes
+engagement-scoped office and auditee-representative selectors for transmittal
+recipients; arbitrary user or office IDs are rejected by the backend. The
+recipient portal displays the immutable issued version and provides an
+authenticated protected PDF download for that exact version.
 
 ### 8.5 Audit Engagement Plan endpoints
 
@@ -1219,7 +1236,7 @@ Cross-module operations resolve through container-bound contracts:
 | --- | --- | --- |
 | `IapEngagementGateway` | `DatabaseIapEngagementGateway` | Lists and locks only approved/active IAP engagement sources, then preserves the imported source link |
 | `CmsRecommendationGateway` | `DatabaseCmsRecommendationGateway` | Thin adapter to `CmsIntakeService`; creates one immutable intake/case/event per eligible issued recommendation and returns the same source-matching record on retry |
-| `ResourcePlanningGateway` | `ConfigurableResourcePlanningGateway` | Supplies capacity, availability, workload inputs, competencies, and person-days through the controlled IAP/ARMIS provider boundary |
+| `ResourcePlanningGateway` | `ConfigurableResourcePlanningGateway` | Supplies ARMIS-authoritative capacity, availability, workload inputs, competencies, and person-days; historical IAP values are lineage only |
 | `EngagementRetentionProvider` | `InterimAemsRetentionProvider` | Preserves approved AEMS retention/custody snapshots behind a Core Records Management-replaceable boundary; never destroys records |
 
 The protected integration contract is also available directly:
@@ -1237,11 +1254,10 @@ idempotent and its source envelope contains AEMS lineage and the source
 snapshot hash. AIS is intentionally absent from this contract.
 
 The dashboard response includes `integrations.core`, `integrations.iap`,
-`integrations.cms`, and `integrations.armis`. ARMIS-6A reports the configured
-`IAP_INTERIM_FALLBACK` or `ARMIS_SHADOW` mode, the active IAP provider, the
-available ARMIS shadow adapter, supported modes, and the authority-gate
-blocker. In both modes the ARMIS entry is non-authoritative and AEMS continues
-using IAP.
+`integrations.cms`, and `integrations.armis`. ARMIS reports
+`ARMIS_AUTHORITATIVE` as the only operational mode. Historical
+`ARMIS_SHADOW`/`IAP_INTERIM_FALLBACK` values may remain in old reconciliation
+snapshots but are not runtime options or active providers.
 
 ### 8.20 ARMIS-1A foundation API
 
@@ -1400,9 +1416,9 @@ limits, approved availability conflicts, current verified competency claims,
 assignment/actual date bounds, and optimistic-lock checks. The submitter and
 resource owner cannot independently review the same record. Every mutation
 records an ARMIS workflow event, Activity Log, Audit Trail, and review/outcome
-notification. ARMIS actuals remain non-authoritative for AEMS while the default
-provider is `IAP_INTERIM_FALLBACK`; an explicit ARMIS authority decision is
-required before AEMS consumes them authoritatively.
+notification. The paragraph above describes the pre-cutover checkpoint. ARMIS
+actuals are now authoritative for AEMS; any IAP fallback is an explicit,
+audited rollback compatibility decision rather than an operating default.
 
 ### 8.23.1 ARMIS-4B assignment and actuals workspace
 
@@ -1441,10 +1457,9 @@ expose a public document URL. Report runs and exports are immutable and every
 generation, export, and download records Core Activity Log and Audit Trail
 entries.
 
-ARMIS-5A does not switch the AEMS `ResourcePlanningGateway`; ARMIS-6A now
-exposes the controlled `IAP_INTERIM_FALLBACK` and `ARMIS_SHADOW` modes. The
-administration contract reports the active IAP provider, available ARMIS
-adapter, non-authoritative status, and authority-gate blocker.
+ARMIS is now the active AEMS `ResourcePlanningGateway`. The administration
+contract reports ARMIS authority, historical IAP lineage, and any explicit
+rollback mode.
 
 ### 8.24.1 ARMIS-5B reports and administration workspace
 
@@ -1470,18 +1485,20 @@ ARMIS-6A adds no new public route. The existing AEMS dashboard and ARMIS
 metadata, foundation, planning, reports, and administration responses consume
 the mode-aware `ResourcePlanningGateway` status. The status includes:
 
-- `mode`: `IAP_INTERIM_FALLBACK` or `ARMIS_SHADOW`;
+- `mode`: always `ARMIS_AUTHORITATIVE`;
 - `configuredMode`: the normalized runtime setting;
-- `activeProvider`: the IAP interim provider used by AEMS;
-- `shadowProvider`: the ARMIS adapter class;
-- `shadowAvailable`: whether the ARMIS adapter can be resolved;
-- `supportedModes`: the modes available before reconciliation; and
-- `authoritySwitchAllowed`: `false` during ARMIS-6A.
+- `activeProvider`: the ARMIS provider used by AEMS after cutover;
+- `shadowProvider`: `null` (historical comparison providers are not active);
+- `shadowAvailable`: `false`;
+- `supportedModes`: `["ARMIS_AUTHORITATIVE"]`; and
+- `authoritySwitchAllowed`: `false`.
 
 The protected Core endpoint `PUT /api/system-configurations` accepts the
 `armis_provider_mode` setting for users with `system_configuration.manage`.
-Only `IAP_INTERIM_FALLBACK` and `ARMIS_SHADOW` are valid. Configuration
-changes retain the existing Core Activity Log and Audit Trail behavior.
+`ARMIS_AUTHORITATIVE` is the operational setting; the dedicated
+`armis:resource-backfill --approve --activate` command records the immutable
+cutover decision. Configuration changes retain Core Activity Log and Audit
+Trail behavior.
 
 `ArmisResourcePlanningGateway` reads approved/current ARMIS records and maps
 capacity, availability, competency, requirement, assignment actuals, and
@@ -1499,8 +1516,8 @@ ARMIS-6B adds protected provider integration routes:
 | POST | `/api/armis/provider/reconciliations` | `armis.provider.reconcile` | Generate an IAP-versus-ARMIS snapshot for a fiscal year |
 | GET | `/api/armis/provider/reconciliations/{run}` | `armis.provider.view` | View exact snapshot rows, checksum, review, and authority history |
 | POST | `/api/armis/provider/reconciliations/{run}/review` | `armis.provider.review` | Record one immutable independent review and discrepancy decisions |
-| POST | `/api/armis/provider/reconciliations/{run}/activate` | `armis.provider.switch` | Atomically activate ARMIS after an accepted shadow review |
-| POST | `/api/armis/provider/rollback` | `armis.provider.rollback` | Atomically return authority to IAP with a reason |
+| POST | `/api/armis/provider/reconciliations/{run}/activate` | `armis.provider.switch` | Compatibility endpoint; returns `409` because ARMIS is already sole provider |
+| POST | `/api/armis/provider/rollback` | `armis.provider.rollback` | Compatibility endpoint; returns `409` because provider rollback is disabled |
 
 `armis_provider_reconciliation_runs` stores the source query version, fiscal
 year, provider mode, authorized scope, normalized comparison rows, summary,
@@ -1510,15 +1527,11 @@ requirements, engagement actuals, or assignment actuals. Runs cannot be
 updated or deleted. `armis_provider_reconciliation_reviews` and
 `armis_provider_authority_decisions` are separate immutable records.
 
-Activation requires a run generated in `ARMIS_SHADOW`, an independent review
-with every discrepancy explicitly accepted, global office scope, and a
-different actor from both the generator and reviewer. The generic Core
-`PUT /api/system-configurations` endpoint accepts only `IAP_INTERIM_FALLBACK`
-and `ARMIS_SHADOW`; `ARMIS_AUTHORITATIVE` can only be written by the dedicated
-activation route. The gateway fails closed to IAP when an authoritative value
-has no matching latest activation decision. All generation, reviews,
-activation, and rollback operations emit ARMIS workflow events, Core Activity
-Log/Audit Trail records, and in-app notifications.
+Reconciliation is a historical IAP-versus-ARMIS quality snapshot. It can be
+independently reviewed, but activation and rollback routes now return `409`
+because ARMIS is already the sole operational provider. No provider switch or
+fallback read is possible. Generation and review operations continue to emit
+ARMIS workflow events, Core Activity Log/Audit Trail records, and notifications.
 
 ### 8.27 ARMIS-6C reconciliation and authority workspace
 
@@ -2371,9 +2384,10 @@ prior approved or issued versions remain unchanged.
 
 `aems_aeo_signatories` is the per-version signatory matrix. It records the
 independent reviewer, approving authority, and issuing authority, including
-signature method, reference, actor, and timestamp. The preparer cannot review,
-approve, or issue; approval requires independent review and issuance requires
-a different authority from approval.
+signature method, reference, actor, and timestamp. The normal rule separates
+preparation, approval, and issuance; when the active CIAS Head is the sole
+available CIAS Management authority, that account may use the explicit review,
+approval, and issuance exception for her own AEO.
 
 `aems_aeo_distributions` records only issued-version transmittals and their
 recipient, method, reference, sent time, acknowledgement actor, note, and

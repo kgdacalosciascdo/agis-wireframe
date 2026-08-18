@@ -1974,6 +1974,41 @@ export const aemsTeamSafeguardApi = {
 };
 
 export const aemsAeoApi = {
+  async recipientAcknowledgements() {
+    const data = await request("/api/aems/aeo-acknowledgements");
+    return data?.data ?? data ?? { distributions: [] };
+  },
+  async acknowledgeRecipient(distributionId, payload) {
+    const data = await request(
+      `/api/aems/aeo-acknowledgements/${distributionId}/acknowledge`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.distribution ?? data?.data?.distribution ?? null;
+  },
+  async downloadRecipientPdf(distributionId, filename = `issued-aeo-${distributionId}.pdf`) {
+    const response = await fetch(
+      `/api/aems/aeo-acknowledgements/${distributionId}/pdf`,
+      {
+        credentials: "include",
+        headers: {
+          Accept: "application/pdf",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      },
+    );
+    if (!response.ok) {
+      const payload = await parseResponse(response);
+      throw errorFromResponse(payload, response.status);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
   async show(engagementId) {
     return request(`/api/aems/engagements/${engagementId}/aeo`);
   },

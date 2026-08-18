@@ -72,9 +72,9 @@ const planningSteps = [
   },
   {
     number: 6,
-    title: "Resource Capacity",
-    description: "Match person-days, availability, workload, and skills.",
-    path: "/internal-audit-planning/resource-capacity",
+    title: "ARMIS Resources",
+    description: "Open ARMIS for authoritative person-days, availability, workload, and skills.",
+    path: "/audit-resource-management/planning",
     icon: UsersRound,
   },
   {
@@ -378,7 +378,7 @@ export default function IapDashboardPage() {
             Refresh live data
           </button>
         }
-        description="Live risk, prioritization, annual-plan, schedule, approval, and resource-capacity information."
+        description="Live risk, prioritization, annual-plan, schedule, approval, and ARMIS resource information."
         icon={CircleGauge}
         title="Internal Audit Planning Dashboard"
       />

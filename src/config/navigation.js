@@ -20,7 +20,6 @@ import {
   FileText,
   Files,
   FileBarChart,
-  GitCompareArrows,
   KeyRound,
   LayoutDashboard,
   ListChecks,
@@ -99,12 +98,6 @@ export const iapPages = [
     path: "/internal-audit-planning/scheduling",
     permission: "iap.view",
     icon: CalendarDays,
-  },
-  {
-    label: "Resource Capacity",
-    path: "/internal-audit-planning/resource-capacity",
-    permission: "iap.view",
-    icon: UsersRound,
   },
   {
     label: "IAP Reports",
@@ -524,6 +517,12 @@ export const cmsPages = [
     icon: ClipboardCheck,
   },
   {
+    label: "AEO Acknowledgements",
+    path: "/compliance-management/aeo-acknowledgements",
+    permission: "aems.aeo.acknowledge",
+    icon: FileCheck2,
+  },
+  {
     label: "Automation & Candidates",
     path: "/compliance-management/automation",
     permission: "cms.automation.view",
@@ -561,12 +560,6 @@ export const armisPages = [
     path: "/audit-resource-management/assignments",
     permission: "armis.assignment.view",
     icon: ClipboardCheck,
-  },
-  {
-    label: "Provider Reconciliation",
-    path: "/audit-resource-management/provider-reconciliation",
-    permission: "armis.provider.view",
-    icon: GitCompareArrows,
   },
   {
     label: "Provider Monitoring",
@@ -819,6 +812,24 @@ export function hasPermission(user, permission) {
   return Boolean(user?.permissions?.includes(permission));
 }
 
+export function notificationPathForUser(user, notification) {
+  const type = String(notification?.type ?? "").toUpperCase();
+  const title = String(notification?.title ?? "").toUpperCase();
+  const metadata = notification?.metadata ?? {};
+  const isAuditeeRecipient = hasPermission(user, "aems.aeo.acknowledge")
+    && !hasPermission(user, "aems.engagement.view");
+  const isAuthorizationNotice = type.includes("PREPARE_AUTHORIZATION")
+    || type.includes("AUTHORIZATION_PREPARATION")
+    || String(metadata.toStatus ?? "").toUpperCase() === "AUTHORIZATION_PREPARATION"
+    || title.includes("AUTHORIZATION PREPARATION");
+
+  if (isAuditeeRecipient && isAuthorizationNotice) {
+    return "/compliance-management/aeo-acknowledgements";
+  }
+
+  return notification?.actionUrl || "/notifications";
+}
+
 export function visibleFor(user, items) {
   return items.filter((item) => hasPermission(user, item.permission));
 }
@@ -853,14 +864,6 @@ export function pageForPath(pathname) {
       label: "ARMIS Reports & Administration",
       icon: FileBarChart,
       permission: "armis.report.view",
-    };
-  }
-
-  if (pathname === "/audit-resource-management/provider-reconciliation") {
-    return {
-      label: "ARMIS Provider Reconciliation",
-      icon: GitCompareArrows,
-      permission: "armis.provider.view",
     };
   }
 

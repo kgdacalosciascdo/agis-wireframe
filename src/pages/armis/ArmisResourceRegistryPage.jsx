@@ -430,13 +430,13 @@ export default function ArmisResourceRegistryPage() {
   return (
     <main className="p-3 sm:p-5">
       <RegistryHeader
-        description="Maintain scope-aware ARMIS resource profiles while the IAP interim provider remains non-authoritative for AEMS."
+        description="Maintain scope-aware ARMIS resource profiles used by AEMS as its sole operational resource provider."
         icon={UsersRound}
         title="ARMIS Resource Registry"
         actions={<><button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50" onClick={() => loadRegistry()} type="button"><RefreshCw className={loading ? "animate-spin" : ""} size={16} /> Refresh</button>{canCreate && <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white shadow-sm hover:bg-sky-800" onClick={openCreate} type="button"><Plus size={17} /> New resource</button>}</>}
       />
 
-      <section className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm"><div className="flex items-start gap-3"><Clock3 className="mt-0.5 shrink-0 text-amber-700" size={18} /><div><p className="font-bold">Interim provider boundary</p><p className="mt-1 leading-5">ARMIS records are available for registry and foundation review. AEMS still reads the IAP interim provider; no authority switch has occurred.</p></div></div></section>
+      <section className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 shadow-sm"><div className="flex items-start gap-3"><Clock3 className="mt-0.5 shrink-0 text-emerald-700" size={18} /><div><p className="font-bold">ARMIS operational provider</p><p className="mt-1 leading-5">ARMIS records are the authoritative source for AEMS resource profiles, competencies, availability, and workload. IAP values remain historical planning lineage only.</p></div></div></section>
 
       {error ? <ErrorState message={error} onRetry={() => { setError(""); loadRegistry(); }} /> : <>
         <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

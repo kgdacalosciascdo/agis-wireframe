@@ -8,12 +8,14 @@ use App\Models\IapAuditorSkill;
 use App\Models\IapAuditorUnavailability;
 use App\Models\IapEngagementSkillRequirement;
 use App\Models\IapPlanEngagement;
+use App\Models\ArmisWorkloadAllocation;
 use App\Models\InternalAuditPlan;
 use App\Models\MasterListItem;
 use App\Models\User;
 use App\Services\IapPlanGuard;
 use App\Services\IapScheduleConflictService;
 use App\Services\IapSupport;
+use App\Integrations\Aems\ArmisResourcePlanningGateway;
 use App\Services\RuntimeConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +34,7 @@ class IapResourceCapacityController extends Controller
         private readonly IapScheduleConflictService $conflicts,
         private readonly IapSupport $support,
         private readonly RuntimeConfiguration $configuration,
+        private readonly ArmisResourcePlanningGateway $resources,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -52,23 +55,22 @@ class IapResourceCapacityController extends Controller
         $auditors = $this->auditors();
 
         $allocated = $this->allocatedPersonDays($fiscalYear);
-        $auditors->load([
-            'iapSkills.specialization',
-            'iapUnavailability' => fn ($query) => $query
-                ->withTrashed()
-                ->with('type')
-                ->orderBy('start_date'),
-        ]);
+        $armisSkills = $this->resources->skills($auditors->pluck('id')->map(fn ($id): int => (int) $id)->all());
         $auditorPayload = $auditors->map(function (User $user) use (
             $allocated,
             $fiscalYear,
+            $armisSkills,
         ): array {
             $available = $this->conflicts->capacityFor($fiscalYear, $user->id);
             $used = (float) ($allocated[$user->id] ?? 0);
-            $todayUnavailable = $user->iapUnavailability
-                ->whereNull('deleted_at')
-                ->contains(fn ($period) => $period->start_date->lte(today())
-                    && $period->end_date->gte(today()));
+            $periods = $this->resources->unavailability(
+                $user->id,
+                now()->startOfYear(),
+                now()->endOfYear(),
+            );
+            $todayUnavailable = collect($periods)->contains(fn (array $period): bool =>
+                $period['startDate'] <= today()->toDateString()
+                && $period['endDate'] >= today()->toDateString());
 
             return [
                 'id' => $user->id,
@@ -85,25 +87,8 @@ class IapResourceCapacityController extends Controller
                     ? round(($used / $available) * 100, 1)
                     : ($used > 0 ? 100 : 0),
                 'isOverallocated' => $used > $available,
-                'skills' => $user->iapSkills->map(fn ($skill) => [
-                    'id' => $skill->id,
-                    'specializationId' => $skill->specialization_id,
-                    'code' => $skill->specialization?->code,
-                    'label' => $skill->specialization?->label,
-                    'proficiencyLevel' => $skill->proficiency_level,
-                    'notes' => $skill->notes,
-                ])->values(),
-                'unavailability' => $user->iapUnavailability->map(fn ($period) => [
-                    'id' => $period->id,
-                    'typeId' => $period->unavailability_type_id,
-                    'typeCode' => $period->type?->code,
-                    'typeLabel' => $period->type?->label,
-                    'title' => $period->title,
-                    'startDate' => $period->start_date->toDateString(),
-                    'endDate' => $period->end_date->toDateString(),
-                    'notes' => $period->notes,
-                    'isArchived' => $period->trashed(),
-                ])->values(),
+                'skills' => collect($armisSkills[$user->id] ?? [])->values(),
+                'unavailability' => collect($periods)->values(),
             ];
         })->values();
 
@@ -126,6 +111,8 @@ class IapResourceCapacityController extends Controller
             'success' => true,
             'data' => [
                 'fiscalYear' => $fiscalYear,
+                'authoritativeProvider' => 'ARMIS',
+                'legacyResourceWritesDisabled' => true,
                 'years' => $years->contains($fiscalYear)
                     ? $years->values()
                     : $years->prepend($fiscalYear)->values(),
@@ -170,7 +157,8 @@ class IapResourceCapacityController extends Controller
     public function updateCapacity(Request $request, User $user): JsonResponse
     {
         $this->assertAuditor($request, $user);
-        $validated = $request->validate([
+        return $this->armisAuthoritativeResponse();
+        /* $validated = $request->validate([
             'fiscalYear' => ['required', 'integer', 'min:2000', 'max:2200'],
             'availablePersonDays' => ['required', 'numeric', 'min:0', 'max:999999.99'],
             'notes' => ['nullable', 'string', 'max:5000'],
@@ -191,13 +179,14 @@ class IapResourceCapacityController extends Controller
             $capacity->toArray(),
         );
 
-        return $this->success('Auditor annual capacity updated.');
+        return $this->success('Auditor annual capacity updated.'); */
     }
 
     public function storeUnavailability(Request $request, User $user): JsonResponse
     {
         $this->assertAuditor($request, $user);
-        $validated = $this->validateUnavailability($request);
+        return $this->armisAuthoritativeResponse();
+        /* $validated = $this->validateUnavailability($request);
         $period = IapAuditorUnavailability::query()->create([
             ...$this->unavailabilityAttributes($validated),
             'user_id' => $user->id,
@@ -211,7 +200,7 @@ class IapResourceCapacityController extends Controller
             $period->toArray(),
         );
 
-        return $this->success('Unavailable period added.', 201);
+        return $this->success('Unavailable period added.', 201); */
     }
 
     public function updateUnavailability(
@@ -219,7 +208,8 @@ class IapResourceCapacityController extends Controller
         IapAuditorUnavailability $unavailability,
     ): JsonResponse {
         $this->guard->assertManagement($request->user());
-        $validated = $this->validateUnavailability($request);
+        return $this->armisAuthoritativeResponse();
+        /* $validated = $this->validateUnavailability($request);
         $before = $unavailability->toArray();
         $unavailability->update($this->unavailabilityAttributes($validated));
         $this->support->audit(
@@ -230,7 +220,7 @@ class IapResourceCapacityController extends Controller
             $unavailability->fresh()->toArray(),
         );
 
-        return $this->success('Unavailable period updated.');
+        return $this->success('Unavailable period updated.'); */
     }
 
     public function destroyUnavailability(
@@ -238,7 +228,8 @@ class IapResourceCapacityController extends Controller
         IapAuditorUnavailability $unavailability,
     ): JsonResponse {
         $this->guard->assertManagement($request->user());
-        $unavailability->delete();
+        return $this->armisAuthoritativeResponse();
+        /* $unavailability->delete();
         $this->support->audit(
             $request,
             'iap.availability.unavailable_archived',
@@ -247,13 +238,14 @@ class IapResourceCapacityController extends Controller
             ['deletedAt' => $unavailability->deleted_at?->toISOString()],
         );
 
-        return $this->success('Unavailable period archived.');
+        return $this->success('Unavailable period archived.'); */
     }
 
     public function restoreUnavailability(Request $request, int $unavailability): JsonResponse
     {
         $this->guard->assertManagement($request->user());
-        $period = IapAuditorUnavailability::withTrashed()->findOrFail($unavailability);
+        return $this->armisAuthoritativeResponse();
+        /* $period = IapAuditorUnavailability::withTrashed()->findOrFail($unavailability);
         $period->restore();
         $this->support->audit(
             $request,
@@ -263,13 +255,14 @@ class IapResourceCapacityController extends Controller
             ['deletedAt' => null],
         );
 
-        return $this->success('Unavailable period restored.');
+        return $this->success('Unavailable period restored.'); */
     }
 
     public function syncSkills(Request $request, User $user): JsonResponse
     {
         $this->assertAuditor($request, $user);
-        $validated = $request->validate([
+        return $this->armisAuthoritativeResponse();
+        /* $validated = $request->validate([
             'skills' => ['present', 'array', 'max:50'],
             'skills.*.specializationId' => [
                 'required',
@@ -308,7 +301,7 @@ class IapResourceCapacityController extends Controller
             ['skills' => $validated['skills']],
         );
 
-        return $this->success('Auditor specializations updated.');
+        return $this->success('Auditor specializations updated.'); */
     }
 
     public function syncRequirements(
@@ -316,7 +309,8 @@ class IapResourceCapacityController extends Controller
         IapPlanEngagement $engagement,
     ): JsonResponse {
         $this->guard->assertManagement($request->user());
-        $this->guard->assertEditable($request->user(), $engagement->plan);
+        return $this->armisAuthoritativeResponse();
+        /* $this->guard->assertEditable($request->user(), $engagement->plan);
         $validated = $request->validate([
             'requirements' => ['present', 'array', 'max:50'],
             'requirements.*.specializationId' => [
@@ -356,7 +350,7 @@ class IapResourceCapacityController extends Controller
             ['requirements' => $validated['requirements']],
         );
 
-        return $this->success('Engagement skill requirements updated.');
+        return $this->success('Engagement skill requirements updated.'); */
     }
 
     private function auditors(): Collection
@@ -379,16 +373,23 @@ class IapResourceCapacityController extends Controller
 
     private function allocatedPersonDays(int $fiscalYear): Collection
     {
-        return DB::table('iap_engagement_team_members as team')
-            ->join('iap_plan_engagements as engagement', 'engagement.id', '=', 'team.plan_engagement_id')
-            ->join('internal_audit_plans as plan', 'plan.id', '=', 'engagement.plan_id')
-            ->where('plan.fiscal_year', $fiscalYear)
-            ->where('plan.is_current_revision', true)
-            ->where('engagement.schedule_status', 'SCHEDULED')
-            ->whereNull('engagement.deleted_at')
-            ->whereNull('plan.deleted_at')
-            ->groupBy('team.user_id')
-            ->selectRaw('team.user_id, SUM(team.planned_person_days) as allocated')
+        return ArmisWorkloadAllocation::query()
+            ->whereHas('resourceProfile', fn ($query) => $query->where('status', 'ACTIVE'))
+            ->where('armis_workload_allocations.fiscal_year', $fiscalYear)
+            ->where('armis_workload_allocations.source_module', 'IAP')
+            ->where('armis_workload_allocations.source_type', 'IAP_PLAN_ENGAGEMENT')
+            ->where('armis_workload_allocations.status', '!=', 'RETURNED')
+            ->where('armis_workload_allocations.is_current_revision', true)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('iap_plan_engagements as source_engagement')
+                    ->whereColumn('source_engagement.id', 'armis_workload_allocations.source_id')
+                    ->where('source_engagement.schedule_status', 'SCHEDULED')
+                    ->whereNull('source_engagement.deleted_at');
+            })
+            ->groupBy('armis_resource_profiles.user_id')
+            ->selectRaw('armis_resource_profiles.user_id, SUM(armis_workload_allocations.planned_person_days) as allocated')
+            ->join('armis_resource_profiles', 'armis_resource_profiles.id', '=', 'armis_workload_allocations.resource_profile_id')
             ->pluck('allocated', 'user_id');
     }
 
@@ -449,13 +450,11 @@ class IapResourceCapacityController extends Controller
         string $minimumProficiency,
     ): bool {
         $rank = ['BASIC' => 1, 'INTERMEDIATE' => 2, 'ADVANCED' => 3, 'EXPERT' => 4];
-        $level = IapAuditorSkill::query()
-            ->where('user_id', $userId)
-            ->where('specialization_id', $specializationId)
-            ->value('proficiency_level');
+        $claims = $this->resources->skills([$userId], [$specializationId])[$userId] ?? [];
 
-        return $level !== null
-            && ($rank[$level] ?? 0) >= ($rank[$minimumProficiency] ?? 0);
+        return collect($claims)->contains(fn (array $claim): bool =>
+            (int) ($claim['id'] ?? 0) === $specializationId
+            && ($rank[$claim['proficiencyLevel'] ?? ''] ?? 0) >= ($rank[$minimumProficiency] ?? 0));
     }
 
     private function assertAuditor(Request $request, User $user): void
@@ -536,5 +535,15 @@ class IapResourceCapacityController extends Controller
     private function success(string $message, int $status = 200): JsonResponse
     {
         return response()->json(['success' => true, 'message' => $message], $status);
+    }
+
+    private function armisAuthoritativeResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'ARMIS is the authoritative resource workspace. Use /audit-resource-management/planning for capacity, availability, competencies, and workload changes.',
+            'replacementPath' => '/audit-resource-management/planning',
+            'sourceOfTruth' => 'ARMIS',
+        ], 409);
     }
 }

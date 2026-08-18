@@ -109,7 +109,7 @@ class AemsEngagementRegistryTest extends TestCase
         $created = $this->postJson('/api/aems/engagements', $payload)
             ->assertCreated()
             ->assertJsonPath('data.engagement.sourceType', 'SPECIAL')
-            ->assertJsonPath('data.engagement.status', 'AUTHORIZED')
+            ->assertJsonPath('data.engagement.status', 'DRAFT')
             ->assertJsonPath(
                 'data.engagement.specialAuthorityReference',
                 'OCM-MEMO-2026-014',

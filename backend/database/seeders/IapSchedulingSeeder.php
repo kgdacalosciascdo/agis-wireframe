@@ -16,7 +16,9 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds plan engagements, teams, capacity, skills, and representative schedules.
+ * Seeds plan engagements, teams, and representative schedules. The capacity,
+ * skills, and availability rows remain historical IAP lineage and are copied
+ * into ARMIS by ArmisResourcePlanningSeeder.
  */
 class IapSchedulingSeeder extends Seeder
 {

@@ -189,14 +189,11 @@ supersession create controlled successor versions.
   reports, and the transfer snapshot.
 - CMS owns Action Plans, monitoring, validation, dispositions, and closure of
   transferred recommendations.
-- ARMIS is the intended provider for competency, availability, workload,
-  planned person-days, and actual person-days after its authority gate passes.
-- `IAP_INTERIM_FALLBACK` remains an explicit non-authoritative fallback until
-  ARMIS reconciliation is approved.
-- AEMS-3A does not silently select ARMIS. `ARMIS_SHADOW` remains a comparison
-  mode, while `ARMIS_AUTHORITATIVE` requires an accepted reconciliation and a
-  current authority decision. Missing or stale authoritative resource data
-  blocks team/AEO/fieldwork approval.
+- ARMIS is the sole provider for competency, availability, workload, planned
+  person-days, and actual person-days.
+- IAP resource values remain historical planning lineage and reconciliation
+  evidence only; fallback and shadow modes are not active.
+- Missing or stale ARMIS data blocks team/AEO/fieldwork approval.
 - AIS integration is not part of this AEMS completion roadmap.
 
 ### 5.8 No duplicate AFR module
@@ -212,10 +209,9 @@ addition to the four core lifecycle roles. Each active assignment must carry
 current Objectivity, Conflict-of-Interest, and Independence declarations before
 an explicit safeguard assessment can be approved. Declarations and safeguard
 assessments are versioned and append-only; accepted records are corrected by
-revision. ARMIS provides authoritative competency, certification, availability,
-capacity, planned-days, and actual-days data only after the existing authority
-gate. The IAP fallback is explicit and visible, never represented as ARMIS
-authority.
+revision. ARMIS provides the authoritative competency, certification,
+availability, capacity, planned-days, and actual-days data. IAP resource values
+remain historical lineage only and are never represented as the active provider.
 
 ## 6. Navigation and screen contract
 
@@ -564,13 +560,13 @@ AEMS-3A adds:
 - exact Core `document_versions` evidence links and correction-by-revision;
 - independent declaration review and a separate immutable safeguard assessment
   decision;
-- provider status, accepted reconciliation snapshot, 30-day freshness, and
-  planned/actual person-day reconciliation in the readiness contract;
+- ARMIS provider status and planned/actual person-day reconciliation in the
+  readiness contract; historical provider reconciliation is not a readiness
+  prerequisite;
 - competency/certification, capacity, workload overlap, leave/training, and
   independence blockers;
-- explicit `IAP_INTERIM_FALLBACK`, `ARMIS_SHADOW`, and
-  `ARMIS_AUTHORITATIVE` behavior. Shadow data never approves a team; missing
-  or stale authoritative ARMIS data blocks team/AEO/fieldwork approval;
+- ARMIS-only operational behavior. Historical shadow/fallback snapshots never
+  approve a team; missing or stale ARMIS data blocks team/AEO/fieldwork approval;
 - AEMS events, Activity Log, Audit Trail, notifications, scoped permissions,
   API routes, and focused regression tests.
 
@@ -606,8 +602,8 @@ that visibility-only change passed 228 tests and 3,678 assertions.
 AEMS-3B consumes the AEMS-3A contracts in the existing engagement Team page.
 The workspace provides:
 
-- a provider status and reconciliation summary for IAP fallback, ARMIS shadow,
-  and ARMIS-authoritative modes;
+- an ARMIS-authoritative provider status and planned-versus-actual effort
+  summary; historical fallback/shadow modes are not operational;
 - planned-versus-actual person-day cards and a competency, certification,
   availability, workload, and overlap matrix;
 - explicit readiness blockers with the responsible resolver, plus warnings and
@@ -891,10 +887,10 @@ not updated during import, archive, restore, or relink. AEMS owns the import
 foreign key and immutable source snapshot, while the legacy IAP
 `aem_engagement_id` value remains a computed compatibility projection.
 
-ARMIS competency, availability, workload, planned/actual effort, and
-reconciliation data continue through `ResourcePlanningGateway`. The explicit
-IAP fallback remains safe and visible; ARMIS authority still requires the
-independent reconciliation/authority gate. CMS intake remains create-once and
+ARMIS competency, availability, workload, planned/actual effort, and provider
+health data continue through `ResourcePlanningGateway`. ARMIS is already the
+sole operational provider; historical reconciliation records are not a
+readiness gate. CMS intake remains create-once and
 idempotent, and its immutable source envelope now includes AEMS source lineage
 and a source-snapshot hash. The protected integration-status endpoint is:
 
@@ -918,12 +914,10 @@ idempotent CMS gateway; retrying a transfer reuses the existing CMS transfer
 key. Approved manifests and effort snapshots are immutable and cannot be
 updated or deleted.
 
-Effort reconciliation records planned person-days, AEMS actuals, provider
-actuals, variance, provider mode, and source status. The explicit
-`IAP_INTERIM_FALLBACK` mode remains available. ARMIS shadow and authoritative
-modes require a successful provider reconciliation before closure readiness is
-accepted. The independent reviewer/final approver cannot be the snapshot
-generator.
+Effort reconciliation records planned person-days, AEMS actuals, ARMIS actuals,
+variance, provider mode, and source status. ARMIS is the only provider that can
+satisfy closure readiness; stale or missing ARMIS data remains a blocker. The
+independent reviewer/final approver cannot be the snapshot generator.
 
 The server-derived Closure Checklist now adds the blocking checks
 `CMS_TRANSFER_MANIFEST`, `CMS_TRANSFER_EXCEPTIONS`, and

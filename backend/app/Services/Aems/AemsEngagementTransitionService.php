@@ -87,6 +87,7 @@ class AemsEngagementTransitionService
     ];
 
     public function __construct(
+        private readonly AemsAccessService $access,
         private readonly AemsSupport $support,
         private readonly AemsNotificationService $notifications,
         private readonly AemsTeamSafeguardService $teamSafeguards,
@@ -925,13 +926,34 @@ class AemsEngagementTransitionService
     {
         $order = $engagement->engagementOrder;
 
-        return $order
-            && $order->status === 'ISSUED'
-            && $order->prepared_by
-            && $order->approved_by
-            && $order->issued_by
-            && (int) $order->prepared_by !== (int) $order->approved_by
+        if (! $order
+            || $order->status !== 'ISSUED'
+            || ! $order->prepared_by
+            || ! $order->approved_by
+            || ! $order->issued_by) {
+            return false;
+        }
+
+        $normallySeparated = (int) $order->prepared_by !== (int) $order->approved_by
             && (int) $order->prepared_by !== (int) $order->issued_by;
+        if ($normallySeparated) {
+            return true;
+        }
+
+        // The sole active CIAS Head is the controlled exception already used
+        // by the AEO workflow. Keep the aggregate gate consistent with that
+        // exception when the same authority prepared, approved, and issued
+        // the current AEO version.
+        if ((int) $order->prepared_by !== (int) $order->approved_by
+            || (int) $order->prepared_by !== (int) $order->issued_by) {
+            return false;
+        }
+
+        $preparedBy = User::query()->find($order->prepared_by);
+
+        return $preparedBy !== null
+            && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.approve')
+            && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.issue');
     }
 
     /** @return array{key: string, label: string, met: bool, link?: string} */

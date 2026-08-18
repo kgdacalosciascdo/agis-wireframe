@@ -191,6 +191,69 @@ class AemsAeoController extends Controller
         return response()->json(['success' => true, 'message' => 'AEO transmittal acknowledged.', 'data' => ['distribution' => $acknowledgement]]);
     }
 
+    public function recipientAcknowledgements(Request $request): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'distributions' => $this->orders->recipientAcknowledgements($request->user()),
+            ],
+        ]);
+    }
+
+    public function acknowledgeRecipient(
+        Request $request,
+        AemsAeoDistribution $distribution,
+    ): JsonResponse {
+        $validated = $request->validate(['note' => ['required', 'string', 'min:2', 'max:4000']]);
+        $acknowledgement = $this->orders->acknowledgeRecipient(
+            $request,
+            $distribution,
+            $validated['note'],
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'AEO transmittal acknowledged.',
+            'data' => ['distribution' => $acknowledgement],
+        ]);
+    }
+
+    /**
+     * Download the exact issued AEO version addressed to the authenticated
+     * recipient. This endpoint is intentionally separate from the internal
+     * AEMS PDF route and never grants access to the engagement workspace.
+     */
+    public function recipientPdf(
+        Request $request,
+        AemsAeoDistribution $distribution,
+    ): Response {
+        $context = $this->orders->recipientPdfContext($request->user(), $distribution);
+        $this->support->audit(
+            $request,
+            'aems.aeo.recipient_pdf_downloaded',
+            $context['engagement'],
+            null,
+            [
+                'distributionId' => $distribution->id,
+                'aeoId' => $context['order']->id,
+                'versionNumber' => $context['version']->version_number,
+            ],
+            ['aeoCode' => $context['order']->order_code],
+        );
+
+        return Pdf::loadView('reports.aeo', [
+            'engagement' => $context['engagement'],
+            'order' => $context['order'],
+            'version' => $context['version'],
+            'approvalEvent' => $context['approvalEvent'],
+            'issueEvent' => $context['issueEvent'],
+            'configuration' => $this->configuration->publicValues(),
+        ])->setPaper('a4')->download(
+            "{$context['order']->order_code}-v{$context['version']->version_number}.pdf",
+        );
+    }
+
     public function pdf(
         Request $request,
         AuditEngagement $engagement,

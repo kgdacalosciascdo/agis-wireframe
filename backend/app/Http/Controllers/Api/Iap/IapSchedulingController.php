@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Iap;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Iap\IapScheduleCancelRequest;
 use App\Http\Requests\Iap\IapScheduleRequest;
-use App\Models\IapAuditorCapacity;
 use App\Models\IapEngagementTeamMember;
 use App\Models\IapPlanEngagement;
 use App\Models\IapScheduleEvent;
@@ -15,6 +14,7 @@ use App\Models\User;
 use App\Services\IapPlanGuard;
 use App\Services\IapScheduleConflictService;
 use App\Services\IapSupport;
+use App\Services\ArmisResourceBackfillService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +32,7 @@ class IapSchedulingController extends Controller
         private readonly IapScheduleConflictService $conflicts,
         private readonly IapSupport $support,
         private readonly NotificationService $notifications,
+        private readonly ArmisResourceBackfillService $resourceBackfill,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -224,6 +225,10 @@ class IapSchedulingController extends Controller
             );
         }, 3);
 
+        // Keep ARMIS's workload ledger current while preserving the IAP
+        // schedule as immutable planning lineage.
+        $this->resourceBackfill->backfill($request->user(), true);
+
         $this->notifications->send($members->pluck('userId'), [
             'actorId' => $request->user()->id,
             'type' => 'IAP_SCHEDULE_ASSIGNED',
@@ -331,40 +336,12 @@ class IapSchedulingController extends Controller
     public function updateCapacity(Request $request, User $user): JsonResponse
     {
         $this->guard->assertManagement($request->user());
-        $validated = $request->validate([
-            'fiscalYear' => ['required', 'integer', 'min:2000', 'max:2200'],
-            'availablePersonDays' => ['required', 'numeric', 'min:0', 'max:999999.99'],
-            'notes' => ['nullable', 'string', 'max:5000'],
-        ]);
-        if (! $user->is_active || ! $user->hasRole(['cias_management', 'agis_user'])) {
-            throw ValidationException::withMessages([
-                'user' => ['Capacity can only be maintained for an active CIAS auditor.'],
-            ]);
-        }
-
-        $capacity = IapAuditorCapacity::query()->updateOrCreate(
-            [
-                'fiscal_year' => $validated['fiscalYear'],
-                'user_id' => $user->id,
-            ],
-            [
-                'available_person_days' => $validated['availablePersonDays'],
-                'notes' => $validated['notes'] ?? null,
-                'set_by' => $request->user()->id,
-            ],
-        );
-        $this->support->audit(
-            $request,
-            'iap.capacity.updated',
-            $capacity,
-            null,
-            $capacity->toArray(),
-        );
-
         return response()->json([
-            'success' => true,
-            'message' => 'Auditor capacity updated successfully.',
-        ]);
+            'success' => false,
+            'message' => 'ARMIS is the authoritative resource workspace. Use /audit-resource-management/planning for capacity changes.',
+            'replacementPath' => '/audit-resource-management/planning',
+            'sourceOfTruth' => 'ARMIS',
+        ], 409);
     }
 
     private function assertSchedulable(Request $request, InternalAuditPlan $plan): void

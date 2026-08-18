@@ -58,7 +58,7 @@ class AisIntegrationContractService
                 'IAP' => 'IAP owns approved plans, risk decisions, prioritization, and planning lineage.',
                 'AEMS' => 'AEMS owns engagements, fieldwork, evidence, findings, reports, and closure records.',
                 'CMS' => 'CMS owns finalized recommendation intake, monitoring, validation, disposition, and closure.',
-                'ARMIS' => 'ARMIS owns resource ledgers and provider reconciliation; fallback authority remains explicit.',
+                'ARMIS' => 'ARMIS owns the sole operational resource ledgers and historical provider reconciliation.',
             ],
             'failClosedRules' => [
                 'missingSource' => 'A source marked unavailable blocks AIS aggregation and reporting for that scope.',
@@ -196,19 +196,15 @@ class AisIntegrationContractService
             $mode = (string) ($provider['mode'] ?? 'UNKNOWN');
             $freshness = (string) ($provider['dataFreshness'] ?? $provider['armisAdapter']['dataFreshness'] ?? 'CURRENT_REVISIONS_ONLY');
             $stale = preg_match('/STALE|WARN|UNKNOWN/i', $freshness) === 1;
-            $fallbackSupported = (bool) ($provider['fallback']['explicit'] ?? $provider['fallbackSupported'] ?? false);
             $authorityEligible = (bool) ($provider['authorityEligible'] ?? false);
-            $eligible = $available && ! $stale && ($mode !== 'ARMIS_AUTHORITATIVE' ? $fallbackSupported : $authorityEligible);
-            $status = ! $available || $stale || ! $eligible
-                ? 'BLOCKED'
-                : ($mode === 'IAP_INTERIM_FALLBACK' ? 'DEGRADED_FALLBACK' : 'PASS');
+            $eligible = $available && ! $stale && $mode === 'ARMIS_AUTHORITATIVE' && $authorityEligible;
+            $status = ! $available || $stale || ! $eligible ? 'BLOCKED' : 'PASS';
         } catch (Throwable) {
             $provider = [];
             $available = false;
             $mode = 'UNKNOWN';
             $freshness = 'UNKNOWN';
             $stale = true;
-            $fallbackSupported = false;
             $authorityEligible = false;
             $eligible = false;
             $status = 'BLOCKED';
@@ -217,7 +213,7 @@ class AisIntegrationContractService
         return $this->source('ARMIS', 'ARMIS_PROVIDER_GATE', $eligible, $freshness, $status, [
             'providerMode' => $mode,
             'providerStatus' => $provider['providerStatus'] ?? null,
-            'fallbackSupported' => $fallbackSupported,
+            'fallbackSupported' => false,
             'authorityEligible' => $authorityEligible,
             'reconciliation' => $provider['reconciliation'] ?? null,
             'capabilities' => $provider['capabilities'] ?? $provider['armisAdapter']['capabilities'] ?? [],

@@ -4,6 +4,10 @@ namespace Tests\Feature\Api;
 
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementOrderVersion;
+use App\Models\AemsTeamSafeguardDeclaration;
+use App\Models\ArmisCapacitySubmission;
+use App\Models\ArmisResourceProfile;
+use App\Models\EngagementTeam;
 use App\Models\IapPlanEngagement;
 use App\Models\Role;
 use App\Models\User;
@@ -90,6 +94,7 @@ class AemsTeamAeoTest extends TestCase
                 'assignedUntil' => '2026-08-21',
             ])->assertCreated();
         }
+        $this->installArmisAuthorityControls($engagement, $management, $auditors);
         $preparer = $auditors[1];
         $issuer = $this->newManagement('CIAS-ISSUER-001');
         Sanctum::actingAs($preparer);
@@ -148,6 +153,76 @@ class AemsTeamAeoTest extends TestCase
         $version->update(['authority' => 'This must never overwrite the version.']);
     }
 
+    public function test_cias_head_may_review_approve_and_issue_own_aeo_when_sole_authority(): void
+    {
+        [$management, $engagement] = $this->engagement();
+        $auditors = $this->auditors(4);
+        Sanctum::actingAs($management);
+        foreach (['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'] as $index => $role) {
+            $this->postJson("/api/aems/engagements/{$engagement->id}/team", [
+                'userId' => $auditors[$index]->id,
+                'assignmentRoleCode' => $role,
+                'plannedPersonDays' => 5,
+                'assignedFrom' => '2026-08-03',
+                'assignedUntil' => '2026-08-21',
+            ])->assertCreated();
+        }
+        $this->installArmisAuthorityControls($engagement, $management, $auditors);
+
+        $payload = [
+            'authority' => 'Authority under the approved annual plan and CIAS mandate.',
+            'objectives' => 'Review the approved control objectives and operating effectiveness.',
+            'scope' => 'Approved BPLD records, transactions, personnel, and systems.',
+            'effectivityDate' => '2026-08-01',
+            'plannedStartDate' => '2026-08-03',
+            'plannedEndDate' => '2026-08-21',
+        ];
+        $this->postJson("/api/aems/engagements/{$engagement->id}/aeo", $payload)
+            ->assertCreated();
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->assertOk()
+            ->assertJsonPath('data.authorityMatrix.preparedBy.id', $management->id)
+            ->json('data.order');
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
+            ['action' => 'SUBMIT', 'lockVersion' => $order['lockVersion']],
+        )->assertOk();
+
+        // The sole active CIAS Head may perform the complete AEO authority
+        // sequence when no alternate CIAS Management authority is designated.
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->json('data.order');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
+            ['action' => 'REVIEW', 'lockVersion' => $order['lockVersion'], 'comment' => 'CIAS Head review exception recorded.'],
+        )->assertOk();
+
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->assertJsonPath('data.authorityMatrix.roles.0.status', 'SIGNED')
+            ->assertJsonPath('data.authorityMatrix.roles.0.signedBy.id', $management->id)
+            ->json('data.order');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
+            ['action' => 'APPROVE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Approved by the sole CIAS Head authority.'],
+        )->assertOk();
+        $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->assertOk()
+            ->assertJsonPath('data.authorityMatrix.roles.1.status', 'SIGNED')
+            ->assertJsonPath('data.authorityMatrix.roles.1.signedBy.id', $management->id)
+            ->assertJsonPath('data.authorityMatrix.roles.1.signedBy.username', $management->username);
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->json('data.order');
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
+            ['action' => 'ISSUE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Issued by the sole CIAS Head authority.'],
+        )->assertOk();
+        $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->assertJsonPath('data.authorityMatrix.roles.2.status', 'SIGNED')
+            ->assertJsonPath('data.authorityMatrix.roles.2.signedBy.id', $management->id)
+            ->assertJsonPath('data.authorityMatrix.roles.2.signedBy.username', $management->username);
+    }
+
     public function test_formal_revision_preserves_the_issued_version_as_pdf_source(): void
     {
         [$management, $engagement] = $this->engagement();
@@ -160,6 +235,7 @@ class AemsTeamAeoTest extends TestCase
                 'plannedPersonDays' => 5,
             ])->assertCreated();
         }
+        $this->installArmisAuthorityControls($engagement, $management, $auditors);
         $payload = [
             'authority' => 'Authority under the approved annual plan.',
             'objectives' => 'Review the engagement objectives and controls.',
@@ -278,6 +354,91 @@ class AemsTeamAeoTest extends TestCase
         $user->syncRoleAssignments([$role->id], $role->id);
 
         return $user->fresh(['role.permissions', 'roles.permissions', 'office']);
+    }
+
+    /**
+     * Seed the ARMIS records required by the authoritative AEO readiness gate.
+     * These tests intentionally do not use the retired IAP resource ledgers.
+     *
+     * @param list<User> $users
+     */
+    private function installArmisAuthorityControls(AuditEngagement $engagement, User $management, array $users): void
+    {
+        foreach ($users as $user) {
+            $profile = ArmisResourceProfile::withTrashed()
+                ->where('user_id', $user->id)
+                ->latest('id')
+                ->first();
+            if (! $profile) {
+                $profile = ArmisResourceProfile::query()->create([
+                    'resource_code' => 'ARMIS-AEO-'.$user->id,
+                    'user_id' => $user->id,
+                    'office_id' => $user->office_id,
+                    'category' => 'AUDIT_RESOURCE',
+                    'status' => 'ACTIVE',
+                    'effective_from' => today(),
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                ]);
+            } else {
+                if ($profile->trashed()) {
+                    $profile->restore();
+                }
+                $profile->update([
+                    'status' => 'ACTIVE',
+                    'office_id' => $user->office_id,
+                    'updated_by' => $management->id,
+                ]);
+            }
+            $capacity = ArmisCapacitySubmission::query()
+                ->where('resource_profile_id', $profile->id)
+                ->where('fiscal_year', today()->year)
+                ->where('is_current_revision', true)
+                ->whereIn('status', ['APPROVED', 'LOCKED'])
+                ->first();
+            if ($capacity) {
+                $capacity->update(['available_person_days' => 10000, 'updated_by' => $management->id]);
+            } else {
+                ArmisCapacitySubmission::query()->create([
+                    'resource_profile_id' => $profile->id,
+                    'fiscal_year' => today()->year,
+                    'version_number' => 1,
+                    'available_person_days' => 10000,
+                    'status' => 'APPROVED',
+                    'is_current_revision' => true,
+                    'approved_by' => $management->id,
+                    'approved_at' => now(),
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                ]);
+            }
+            $member = EngagementTeam::query()
+                ->where('audit_engagement_id', $engagement->id)
+                ->where('user_id', $user->id)
+                ->where('is_active', true)
+                ->firstOrFail();
+            foreach (AemsTeamSafeguardDeclaration::TYPES as $type) {
+                AemsTeamSafeguardDeclaration::query()->create([
+                    'declaration_family_uuid' => (string) str()->uuid(),
+                    'audit_engagement_id' => $engagement->id,
+                    'engagement_team_id' => $member->id,
+                    'user_id' => $user->id,
+                    'declaration_type' => $type,
+                    'version_number' => 1,
+                    'is_current_revision' => true,
+                    'outcome' => 'CLEAR',
+                    'statement' => 'AEO authority test declaration is clear.',
+                    'status' => 'ACCEPTED',
+                    'submitted_by' => $user->id,
+                    'submitted_at' => now(),
+                    'reviewed_by' => $management->id,
+                    'reviewed_at' => now(),
+                    'review_notes' => 'Accepted for AEO readiness testing.',
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                ]);
+            }
+        }
     }
 
     private function user(string $username): User

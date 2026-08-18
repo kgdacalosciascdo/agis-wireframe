@@ -239,6 +239,27 @@ export default function AemsAuditProgramPage() {
       label: `${member.user.name} — ${label(member.role)}`,
       keywords: member.user.employeeId,
     }));
+  const auditAreaOptions = (workspace?.engagement?.auditAreas ?? []).map((area) => ({
+    value: area.id,
+    label: `${area.code ? `${area.code} — ` : ""}${area.name}`,
+    keywords: area.name,
+  }));
+  const auditFocusOptions = (workspace?.engagement?.auditFocuses ?? []).map((focus) => ({
+    value: focus.id,
+    label: `${focus.code ? `${focus.code} — ` : ""}${focus.name}`,
+    keywords: focus.name,
+    auditAreaId: focus.auditAreaId,
+  }));
+  const auditTypeOptions = workspace?.engagement?.auditType
+    ? [{
+        value: workspace.engagement.auditType.id,
+        label: `${workspace.engagement.auditType.code ? `${workspace.engagement.auditType.code} — ` : ""}${workspace.engagement.auditType.label}`,
+        keywords: workspace.engagement.auditType.label,
+      }]
+    : [];
+  const procedureAuditFocusOptions = procedureForm.auditAreaId
+    ? auditFocusOptions.filter((option) => String(option.auditAreaId) === String(procedureForm.auditAreaId))
+    : auditFocusOptions;
 
   const actions = useMemo(() => {
     if (!program || !program.isCurrentRevision) return [];
@@ -279,12 +300,17 @@ export default function AemsAuditProgramPage() {
 
   function openProgramForm() {
     setErrors({});
+    const engagementAreas = workspace?.engagement?.auditAreas ?? [];
     setProgramForm(
       program &&
         program.isCurrentRevision &&
         ["DRAFT", "RETURNED_FOR_REVISION"].includes(program.status)
         ? { ...emptyProgram, ...program }
-        : emptyProgram,
+        : {
+            ...emptyProgram,
+            auditAreaId: engagementAreas.length === 1 ? engagementAreas[0].id : "",
+            auditTypeId: workspace?.engagement?.auditTypeId ?? "",
+          },
     );
     setProgramOpen(true);
   }
@@ -327,6 +353,9 @@ export default function AemsAuditProgramPage() {
             ...emptyProcedure,
             sequenceNumber: (program?.procedures.length ?? 0) + 1,
             procedureCode: `PROC-${String((program?.procedures.length ?? 0) + 1).padStart(2, "0")}`,
+            auditAreaId: workspace?.engagement?.auditAreas?.length === 1
+              ? workspace.engagement.auditAreas[0].id
+              : "",
           },
     );
     setProcedureOpen(true);
@@ -957,8 +986,28 @@ export default function AemsAuditProgramPage() {
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Audit area ID"><input className={inputClass} value={programForm.auditAreaId ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditAreaId: event.target.value }))} /></Field>
-            <Field label="Audit type ID"><input className={inputClass} value={programForm.auditTypeId ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditTypeId: event.target.value }))} /></Field>
+            <Field label="Audit area">
+              <SearchableSelect
+                options={auditAreaOptions}
+                placeholder="Select an audit area"
+                searchPlaceholder="Search audit areas..."
+                emptyMessage="No audit areas are configured on this engagement. Update its scope first."
+                value={programForm.auditAreaId ?? ""}
+                disabled={auditAreaOptions.length === 0}
+                onChange={(value) => setProgramForm((current) => ({ ...current, auditAreaId: value }))}
+              />
+            </Field>
+            <Field label="Audit type">
+              <SearchableSelect
+                options={auditTypeOptions}
+                placeholder="Select an audit type"
+                searchPlaceholder="Search audit types..."
+                emptyMessage="No audit type is configured on this engagement. Update it first."
+                value={programForm.auditTypeId ?? ""}
+                disabled={!workspace?.engagement?.auditTypeId}
+                onChange={(value) => setProgramForm((current) => ({ ...current, auditTypeId: value }))}
+              />
+            </Field>
             <Field label="Audit period start"><input className={inputClass} type="date" value={programForm.auditPeriodStart ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditPeriodStart: event.target.value }))} /></Field>
             <Field label="Audit period end"><input className={inputClass} type="date" value={programForm.auditPeriodEnd ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditPeriodEnd: event.target.value }))} /></Field>
             <Field label="Audit criteria" wide><textarea className={textAreaClass} value={programForm.auditCriteria ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditCriteria: event.target.value }))} /></Field>
@@ -1061,8 +1110,27 @@ export default function AemsAuditProgramPage() {
               }
             />
           </Field>
-          <Field label="Audit area ID"><input className={inputClass} value={procedureForm.auditAreaId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditAreaId: event.target.value }))} /></Field>
-          <Field label="Audit focus ID"><input className={inputClass} value={procedureForm.auditFocusId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditFocusId: event.target.value }))} /></Field>
+          <Field label="Audit area">
+            <SearchableSelect
+              options={auditAreaOptions}
+              placeholder="Select an audit area"
+              searchPlaceholder="Search audit areas..."
+              emptyMessage="No audit areas are configured on this engagement."
+              value={procedureForm.auditAreaId ?? ""}
+              disabled={auditAreaOptions.length === 0}
+              onChange={(value) => setProcedureForm((current) => ({ ...current, auditAreaId: value }))}
+            />
+          </Field>
+          <Field label="Audit focus">
+            <SearchableSelect
+              options={procedureAuditFocusOptions}
+              placeholder="Select an audit focus"
+              searchPlaceholder="Search audit focuses..."
+              emptyMessage="No audit focuses are configured for the selected engagement area."
+              value={procedureForm.auditFocusId ?? ""}
+              onChange={(value) => setProcedureForm((current) => ({ ...current, auditFocusId: value }))}
+            />
+          </Field>
           <Field label="Process name"><input className={inputClass} value={procedureForm.processName ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, processName: event.target.value }))} /></Field>
           <Field label="Process Flow ID"><input className={inputClass} value={procedureForm.processFlowId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, processFlowId: event.target.value }))} /></Field>
           <Field label="Audit method"><input className={inputClass} value={procedureForm.auditMethod ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditMethod: event.target.value }))} placeholder="Inspection, interview, analysis..." /></Field>

@@ -34,18 +34,30 @@ function coverageFrom(engagement) {
   const focuses = engagement?.auditFocuses ?? [];
   return (engagement?.auditAreas ?? []).map((area) => {
     const metadata = metadataFor(area);
+    const metadataFocusIds = Array.isArray(metadata.focusIds)
+      ? metadata.focusIds
+          .map((focusId) => Number(focusId))
+          .filter(
+            (focusId) =>
+              focusId > 0 &&
+              focuses.some(
+                (focus) =>
+                  Number(focus.id) === focusId &&
+                  String(focus.auditAreaId) === String(area.id),
+              ),
+          )
+      : [];
     return {
       auditAreaId: area.id,
       boundary: metadata.boundary ?? "",
       limitations: metadata.limitations ?? "",
       sourceVariance: metadata.sourceVariance ?? "",
       objective: metadata.objective ?? "",
-      focusIds:
-        Array.isArray(metadata.focusIds) && metadata.focusIds.length
-          ? metadata.focusIds
-          : focuses
-              .filter((focus) => String(focus.auditAreaId) === String(area.id))
-              .map((focus) => focus.id),
+      focusIds: metadataFocusIds.length
+        ? metadataFocusIds
+        : focuses
+            .filter((focus) => String(focus.auditAreaId) === String(area.id))
+            .map((focus) => focus.id),
     };
   });
 }
@@ -190,7 +202,7 @@ export default function AemsScopeWorkspace({ engagementId, initialEngagement }) 
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 shadow-sm"><Building2 size={20} /></span>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">SCR-212 · Foundation</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Engagement scope · Foundation</p>
               <h2 className="mt-1 text-lg font-bold text-slate-900">Define Engagement Scope</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">Select exactly one Engagement Office and preserve structured Area/Focus boundaries, limitations, and approved source variance.</p>
             </div>

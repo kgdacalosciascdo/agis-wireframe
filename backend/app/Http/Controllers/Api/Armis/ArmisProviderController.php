@@ -77,7 +77,7 @@ class ArmisProviderController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ARMIS provider authority activated through the reconciliation gate.',
+            'message' => 'ARMIS is already the sole operational resource provider; provider activation is not available.',
             'data' => ['decision' => new ArmisProviderAuthorityDecisionResource($this->service->activate($request, $run, $validated['reason']))],
         ], 201);
     }
@@ -90,7 +90,7 @@ class ArmisProviderController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ARMIS provider authority rolled back to the IAP interim provider.',
+            'message' => 'ARMIS is the sole operational resource provider; provider rollback is not available.',
             'data' => ['decision' => new ArmisProviderAuthorityDecisionResource($this->service->rollback($request, $validated['reason']))],
         ], 201);
     }

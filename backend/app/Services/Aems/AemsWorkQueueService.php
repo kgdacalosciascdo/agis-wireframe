@@ -226,7 +226,9 @@ class AemsWorkQueueService
             $locked = $this->lockNote($engagement, $note, $lockVersion);
             $action = strtoupper($action);
             if ($action === 'FINALIZE') {
-                if ($locked->status !== 'DRAFT' || (int) $locked->created_by === (int) $request->user()->id) throw ValidationException::withMessages(['note' => ['A review note must be a draft prepared by another actor before finalization.']]);
+                if ($locked->status !== 'DRAFT'
+                    || ((int) $locked->created_by === (int) $request->user()->id
+                        && ! $this->access->mayUseSingleCiasHeadReviewException($request->user(), 'aems.review-note.finalize'))) throw ValidationException::withMessages(['note' => ['A review note must be a draft prepared by another actor before finalization.']]);
                 $locked->update(['status' => 'FINALIZED', 'finalized_by' => $request->user()->id, 'finalized_at' => now(), 'lock_version' => $locked->lock_version + 1]);
             } elseif ($action === 'VOID') {
                 if ($locked->status !== 'DRAFT') throw ValidationException::withMessages(['note' => ['Only draft review notes can be voided.']]);

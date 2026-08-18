@@ -26,14 +26,14 @@ testing:
   controlled reopening, automation/candidate review, reports, and protected
   CSV/PDF exports;
 - ARMIS: resource registry, competencies/certifications, planning/utilization,
-  assignments/actuals, reports/exports, provider reconciliation and authority,
-  provider monitoring, and deployment/security checks.
+  assignments/actuals, reports/exports, provider monitoring, and
+  deployment/security checks.
 
 AFR remains a navigation compatibility entry while AEMS owns Findings and
 Recommendations. AIS-5D is a read-only analytical/source-health workspace and
 must be tested for scope, confidentiality, freshness, lineage, no-write, and
-protected downloads. AEMS uses the configurable resource provider and defaults to the IAP interim provider; ARMIS shadow/authoritative
-provider modes require the documented reconciliation gate. CMS automation cannot
+protected downloads. AEMS uses ARMIS as the sole operational resource provider;
+no IAP fallback or provider-reconciliation gate is required. CMS automation cannot
 make final professional decisions or issue escalation notices automatically.
 
 ## 2. Read these documents first
@@ -388,16 +388,17 @@ Miscellaneous checks:
 - cancellation must retain schedule history rather than delete it;
 - compare assigned person-days with Resource Capacity totals.
 
-#### Resource Capacity
+#### Resource Capacity (retired compatibility route)
 
-**Purpose:** Maintain the interim IAP capacity, availability, competency, and
-engagement-requirement data used while `IAP_INTERIM_FALLBACK` remains the default
-provider for AEMS. ARMIS has its own resource, planning, assignment, and actuals
-workspaces in section 6.4.
+The former `/internal-audit-planning/resource-capacity` page is retained only
+as a compatibility redirect to ARMIS Planning and Utilization. ARMIS now owns
+current capacity, availability, competency, engagement requirements, and actual
+person-days. Historical IAP resource records may be inspected for lineage but
+are not an AEMS provider or readiness source.
 
 What to do:
 
-1. Select the fiscal year.
+1. Open `/audit-resource-management/planning` and select the fiscal year.
 2. Set each auditor's available person-days.
 3. Add unavailable periods, including type, dates, and notes. Edit, archive,
    restore, and confirm archived periods no longer create scheduling conflicts.
@@ -411,10 +412,11 @@ Miscellaneous checks:
 
 - only an authorized manager should change capacity and requirements;
 - engagement requirements follow the Annual Plan editability rules;
-- allocations must agree with Audit Scheduling;
+- allocations must agree with ARMIS assignments and the approved engagement
+  schedule;
 - over-capacity and unavailable assignments should be clearly flagged;
-- treat this data as the IAP interim source; do not confuse it with ARMIS-owned
-  records or assume it changes the ARMIS provider authority.
+- treat the ARMIS ledger as the operational source; historical IAP values do
+  not change ARMIS authority.
 
 #### IAP Reports
 
@@ -582,8 +584,11 @@ Independence declarations. Use `CLEAR` for an uncomplicated case; use
 `DISCLOSED` without a mitigation plan and `CONFLICT` to confirm that readiness
 is blocked. Attach an exact Core Document Version when evidence is required.
 
-As a different reviewer, accept or return each declaration. A preparer must not
-review their own declaration. After an accepted declaration, attempt a
+As a different reviewer, accept or return each declaration. Assigned resources
+must remain view-only for their own submitted versions. CIAS Management may
+prepare a declaration for an assigned resource and review that prepared
+version. A preparer must not review their own declaration unless the preparer is
+CIAS Management acting on behalf of another assigned resource. After an accepted declaration, attempt a
 correction without `revisionReason` (it must fail), then submit the correction
 with a reason and confirm that the original version remains immutable.
 
@@ -592,15 +597,11 @@ different CIAS Management authority. Confirm that the approved assessment is
 immutable and that notifications, Activity Log, Audit Trail, and engagement
 events contain actor, version, provider mode, and reconciliation metadata.
 
-Verify provider modes separately:
-
-1. `IAP_INTERIM_FALLBACK`: the response is usable but visibly
-   non-authoritative; stale ARMIS reconciliation is a warning.
-2. `ARMIS_SHADOW`: the provider is comparison-only and cannot approve a team.
-3. `ARMIS_AUTHORITATIVE`: remove the active ARMIS profile, approved capacity,
-   verified competency, fresh accepted reconciliation, or independence
-   declaration one at a time. Each omission must block assessment approval and
-   the aggregate AEO/fieldwork gate. Restore the data and confirm readiness.
+Verify ARMIS authority directly: remove the active ARMIS profile, approved
+capacity, verified competency, availability, or independence declaration one
+at a time. Each omission must block assessment approval and the aggregate
+AEO/fieldwork gate. Restore the data and confirm readiness. A historical
+provider reconciliation is not required.
 
 In the Audit Team page, confirm that the provider card, planned-versus-actual
 cards, competency/workload matrix, declaration status, readiness blockers, and
@@ -615,7 +616,7 @@ Finally, create an approved ARMIS actual-person-day record and compare it with
 the AEMS team and engagement totals. A variance must be recorded and block an
 authoritative assessment until reconciled. These checks are protected by
 `AemsTeamSafeguardTest`, `AemsTeamAeoTest`, `ArmisAssignmentTest`, and
-`ArmisProviderReconciliationTest`.
+`ArmisProviderMonitoringTest`.
 
 #### Fieldwork Records and Execution Workspace (AEMS-4A/AEMS-4B)
 
@@ -1107,8 +1108,9 @@ immutable versions, and separation of duties.
 
 Open `/audit-resource-management`. Confirm that the module redirects to the
 Resource Registry and that only pages permitted by `armis.*` permissions appear.
-Check that the provider banner identifies `IAP_INTERIM_FALLBACK` as the default,
-and that no page claims ARMIS is authoritative before an authority decision.
+Check that the provider banner identifies ARMIS as the sole operational
+provider and that no IAP fallback or provider-switch action is exposed. The
+current ARMIS ledger must be the AEMS read path without an authority decision.
 
 #### Resource Registry
 
@@ -1134,9 +1136,10 @@ expiry/revocation, and scope-safe access.
 Open `/audit-resource-management/planning`. Create availability, annual
 capacity, and planned-workload records for a fiscal year. Submit, independently
 review, return/revise, and lock each record. Confirm date-overlap validation,
-annual capacity and utilization calculations, IAP demand lineage, optimistic
-locking, and notifications. The utilization cards and calendar are read-only
-projections of approved/current records; they must not silently rewrite IAP data.
+annual capacity and utilization calculations, ARMIS demand lineage,
+optimistic locking, and notifications. The utilization cards and calendar are
+read-only projections of approved/current ARMIS records; they must not silently
+rewrite IAP data.
 
 #### Assignments and Actuals
 
@@ -1148,16 +1151,11 @@ the separate actuals workflow, submit/review/lock them, and use a revision for a
 correction. Verify that planned and actual ledgers remain separate and that
 assignment conflicts cannot be bypassed by the browser.
 
-#### Provider Reconciliation
+#### Retired Provider Reconciliation Route
 
-Open `/audit-resource-management/provider-reconciliation`. Check provider
-status, generate an IAP-versus-ARMIS shadow snapshot, inspect normalized rows
-and checksum, and record discrepancy decisions as an independent reviewer.
-Activation requires every discrepancy to be explicitly accepted, global scope,
-and a different actor from the generator and reviewer. Verify that activation
-changes the provider only through the dedicated route and that rollback requires
-an independent reason and creates immutable authority history. A read-only
-provider viewer must not be able to generate, review, activate, or roll back.
+The former `/audit-resource-management/provider-reconciliation` path is kept
+only as a compatibility redirect to Provider Monitoring. It does not generate
+new comparisons, change ownership, or offer rollback to IAP.
 
 #### Provider Monitoring
 

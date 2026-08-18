@@ -106,13 +106,13 @@ export default function LoginPage() {
                 >
                   Employee ID
                 </label>
-                <div className="flex h-14 items-center rounded-md bg-white text-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-cyan-300">
+                <div className="flex h-14 items-center rounded-md border border-transparent bg-white text-slate-700 shadow-sm transition focus-within:border-slate-200 focus-within:ring-0">
                   <span className="pl-4 text-slate-500">
                     <UserRound size={22} />
                   </span>
                   <input
                     id="employee-id"
-                    className="h-full min-w-0 flex-1 bg-transparent px-4 text-base outline-none placeholder:text-slate-400"
+                    className="login-input h-full min-w-0 flex-1 bg-transparent px-4 text-base outline-none placeholder:text-slate-400"
                     autoComplete="username"
                     value={employeeId}
                     onChange={(event) => setEmployeeId(event.target.value)}
@@ -129,13 +129,13 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
-                <div className="flex h-14 items-center rounded-md bg-white text-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-cyan-300">
+                <div className="flex h-14 items-center rounded-md border border-transparent bg-white text-slate-700 shadow-sm transition focus-within:border-slate-200 focus-within:ring-0">
                   <span className="pl-4 text-slate-500">
                     <KeyRound size={22} />
                   </span>
                   <input
                     id="password"
-                    className="h-full min-w-0 flex-1 bg-transparent px-4 text-base outline-none placeholder:text-slate-400"
+                    className="login-input h-full min-w-0 flex-1 bg-transparent px-4 text-base outline-none placeholder:text-slate-400"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     value={password}
@@ -144,7 +144,7 @@ export default function LoginPage() {
                     required
                   />
                   <button
-                    className="grid h-full w-14 place-items-center text-slate-500 transition hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-cyan-400"
+                    className="login-control grid h-full w-14 place-items-center text-slate-500 transition hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-cyan-400"
                     type="button"
                     onClick={() => setShowPassword((current) => !current)}
                     aria-label={

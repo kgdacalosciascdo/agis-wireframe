@@ -6,32 +6,27 @@ use App\Contracts\Aems\ResourcePlanningGateway;
 use App\Integrations\Aems\ConfigurableResourcePlanningGateway;
 use App\Models\AemsTeamSafeguardAssessment;
 use App\Models\AemsTeamSafeguardDeclaration;
-use App\Models\ArmisProviderReconciliationRun;
 use App\Models\AuditEngagement;
 use App\Models\EngagementTeam;
 use App\Models\ArmisResourceProfile;
 use App\Models\DocumentVersion;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Governs AEMS team declarations and the provider-aware readiness decision.
  *
- * ARMIS is authoritative only after its explicit authority decision. Until
- * then, the configured IAP interim mode remains an explicit, non-authoritative
- * fallback and is reported to reviewers rather than silently promoted.
+ * ARMIS is the sole operational resource authority. Historical provider
+ * reconciliation records may remain available for migration lineage, but they
+ * are not an assignment-readiness prerequisite and no IAP fallback is used.
  */
 class AemsTeamSafeguardService
 {
     private const REQUIRED_ROLES = ['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER'];
-
-    private const PROVIDER_SNAPSHOT_MAX_DAYS = 30;
 
     private const PROFICIENCY_RANKS = [
         'BASIC' => 1,
@@ -96,8 +91,8 @@ class AemsTeamSafeguardService
         ]);
         $team = $engagement->teamMembers->values();
         $provider = $this->resources->status();
-        $mode = (string) ($provider['mode'] ?? ConfigurableResourcePlanningGateway::IAP_INTERIM_FALLBACK);
-        $authoritative = $mode === ConfigurableResourcePlanningGateway::ARMIS_AUTHORITATIVE;
+        $mode = ConfigurableResourcePlanningGateway::ARMIS_AUTHORITATIVE;
+        $authoritative = true;
         $blockers = [];
         $warnings = [];
         $checks = [];
@@ -110,21 +105,6 @@ class AemsTeamSafeguardService
             (bool) ($provider['available'] ?? false),
             'RESOURCE_PROVIDER_UNAVAILABLE',
         );
-        if ($mode === ConfigurableResourcePlanningGateway::ARMIS_SHADOW) {
-            $this->block($blockers, 'RESOURCE_PROVIDER_SHADOW', 'ARMIS shadow mode cannot approve an AEMS team.');
-        } elseif (! $authoritative) {
-            $warnings[] = [
-                'code' => 'NON_AUTHORITATIVE_FALLBACK',
-                'message' => 'AEMS is using the explicit IAP interim fallback; ARMIS data is not yet authoritative.',
-            ];
-            if (($provider['configuredMode'] ?? null) === ConfigurableResourcePlanningGateway::ARMIS_AUTHORITATIVE) {
-                $this->block($blockers, 'RESOURCE_AUTHORITY_NOT_ACTIVE', 'ARMIS authority was requested but no active authority decision is available.');
-            }
-        }
-
-        $latestReconciliation = $this->latestReconciliation();
-        $reconciliationFresh = $latestReconciliation
-            && $latestReconciliation->generated_at?->gte(now()->subDays(self::PROVIDER_SNAPSHOT_MAX_DAYS));
         if ($authoritative) {
             $this->check(
                 $checks,
@@ -135,19 +115,6 @@ class AemsTeamSafeguardService
                     && (bool) ($provider['authorityEligible'] ?? false),
                 'RESOURCE_AUTHORITY_NOT_ELIGIBLE',
             );
-            $this->check(
-                $checks,
-                $blockers,
-                'providerFreshness',
-                'Accepted ARMIS reconciliation is no older than 30 days',
-                (bool) $reconciliationFresh,
-                'RESOURCE_PROVIDER_STALE',
-            );
-        } elseif (! $reconciliationFresh) {
-            $warnings[] = [
-                'code' => 'RECONCILIATION_STALE',
-                'message' => 'The last accepted ARMIS reconciliation is missing or older than 30 days.',
-            ];
         }
 
         $roleCodes = $team->pluck('assignment_role_code');
@@ -255,14 +222,8 @@ class AemsTeamSafeguardService
                 ...$provider,
                 'mode' => $mode,
                 'authoritative' => $authoritative,
-                'reconciliationFresh' => (bool) $reconciliationFresh,
-                'latestReconciliation' => $latestReconciliation ? [
-                    'id' => $latestReconciliation->id,
-                    'runUuid' => $latestReconciliation->run_uuid,
-                    'generatedAt' => $latestReconciliation->generated_at?->toISOString(),
-                    'status' => $latestReconciliation->status,
-                ] : null,
-                'snapshotMaxAgeDays' => self::PROVIDER_SNAPSHOT_MAX_DAYS,
+                'resourceSource' => 'ARMIS',
+                'reconciliationRequiredForAuthority' => false,
             ],
             'requirements' => $requirements->values()->all(),
             'team' => $teamSnapshots,
@@ -370,7 +331,14 @@ class AemsTeamSafeguardService
         );
         abort_unless($declaration->status === 'SUBMITTED', 409, 'Only submitted declarations can be reviewed.');
         $actor = $request->user();
-        if ((int) $actor->id === (int) $declaration->user_id || (int) $actor->id === (int) $declaration->submitted_by) {
+        // CIAS Management may prepare a declaration on behalf of an assigned
+        // member and complete the review from the same controlled workspace.
+        // The CIAS Head is the explicit exception for her own declaration;
+        // every other actor remains subject to independent review and retains
+        // view-only access to their own submitted version.
+        if (! $actor->hasRole('cias_management')
+            && ((int) $actor->id === (int) $declaration->user_id
+                || (int) $actor->id === (int) $declaration->submitted_by)) {
             throw ValidationException::withMessages(['reviewer' => ['The declaration must be reviewed independently.']]);
         }
         if ($attributes['decision'] === 'RETURN' && mb_strlen(trim((string) ($attributes['reviewNotes'] ?? ''))) < 5) {
@@ -637,19 +605,6 @@ class AemsTeamSafeguardService
             }
         }
         return ['missing' => $missing, 'conflicts' => $conflicts];
-    }
-
-    private function latestReconciliation(): ?ArmisProviderReconciliationRun
-    {
-        if (! Schema::hasTable('armis_provider_reconciliation_runs')) {
-            return null;
-        }
-        return ArmisProviderReconciliationRun::query()
-            ->where('status', 'GENERATED')
-            ->where('provider_mode', ConfigurableResourcePlanningGateway::ARMIS_SHADOW)
-            ->whereHas('reviews', fn ($query) => $query->where('decision', 'ACCEPTED'))
-            ->latest('generated_at')
-            ->first();
     }
 
     /** @param array<string, mixed> $checks */

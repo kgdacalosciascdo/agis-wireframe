@@ -17,6 +17,8 @@ use App\Models\User;
 use App\Models\WorkingPaper;
 use App\Models\AemsTeamSafeguardAssessment;
 use App\Models\AemsTeamSafeguardDeclaration;
+use App\Models\AemsAeoDistribution;
+use App\Models\AuditEngagementOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -565,7 +567,6 @@ class AemsNotificationService
             ->where('is_active', true)
             ->whereNull('ended_at')
             ->pluck('user_id')
-            ->merge($this->auditeeRepresentatives($engagement->offices()->pluck('offices.id')))
             ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
             ->map(fn ($id): int => (int) $id)
             ->unique()
@@ -593,6 +594,46 @@ class AemsNotificationService
                 'engagementId' => $engagement->id,
                 'fromStatus' => $fromStatus,
                 'toStatus' => $toStatus,
+            ],
+        ]));
+    }
+
+    public function aeoDistributed(
+        Request $request,
+        AuditEngagement $engagement,
+        AuditEngagementOrder $order,
+        AemsAeoDistribution $distribution,
+    ): void {
+        $recipientIds = $distribution->recipient_user_id
+            ? collect([$distribution->recipient_user_id])
+            : $this->auditeeRepresentatives(collect([$distribution->recipient_office_id])->filter());
+        $recipientIds = $recipientIds
+            ->filter()
+            ->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+        $actorId = $request->user()->id;
+
+        DB::afterCommit(fn () => $this->notifications->send($recipientIds, [
+            'actorId' => $actorId,
+            'type' => 'AEMS_AEO_DISTRIBUTED',
+            'category' => 'WORKFLOW',
+            'priority' => 'HIGH',
+            'moduleCode' => 'AEMS',
+            'title' => "{$order->order_code}: issued AEO available for acknowledgement",
+            'message' => "The issued Audit Engagement Order for {$engagement->title} was transmitted to your account or office.",
+            'actionUrl' => "/compliance-management/aeo-acknowledgements?distributionId={$distribution->id}",
+            'actionLabel' => 'Acknowledge issued AEO',
+            'subjectType' => AemsAeoDistribution::class,
+            'subjectId' => $distribution->id,
+            'subjectCode' => $order->order_code,
+            'dedupeKey' => "aems:aeo:distribution:{$distribution->id}:sent",
+            'metadata' => [
+                'engagementId' => $engagement->id,
+                'orderId' => $order->id,
+                'distributionId' => $distribution->id,
+                'versionNumber' => $distribution->version_number,
             ],
         ]));
     }

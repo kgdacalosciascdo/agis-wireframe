@@ -7,7 +7,10 @@ use App\Models\AemsTeamSafeguardDeclaration;
 use App\Models\ArmisProviderAuthorityDecision;
 use App\Models\ArmisProviderReconciliationReview;
 use App\Models\ArmisProviderReconciliationRun;
+use App\Models\ArmisCapacitySubmission;
+use App\Models\ArmisResourceProfile;
 use App\Models\AuditEngagement;
+use App\Models\EngagementTeam;
 use App\Models\IapPlanEngagement;
 use App\Models\Role;
 use App\Models\SystemConfiguration;
@@ -60,7 +63,7 @@ class AemsTeamSafeguardTest extends TestCase
 
         $overview = $this->getJson("/api/aems/engagements/{$engagement->id}/team/safeguards")
             ->assertOk()
-            ->assertJsonPath('data.provider.mode', 'IAP_INTERIM_FALLBACK')
+            ->assertJsonPath('data.provider.mode', 'ARMIS_AUTHORITATIVE')
             ->json('data');
         $this->assertTrue($overview['approvalReady']);
         $this->assertSame($requiredDays * 4, (float) $overview['reconciliation']['planned']['team']);
@@ -120,9 +123,72 @@ class AemsTeamSafeguardTest extends TestCase
         ]);
     }
 
+    public function test_cias_management_may_review_a_declaration_it_prepared_but_assigned_members_are_view_only(): void
+    {
+        [$management, $engagement, $team] = $this->engagementWithTeam();
+        $member = $team[0];
+
+        Sanctum::actingAs($management);
+        $prepared = $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations", [
+            'declarationType' => 'OBJECTIVITY',
+            'outcome' => 'CLEAR',
+            'statement' => 'CIAS Management prepared this declaration for the assigned resource.',
+        ])->assertCreated()->json('data.declaration');
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations/{$prepared['id']}/review", [
+            'decision' => 'ACCEPT',
+            'reviewNotes' => 'Reviewed by CIAS Management after preparing the declaration.',
+        ])->assertOk()->assertJsonPath('data.declaration.status', 'ACCEPTED');
+
+        Sanctum::actingAs($member->user);
+        $own = $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations", [
+            'declarationType' => 'CONFLICT_OF_INTEREST',
+            'outcome' => 'CLEAR',
+            'statement' => 'I have reviewed my own conflict-of-interest declaration.',
+        ])->assertCreated()->json('data.declaration');
+
+        // The assigned resource can read this version through the safeguards
+        // overview, but cannot perform the independent review action.
+        $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations/{$own['id']}/review", [
+            'decision' => 'ACCEPT',
+            'reviewNotes' => 'A member must not self-review.',
+        ])->assertStatus(422);
+    }
+
+    public function test_cias_head_may_review_her_own_declaration_under_the_explicit_head_exception(): void
+    {
+        [$management, $engagement] = $this->engagementWithTeam();
+        $member = EngagementTeam::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'user_id' => $management->id,
+            'assignment_role_code' => 'SUPERVISOR',
+            'planned_person_days' => 1,
+            'assigned_from' => $engagement->planned_start_date,
+            'assigned_until' => $engagement->planned_end_date,
+            'assigned_by' => $management->id,
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($management);
+        $declaration = $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations", [
+            'declarationType' => 'OBJECTIVITY',
+            'outcome' => 'CLEAR',
+            'statement' => 'The CIAS Head records her authorized objectivity declaration.',
+        ])->assertCreated()->json('data.declaration');
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations/{$declaration['id']}/review", [
+            'decision' => 'ACCEPT',
+            'reviewNotes' => 'CIAS Head exception applied and recorded in the audit trail.',
+        ])->assertOk()->assertJsonPath('data.declaration.status', 'ACCEPTED');
+    }
+
     public function test_authoritative_armis_mode_blocks_missing_resource_data(): void
     {
         [$management, $engagement] = $this->engagementWithTeam();
+        $missingMember = $engagement->teamMembers()->firstOrFail();
+        ArmisResourceProfile::query()
+            ->where('user_id', $missingMember->user_id)
+            ->update(['status' => 'INACTIVE']);
         $run = ArmisProviderReconciliationRun::query()->create([
             'run_uuid' => (string) str()->uuid(),
             'source_query_version' => 'ARMIS-6B-v1',
@@ -168,9 +234,10 @@ class AemsTeamSafeguardTest extends TestCase
         $this->assertNotEmpty(collect($overview['blockers'])->where('code', 'ARMIS_PROFILE_MISSING')->all());
     }
 
-    public function test_requested_authority_without_decision_fails_closed(): void
+    public function test_armis_sole_provider_does_not_require_an_authority_switch_decision(): void
     {
         [$management, $engagement] = $this->engagementWithTeam();
+        ArmisProviderAuthorityDecision::query()->delete();
         $configuration = SystemConfiguration::query()->where('key', 'armis_provider_mode')->firstOrFail();
         $configuration->value = 'ARMIS_AUTHORITATIVE';
         $configuration->save();
@@ -179,10 +246,12 @@ class AemsTeamSafeguardTest extends TestCase
         Sanctum::actingAs($management);
         $overview = $this->getJson("/api/aems/engagements/{$engagement->id}/team/safeguards")
             ->assertOk()
-            ->assertJsonPath('data.provider.mode', 'IAP_INTERIM_FALLBACK')
+            ->assertJsonPath('data.provider.mode', 'ARMIS_AUTHORITATIVE')
             ->json('data');
         $this->assertFalse($overview['approvalReady']);
-        $this->assertNotEmpty(collect($overview['blockers'])->where('code', 'RESOURCE_AUTHORITY_NOT_ACTIVE')->all());
+        $this->assertEmpty(collect($overview['blockers'])->where('code', 'RESOURCE_AUTHORITY_NOT_ACTIVE')->all());
+        $this->assertEmpty(collect($overview['blockers'])->where('code', 'RESOURCE_PROVIDER_STALE')->all());
+        $this->assertArrayNotHasKey('providerFreshness', $overview['checks']);
     }
 
     /** @return array{User, AuditEngagement, list<\App\Models\EngagementTeam>} */
@@ -224,6 +293,28 @@ class AemsTeamSafeguardTest extends TestCase
                 'plannedPersonDays' => max(1, (float) $engagement->planned_person_days / 4),
             ])->assertCreated()->json('data.teamMember.id');
             $team[] = $engagement->teamMembers()->findOrFail($memberId)->load('user');
+        }
+
+        // Each dynamically created team member needs an approved ARMIS
+        // capacity ledger before an authoritative assignment can be approved.
+        foreach ($team as $member) {
+            $profile = ArmisResourceProfile::query()
+                ->where('user_id', $member->user_id)
+                ->where('status', 'ACTIVE')
+                ->firstOrFail();
+            ArmisCapacitySubmission::query()->firstOrCreate(
+                ['resource_profile_id' => $profile->id, 'fiscal_year' => now()->year, 'is_current_revision' => true],
+                [
+                    'version_number' => 1,
+                    'available_person_days' => 180,
+                    'status' => 'APPROVED',
+                    'approved_by' => $management->id,
+                    'approved_at' => now(),
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                    'lock_version' => 1,
+                ],
+            );
         }
 
         return [$management, $engagement->fresh(), $team];

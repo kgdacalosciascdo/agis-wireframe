@@ -356,7 +356,7 @@ class ArmisReportService
                 'privateDownloads' => true,
                 'checksumHeaders' => true,
                 'csvFormulaMitigation' => true,
-                'providerAuthority' => $this->provider->status()['mode'] ?? 'IAP_INTERIM_FALLBACK',
+                'providerAuthority' => 'ARMIS_AUTHORITATIVE',
             ],
         ];
     }

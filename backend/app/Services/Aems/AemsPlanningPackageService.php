@@ -127,14 +127,29 @@ class AemsPlanningPackageService
             if ($action === 'RETURN' && mb_strlen(trim((string) $comment)) < 5) throw ValidationException::withMessages(['comment' => ['A clear return instruction is required.']]);
             if (in_array($action, ['SUBMIT', 'RESUBMIT'], true)) $this->ensureReady($engagement, $locked, $version);
             if ($action === 'REVIEW') {
-                if ((int) $request->user()->id === (int) $locked->prepared_by) throw ValidationException::withMessages(['review' => ['The preparer cannot independently review the planning package.']]);
+                $mayUseSingleCiasAuthority = $this->access->mayUseSingleCiasHeadReviewException(
+                    $request->user(),
+                    'aems.planning-package.review',
+                );
+                if ((int) $request->user()->id === (int) $locked->prepared_by && ! $mayUseSingleCiasAuthority) throw ValidationException::withMessages(['review' => ['The preparer cannot independently review the planning package.']]);
                 if (AemsPlanningPackageReview::query()->where('planning_package_id', $locked->id)->where('planning_package_version_id', $version->id)->where('reviewer_id', $request->user()->id)->exists()) {
                     throw ValidationException::withMessages(['review' => ['This reviewer has already assessed the current planning package version.']]);
                 }
                 AemsPlanningPackageReview::query()->create(['planning_package_id' => $locked->id, 'planning_package_version_id' => $version->id, 'reviewer_id' => $request->user()->id, 'result' => 'ACCEPTED', 'comment' => $comment, 'reviewed_at' => now()]);
             }
             if ($action === 'APPROVE') {
-                $reviewed = $locked->reviews()->where('planning_package_version_id', $version->id)->where('result', 'ACCEPTED')->where('reviewer_id', '<>', $locked->prepared_by)->exists();
+                $mayUseSingleCiasAuthority = $this->access->mayUseSingleCiasHeadReviewException(
+                    $request->user(),
+                    'aems.planning-package.approve',
+                );
+                $reviewed = $locked->reviews()
+                    ->where('planning_package_version_id', $version->id)
+                    ->where('result', 'ACCEPTED')
+                    ->when(
+                        ! $mayUseSingleCiasAuthority,
+                        fn ($query) => $query->where('reviewer_id', '<>', $locked->prepared_by),
+                    )
+                    ->exists();
                 if (! $reviewed) throw ValidationException::withMessages(['action' => ['The current planning package version must be independently reviewed before approval.']]);
                 $this->ensureReady($engagement, $locked, $version);
             }

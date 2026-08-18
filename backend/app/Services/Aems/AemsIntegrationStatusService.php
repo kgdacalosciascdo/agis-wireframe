@@ -146,7 +146,7 @@ class AemsIntegrationStatusService
             'ownership' => [
                 'iap' => 'IAP_APPROVED_SOURCE_READ_ONLY',
                 'aems' => 'AEMS_ENGAGEMENT_AND_SNAPSHOT',
-                'armis' => 'ARMIS_RESOURCE_PROVIDER_WITH_EXPLICIT_FALLBACK',
+                'armis' => 'ARMIS_SOLE_OPERATIONAL_RESOURCE_PROVIDER',
                 'cms' => 'CMS_IMMUTABLE_INTAKE_AND_OPERATIONS',
             ],
         ];

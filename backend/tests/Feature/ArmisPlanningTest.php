@@ -42,7 +42,7 @@ class ArmisPlanningTest extends TestCase
         }
 
         Sanctum::actingAs($this->user('agisadmin'));
-        $this->getJson('/api/armis/planning/metadata')->assertOk()->assertJsonPath('data.workflow.reviewStatus', 'SUBMITTED')->assertJsonPath('data.provider.mode', 'IAP_INTERIM_FALLBACK');
+        $this->getJson('/api/armis/planning/metadata')->assertOk()->assertJsonPath('data.workflow.reviewStatus', 'SUBMITTED')->assertJsonPath('data.provider.mode', 'ARMIS_AUTHORITATIVE');
         $this->getJson('/api/armis/utilization?fiscalYear=2026')->assertOk()->assertJsonStructure(['data' => ['rows', 'summary']]);
         Sanctum::actingAs($this->user('auditee'));
         $this->getJson('/api/armis/availability')->assertForbidden();

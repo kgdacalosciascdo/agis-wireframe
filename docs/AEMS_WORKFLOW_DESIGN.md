@@ -47,13 +47,11 @@ the operational subset must not be read as full MDS/UID conformance.
 The aggregate engagement transition service and the formal engagement closure
 workflow are implemented in the current as-built system. CMS transfer is
 idempotent. AIS-5D provides a separate read-only analytical and integration
-health surface; it does not add AEMS-owned professional writes. ARMIS is available through the
-replaceable provider boundary, but `IAP_INTERIM_FALLBACK` remains the default
-until an explicit reconciliation and authority decision activates another mode.
-AEMS-3A adds versioned team safeguards, provider freshness/reconciliation
-checks, specialist and authorized-participant roles, and a strict gate whenever
-ARMIS is authoritative. The explicit IAP fallback remains visible and
-non-authoritative for compatibility.
+health surface; it does not add AEMS-owned professional writes. ARMIS is the
+sole operational resource provider. AEMS-3A adds versioned team safeguards,
+current ARMIS provider checks, specialist and authorized-participant roles, and
+strict gates for missing or stale ARMIS data. IAP resource values are retained
+only as historical planning lineage and are not an active fallback.
 
 The sidebar exposes AEMS as a collapsible module, consistent with IAP:
 
@@ -251,7 +249,12 @@ An engagement has exactly one source type.
   supporting document.
 - Requires an auditee office, audit area, objective, preliminary scope, risk
   rationale, dates, and estimated resources.
-- Must be authorized before engagement planning begins.
+- The external authority is recorded at creation, but the AEMS aggregate
+  starts in `DRAFT`. The registry creator completes the engagement package,
+  then uses the controlled `PREPARE_AUTHORIZATION` and
+  `ISSUE_AUTHORIZATION` transitions before planning can begin.
+- `AUTHORIZED` is therefore an internal lifecycle state, not an assertion that
+  a newly created record is already ready for planning.
 - Appears in IAP accomplishment reports as unplanned work without being inserted
   retroactively into an approved IAP version.
 
@@ -745,10 +748,9 @@ editing the approved IAP version.
 
 ARMIS is implemented as a standalone resource and allocation module. AEMS reads
 capacity, competency, requirement, assignment, and actual-person-day data through
-the replaceable `ResourcePlanningGateway`. The default provider remains the
-IAP-backed interim boundary; shadow and authoritative ARMIS modes are available
-only through the documented reconciliation, independent review, and authority
-gate. Historical AEMS assignment snapshots remain stable.
+the `ResourcePlanningGateway`, whose only operational implementation is ARMIS.
+Historical IAP values are used only for reconciliation evidence. Historical AEMS
+assignment snapshots remain stable.
 
 ### CMS
 
@@ -849,9 +851,13 @@ Read-only report access requires both `ISSUED` status and a matching
 recipient office. Administrative global scope exposes only issued report
 output, not report drafts.
 
-Independent actions reject the preparer/originator as the actor. This applies
-to engagement authorization, review and approval of AEO/AEP/program/working
-papers/findings/reports, report issuance, and engagement closure.
+Independent actions normally reject the preparer/originator as the actor. If
+the active CIAS Head is the sole active CIAS Management authority, the
+controlled single-head exception permits her to review or approve her own
+AEMS input across planning, execution, findings, reporting, transfer, and
+closure. The exception does not bypass readiness, evidence, status,
+immutable-version, or audit gates and is unavailable when another active CIAS
+Management authority exists.
 
 `AemsAccessControlTest` verifies the role matrix, assigned-engagement
 isolation, administrator non-approval, originator separation, auditee office
@@ -933,30 +939,26 @@ Each active team member may submit three separate declarations:
 
 Declarations record the statement, outcome (`CLEAR`, `DISCLOSED`, or
 `CONFLICT`), mitigation plan where applicable, and an exact Core
-`document_versions` evidence reference. Submitted declarations require an
-independent reviewer. Accepted declarations cannot be edited; a correction
-creates a new version linked through `supersedes_id` and preserves the accepted
-record.
+`document_versions` evidence reference. Assigned resources may view their
+submitted declarations but cannot review them. A declaration normally requires
+an authorized reviewer; CIAS Management may prepare a declaration on behalf of
+an assigned member and complete that review. Accepted declarations cannot be
+edited; a correction creates a new version linked through `supersedes_id` and
+preserves the accepted record.
 
 The Team Safeguards API evaluates required roles, verified competencies and
 certifications, capacity, leave/training periods, overlapping workload,
-planned person-days, actual person-days, declaration completeness, and provider
-status. It also records the latest ARMIS reconciliation run and its freshness
-(30 days). A pending assessment must be independently approved before a team
+planned person-days, actual person-days, declaration completeness, and current
+ARMIS provider status. A historical ARMIS reconciliation is not required. A pending assessment must be independently approved before a team
 safeguard baseline is recorded; the assessment and approval are immutable
 versions.
 
-`IAP_INTERIM_FALLBACK` is an explicit compatibility mode. It remains usable
-while ARMIS is unavailable or not yet authoritative, but the response clearly
-marks the provider as non-authoritative and reports stale reconciliation as a
-warning. `ARMIS_SHADOW` cannot approve a team. In
-`ARMIS_AUTHORITATIVE`, missing/stale provider data, competency/capacity/leave
-conflicts, unresolved independence declarations, and unreconciled person-days
-are hard blockers. The aggregate AEMS authorization and fieldwork gates, and
-the AEO submission gate, consume these blockers; automation cannot approve
-around them. A configuration that requests ARMIS authority without an active
-authority decision also fails closed rather than silently becoming an approval-
-eligible fallback.
+`ARMIS_AUTHORITATIVE` is the only operational mode. Missing/stale provider
+data, competency/capacity/leave conflicts, unresolved independence
+declarations, and unreconciled person-days are hard blockers. The aggregate
+AEMS authorization and fieldwork gates, and the AEO submission gate, consume
+these blockers; automation cannot approve around them. Historical fallback or
+shadow values cannot become an approval-eligible provider.
 
 API routes are documented in [API and Data Reference](API_AND_DATA_REFERENCE.md).
 The focused `AemsTeamSafeguardTest` and existing ARMIS assignment/reconciliation
@@ -966,8 +968,8 @@ capacity/competency controls, and authority separation.
 #### AEMS-3B team and resource workspace
 
 The Audit Team page presents the safeguards contract without requiring users to
-leave the engagement context. It includes provider mode and reconciliation
-status, planned-versus-actual effort, competency/certification and
+leave the engagement context. It includes ARMIS provider status,
+planned-versus-actual effort, competency/certification and
 availability/workload evidence, declaration forms and independent review,
 assessment version history, and the assignment approval panel. Every readiness
 blocker includes a resolver hint (assigned resource, independent reviewer,
@@ -998,9 +1000,15 @@ scope, and planned dates.
 
 Submission requires Supervisor, Team Leader, Auditor, and Reviewer assignments.
 The current version requires an independent review event before approval.
-Preparers cannot review or approve their own AEO. CIAS Management controls
-approval, issuance, and formal revision. Optimistic `lock_version` checks reject
-stale workflow actions.
+Preparers normally cannot approve their own AEO. When the active CIAS Head is
+the sole available CIAS Management authority, she may review, approve, and
+issue an AEO she prepared under the documented single-authority exception.
+The exception does not apply to other AEMS independent actions. CIAS
+Management controls approval, issuance, and formal revision. Optimistic
+`lock_version` checks reject stale workflow actions. The
+workspace displays responsible account candidates and then records the actual
+reviewer, approver, issuer, date, username, and position beside each immutable
+signatory step.
 
 Approved/issued PDFs are generated from the exact version referenced by the
 approval event. Starting a later revision does not change the historical PDF
@@ -1703,11 +1711,9 @@ reviewer/final approver is required and the generator cannot approve the same
 snapshot.
 
 Effort reconciliation records planned person-days, AEMS actual person-days,
-provider actual person-days, variance, provider mode, and source status. The
-explicit `IAP_INTERIM_FALLBACK` mode remains available for compatibility.
-`ARMIS_SHADOW` and `ARMIS_AUTHORITATIVE` cannot satisfy the closure gate
-without a successful provider snapshot, so stale or missing ARMIS data remains
-a blocker. Approved effort snapshots are immutable.
+ARMIS actual person-days, variance, provider mode, and source status. ARMIS is
+the only provider that can satisfy the closure gate; stale or missing ARMIS
+data remains a blocker. Approved effort snapshots are immutable.
 
 The authoritative closure checklist derives three blocking checks from this
 boundary: `CMS_TRANSFER_MANIFEST`, `CMS_TRANSFER_EXCEPTIONS`, and
@@ -1798,9 +1804,8 @@ exact Core Document Version references without mutating IAP or either of the
 coexisting IAP risk systems.
 
 ARMIS competency, availability, workload, planned/actual person-days, and
-reconciliation are consumed through `ResourcePlanningGateway`. The explicit
-IAP fallback remains visible and safe; ARMIS authority requires the independent
-reconciliation and authority decision. CMS receives only finalized
+reconciliation are consumed through `ResourcePlanningGateway`. ARMIS is the sole
+operational provider; provider activation/rollback decisions are disabled. CMS receives only finalized
 recommendations from the exact locked issued report version. Its immutable
 intake envelope contains the AEMS source lineage and source-snapshot hash, and
 the transfer key/source identity make retries idempotent.

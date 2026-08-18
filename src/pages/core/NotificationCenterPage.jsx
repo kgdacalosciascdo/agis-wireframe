@@ -22,7 +22,7 @@ import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
-import { hasPermission } from "../../config/navigation";
+import { hasPermission, notificationPathForUser } from "../../config/navigation";
 import { notificationApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 import useRecordView from "../../hooks/useRecordView";
@@ -207,8 +207,9 @@ export default function NotificationCenterPage() {
         toast.error(error.message);
       }
     }
-    if (notification.actionUrl) {
-      navigate(notification.actionUrl);
+    const destination = notificationPathForUser(user, notification);
+    if (notification.actionUrl || destination !== "/notifications") {
+      navigate(destination);
     } else {
       setSelected(opened);
     }

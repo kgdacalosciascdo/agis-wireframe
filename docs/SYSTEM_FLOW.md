@@ -27,7 +27,7 @@ the request/data/control path that explains how the browser action is enforced.
 ```mermaid
 flowchart LR
     IAP[IAP approved plan and finalized risk source] -->|immutable import snapshot| AEMS[AEMS engagement]
-    ARMIS[ARMIS provider or IAP fallback] -->|competency, availability, workload, actuals| AEMS
+    ARMIS[ARMIS authoritative resource ledger] -->|competency, availability, workload, actuals| AEMS
     AEMS -->|fieldwork, evidence, finalized findings, issued report| CMS[CMS intake]
     CMS -->|action plans, monitoring, validation, disposition, closure| CMS
     CORE[Core identity, scope, documents, workflow, logs] -.shared controls.-> IAP
@@ -42,8 +42,10 @@ flowchart LR
 
 The arrows are ownership boundaries, not table-copy instructions. IAP owns its
 plan, AEMS owns the audit execution and recommendation source, CMS owns the
-post-transfer corrective-action case, ARMIS owns resource data only after the
-provider authority gate, and AIS owns no operational source record.
+post-transfer corrective-action case, ARMIS owns the current resource data, and
+AIS owns no operational source record. Historical IAP resource values and
+provider-reconciliation snapshots may remain for lineage, but they are not
+read by AEMS readiness and cannot switch the live provider.
 
 ## 2. System context
 
@@ -414,8 +416,7 @@ flowchart LR
     AEMS -->|Finalized recommendation from issued report| CMSI[CMS immutable intake]
     CMSI --> CMSC[CMS case initialized as TRANSFERRED]
     CMSC --> CMSE[Append-only INTAKE_CREATED event]
-    IAPRES[IAP interim resource data] --> RG[ResourcePlanningGateway]
-    ARMIS[ARMIS provider adapter] -. gated provider mode .-> RG
+    ARMIS[ARMIS authoritative resource ledger] --> RG[ResourcePlanningGateway]
     RG --> AEMS
     AEMS -->|Assignments, workflow events, deadlines, issuance| NOTIFY[Core Notifications]
 ```
@@ -430,9 +431,9 @@ lineage synchronization. Unique database keys plus insert-ignore/re-query
 semantics ensure sequential and concurrent duplicate attempts resolve to the
 same source-matching intake. A conflicting immutable identity is rejected.
 Formally excluded AEMS recommendations create no CMS intake, case, or event.
-The resource contract currently reads IAP capacity, unavailability, skills,
-requirements, and AEMS-held person-days. Its provider status explicitly marks
-IAP as a non-authoritative fallback. ARMIS-1A now provides a separate,
+The resource contract reads ARMIS capacity, unavailability, skills,
+requirements, and person-day ledgers directly. IAP resource records are
+historical lineage only and are never an active fallback. ARMIS-1A provides a
 scope-aware resource registry and normalized capacity/workload/actuals
 foundation, and ARMIS-2A adds the controlled competency/certification backend
 with exact Core Document Version evidence, independent verification, and
@@ -449,21 +450,16 @@ downloads, run history, provider status, workflow contracts, and responsive
 scope/hardening presentation. It remains read-only for administration and does
 not switch provider authority.
 ARMIS-6A adds the read-only `ArmisResourcePlanningGateway` and the
-`ConfigurableResourcePlanningGateway` mode boundary. `IAP_INTERIM_FALLBACK`
-remains the default; `ARMIS_SHADOW` prepares ARMIS for comparison while AEMS
-continues using IAP. ARMIS is still not authoritative. Reconciliation,
-authority switching, and rollback are now controlled by ARMIS-6B. ARMIS-6B
-generates immutable IAP-versus-ARMIS snapshots, requires independent review of
-every discrepancy, and changes provider authority only through an atomic,
-audited decision. AEMS-3A consumes that boundary for team safeguards: the
-explicit IAP fallback remains visible, shadow mode cannot approve a team, and
-authoritative AEMS gates block missing/stale ARMIS resources, competency,
-capacity, availability, independence, or person-day reconciliation. AIS
-integration remains a later gate.
+`ConfigurableResourcePlanningGateway` boundary. `ARMIS_AUTHORITATIVE` is the
+only operational mode: AEMS reads current ARMIS records directly and blocks
+missing resource, competency, capacity, availability, independence, or
+person-day data. Historical shadow/fallback comparison records are not an
+assignment-readiness gate and cannot switch ownership. AIS integration remains
+a later gate.
 
 AEMS-11 exposes the protected `/api/aems/integrations/status` contract for
 operational and security review. It reports Core provider ownership, read-only
-IAP lineage, ARMIS fallback/provider state, CMS immutable-intake provenance,
+IAP lineage, ARMIS sole-provider state, CMS immutable-intake provenance,
 and referential-health checks without exposing global counts to scoped users.
 No AIS provider or route is included.
 
@@ -634,10 +630,10 @@ Automation and reports/exports are implemented. AIS-5D verified read-only analyt
 views, review indicators, reports, protected exports, rate limits, private
 responses, and audit events are implemented; AIS operational writes
 remain reserved for later phases. ARMIS
-planning, assignments, reports, provider reconciliation, monitoring, and the
-responsive workspaces are available as separate operational ledgers; AEMS still
-uses the IAP fallback provider by default until an explicit ARMIS authority gate
-activates another mode.
+planning, assignments, reports, monitoring, and the responsive workspaces are
+available as separate operational ledgers; AEMS and IAP scheduling now read
+ARMIS as the sole operational resource provider. Historical IAP resource
+values remain available only for lineage and are never used for readiness.
 
 ### 11.10 Runtime logo
 

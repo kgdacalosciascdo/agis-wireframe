@@ -21,7 +21,7 @@ class ArmisDeploymentHardeningTest extends TestCase
     {
         $this->artisan('armis:deployment-check')
             ->expectsOutputToContain('8 ARMIS migrations are applied.')
-            ->expectsOutputToContain('Provider mode is IAP_INTERIM_FALLBACK')
+            ->expectsOutputToContain('Provider mode is ARMIS_AUTHORITATIVE')
             ->assertExitCode(0);
     }
 

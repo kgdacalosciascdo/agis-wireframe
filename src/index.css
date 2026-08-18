@@ -38,6 +38,15 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+/* Login fields use the surrounding container for a quiet focus indication.
+ * Suppress the browser/global outline that otherwise draws a harsh blue line
+ * through the white credential controls. */
+.login-input:focus-visible,
+.login-control:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
 /* Every routed page gets a safe width and a consistent gutter. Pages that
  * already provide their own padding keep it; legacy detail pages that render
  * a bare min-w-0 wrapper receive the same gutter automatically. */

@@ -17,7 +17,7 @@ class AemsScopeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'officeId' => ['required', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
+            'officeId' => ['required', 'integer', 'gt:0', Rule::exists('offices', 'id')->whereNull('deleted_at')],
             'scopeBoundaries' => ['nullable', 'string', 'max:10000'],
             'scopeLimitations' => ['nullable', 'string', 'max:10000'],
             'scopeSourceVariance' => ['nullable', 'array'],
@@ -28,6 +28,7 @@ class AemsScopeRequest extends FormRequest
             'areaCoverage.*.auditAreaId' => [
                 'required',
                 'integer',
+                'gt:0',
                 'distinct',
                 Rule::exists('audit_areas', 'id')->whereNull('deleted_at'),
             ],
@@ -38,6 +39,7 @@ class AemsScopeRequest extends FormRequest
             'areaCoverage.*.focusIds' => ['sometimes', 'array'],
             'areaCoverage.*.focusIds.*' => [
                 'integer',
+                'gt:0',
                 'distinct',
                 Rule::exists('audit_focuses', 'id')->whereNull('deleted_at'),
             ],

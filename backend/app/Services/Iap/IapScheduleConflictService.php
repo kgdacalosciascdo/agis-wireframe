@@ -2,21 +2,20 @@
 
 namespace App\Services;
 
-use App\Models\IapAuditorCapacity;
-use App\Models\IapAuditorSkill;
-use App\Models\IapAuditorUnavailability;
+use App\Integrations\Aems\ArmisResourcePlanningGateway;
 use App\Models\IapPlanEngagement;
 use App\Models\User;
+use App\Models\ArmisWorkloadAllocation;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Detects date, office, auditor, skill, availability, and capacity conflicts.
  */
 class IapScheduleConflictService
 {
-    public function __construct(private readonly RuntimeConfiguration $configuration) {}
+    public function __construct(private readonly ArmisResourcePlanningGateway $resources) {}
 
     /**
      * @param  Collection<int, array<string, mixed>>  $members
@@ -92,26 +91,24 @@ class IapScheduleConflictService
             }
         }
 
-        $unavailable = IapAuditorUnavailability::query()
-            ->whereIn('user_id', $memberIds)
-            ->whereDate('start_date', '<=', $end->toDateString())
-            ->whereDate('end_date', '>=', $start->toDateString())
-            ->with(['user:id,name', 'type:id,code,label'])
-            ->get();
-        foreach ($unavailable as $period) {
-            $conflicts[] = [
-                'type' => 'AUDITOR_UNAVAILABLE',
-                'severity' => 'danger',
-                'userId' => $period->user_id,
-                'unavailabilityId' => $period->id,
-                'message' => sprintf(
-                    '%s is unavailable for %s from %s to %s.',
-                    $period->user?->name ?? "User #{$period->user_id}",
-                    $period->type?->label ?? $period->title,
-                    $period->start_date->format('M j, Y'),
-                    $period->end_date->format('M j, Y'),
-                ),
-            ];
+        foreach ($memberIds as $userId) {
+            $unavailable = $this->resources->unavailability((int) $userId, $start, $end);
+            foreach ($unavailable as $period) {
+                $user = User::withTrashed()->find($userId);
+                $conflicts[] = [
+                    'type' => 'AUDITOR_UNAVAILABLE',
+                    'severity' => 'danger',
+                    'userId' => (int) $userId,
+                    'unavailabilityId' => $period['id'] ?? null,
+                    'message' => sprintf(
+                        '%s is unavailable for %s from %s to %s.',
+                        $user?->name ?? "User #{$userId}",
+                        $period['typeLabel'] ?? $period['title'] ?? 'an unavailable period',
+                        Carbon::parse($period['startDate'])->format('M j, Y'),
+                        Carbon::parse($period['endDate'])->format('M j, Y'),
+                    ),
+                ];
+            }
         }
 
         $proficiencyRank = [
@@ -120,22 +117,18 @@ class IapScheduleConflictService
             'ADVANCED' => 3,
             'EXPERT' => 4,
         ];
-        $skills = IapAuditorSkill::query()
-            ->whereIn('user_id', $memberIds)
-            ->whereIn(
-                'specialization_id',
-                $engagement->skillRequirements->pluck('specialization_id'),
-            )
-            ->get()
-            ->groupBy('specialization_id');
+        $skills = $this->resources->skills(
+            $memberIds->map(fn ($id): int => (int) $id)->all(),
+            $engagement->skillRequirements->pluck('specialization_id')->map(fn ($id): int => (int) $id)->all(),
+        );
         foreach ($engagement->skillRequirements as $requirement) {
-            $qualified = $skills
-                ->get($requirement->specialization_id, collect())
-                ->filter(fn ($skill) => $memberIds->contains($skill->user_id)
-                    && ($proficiencyRank[$skill->proficiency_level] ?? 0)
-                    >= ($proficiencyRank[$requirement->minimum_proficiency] ?? 0))
-                ->pluck('user_id')
-                ->unique()
+            $qualified = collect($skills)
+                ->filter(fn (array $claims): bool => collect($claims)->contains(
+                    fn (array $skill): bool => (int) ($skill['id'] ?? 0) === (int) $requirement->specialization_id
+                        && ($proficiencyRank[$skill['proficiencyLevel'] ?? ''] ?? 0)
+                            >= ($proficiencyRank[$requirement->minimum_proficiency] ?? 0),
+                ))
+                ->keys()
                 ->count();
             if ($qualified < $requirement->minimum_auditors) {
                 $conflicts[] = [
@@ -157,18 +150,24 @@ class IapScheduleConflictService
 
         foreach ($members as $member) {
             $userId = (int) $member['userId'];
-            $capacity = $this->capacityFor($engagement->plan->fiscal_year, $userId);
-            $allocatedElsewhere = (float) DB::table('iap_engagement_team_members as team')
-                ->join('iap_plan_engagements as engagement', 'engagement.id', '=', 'team.plan_engagement_id')
-                ->join('internal_audit_plans as plan', 'plan.id', '=', 'engagement.plan_id')
-                ->where('team.user_id', $userId)
-                ->where('plan.fiscal_year', $engagement->plan->fiscal_year)
-                ->where('plan.is_current_revision', true)
-                ->where('engagement.schedule_status', 'SCHEDULED')
-                ->whereNull('engagement.deleted_at')
-                ->whereNull('plan.deleted_at')
-                ->where('engagement.id', '<>', $engagement->id)
-                ->sum('team.planned_person_days');
+            $capacity = $this->resources->capacityFor($engagement->plan->fiscal_year, $userId);
+            $allocatedElsewhere = (float) ArmisWorkloadAllocation::query()
+                ->whereHas('resourceProfile', fn ($query) => $query->where('user_id', $userId)->where('status', 'ACTIVE'))
+                ->whereHas('requirement', fn ($query) => $query->where('source_module', 'IAP'))
+                ->where('fiscal_year', $engagement->plan->fiscal_year)
+                ->where('source_module', 'IAP')
+                ->where('source_type', 'IAP_PLAN_ENGAGEMENT')
+                ->where('status', '!=', 'RETURNED')
+                ->where('is_current_revision', true)
+                ->where('source_id', '<>', $engagement->id)
+                ->whereExists(function ($query): void {
+                    $query->selectRaw('1')
+                        ->from('iap_plan_engagements as source_engagement')
+                        ->whereColumn('source_engagement.id', 'armis_workload_allocations.source_id')
+                        ->where('source_engagement.schedule_status', 'SCHEDULED')
+                        ->whereNull('source_engagement.deleted_at');
+                })
+                ->sum('planned_person_days');
             $proposedTotal = round(
                 $allocatedElsewhere + (float) $member['plannedPersonDays'],
                 2,
@@ -198,20 +197,12 @@ class IapScheduleConflictService
     public function capacitySnapshot(int $fiscalYear, Collection $users): array
     {
         return $users->mapWithKeys(fn ($user) => [
-            (string) $user->id => $this->capacityFor($fiscalYear, $user->id),
+            (string) $user->id => $this->resources->capacityFor($fiscalYear, $user->id),
         ])->all();
     }
 
     public function capacityFor(int $fiscalYear, int $userId): float
     {
-        $configured = IapAuditorCapacity::query()
-            ->where('fiscal_year', $fiscalYear)
-            ->where('user_id', $userId)
-            ->value('available_person_days');
-        if ($configured !== null) {
-            return (float) $configured;
-        }
-
-        return (float) $this->configuration->integer('iap_default_annual_person_days');
+        return $this->resources->capacityFor($fiscalYear, $userId);
     }
 }

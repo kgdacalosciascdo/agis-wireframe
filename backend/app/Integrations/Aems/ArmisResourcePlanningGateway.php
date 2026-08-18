@@ -18,9 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Reads the ARMIS planning and assignment ledgers through the AEMS gateway.
  *
- * ARMIS-6A deliberately exposes this adapter without making it authoritative.
- * The mode-aware gateway keeps AEMS on IAP in both fallback and shadow modes;
- * reconciliation and the authority gate belong to later ARMIS phases.
+ * ARMIS is the sole current resource authority. Historical IAP comparisons are
+ * performed by a separate lineage adapter and never replace this read path.
  */
 class ArmisResourcePlanningGateway implements ResourcePlanningGateway
 {
@@ -28,17 +27,18 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
 
     public function capacityFor(int $year, int $userId): float
     {
-        $profileIds = ArmisResourceProfile::query()
+        $profileId = ArmisResourceProfile::query()
             ->where('user_id', $userId)
             ->where('status', 'ACTIVE')
-            ->pluck('id');
+            ->latest('id')
+            ->value('id');
 
-        if ($profileIds->isEmpty()) {
+        if (! $profileId) {
             return 0.0;
         }
 
         return round((float) ArmisCapacitySubmission::query()
-            ->whereIn('resource_profile_id', $profileIds)
+            ->where('resource_profile_id', $profileId)
             ->where('fiscal_year', $year)
             ->where('is_current_revision', true)
             ->whereIn('status', self::APPROVED_STATUSES)
@@ -143,9 +143,13 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
     public function requirements(AuditEngagement $engagement): array
     {
         return ArmisResourceRequirement::query()
+            // ARMIS is the sole operational resource authority. Historical
+            // IAP-sourced requirements remain queryable for migration lineage,
+            // but they must never drive current AEMS readiness or assignments.
             ->where('source_module', 'AEMS')
-            ->where('source_id', $engagement->id)
+            ->where('source_type', 'AEMS_ASSIGNMENT')
             ->whereIn('status', self::APPROVED_STATUSES)
+            ->where('source_id', $engagement->id)
             ->with('competencies.competency:id,code,label')
             ->get()
             ->flatMap(fn (ArmisResourceRequirement $requirement) => $requirement->competencies->map(
@@ -179,6 +183,8 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
             ->with('resourceProfile:id,user_id')
             ->get()
             ->map(fn (ArmisAvailabilityPeriod $period): array => [
+                'id' => $period->id,
+                'userId' => (int) $period->resourceProfile?->user_id,
                 'title' => $period->notes ?: str($period->availability_type)->replace('_', ' ')->title()->toString(),
                 'typeLabel' => str($period->availability_type)->replace('_', ' ')->title()->toString(),
                 'startDate' => $period->start_date->toDateString(),
@@ -196,11 +202,11 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
             'provider' => self::class,
             'mode' => 'ARMIS_ADAPTER',
             'available' => true,
-            'authoritative' => false,
-            'authorityEligible' => false,
+            'authoritative' => true,
+            'authorityEligible' => true,
             'providerStatus' => 'AVAILABLE_APPROVED_CURRENT_LEDGER',
             'dataFreshness' => 'CURRENT_REVISIONS_ONLY',
-            'fallbackSupported' => true,
+            'fallbackSupported' => false,
             'capabilities' => [
                 'availability',
                 'workload',
@@ -208,8 +214,8 @@ class ArmisResourcePlanningGateway implements ResourcePlanningGateway
                 'planned_person_days',
                 'actual_person_days',
             ],
-            'actualPersonDaysOwner' => 'AEMS_UNTIL_ARMIS_AUTHORITY_GATE',
-            'futureAuthoritativeProvider' => 'ARMIS',
+            'actualPersonDaysOwner' => 'ARMIS',
+            'futureAuthoritativeProvider' => null,
         ];
     }
 }

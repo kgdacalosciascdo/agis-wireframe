@@ -12,6 +12,20 @@ These rules apply to every module and workflow added to AGIS.
 6. Add feature, permission, integration, and regression tests.
 7. Review queries, pagination, caching, queues, backups, deployment, and monitoring.
 
+## Module source organization
+
+- Keep frontend pages under `src/pages/<module>/` and backend models under
+  `backend/app/Models/<Module>/` using the module names Core, Iap, Aems, Cms,
+  Armis, and Ais.
+- Keep backend services under `backend/app/Services/<Module>/`. Shared platform
+  services belong in `backend/app/Services/Core/`.
+- Existing model and service classes retain their established flat
+  `App\Models` and `App\Services` namespaces for compatibility. The Composer
+  PSR-4 map is responsible for resolving the module directories; do not change
+  namespaces or imports solely to move a file.
+- New classes should follow the module folder convention and update the
+  as-built catalog when a new module surface is introduced.
+
 ## Security and privacy
 
 - React must never connect directly to PostgreSQL or decide authorization by itself.

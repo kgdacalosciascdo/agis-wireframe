@@ -27,8 +27,11 @@ export default function AemsSpecialEngagementForm({
   masterLists,
   errors = {},
   onSubmit,
+  initialValues = null,
+  editing = false,
+  sourceType = "SPECIAL",
 }) {
-  const [form, setForm] = useState({
+  const emptyForm = {
     engagementCode: "",
     title: "",
     specialAuthorityReference: "",
@@ -49,7 +52,14 @@ export default function AemsSpecialEngagementForm({
     officeIds: [],
     auditAreaIds: [],
     auditFocusIds: [],
-  });
+  };
+  const [form, setForm] = useState(() => ({
+    ...emptyForm,
+    ...(initialValues ?? {}),
+    officeIds: initialValues?.officeIds ?? [],
+    auditAreaIds: initialValues?.auditAreaIds ?? [],
+    auditFocusIds: initialValues?.auditFocusIds ?? [],
+  }));
   const selectedAreas = useMemo(
     () => new Set(form.auditAreaIds.map(String)),
     [form.auditAreaIds],
@@ -82,15 +92,18 @@ export default function AemsSpecialEngagementForm({
         });
       }}
     >
-      <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-        <h3 className="text-sm font-bold text-amber-900">
-          Separate authorization
-        </h3>
-        <p className="mt-1 text-xs leading-5 text-amber-800">
-          Special engagements require an authority reference and an approving
-          authority different from the registry creator.
-        </p>
-      </section>
+      {sourceType === "SPECIAL" && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+          <h3 className="text-sm font-bold text-amber-900">
+            {editing ? "Special-engagement authority" : "Separate authorization"}
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-amber-800">
+            Special engagements retain their external authority reference. The
+            AEMS record remains Draft until its internal authorization workflow
+            is completed.
+          </p>
+        </section>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <FormField
@@ -111,7 +124,7 @@ export default function AemsSpecialEngagementForm({
           error={errors.title?.[0]}
           htmlFor="aems-title"
           label="Engagement title"
-          required
+          required={!editing}
         >
           <input
             className={inputClass}
@@ -124,7 +137,7 @@ export default function AemsSpecialEngagementForm({
           error={errors.specialAuthorityReference?.[0]}
           htmlFor="aems-authority-reference"
           label="Authority reference"
-          required
+          required={!editing}
         >
           <input
             className={inputClass}
@@ -155,7 +168,7 @@ export default function AemsSpecialEngagementForm({
           error={errors.specialAuthorityClass?.[0]}
           htmlFor="aems-authority-class"
           label="Authorization class"
-          required
+          required={!editing}
         >
           <select
             className={inputClass}
@@ -171,7 +184,7 @@ export default function AemsSpecialEngagementForm({
           error={errors.specialAuthorityDate?.[0]}
           htmlFor="aems-authority-date"
           label="Authority date"
-          required
+          required={sourceType === "SPECIAL" && !editing}
         >
           <input
             className={inputClass}
@@ -186,7 +199,7 @@ export default function AemsSpecialEngagementForm({
         <FormField
           error={errors.specialAuthorityApprovedBy?.[0]}
           label="Approving authority"
-          required
+          required={sourceType === "SPECIAL" && !editing}
         >
           <SearchableSelect
             onChange={(value) => set("specialAuthorityApprovedBy", value)}

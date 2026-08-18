@@ -29,7 +29,7 @@ administrative closure.
 | --- | --- | --- |
 | Identity and scope | Consume users, offices, roles, permissions, areas, focuses, documents, workflows, notifications, logs, configuration, and numbering | Core |
 | Engagement planning source | Import one approved IAP engagement-plan source without mutating it | IAP |
-| Resource authority | Consume competencies, availability, workload, assignments, and actuals through the configured provider; retain fallback/reconciliation evidence | ARMIS provider boundary; IAP interim fallback |
+| Resource authority | Consume competencies, availability, workload, assignments, and actuals from ARMIS; retain IAP only as planning lineage/reconciliation evidence | ARMIS sole operational provider |
 | Findings and recommendations | Own Issues, Findings, Recommendations, management dialogue, rejoinders, report provenance, and final snapshots | AEMS |
 | Post-issuance monitoring | Transfer finalized recommendation snapshots once | CMS owns Action Plans, monitoring, validation, dispositions, reopening, and CMS closure |
 | Intelligence | AEMS does not own an AIS business workflow or source mutation | AIS owns a separate read-only analytical/integration contract |
@@ -71,7 +71,7 @@ follow. They are not optional UI conventions.
 
 | Decision | Current rule |
 | --- | --- |
-| Authority/signatories | Preparer drafts/revises; independent reviewer assesses; approver decides; issuer/signatory releases. AEO and report authority matrices are append-only and version-bound. |
+| Authority/signatories | Preparer drafts/revises; independent reviewer assesses; approver decides; issuer/signatory releases. AEO and report authority matrices are append-only and version-bound. When the active CIAS Head is the sole available CIAS Management authority, she may review, approve, and issue an AEO she prepared; the same controlled exception may be used for her own AEMS review/acceptance actions across planning, execution, findings, reporting, transfer, and closure. Every use is limited to the sole-head deployment condition and recorded immutably. |
 | Direct AFR | Direct Finding creation requires an authorized reason, source/authority context, engagement scope, and audit event. Normal conversion from an Issue remains supported. |
 | Evidence Request | `DRAFT → SUBMITTED → SENT → ACKNOWLEDGED → PARTIALLY_RECEIVED → RECEIVED → FOR_REVIEW → ASSESSED → CLOSED`; controlled `OVERDUE`, extension, escalation, cancellation, and closed-without-submission states are separate decisions. |
 | Audit Evidence | Technical states such as `REGISTERED`, `FOR_ASSESSMENT`, `ACCEPTED`, `LIMITED`, `ADDITIONAL_REQUIRED`, `REJECTED`, `DUPLICATE`, `SUPERSEDED`, and `VOIDED` are distinct from assessment and document lock state. `LOCKED` never means professional acceptance by itself. |
@@ -80,7 +80,7 @@ follow. They are not optional UI conventions.
 | Retention | Approved retention metadata is immutable; legal hold overrides archive/disposition; destruction eligibility is a reviewed state, not physical deletion. |
 | Planning units | Risk matrices may be multiple where authorized; programs/procedures carry area, focus, process, method, criteria, sampling, planned days, and planned-WP requirements. |
 | Conference waiver | Waiver authority, reason, actor, and audit reference are required; absence of a conference cannot be silently inferred. |
-| Effort/provider | ARMIS is authoritative only after accepted reconciliation and provider status checks; fallback is explicit and stale/missing data blocks mandatory approval. |
+| Effort/provider | ARMIS is the only operational provider; current ARMIS status and planned/actual effort checks apply. Historical provider reconciliation is not required for approval. |
 | Signatures/transmittal | Signatures are authenticated in-app attestations with actor, timestamp, method/reference, version, and immutable transmittal/acknowledgement events. |
 | Report distribution | IAU Head recommendation and LCE approval are recorded; required signatories, recipient decisions, delivery, acknowledgement, and confidentiality are preserved. |
 | Completed vs Closed | `COMPLETED` means substantive audit work finished. `CLOSED` means formal administrative closure after authoritative records, retention, transfer, and blocker reconciliation. |
@@ -143,6 +143,45 @@ corrections create revisions or superseding records.
 - Automation may identify readiness, create reminders/candidates, or prepare a
   draft; it may not make final professional decisions, close a record, reopen a
   record, or issue an escalation notice automatically.
+
+### AEO authority guidance
+
+The AEO workspace exposes responsible-account guidance beside workflow actions
+and the immutable signatory matrix. The normal route is:
+
+1. The preparer submits the AEO version.
+2. An assigned AEMS Reviewer records the independent review. If the preparer
+   is the active CIAS Head and no alternate CIAS Management authority is
+   available, that same CIAS Head may record the review under the controlled
+   single-authority exception.
+3. An active user with the `cias_management` role approves the reviewed
+   version. The sole active CIAS Head may approve her own AEO when no alternate
+   authority is designated.
+4. An active `cias_management` authority issues the approved version. The sole
+   active CIAS Head may also issue the AEO she approved under the same narrow
+   exception.
+5. After the AEO is issued, the engagement Lifecycle workspace exposes the
+   aggregate `ISSUE_AUTHORIZATION` action. The sole active CIAS Head may
+   execute that action only when the issued AEO was prepared, approved, and
+   issued by that same account; it changes the aggregate state to
+   `AUTHORIZED` and is a separate, auditable lifecycle event.
+6. For later AEMS records, the same sole active CIAS Head exception may be used
+   when she is the record preparer: she may review and approve her own AEP,
+   Planning Package, Audit Program, Working Paper, Fieldwork, evidence,
+   finding, report, completion, transfer, or closure submission where that
+   workflow exposes the corresponding action. The normal role, readiness,
+   immutable-version, evidence, and status gates still apply; the exception
+   only removes the preparer-versus-reviewer identity conflict when no
+   alternate active CIAS Management authority exists.
+
+Auditee office heads and the City Mayor are recipients/acknowledgers of an
+issued AEO, not internal AEO approvers or issuers. They do not need internal
+AEMS operational access: issued copies are acknowledged through the CMS
+recipient portal. The matrix displays the
+actual actor's name, employee ID, username, position, timestamp, and signature
+status after each step. When a pending authority has no eligible active
+account, the workspace tells the administrator to designate another CIAS
+Management account rather than silently weakening separation of duties.
 
 ## 7. API/data and test references
 
@@ -527,13 +566,16 @@ no schema, route, permission, or operational workflow change is included.
 ### G0-01 — Authority and signatory matrix
 
 The following matrix is the minimum authority separation for professional
-decisions. “Preparer” may draft and revise only. “Reviewer” performs the
-independent assessment. “Approver” records the final professional decision.
-“Issuer/signatory” authorizes release to an external recipient.
+decisions. Normally “Preparer” may draft and revise only; the active CIAS Head
+has a narrowly documented exception to record AEO review, approval, and
+issuance of her own prepared version when she is the sole active CIAS
+Management authority. “Reviewer” performs the independent assessment. “Approver” records
+the final professional decision. “Issuer/signatory” authorizes release to an
+external recipient.
 
 | Record or action | Preparer | Independent reviewer | Approver | Issuer/signatory | Required separation |
 | --- | --- | --- | --- | --- | --- |
-| Engagement source and AEO | Team Leader or Engagement Supervisor | Assigned Reviewer | CIAS Management authorized audit authority | CIAS Management designated issuance authority | Preparer, reviewer, approver, and issuer are distinct users. |
+| Engagement source and AEO | Team Leader or Engagement Supervisor | Assigned Reviewer (or sole active CIAS Head self-review exception) | Active CIAS Management authority; sole active CIAS Head may approve her own AEO | Active CIAS Management authority; sole active CIAS Head may issue her own approved AEO | Separate approver/issuer accounts are the normal rule; the documented sole-head exception extends to the corresponding aggregate and later AEMS review/approval actions only when no alternate active CIAS Management authority exists. |
 | AEP, Planning Package, and Audit Program | Team Leader or assigned auditor | Reviewer | CIAS Management authorized audit authority | Not externally issued; approved baseline is the authority | Preparer cannot approve the same version. |
 | Team safeguards and ARMIS authority | Engagement Supervisor | Independent safeguard reviewer | Designated CIAS/ARMIS resource authority | Not applicable | The person declaring a conflict cannot approve its mitigation. |
 | Working Paper | Assigned Auditor | Reviewer | Reviewer with approval permission | Not externally issued | Preparer cannot review or approve the same version. |
@@ -726,9 +768,8 @@ authority explicitly names the waiver authority.
 ### G0-10 — Effort boundary and ARMIS authority
 
 AEMS records engagement planned and actual person-days; ARMIS is authoritative
-only in `ARMIS_AUTHORITATIVE` mode after its independent reconciliation and
-authority decision. `IAP_INTERIM_FALLBACK` and `ARMIS_SHADOW` are visible,
-non-authoritative modes. Planned effort covers approved engagement work and
+in the sole `ARMIS_AUTHORITATIVE` mode. `IAP_INTERIM_FALLBACK` and
+`ARMIS_SHADOW` are historical compatibility values only. Planned effort covers approved engagement work and
 procedures. Actual effort covers recorded engagement work, fieldwork, review,
 and report/closure effort; leave, training, and unrelated administration are
 excluded unless explicitly configured as a separate category. Completion
@@ -1318,13 +1359,16 @@ no schema, route, permission, or operational workflow change is included.
 ### G0-01 — Authority and signatory matrix
 
 The following matrix is the minimum authority separation for professional
-decisions. “Preparer” may draft and revise only. “Reviewer” performs the
-independent assessment. “Approver” records the final professional decision.
-“Issuer/signatory” authorizes release to an external recipient.
+decisions. Normally “Preparer” may draft and revise only; the active CIAS Head
+has a narrowly documented exception to record AEO review, approval, and
+issuance of her own prepared version when she is the sole active CIAS
+Management authority. “Reviewer” performs the independent assessment. “Approver” records
+the final professional decision. “Issuer/signatory” authorizes release to an
+external recipient.
 
 | Record or action | Preparer | Independent reviewer | Approver | Issuer/signatory | Required separation |
 | --- | --- | --- | --- | --- | --- |
-| Engagement source and AEO | Team Leader or Engagement Supervisor | Assigned Reviewer | CIAS Management authorized audit authority | CIAS Management designated issuance authority | Preparer, reviewer, approver, and issuer are distinct users. |
+| Engagement source and AEO | Team Leader or Engagement Supervisor | Assigned Reviewer (or sole active CIAS Head self-review exception) | Active CIAS Management authority; sole active CIAS Head may approve her own AEO | Active CIAS Management authority; sole active CIAS Head may issue her own approved AEO | Separate approver/issuer accounts are the normal rule; the documented sole-head exception extends to the corresponding aggregate and later AEMS review/approval actions only when no alternate active CIAS Management authority exists. |
 | AEP, Planning Package, and Audit Program | Team Leader or assigned auditor | Reviewer | CIAS Management authorized audit authority | Not externally issued; approved baseline is the authority | Preparer cannot approve the same version. |
 | Team safeguards and ARMIS authority | Engagement Supervisor | Independent safeguard reviewer | Designated CIAS/ARMIS resource authority | Not applicable | The person declaring a conflict cannot approve its mitigation. |
 | Working Paper | Assigned Auditor | Reviewer | Reviewer with approval permission | Not externally issued | Preparer cannot review or approve the same version. |
@@ -1517,9 +1561,8 @@ authority explicitly names the waiver authority.
 ### G0-10 — Effort boundary and ARMIS authority
 
 AEMS records engagement planned and actual person-days; ARMIS is authoritative
-only in `ARMIS_AUTHORITATIVE` mode after its independent reconciliation and
-authority decision. `IAP_INTERIM_FALLBACK` and `ARMIS_SHADOW` are visible,
-non-authoritative modes. Planned effort covers approved engagement work and
+in the sole `ARMIS_AUTHORITATIVE` mode. `IAP_INTERIM_FALLBACK` and
+`ARMIS_SHADOW` are historical compatibility values only. Planned effort covers approved engagement work and
 procedures. Actual effort covers recorded engagement work, fieldwork, review,
 and report/closure effort; leave, training, and unrelated administration are
 excluded unless explicitly configured as a separate category. Completion
@@ -1983,9 +2026,10 @@ actor, timestamp, and AEO version. Existing audited review events are
 materialized as `LEGACY_EVENT_ATTESTATION` entries when an older AEO is first
 approved after G4.
 
-The preparer cannot independently review, approve, or issue. Approval requires
-an independent reviewer signature. Issuance requires approval and a different
-issuing authority. Signed matrix entries are immutable.
+The preparer normally cannot independently approve or issue. When the active
+CIAS Head is the sole available CIAS Management authority, she may record the
+AEO review, approval, and issuance exception described above. Approval still
+requires the review step, and signed matrix entries are immutable.
 
 ## AEO status controls
 
@@ -2013,6 +2057,8 @@ API endpoints:
 - `GET /api/aems/engagements/{engagement}/aeo/{order}/distribution`
 - `POST /api/aems/engagements/{engagement}/aeo/{order}/distribution`
 - `POST /api/aems/engagements/{engagement}/aeo/{order}/distribution/{distribution}/acknowledge`
+- `GET /api/aems/aeo-acknowledgements`
+- `POST /api/aems/aeo-acknowledgements/{distribution}/acknowledge`
 
 ## Team amendments and access history
 

@@ -47,7 +47,7 @@ class ArmisReportTest extends TestCase
         Sanctum::actingAs($this->user('departmenthead'));
         $this->getJson('/api/armis/administration')
             ->assertOk()
-            ->assertJsonPath('data.provider.mode', 'IAP_INTERIM_FALLBACK')
+            ->assertJsonPath('data.provider.mode', 'ARMIS_AUTHORITATIVE')
             ->assertJsonPath('data.hardening.privateDownloads', true)
             ->assertJsonPath('data.hardening.csvFormulaMitigation', true);
     }
@@ -66,14 +66,15 @@ class ArmisReportTest extends TestCase
         $response = $this->postJson('/api/armis/reports/resource-utilization/generate', [
             'fiscalYear' => 2027,
         ]);
+        $visibleProfileCount = ArmisResourceProfile::query()->count();
         $response
             ->assertCreated()
             ->assertJsonPath('data.run.reportCode', 'resource-utilization')
-            ->assertJsonPath('data.run.rowCount', 0)
+            ->assertJsonPath('data.run.rowCount', $visibleProfileCount)
             ->assertJsonPath('data.run.sourceQueryVersion', 'ARMIS-5A-v1');
 
         $run = ArmisReportRun::query()->firstOrFail();
-        $this->assertSame([], data_get($run->scope_snapshot, 'profileIds'));
+        $this->assertCount($visibleProfileCount, data_get($run->scope_snapshot, 'profileIds'));
         $this->assertSame(
             hash('sha256', json_encode($run->result_snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
             $run->result_checksum_sha256,
@@ -223,12 +224,12 @@ class ArmisReportTest extends TestCase
         ]);
 
         Sanctum::actingAs($actor);
-        $this->postJson('/api/armis/reports/resource-utilization/generate', ['fiscalYear' => 2027])
+        $this->postJson('/api/armis/reports/resource-utilization/generate', ['fiscalYear' => 2027, 'search' => 'ARMIS-RPT-001'])
             ->assertCreated()
             ->assertJsonPath('data.run.rowCount', 1)
             ->assertJsonPath('data.run.rows.0.resourceCode', 'ARMIS-RPT-001')
             ->assertJsonPath('data.run.rows.0.plannedWorkload', '40.00');
-        $this->postJson('/api/armis/reports/capacity-workload/generate', ['fiscalYear' => 2027])
+        $this->postJson('/api/armis/reports/capacity-workload/generate', ['fiscalYear' => 2027, 'search' => 'ARMIS-RPT-001'])
             ->assertCreated()
             ->assertJsonPath('data.run.rowCount', 1)
             ->assertJsonPath('data.run.rows.0.capacityStatus', 'WITHIN_CAPACITY');

@@ -93,13 +93,13 @@ async function mockPlanning(page) {
       fiscalYears: [2025, 2026, 2027],
       reviewDecisions: [{ code: "APPROVE", label: "Approve" }, { code: "RETURN", label: "Return" }],
       workflow: { editableStatuses: ["DRAFT", "RETURNED"], reviewStatus: "SUBMITTED", approvedStatus: "APPROVED", lockedStatus: "LOCKED" },
-      provider: { mode: "IAP_INTERIM_FALLBACK" },
+      provider: { mode: "ARMIS_AUTHORITATIVE" },
     } }),
   }));
   await page.route(/\/api\/armis\/metadata$/, (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ success: true, data: { provider: { mode: "IAP_INTERIM_FALLBACK" } } }),
+    body: JSON.stringify({ success: true, data: { provider: { mode: "ARMIS_AUTHORITATIVE" } } }),
   }));
   await page.route(/\/api\/armis\/resources(?:\?[^/]*)?$/, (route) => route.fulfill({
     status: 200,
@@ -150,7 +150,7 @@ test("renders ARMIS planning overview, utilization, and availability calendar", 
   await page.goto("/audit-resource-management/planning");
 
   await expect(page.getByRole("heading", { name: "ARMIS Planning & Utilization", exact: true, level: 2 })).toBeVisible();
-  await expect(page.getByText("IAP_INTERIM_FALLBACK", { exact: true })).toBeVisible();
+  await expect(page.getByText("ARMIS_AUTHORITATIVE", { exact: true })).toBeVisible();
   await expect(page.getByText("Resource utilization", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: /Availability calendar/ }).click();
   await expect(page.getByTestId("armis-availability-calendar")).toBeVisible();

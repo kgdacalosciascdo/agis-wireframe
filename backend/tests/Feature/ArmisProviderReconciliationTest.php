@@ -29,11 +29,11 @@ class ArmisProviderReconciliationTest extends TestCase
     {
         [$generator, $reviewer, $authority, $profile] = $this->context();
         Sanctum::actingAs($generator);
-        $this->setProviderMode('ARMIS_SHADOW');
+        $this->setProviderMode('ARMIS_AUTHORITATIVE');
 
         $response = $this->postJson('/api/armis/provider/reconciliations', ['fiscalYear' => 2026])
             ->assertCreated()
-            ->assertJsonPath('data.run.providerMode', 'ARMIS_SHADOW')
+            ->assertJsonPath('data.run.providerMode', 'ARMIS_AUTHORITATIVE')
             ->assertJsonPath('data.run.summary.reviewRequired', true);
         $run = $response->json('data.run');
         $decisions = collect($run['resultSnapshot'])
@@ -64,11 +64,14 @@ class ArmisProviderReconciliationTest extends TestCase
         ]);
     }
 
-    public function test_authority_activation_requires_shadow_review_and_switches_atomically(): void
+    public function test_provider_switch_actions_are_disabled_after_armis_cutover(): void
     {
         [$generator, $reviewer, $authority, $profile] = $this->context();
+        Sanctum::actingAs($authority);
+        $this->postJson('/api/armis/provider/rollback', [
+            'reason' => 'Provider switching is intentionally disabled after ARMIS cutover.',
+        ])->assertStatus(409);
         Sanctum::actingAs($generator);
-        $this->setProviderMode('ARMIS_SHADOW');
         $run = $this->postJson('/api/armis/provider/reconciliations', ['fiscalYear' => 2026])
             ->assertCreated()
             ->json('data.run');
@@ -86,9 +89,8 @@ class ArmisProviderReconciliationTest extends TestCase
 
         Sanctum::actingAs($authority);
         $this->postJson('/api/armis/provider/reconciliations/'.$run['id'].'/activate', [
-            'reason' => 'CIAS authority approves the accepted shadow reconciliation and provider switch.',
-        ])->assertCreated()
-            ->assertJsonPath('data.decision.toMode', 'ARMIS_AUTHORITATIVE');
+            'reason' => 'Provider switching is intentionally disabled after ARMIS cutover.',
+        ])->assertStatus(409);
 
         $this->getJson('/api/armis/provider/status')
             ->assertOk()
@@ -96,17 +98,11 @@ class ArmisProviderReconciliationTest extends TestCase
             ->assertJsonPath('data.provider.authoritative', true)
             ->assertJsonPath('data.provider.activeProvider', 'App\\Integrations\\Aems\\ArmisResourcePlanningGateway');
 
-        Sanctum::actingAs($authority);
-        $this->postJson('/api/armis/provider/rollback', [
-            'reason' => 'Rollback is required while the provider comparison is monitored in production.',
-        ])->assertCreated()
-            ->assertJsonPath('data.decision.toMode', 'IAP_INTERIM_FALLBACK');
-
-        $this->assertDatabaseCount('armis_provider_authority_decisions', 2);
-        $this->assertSame('IAP_INTERIM_FALLBACK', app(\App\Services\RuntimeConfiguration::class)->armisProviderMode());
+        $this->assertDatabaseCount('armis_provider_authority_decisions', 1);
+        $this->assertSame('ARMIS_AUTHORITATIVE', app(\App\Services\RuntimeConfiguration::class)->armisProviderMode());
     }
 
-    public function test_generator_reviewer_and_authority_are_separated_and_direct_config_cannot_switch(): void
+    public function test_generator_reviewer_and_authority_are_separated_and_direct_config_remains_armis_only(): void
     {
         [$generator, $reviewer, $authority] = $this->context();
         Sanctum::actingAs($this->user('agisadmin'));
@@ -114,7 +110,7 @@ class ArmisProviderReconciliationTest extends TestCase
             'configurations' => [
                 ['key' => 'armis_provider_mode', 'value' => 'ARMIS_AUTHORITATIVE'],
             ],
-        ])->assertUnprocessable();
+        ])->assertOk();
 
         $this->assertFalse($generator->is($reviewer));
         $this->assertFalse($reviewer->is($authority));

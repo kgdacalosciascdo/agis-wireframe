@@ -63,11 +63,11 @@ async function mockReports(page) {
     ],
     scope: { portfolioWide: true, assignmentScoped: false, confidentiality: { confidential: true, restricted: false } },
     canExport: true,
-    provider: { mode: "IAP_INTERIM_FALLBACK" },
+    provider: { mode: "ARMIS_AUTHORITATIVE" },
   }));
   await page.route(/\/api\/armis\/reports\/runs$/, (route) => fulfill(route, { runs: [generatedRun], meta: { total: 1 } }));
   await page.route(/\/api\/armis\/administration$/, (route) => fulfill(route, {
-    provider: { mode: "IAP_INTERIM_FALLBACK" },
+    provider: { mode: "ARMIS_AUTHORITATIVE" },
     permissions: { "armis.report.view": true, "armis.report.export": true },
     workflows: { assignments: ["DRAFT", "SUBMITTED", "APPROVED", "LOCKED"] },
     notifications: { visibleCount: 2, unreadCount: 1 },
@@ -95,7 +95,7 @@ test("renders ARMIS reports and the administration contract", async ({ page }) =
   await expect(page.getByRole("heading", { name: "ARMIS-RUN-000071", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Administration" }).click();
   await expect(page.getByText("Provider authority", { exact: true })).toBeVisible();
-  await expect(page.getByText("IAP_INTERIM_FALLBACK", { exact: true })).toBeVisible();
+  await expect(page.getByText("ARMIS_AUTHORITATIVE", { exact: true })).toBeVisible();
 });
 
 test("generates a filtered ARMIS report and creates a protected export", async ({ page }) => {

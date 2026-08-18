@@ -385,12 +385,8 @@ function IntegrationStrip({ integrations, loading }) {
     {
       key: "armis",
       label: "Resource provider",
-      detail:
-        integrations.armis?.mode === "IAP_INTERIM_FALLBACK"
-          ? "IAP interim fallback"
-          : (integrations.armis?.mode ?? "Not configured"),
+      detail: "ARMIS authoritative",
       healthy: integrations.armis?.available,
-      fallback: integrations.armis?.authoritative === false,
     },
   ];
 
@@ -405,9 +401,7 @@ function IntegrationStrip({ integrations, loading }) {
           <div className="flex min-w-0 items-start gap-3 p-3.5" key={item.key}>
             <span
               className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
-                item.fallback
-                  ? "bg-amber-100 text-amber-700"
-                  : item.healthy
+                item.healthy
                     ? "bg-emerald-100 text-emerald-700"
                     : "bg-rose-100 text-rose-700"
               }`}

@@ -360,7 +360,7 @@ test("CMS dashboard, registry, and detail workspace remain responsive", async ({
     await page.getByRole("button", { name: "Open navigation" }).click();
     const drawer = page.getByRole("complementary");
     await expect(
-      drawer.getByRole("link", { name: "Compliance Management" }),
+      drawer.getByRole("button", { name: /Expand|Collapse Compliance Management/ }),
     ).toBeVisible();
     await expect(
       drawer.getByRole("link", { name: "Recommendation Registry" }),

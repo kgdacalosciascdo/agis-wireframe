@@ -4,6 +4,8 @@ namespace Tests\Feature\Api;
 
 use App\Models\AuditArea;
 use App\Models\AuditLog;
+use App\Models\ArmisCapacitySubmission;
+use App\Models\ArmisResourceProfile;
 use App\Models\IapPlanEngagement;
 use App\Models\InternalAuditPlan;
 use App\Models\MasterListItem;
@@ -46,6 +48,25 @@ class IapSchedulingTest extends TestCase
                 'plannedPersonDays' => 2,
             ],
         ];
+        foreach ([$auditor, $manager] as $resourceUser) {
+            $profile = ArmisResourceProfile::query()
+                ->where('user_id', $resourceUser->id)
+                ->where('status', 'ACTIVE')
+                ->firstOrFail();
+            ArmisCapacitySubmission::query()->create([
+                'resource_profile_id' => $profile->id,
+                'fiscal_year' => 2028,
+                'version_number' => 1,
+                'available_person_days' => 180,
+                'status' => 'APPROVED',
+                'is_current_revision' => true,
+                'approved_by' => $manager->id,
+                'approved_at' => now(),
+                'created_by' => $manager->id,
+                'updated_by' => $manager->id,
+                'lock_version' => 1,
+            ]);
+        }
 
         $firstSchedule = $this->putJson("/api/iap/schedules/{$first->id}", [
             'plannedStartDate' => '2028-02-01',

@@ -4,13 +4,17 @@ namespace Tests\Feature\Api;
 
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementPlanVersion;
+use App\Models\AemsTeamSafeguardDeclaration;
 use App\Models\AemsFieldworkRecord;
 use App\Models\AemsFieldworkRecordVersion;
 use App\Models\AuditArea;
 use App\Models\AuditFocus;
 use App\Models\AuditProgram;
 use App\Models\AuditProgramProcedure;
+use App\Models\ArmisCapacitySubmission;
+use App\Models\ArmisResourceProfile;
 use App\Models\IapPlanEngagement;
+use App\Models\MasterListItem;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -115,6 +119,8 @@ class AemsAepProgramTest extends TestCase
         $this->postJson("/api/aems/engagements/{$engagement->id}/programs", [
             'title' => 'Revenue Collection Audit Program',
             'objective' => 'Determine whether collection, reconciliation, and deposit controls operate effectively.',
+            'auditAreaId' => $engagement->auditAreas()->value('audit_areas.id'),
+            'auditTypeId' => $engagement->audit_type_id,
         ])->assertCreated();
         $program = $this->currentProgram($engagement);
 
@@ -229,6 +235,34 @@ class AemsAepProgramTest extends TestCase
         );
     }
 
+    public function test_audit_program_scope_must_match_the_engagement_configuration(): void
+    {
+        [$management, $engagement, $team] = $this->preparedEngagement();
+        $preparer = $team['TEAM_LEADER'];
+        $this->issueAeo($management, $engagement, $team, $preparer);
+        $this->approveAep($management, $engagement, $preparer);
+
+        $selectedAreaIds = $engagement->auditAreas()->pluck('audit_areas.id');
+        $otherArea = AuditArea::query()->whereNotIn('id', $selectedAreaIds)->firstOrFail();
+        Sanctum::actingAs($preparer);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/programs", [
+            'title' => 'Out-of-scope program',
+            'objective' => 'This program must be rejected because its area is outside the engagement.',
+            'auditAreaId' => $otherArea->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('auditAreaId');
+
+        $otherType = MasterListItem::query()
+            ->where('id', '<>', $engagement->audit_type_id)
+            ->whereHas('masterList', fn ($query) => $query->where('code', 'IAP_ENGAGEMENT_TYPE'))
+            ->firstOrFail();
+        $this->postJson("/api/aems/engagements/{$engagement->id}/programs", [
+            'title' => 'Wrong-type program',
+            'objective' => 'This program must be rejected because its type differs from the engagement.',
+            'auditAreaId' => $selectedAreaIds->first(),
+            'auditTypeId' => $otherType->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('auditTypeId');
+    }
+
     /** @return array{User, AuditEngagement, array<string, User>} */
     private function preparedEngagement(): array
     {
@@ -257,6 +291,51 @@ class AemsAepProgramTest extends TestCase
                 'assignedUntil' => '2026-08-21',
             ])->assertCreated();
             $team[$role] = $users[$index];
+        }
+
+        // AEO approval now consumes authoritative ARMIS capacity and accepted
+        // safeguard declarations. Seed those prerequisites explicitly for
+        // this planning-focused fixture.
+        foreach ($engagement->teamMembers()->where('is_active', true)->get() as $member) {
+            $profile = ArmisResourceProfile::query()
+                ->where('user_id', $member->user_id)
+                ->where('status', 'ACTIVE')
+                ->firstOrFail();
+            ArmisCapacitySubmission::query()->firstOrCreate(
+                ['resource_profile_id' => $profile->id, 'fiscal_year' => 2026, 'is_current_revision' => true],
+                [
+                    'version_number' => 1,
+                    'available_person_days' => 180,
+                    'status' => 'APPROVED',
+                    'approved_by' => $management->id,
+                    'approved_at' => now(),
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                    'lock_version' => 1,
+                ],
+            );
+            foreach (AemsTeamSafeguardDeclaration::TYPES as $type) {
+                AemsTeamSafeguardDeclaration::query()->create([
+                    'declaration_family_uuid' => (string) Str::uuid(),
+                    'audit_engagement_id' => $engagement->id,
+                    'engagement_team_id' => $member->id,
+                    'user_id' => $member->user_id,
+                    'declaration_type' => $type,
+                    'version_number' => 1,
+                    'is_current_revision' => true,
+                    'outcome' => 'CLEAR',
+                    'statement' => 'Fixture declaration accepted after independent review.',
+                    'status' => 'ACCEPTED',
+                    'submitted_by' => $member->user_id,
+                    'submitted_at' => now(),
+                    'reviewed_by' => $management->id,
+                    'reviewed_at' => now(),
+                    'review_notes' => 'Fixture prerequisite for AEO workflow.',
+                    'created_by' => $member->user_id,
+                    'updated_by' => $management->id,
+                    'lock_version' => 1,
+                ]);
+            }
         }
 
         return [$management, $engagement->fresh(), $team];

@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
                 IapRiskPeriodSeeder::class,
                 IapPrioritizationSeeder::class,
                 IapSchedulingSeeder::class,
+                ArmisResourcePlanningSeeder::class,
                 NotificationSeeder::class,
             ]);
         }

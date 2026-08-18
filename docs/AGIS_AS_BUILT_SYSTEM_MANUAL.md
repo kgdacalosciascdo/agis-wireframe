@@ -156,7 +156,7 @@ it does not perform AEMS fieldwork and does not receive AEMS results.
 | Audit Prioritization | Finalized prioritization runs and ranked universe |
 | Annual Audit Plan (/internal-audit-planning) | Build yearly plan from finalized priorities, assign offices/resources, review and approve |
 | Audit Scheduling | Place approved engagements on the calendar and maintain scheduling revisions |
-| Resource Capacity | Record interim capacity, unavailability, skills, and requirements used by fallback provider |
+| Resource Capacity | Historical IAP planning view; current capacity, unavailability, skills, and requirements are maintained in ARMIS |
 | IAP Reports | Scope-pinned planning reports and protected exports |
 
 IAP deliberately retains two risk systems: iap_risk_assessments (plan-level
@@ -249,17 +249,44 @@ sidebar opens a workspace; the tab/action opens the engagement context.
 
 1. Create an engagement or import an approved IAP source. Enter exactly one
    canonical office, area/focus coverage, objectives, period, scope,
-   exclusions, limitations, source variance, and planned milestones.
+   exclusions, limitations, source variance, and planned milestones. New
+   special/unplanned records are saved as `DRAFT`; the recorded external
+   authority does not bypass the internal authorization transitions. Before
+   authorization or planning begins, use **Edit engagement** from the detail
+   workspace to correct the registry metadata.
 2. Assign a team only after checking ARMIS/IAP provider status, competency,
    availability, leave/training conflicts, workload, objectivity, and
    independence declarations.
 3. Prepare the AEO and its authority/signatory/distribution metadata. Submit;
-   an independent reviewer may return with reasons or approve.
-4. Issue the approved AEO through the protected issuance action. Issuance locks
+   the assigned reviewer records review or returns it with reasons. The active
+   CIAS Head may record review of an AEO she prepared as a controlled exception.
+   If no alternate CIAS Management authority is available, she may also approve
+   and issue that same AEO.
+4. Otherwise, an active CIAS Management account approves the reviewed AEO, and a
+   different active CIAS Management account issues it. The AEO workspace shows
+   the candidate/current account beside each action and records the actor's
+   name, username, position, timestamp, and signature status.
+5. Issue the approved AEO through the protected issuance action. Issuance locks
    the version and records signatory, transmittal/delivery, recipients, and
    acknowledgements. A correction is an amended/superseding version.
-5. Prepare the AEP only after an issued AEO exists. Submit, return/resubmit, or
-   approve under separation of duties. The approved AEP is the fieldwork base.
+6. Return to the engagement **Lifecycle** tab after the AEO status is
+   **ISSUED**. Select **Issue Authorization** under Allowed actions and gates.
+   The CIAS Head's controlled aggregate authorization moves the engagement from
+   **Authorization Preparation** to **Authorized** and is recorded separately
+   from the child AEO issuance. In a sole-head deployment, the same active
+   CIAS Head may perform this aggregate authorization; the exception is limited
+   to this gate and remains auditable.
+7. Select **Start Planning** from the Authorized lifecycle state. This moves
+   the engagement to **Engagement Planning** and unlocks the AEP and Planning
+   Package workspaces. Prepare the AEP only after an issued AEO exists. Submit,
+   return/resubmit, or approve under the applicable review controls. The
+   approved AEP is the fieldwork base.
+8. In a single-authority deployment, the active CIAS Head may use the same
+   controlled exception for her own AEP, Planning Package, Audit Program,
+   Working Paper, Fieldwork, evidence, finding, report, completion, transfer,
+   and closure review/approval actions. The exception is available only when
+   no alternate active CIAS Management authority exists; all readiness,
+   evidence, status, version-lock, and audit requirements remain enforced.
 
 ### 5.3 Planning Package and fieldwork gate
 
@@ -491,8 +518,7 @@ fallback for AEMS until the provider authority gate is accepted.
 | Competencies & Certifications | Competency, specialization, certification evidence, independent verification |
 | Planning & Utilization | Availability, leave/training, capacity, workload, utilization, revisions |
 | Assignments & Actuals | Engagement assignments, competency, planned/actual days, conflicts, approvals |
-| Provider Reconciliation | Compare ARMIS to IAP interim provider, inspect discrepancy review |
-| Provider Monitoring | Health, freshness, stale/missing data, cutover checks, notifications |
+| Provider Monitoring | Verify the current ARMIS resource ledger, read path, and health notifications |
 | Reports & Administration | Immutable resource reports, protected exports, status/preflight |
 
 ### 7.2 Resource and assignment lifecycle
@@ -507,11 +533,11 @@ fallback for AEMS until the provider authority gate is accepted.
    mandatory failure blocks approval.
 5. Submit assignment/actuals. Independent reviewer approves or returns; approved
    records can be locked. Corrections create revisions.
-6. Reconcile ARMIS to IAP interim. A run is an immutable comparison and does not
-   write to IAP or AEMS.
-7. Activate ARMIS authority only after shadow review, discrepancy resolution,
-   provider status, and an atomic authority decision. Rollback is explicit and
-   audited. Missing/stale data cannot be silently approved.
+6. Use Provider Monitoring for current ARMIS health and read-path checks. A
+   historical provider comparison is not required to approve an assignment.
+7. Resolve missing or stale ARMIS resource records before approval. ARMIS is
+   permanently authoritative for operational resource data; there is no IAP
+   fallback or provider rollback action.
 
 ## 8. Audit Intelligence System (AIS)
 
@@ -544,7 +570,7 @@ mutate source records.
 | Core -> all | Identity, registries, roles, documents, workflows, logs, notifications, numbering | Modules reference shared IDs/services | Duplicate user/office/permission/document ownership tables |
 | IAP -> AEMS | Approved Annual Audit Plan and risk/area/focus lineage | AEMS stores immutable import snapshot and source IDs | Mutating approved IAP rows from AEMS |
 | ARMIS -> AEMS | Competency, availability, workload, planned/actual days when authoritative | AEMS reads ResourcePlanningGateway, shows provider status, blocks stale data | Unreviewed copy or automatic approval |
-| IAP <-> ARMIS | IAP interim capacity versus ARMIS | ARMIS stores immutable comparison results | Reconciliation write-back into IAP |
+| IAP -> ARMIS | Historical resource lineage only | ARMIS owns current resource data; AEMS reads ARMIS directly | IAP fallback reads, provider switching, or reconciliation write-back |
 | AEMS -> CMS | Finalized recommendation in exact issued report | CMS creates one immutable case/manifest | Draft/unfinalized or duplicate transfer |
 | Core/IAP/AEMS/CMS/ARMIS -> AIS | Read contracts | AIS presents scoped snapshots/diagnostics | AIS mutation or professional decision |
 

@@ -31,10 +31,22 @@ class AuthenticationTest extends TestCase
         $this->getJson('/api/demo-accounts')
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonCount(6, 'data')
+            ->assertJsonCount(9, 'data')
             ->assertJsonFragment([
                 'employeeId' => 'CIAS-HEAD-001',
                 'roleCode' => 'cias_management',
+            ])
+            ->assertJsonFragment([
+                'employeeId' => 'CIAS-AUD-001',
+                'name' => 'Charry Bagongon',
+            ])
+            ->assertJsonFragment([
+                'employeeId' => 'CIAS-AUD-002',
+                'name' => 'Kristine Yare',
+            ])
+            ->assertJsonFragment([
+                'employeeId' => 'CIAS-AUD-003',
+                'name' => 'Michele Dampog',
             ]);
     }
 
@@ -47,7 +59,9 @@ class AuthenticationTest extends TestCase
 
     public function test_user_can_sign_in_restore_the_session_and_sign_out(): void
     {
-        $user = User::query()->where('username', 'auditor')->firstOrFail();
+        // CIAS-AUD-001 is the reference-roster Charry Bagongon account;
+        // `auditor` remains the lead-auditor compatibility username.
+        $user = User::query()->where('employee_id', 'CIAS-AUD-001')->firstOrFail();
 
         $this->postJson('/api/login', [
             'employeeId' => '  cias-aud-001  ',

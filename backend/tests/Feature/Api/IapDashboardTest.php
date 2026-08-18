@@ -2,7 +2,8 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\IapAuditorUnavailability;
+use App\Models\ArmisAvailabilityPeriod;
+use App\Models\ArmisResourceProfile;
 use App\Models\IapAuditUniverseItem;
 use App\Models\IapPrioritizationRun;
 use App\Models\InternalAuditPlan;
@@ -84,19 +85,29 @@ class IapDashboardTest extends TestCase
             ->where('schedule_status', 'SCHEDULED')
             ->firstOrFail();
         $member = $engagement->teamMembers->firstOrFail();
-        IapAuditorUnavailability::query()->create([
-            'user_id' => $member->user_id,
-            'unavailability_type_id' => $this->item(
-                'IAP_UNAVAILABILITY_TYPE',
-                'LEAVE',
-            )->id,
-            'title' => 'Approved leave during planned audit',
+        $management = $this->user('departmenthead');
+        $profile = ArmisResourceProfile::query()
+            ->where('user_id', $member->user_id)
+            ->where('status', 'ACTIVE')
+            ->firstOrFail();
+        ArmisAvailabilityPeriod::query()->create([
+            'availability_family_uuid' => (string) str()->uuid(),
+            'resource_profile_id' => $profile->id,
+            'version_number' => 1,
+            'is_current_revision' => true,
+            'availability_type' => 'LEAVE',
             'start_date' => $engagement->planned_start_date,
             'end_date' => $engagement->planned_end_date,
-            'created_by' => $this->user('departmenthead')->id,
+            'person_days' => 0,
+            'status' => 'APPROVED',
+            'notes' => 'Approved leave during planned audit',
+            'approved_by' => $management->id,
+            'approved_at' => now(),
+            'created_by' => $management->id,
+            'updated_by' => $management->id,
         ]);
 
-        Sanctum::actingAs($this->user('departmenthead'));
+        Sanctum::actingAs($management);
         $this->getJson('/api/iap/dashboard')
             ->assertOk()
             ->assertJsonPath('data.conflictWarnings.0.type', 'AUDITOR_UNAVAILABLE')

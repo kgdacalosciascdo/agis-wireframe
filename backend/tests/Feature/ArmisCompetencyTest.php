@@ -131,7 +131,7 @@ class ArmisCompetencyTest extends TestCase
         $this->assertGreaterThanOrEqual(3, AuditLog::query()->where('action', 'like', 'armis.competency.%')->count());
 
         Sanctum::actingAs($admin);
-        $this->getJson('/api/armis/competencies?includeHistory=1')
+        $this->getJson('/api/armis/competencies?includeHistory=1&resourceProfileId='.$profile->id)
             ->assertOk()
             ->assertJsonPath('meta.currentOnly', false)
             ->assertJsonCount(2, 'data');

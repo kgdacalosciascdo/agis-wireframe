@@ -4,8 +4,8 @@
 
 This is the as-built functional and technical specification for the AGIS Internal
 Audit Planning module. It explains how strategic planning, the audit universe,
-risk assessment, prioritization, annual planning, scheduling, temporary resource
-capacity, approvals, supporting records, dashboards, reports, security, and
+risk assessment, prioritization, annual planning, scheduling, approvals,
+supporting records, dashboards, reports, security, and
 history work together.
 
 The IAP module answers two questions:
@@ -48,7 +48,11 @@ annual-plan engagements.
 BAICS-5 hardens this boundary with granular `iap.baics.integration.*`
 permissions, active reviewer/authority eligibility, transition-level
 separation rules, and scoped post-commit Core notifications with
-recipient/version deduplication.
+recipient/version deduplication. BAICS-6 completes the conformance gate with
+role/scope/SoD acceptance tests, schema migration rehearsal, shared-owner
+checks, canonical navigation checks, and documentation traceability. The
+committed responsive Playwright coverage remains available for manual
+execution while that runner is paused.
 
 ## 2. Implementation status
 
@@ -59,20 +63,21 @@ The following IAP capabilities are implemented:
 | IAP dashboard | Implemented with live aggregates | `/internal-audit-planning/dashboard` |
 | Strategic Internal Audit Plan | Implemented | `/internal-audit-planning/strategic-plan` |
 | Audit Universe Registry | Implemented | `/internal-audit-planning/audit-universe` |
-| Baseline Assessment (BAICS) | BAICS-1A/1B through BAICS-5 implemented: five-component instruments, Control Universe, interim analysis, BAR assembly, immutable versions, protected exports, approved BAR/legacy integration decisions, readiness checks, granular integration permissions, participant-scoped notifications, and IAP approval gates | `/internal-audit-planning/baics`, `/internal-audit-planning/baics/control-universe`, `/internal-audit-planning/baics/integration` |
+| Baseline Assessment (BAICS) | BAICS-1A/1B through BAICS-6 implemented with focused verification: five-component instruments, Control Universe, interim analysis, BAR assembly, immutable versions, protected exports, approved BAR/legacy integration decisions, readiness checks, granular integration permissions, participant-scoped notifications, role/scope/SoD conformance, migration rehearsal, canonical navigation, and IAP approval gates | `/internal-audit-planning/baics`, `/internal-audit-planning/baics/control-universe`, `/internal-audit-planning/baics/integration` |
 | Risk-assessment periods | Implemented | `/internal-audit-planning/risk-assessment` |
 | Audit prioritization | Implemented | `/internal-audit-planning/prioritization` |
 | Annual Internal Audit Plan | Implemented | `/internal-audit-planning` (detail: `/internal-audit-planning/:planId`) |
 | Audit scheduling | Implemented | `/internal-audit-planning/scheduling` |
-| Temporary resource capacity | Implemented | `/internal-audit-planning/resource-capacity` |
+| Resource capacity and personnel | ARMIS-owned; IAP consumes read-only capacity, competency, availability, and workload projections | `/audit-resource-management/planning` |
 | Supporting records and comments | Implemented in annual-plan workspace | Annual-plan detail route |
 | Reports and exports | Implemented | `/internal-audit-planning/reports` |
 
-ARMIS is implemented as a separate operational module. IAP continues to own the
-interim annual-capacity, unavailability, skill, and workload records while
-`IAP_INTERIM_FALLBACK` remains the default AEMS provider. An ARMIS shadow or
-authoritative mode is selected only through the documented reconciliation and
-authority gate; IAP history is never migrated or overwritten.
+ARMIS is the authoritative operational resource module. IAP owns planning
+decisions and approved engagement-plan lineage; it consumes ARMIS capacity,
+competencies, availability, workload, and person-day data read-only. The former
+IAP resource tables remain historical compatibility records and are backfilled
+into ARMIS by `ArmisResourceBackfillService`; they are not current write
+sources. The legacy IAP resource route redirects to ARMIS Planning.
 
 ## 3. Navigation behavior
 
@@ -472,10 +477,10 @@ not hard-delete the engagement or its schedule history.
 
 The page supports table and calendar views.
 
-## 11. Temporary capacity integration
+## 11. ARMIS resource integration
 
-IAP maintains the interim planning ledger and remains the default source for
-planning calculations while ARMIS is not authoritative. The ledger contains:
+IAP preserves its historical resource ledger for lineage and reconciliation.
+Current planning calculations read ARMIS. The historical ledger contains:
 
 - annual auditor capacity;
 - available person-days;
@@ -484,14 +489,15 @@ planning calculations while ARMIS is not authoritative. The ledger contains:
 - engagement skill requirements;
 - planned allocations and calculated remaining capacity.
 
-`iap_default_annual_person_days` supplies a fallback for an active eligible
-auditor without an explicit capacity record.
+`iap_default_annual_person_days` is retained only for historical compatibility;
+missing ARMIS capacity is surfaced as a planning conflict rather than silently
+replaced by an IAP default.
 
-ARMIS is now implemented as a separate resource and allocation module. These
-interfaces remain stable while `ConfigurableResourcePlanningGateway` selects the
-IAP interim provider, ARMIS shadow provider, or explicitly activated ARMIS
-authoritative provider. Historical IAP capacity snapshots remain unchanged, and
-no IAP risk or capacity records are migrated by the provider boundary.
+ARMIS is the authoritative resource and allocation module. IAP scheduling reads
+ARMIS capacity, competencies, availability, requirements, and workload through
+the stable provider boundary. `ArmisResourceBackfillService` copies historical
+IAP resource records idempotently into ARMIS without mutating the IAP source;
+the legacy IAP resource route redirects to ARMIS Planning.
 
 ## 12. Supporting records and management comments
 
@@ -635,7 +641,7 @@ does not roll back the planning transaction or in-app notification.
 | `default_workflow_sla_hours` | SLA for workflow steps without an override |
 | `workflow_mapping_iap` | Published default reusable workflow for IAP |
 | `fiscal_year_start_month` | Current fiscal-year calculation |
-| `iap_default_annual_person_days` | Temporary capacity fallback |
+| `iap_default_annual_person_days` | Legacy historical default retained for IAP lineage; current capacity is ARMIS-owned |
 | `document_upload_max_mb` | IAP supporting-file limit |
 | `pagination_size` | Default API and table page size |
 | `timezone` and `date_format` | Display and deadline interpretation |

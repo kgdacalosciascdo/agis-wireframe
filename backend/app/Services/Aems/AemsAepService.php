@@ -243,13 +243,20 @@ class AemsAepService
                 $this->ensureComplete($version);
             }
             if ($action === 'APPROVE') {
+                $mayUseSingleCiasAuthority = $this->access->mayUseSingleCiasHeadReviewException(
+                    $request->user(),
+                    'aems.aep.approve',
+                );
                 $reviewed = EngagementEvent::query()
                     ->where('audit_engagement_id', $engagement->id)
                     ->where('subject_type', 'AEP')
                     ->where('subject_id', $locked->id)
                     ->where('subject_version', $locked->current_version_number)
                     ->where('action', 'AEP_REVIEW')
-                    ->where('actor_id', '<>', $locked->prepared_by)
+                    ->when(
+                        ! $mayUseSingleCiasAuthority,
+                        fn ($query) => $query->where('actor_id', '<>', $locked->prepared_by),
+                    )
                     ->exists();
                 if (! $reviewed) {
                     throw ValidationException::withMessages([

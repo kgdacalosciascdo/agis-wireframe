@@ -19,6 +19,7 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 import {
   hasPermission,
   navigationSections,
+  notificationPathForUser,
   pageForPath,
   visibleFor,
 } from "../config/navigation";
@@ -112,33 +113,52 @@ function NavigationSection({ section, user, collapsed, onNavigate }) {
             return (
               <div className="grid gap-1" key={item.path}>
                 <div className="flex w-full min-w-0 max-w-full items-center gap-1">
-                  <NavLink
-                    className={({ isActive }) =>
-                      `group flex min-h-10 min-w-0 flex-1 items-center rounded-lg px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
-                        isActive || moduleActive
+                  {childItems.length > 0 ? (
+                    <button
+                      aria-expanded={childExpanded}
+                      aria-label={`${childExpanded ? "Collapse" : "Expand"} ${item.label}`}
+                      className={`group flex min-h-10 min-w-0 flex-1 items-center rounded-lg px-2.5 text-left text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
+                        moduleActive
                           ? "bg-[#4a87cb] text-white shadow-sm"
                           : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
-                      } ${collapsed ? "justify-center" : "gap-3"}`
-                    }
-                    to={item.path}
-                    onClick={() => {
-                      if (childItems.length > 0) {
+                      } ${collapsed ? "justify-center" : "gap-3"}`}
+                      onClick={() =>
                         setExpandedItems((current) => ({
                           ...current,
                           [item.key]: !childExpanded,
-                        }));
+                        }))
                       }
-                      onNavigate();
-                    }}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <ItemIcon className="shrink-0" size={19} />
-                    {!collapsed && (
-                      <span className="min-w-0 flex-1 truncate">
-                        {item.label}
-                      </span>
-                    )}
-                  </NavLink>
+                      title={collapsed ? item.label : undefined}
+                      type="button"
+                    >
+                      <ItemIcon className="shrink-0" size={19} />
+                      {!collapsed && (
+                        <span className="min-w-0 flex-1 truncate">
+                          {item.label}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <NavLink
+                      className={({ isActive }) =>
+                        `group flex min-h-10 min-w-0 flex-1 items-center rounded-lg px-2.5 text-[13px] font-medium transition duration-200 focus-visible:outline-2 focus-visible:outline-cyan-300 ${
+                          isActive || moduleActive
+                            ? "bg-[#4a87cb] text-white shadow-sm"
+                            : "text-blue-50 hover:translate-x-0.5 hover:bg-white/12 hover:text-white"
+                        } ${collapsed ? "justify-center" : "gap-3"}`
+                      }
+                      to={item.path}
+                      onClick={onNavigate}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <ItemIcon className="shrink-0" size={19} />
+                      {!collapsed && (
+                        <span className="min-w-0 flex-1 truncate">
+                          {item.label}
+                        </span>
+                      )}
+                    </NavLink>
+                  )}
                   {!collapsed && childItems.length > 0 && (
                     <button
                       aria-expanded={childExpanded}
@@ -304,7 +324,7 @@ export default function AppLayout() {
       }
     }
     setNotificationOpen(false);
-    navigate(notification.actionUrl || "/notifications");
+    navigate(notificationPathForUser(user, notification));
   }
 
   const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";

@@ -51,17 +51,23 @@ rename, or remove either IAP risk system.
 `ResourcePlanningGateway` is the only AEMS resource dependency. The configured
 provider reports competency/certification claims, availability and leave or
 training conflicts, workload/capacity, planned and actual person-days, and
-reconciliation/provider status. The explicit modes are:
+provider health. The only operational mode is
+`ARMIS_AUTHORITATIVE`. Historical shadow and IAP fallback values may appear in
+old reconciliation snapshots, but they are not runtime options, active read
+providers, or user actions.
 
-- `IAP_INTERIM_FALLBACK` (default and safe fallback);
-- `ARMIS_SHADOW` (ARMIS is observed while IAP remains active);
-- `ARMIS_AUTHORITATIVE` (only after the independent reconciliation and
-  authority gate).
+Resource ownership is no longer split: ARMIS owns profiles, competencies,
+certifications, availability/leave/training, capacity, workload, assignments,
+and actual person-days. IAP remains the planning and lineage owner and reads
+those ARMIS records without writing its historical resource tables. Use
+`php artisan armis:resource-backfill --approve --activate` for an existing
+environment after reviewing the immutable cutover decision.
 
 Missing or stale ARMIS data cannot silently approve a team assignment. AEMS
-team safeguards and completion reconciliation record the active provider,
-authority eligibility, and reconciliation result. No automatic provider switch
-or approval is performed.
+team safeguards and completion effort checks read current ARMIS records only.
+Historical provider-reconciliation snapshots are not required for readiness.
+Provider switching is disabled; no automatic or manual provider switch is
+performed.
 
 ## CMS boundary
 

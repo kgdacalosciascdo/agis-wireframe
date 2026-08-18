@@ -151,6 +151,27 @@ class AemsFoundationG2Test extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('areaCoverage');
     }
 
+    public function test_scope_rejects_non_positive_focus_ids_before_pivot_write(): void
+    {
+        $management = $this->user('departmenthead');
+        $source = $this->approvedSource($management);
+        $area = $source->auditAreas->firstOrFail();
+
+        Sanctum::actingAs($management);
+        $engagementId = $this->postJson('/api/aems/engagements/import', [
+            'iapPlanEngagementId' => $source->id,
+        ])->assertCreated()->json('data.engagement.id');
+
+        $this->putJson("/api/aems/engagements/{$engagementId}/scope", [
+            'officeId' => $source->offices->firstOrFail()->id,
+            'areaCoverage' => [[
+                'auditAreaId' => $area->id,
+                'focusIds' => [0],
+            ]],
+            'lockVersion' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('areaCoverage.0.focusIds.0');
+    }
+
     private function user(string $username): \App\Models\User
     {
         return \App\Models\User::query()->where('username', $username)->firstOrFail();

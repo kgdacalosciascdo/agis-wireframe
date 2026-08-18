@@ -33,7 +33,7 @@ class CoreModuleTest extends TestCase
     {
         $this->assertDatabaseCount('offices', 43);
         $this->assertDatabaseCount('roles', 6);
-        $this->assertDatabaseCount('users', 89);
+        $this->assertDatabaseCount('users', 97);
         $this->assertDatabaseCount('audit_areas', 10);
         $this->assertDatabaseCount('master_lists', 23);
         $this->assertDatabaseCount('system_configurations', 43);
@@ -127,7 +127,7 @@ class CoreModuleTest extends TestCase
 
         $this->getJson('/api/audit-areas')->assertOk()->assertJsonCount(10, 'data.auditAreas');
         $this->getJson('/api/audit-focuses')->assertOk();
-        $this->getJson('/api/users')->assertOk()->assertJsonCount(89, 'data.users');
+        $this->getJson('/api/users')->assertOk()->assertJsonCount(97, 'data.users');
         $this->getJson('/api/roles')->assertOk()->assertJsonCount(6, 'data.roles');
         $this->getJson('/api/permissions')->assertOk()->assertJsonCount(473, 'data.permissions');
         $this->getJson('/api/master-lists')->assertOk()->assertJsonCount(23, 'data.masterLists');
@@ -286,7 +286,7 @@ class CoreModuleTest extends TestCase
         $this->assertTrue(Hash::check('new-lala', $user->fresh()->password));
 
         $profileLog = ActivityLog::query()->where('action', 'profile.updated')->firstOrFail();
-        $this->assertSame('Marrisa Barcelona', $profileLog->old_values['name']);
+        $this->assertSame('Marissa Barcellona', $profileLog->old_values['name']);
         $this->assertSame('Marissa B. Barcelona', $profileLog->new_values['name']);
         $this->assertDatabaseHas('activity_logs', [
             'subject_user_id' => $user->id,

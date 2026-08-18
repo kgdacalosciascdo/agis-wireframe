@@ -18,6 +18,9 @@ use App\Models\AemsProcessFlowDocument;
 use App\Models\AemsRiskMatrix;
 use App\Models\AemsRiskMatrixItem;
 use App\Models\AemsRiskWorkingPaperLink;
+use App\Models\AemsTeamSafeguardDeclaration;
+use App\Models\ArmisCapacitySubmission;
+use App\Models\ArmisResourceProfile;
 use App\Models\EngagementEvent;
 use App\Models\EngagementTeam;
 use App\Models\EntryConference;
@@ -41,6 +44,65 @@ class AemsEngagementLifecycleTest extends TestCase
         config(['demo.enabled' => true]);
         $this->seed(DatabaseSeeder::class);
         Storage::fake('local');
+    }
+
+    public function test_lifecycle_workspace_is_readable_through_the_engagement_policy(): void
+    {
+        [$management, , , $engagement] = $this->engagement('DRAFT');
+        Sanctum::actingAs($management);
+
+        $this->getJson("/api/aems/engagements/{$engagement->id}/lifecycle")
+            ->assertOk()
+            ->assertJsonPath('data.engagement.status', 'DRAFT')
+            ->assertJsonStructure(['data' => ['actions', 'states', 'timeline']]);
+    }
+
+    public function test_sole_cias_head_can_authorize_an_issued_aeo_and_start_planning(): void
+    {
+        [$management, $auditor, , $engagement] = $this->engagement('DRAFT');
+        $engagement->update([
+            'created_by' => $management->id,
+            'updated_by' => $management->id,
+        ]);
+        Sanctum::actingAs($management);
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/PREPARE_AUTHORIZATION",
+            ['lockVersion' => 1],
+        )->assertOk()->assertJsonPath('data.engagement.status', 'AUTHORIZATION_PREPARATION');
+
+        $this->installRequiredTeamAndAeo($engagement, $management, $auditor);
+        AuditEngagementOrder::query()
+            ->where('audit_engagement_id', $engagement->id)
+            ->update([
+                'prepared_by' => $management->id,
+                'approved_by' => $management->id,
+                'issued_by' => $management->id,
+            ]);
+
+        $workspace = $this->getJson("/api/aems/engagements/{$engagement->id}/lifecycle")
+            ->assertOk()
+            ->json('data');
+        $authorize = collect($workspace['actions'])->firstWhere('action', 'ISSUE_AUTHORIZATION');
+        $this->assertNotNull($authorize);
+        $this->assertTrue($authorize['canExecute']);
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/ISSUE_AUTHORIZATION",
+            ['lockVersion' => 2],
+        )->assertOk()->assertJsonPath('data.engagement.status', 'AUTHORIZED');
+
+        $planningWorkspace = $this->getJson("/api/aems/engagements/{$engagement->id}/lifecycle")
+            ->assertOk()
+            ->json('data');
+        $startPlanning = collect($planningWorkspace['actions'])->firstWhere('action', 'START_PLANNING');
+        $this->assertNotNull($startPlanning);
+        $this->assertTrue($startPlanning['canExecute']);
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/START_PLANNING",
+            ['lockVersion' => 3],
+        )->assertOk()->assertJsonPath('data.engagement.status', 'ENGAGEMENT_PLANNING');
     }
 
     public function test_authoritative_lifecycle_enforces_child_gates_locking_and_records_all_logs(): void
@@ -413,6 +475,84 @@ class AemsEngagementLifecycleTest extends TestCase
                     'is_active' => true,
                 ],
             );
+        }
+
+        // The lifecycle gate now reads ARMIS as the authoritative resource
+        // provider. Keep this fixture explicit about the provider records and
+        // accepted safeguards it needs; the legacy IAP ledgers are not used
+        // to make an engagement authorization decision anymore.
+        $team = EngagementTeam::query()
+            ->where('audit_engagement_id', $engagement->id)
+            ->where('is_active', true)
+            ->get();
+        foreach ($team as $member) {
+            $member->update(['planned_person_days' => 5]);
+            $profile = ArmisResourceProfile::withTrashed()
+                ->where('user_id', $member->user_id)
+                ->latest('id')
+                ->first();
+            if (! $profile) {
+                $profile = ArmisResourceProfile::query()->create([
+                    'resource_code' => 'ARMIS-LIFECYCLE-'.$member->user_id,
+                    'user_id' => $member->user_id,
+                    'office_id' => $member->user?->office_id,
+                    'category' => $member->assignment_role_code === 'REVIEWER' ? 'REVIEWER' : 'AUDIT_RESOURCE',
+                    'status' => 'ACTIVE',
+                    'effective_from' => today(),
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                ]);
+            } else {
+                if ($profile->trashed()) {
+                    $profile->restore();
+                }
+                $profile->update([
+                    'status' => 'ACTIVE',
+                    'office_id' => $member->user?->office_id,
+                    'updated_by' => $management->id,
+                ]);
+            }
+            $capacityExists = ArmisCapacitySubmission::query()
+                ->where('resource_profile_id', $profile->id)
+                ->where('fiscal_year', today()->year)
+                ->where('is_current_revision', true)
+                ->whereIn('status', ['APPROVED', 'LOCKED'])
+                ->exists();
+            if (! $capacityExists) {
+                ArmisCapacitySubmission::query()->create([
+                    'resource_profile_id' => $profile->id,
+                    'fiscal_year' => today()->year,
+                    'version_number' => 1,
+                    'available_person_days' => 180,
+                    'status' => 'APPROVED',
+                    'is_current_revision' => true,
+                    'approved_by' => $management->id,
+                    'approved_at' => now(),
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                ]);
+            }
+            foreach (AemsTeamSafeguardDeclaration::TYPES as $type) {
+                AemsTeamSafeguardDeclaration::query()->create([
+                    'declaration_family_uuid' => (string) str()->uuid(),
+                    'audit_engagement_id' => $engagement->id,
+                    'engagement_team_id' => $member->id,
+                    'user_id' => $member->user_id,
+                    'declaration_type' => $type,
+                    'version_number' => 1,
+                    'is_current_revision' => true,
+                    'outcome' => 'CLEAR',
+                    'statement' => 'Lifecycle test declaration is clear.',
+                    'status' => 'ACCEPTED',
+                    'submitted_by' => $member->user_id,
+                    'submitted_at' => now(),
+                    'reviewed_by' => $member->user_id === $management->id ? $auditor->id : $management->id,
+                    'reviewed_at' => now(),
+                    'review_notes' => 'Accepted for lifecycle gate testing.',
+                    'created_by' => $management->id,
+                    'updated_by' => $management->id,
+                ]);
+            }
         }
         $issuer = $users['REVIEWER'];
         AuditEngagementOrder::query()->create([

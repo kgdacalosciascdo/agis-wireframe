@@ -41,14 +41,28 @@ function titleCase(value = "") {
   return value.replaceAll(".", " ").replaceAll("_", " ");
 }
 
+function fieldLabel(value = "") {
+  return value
+    .replace(/Ids?$/, "")
+    .replaceAll(".", " ")
+    .replaceAll("_", " ")
+    .replace(/([a-z\d])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 function displayValue(value) {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) return value.map(displayValue).join(", ");
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
 
 function changesFor(record) {
+  const oldValues = record.displayOldValues ?? record.oldValues ?? {};
+  const newValues = record.displayNewValues ?? record.newValues ?? {};
   const keys = new Set([
     ...Object.keys(record.oldValues ?? {}),
     ...Object.keys(record.newValues ?? {}),
@@ -61,8 +75,8 @@ function changesFor(record) {
     )
     .map((key) => ({
       key,
-      oldValue: record.oldValues?.[key],
-      newValue: record.newValues?.[key],
+      oldValue: oldValues[key],
+      newValue: newValues[key],
     }));
 }
 
@@ -228,7 +242,7 @@ export default function LogRegistryPage({ icon: PageIcon, mode }) {
               onChange={(event) => changeFilter("search", event.target.value)}
               placeholder={
                 audit
-                  ? "Search actor, action, record type, or record ID..."
+                  ? "Search actor, action, record type, or record value..."
                   : "Search actor, employee ID, action, description, or IP..."
               }
               value={filters.search}
@@ -372,7 +386,7 @@ export default function LogRegistryPage({ icon: PageIcon, mode }) {
                           <>
                             <strong className="block">{record.recordLabel}</strong>
                             <small className="text-slate-500">
-                              {record.recordType} · Record #{record.recordId ?? "N/A"}
+                              {record.recordType}
                             </small>
                           </>
                         ) : (
@@ -459,7 +473,7 @@ export default function LogRegistryPage({ icon: PageIcon, mode }) {
             <dl className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
               <div><dt className="text-xs font-bold uppercase text-slate-400">Actor</dt><dd className="mt-1 font-semibold">{selected.actor} ({selected.actorEmployeeId ?? "System"})</dd></div>
               <div><dt className="text-xs font-bold uppercase text-slate-400">IP address</dt><dd className="mt-1 font-semibold">{selected.ipAddress ?? "—"}</dd></div>
-              {audit && <div><dt className="text-xs font-bold uppercase text-slate-400">Record</dt><dd className="mt-1 font-semibold">{selected.recordType} #{selected.recordId ?? "N/A"}</dd></div>}
+              {audit && <div><dt className="text-xs font-bold uppercase text-slate-400">Record</dt><dd className="mt-1 font-semibold">{selected.recordType} · {selected.recordLabel}</dd></div>}
               {!audit && selected.subject && <div><dt className="text-xs font-bold uppercase text-slate-400">Affected user</dt><dd className="mt-1 font-semibold">{selected.subject} ({selected.subjectEmployeeId})</dd></div>}
               <div className="sm:col-span-2"><dt className="text-xs font-bold uppercase text-slate-400">Browser / client</dt><dd className="mt-1 break-all text-xs text-slate-600">{selected.userAgent ?? "—"}</dd></div>
             </dl>
@@ -472,7 +486,7 @@ export default function LogRegistryPage({ icon: PageIcon, mode }) {
                     <tbody className="divide-y divide-slate-100">
                       {selectedChanges.map((change) => (
                         <tr key={change.key}>
-                          <th className="px-3 py-3 capitalize text-slate-700">{titleCase(change.key)}</th>
+                          <th className="px-3 py-3 text-slate-700">{fieldLabel(change.key)}</th>
                           <td className="max-w-64 break-words px-3 py-3 text-red-600">{displayValue(change.oldValue)}</td>
                           <td className="max-w-64 break-words px-3 py-3 text-emerald-700">{displayValue(change.newValue)}</td>
                         </tr>
@@ -484,10 +498,10 @@ export default function LogRegistryPage({ icon: PageIcon, mode }) {
                 <p className="rounded-lg border border-dashed p-4 text-sm text-slate-500">This event did not change stored field values.</p>
               )}
             </section>
-            {selected.metadata && Object.keys(selected.metadata).length > 0 && (
+            {selected.displayMetadata && Object.keys(selected.displayMetadata).length > 0 && (
               <section>
                 <h3 className="mb-2 font-bold text-slate-800">Event metadata</h3>
-                <pre className="overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-6 text-slate-100">{JSON.stringify(selected.metadata, null, 2)}</pre>
+                <pre className="overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-6 text-slate-100">{JSON.stringify(selected.displayMetadata, null, 2)}</pre>
               </section>
             )}
           </div>

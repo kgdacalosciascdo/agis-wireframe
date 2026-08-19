@@ -93,9 +93,7 @@ export default function AemsDocumentIndexWorkspace({ engagementId }) {
           <div>
             <div className="flex items-center gap-2">
               <FileArchive className="text-sky-700" size={21} />
-              <h3 className="font-bold text-slate-900">
-                Final Document Index
-              </h3>
+              <h3 className="font-bold text-slate-900">Final Document Index</h3>
             </div>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
               Discover eligible engagement records, preserve exact Core
@@ -130,7 +128,8 @@ export default function AemsDocumentIndexWorkspace({ engagementId }) {
         {locked && (
           <div className="mt-4 flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             <LockKeyhole className="shrink-0" size={18} />
-            Final index locked at {new Date(workspace.lockedAt).toLocaleString()}.
+            Final index locked at{" "}
+            {new Date(workspace.lockedAt).toLocaleString()}.
           </div>
         )}
         {error && (
@@ -257,9 +256,7 @@ export default function AemsDocumentIndexWorkspace({ engagementId }) {
                     ) : (
                       <div className="text-xs text-rose-700">
                         <span className="font-bold">EXCLUDED</span>
-                        <p className="mt-1 max-w-56">
-                          {item.exclusionReason}
-                        </p>
+                        <p className="mt-1 max-w-56">{item.exclusionReason}</p>
                       </div>
                     )}
                   </td>

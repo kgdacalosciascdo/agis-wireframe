@@ -386,7 +386,8 @@ export default function IapReportsPage() {
           ) ??
           (nextCatalog.reports ?? []).find(
             (item) => item.code === "audit-universe",
-          ) ?? nextCatalog.reports?.[0];
+          ) ??
+          nextCatalog.reports?.[0];
         if (defaultReport) {
           setSelectedCode(defaultReport.code);
           const requestedPlan = searchParams.get("plan");

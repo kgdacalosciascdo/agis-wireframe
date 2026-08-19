@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ApiError,
-  authApi,
-  runtimeConfigurationApi,
-} from "../services/api";
+import { ApiError, authApi, runtimeConfigurationApi } from "../services/api";
 import { AuthContext } from "./auth-context";
 
 const DEFAULT_RUNTIME_CONFIGURATION = {
@@ -61,10 +57,7 @@ export default function AuthProvider({ children }) {
         const currentUser = await authApi.me();
         if (active) setUser(currentUser);
       } catch (error) {
-        if (
-          active &&
-          (!(error instanceof ApiError) || error.status !== 401)
-        ) {
+        if (active && (!(error instanceof ApiError) || error.status !== 401)) {
           setSessionError(error.message);
         }
       } finally {
@@ -125,7 +118,9 @@ export default function AuthProvider({ children }) {
         const authenticatedUser = await authApi.login(credentials);
 
         if (!authenticatedUser) {
-          throw new ApiError("The server did not return an authenticated user.");
+          throw new ApiError(
+            "The server did not return an authenticated user.",
+          );
         }
 
         setSessionError("");

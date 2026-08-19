@@ -95,10 +95,7 @@ export default function CmsActionPlanForm({
           </div>
           <div className="md:col-span-2">
             <FormField
-              error={firstActionPlanError(
-                errors,
-                "implementationStrategy",
-              )}
+              error={firstActionPlanError(errors, "implementationStrategy")}
               htmlFor="action-plan-strategy"
               label="Implementation strategy"
               hint="Required before submission."
@@ -125,9 +122,7 @@ export default function CmsActionPlanForm({
                 className={textareaClass}
                 id="action-plan-outcome"
                 maxLength={10000}
-                onChange={(event) =>
-                  set("expectedOutcome", event.target.value)
-                }
+                onChange={(event) => set("expectedOutcome", event.target.value)}
                 value={form.expectedOutcome}
               />
             </FormField>
@@ -141,9 +136,7 @@ export default function CmsActionPlanForm({
               className={textareaClass}
               id="action-plan-root-cause"
               maxLength={10000}
-              onChange={(event) =>
-                set("rootCauseResponse", event.target.value)
-              }
+              onChange={(event) => set("rootCauseResponse", event.target.value)}
               value={form.rootCauseResponse}
             />
           </FormField>
@@ -156,9 +149,7 @@ export default function CmsActionPlanForm({
               className={textareaClass}
               id="action-plan-resources"
               maxLength={10000}
-              onChange={(event) =>
-                set("resourcesRequired", event.target.value)
-              }
+              onChange={(event) => set("resourcesRequired", event.target.value)}
               value={form.resourcesRequired}
             />
           </FormField>
@@ -239,9 +230,7 @@ export default function CmsActionPlanForm({
             <input
               className={inputClass}
               id="action-plan-start-date"
-              onChange={(event) =>
-                set("plannedStartDate", event.target.value)
-              }
+              onChange={(event) => set("plannedStartDate", event.target.value)}
               type="date"
               value={form.plannedStartDate}
             />
@@ -260,9 +249,7 @@ export default function CmsActionPlanForm({
               className={inputClass}
               id="action-plan-target-date"
               max={effectiveTargetDate || undefined}
-              onChange={(event) =>
-                set("plannedTargetDate", event.target.value)
-              }
+              onChange={(event) => set("plannedTargetDate", event.target.value)}
               type="date"
               value={form.plannedTargetDate}
             />
@@ -298,11 +285,7 @@ export default function CmsActionPlanForm({
           type="submit"
         >
           <Save size={16} />
-          {busy
-            ? "Saving..."
-            : isCreate
-              ? "Create draft"
-              : "Save draft"}
+          {busy ? "Saving..." : isCreate ? "Create draft" : "Save draft"}
         </button>
       </div>
     </form>

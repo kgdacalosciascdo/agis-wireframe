@@ -52,7 +52,9 @@ function dateInput(value) {
 }
 
 function pretty(value) {
-  return value?.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value
+    ?.replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function toForm(conference) {
@@ -62,7 +64,10 @@ function toForm(conference) {
     ...conference,
     scheduledStartAt: dateInput(conference.scheduledStartAt),
     scheduledEndAt: dateInput(conference.scheduledEndAt),
-    briefingPaper: { ...emptyRecord.briefingPaper, ...(conference.briefingPaper ?? {}) },
+    briefingPaper: {
+      ...emptyRecord.briefingPaper,
+      ...(conference.briefingPaper ?? {}),
+    },
     participants: conference.participants.map((item) => ({
       userId: item.userId ?? "",
       officeId: item.officeId ?? "",
@@ -94,7 +99,10 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
   });
   const conference = workspace?.conference;
   const canManage = hasPermission(user, "aems.entry-conference.manage");
-  const canAcknowledge = hasPermission(user, "aems.entry-conference.acknowledge");
+  const canAcknowledge = hasPermission(
+    user,
+    "aems.entry-conference.acknowledge",
+  );
   const canWaive =
     hasPermission(user, "aems.entry-conference.waive") &&
     (!conference?.createdBy || conference.createdBy.id !== user?.id);
@@ -121,15 +129,19 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
 
   const availableActions = useMemo(() => {
     if (!conference) return [];
-    const actions = {
-      DRAFT: ["SCHEDULE", "CANCEL"],
-      SCHEDULED: ["RESCHEDULE", "MARK_HELD", "CANCEL"],
-      RESCHEDULED: ["RESCHEDULE", "MARK_HELD", "CANCEL"],
-      HELD: ["CIRCULATE_NOTES"],
-      NOTES_FOR_ACKNOWLEDGEMENT: ["COMPLETE"],
-      ACKNOWLEDGED: ["COMPLETE"],
-    }[conference.status] ?? [];
-    if (canWaive && ["DRAFT", "SCHEDULED", "RESCHEDULED"].includes(conference.status)) {
+    const actions =
+      {
+        DRAFT: ["SCHEDULE", "CANCEL"],
+        SCHEDULED: ["RESCHEDULE", "MARK_HELD", "CANCEL"],
+        RESCHEDULED: ["RESCHEDULE", "MARK_HELD", "CANCEL"],
+        HELD: ["CIRCULATE_NOTES"],
+        NOTES_FOR_ACKNOWLEDGEMENT: ["COMPLETE"],
+        ACKNOWLEDGED: ["COMPLETE"],
+      }[conference.status] ?? [];
+    if (
+      canWaive &&
+      ["DRAFT", "SCHEDULED", "RESCHEDULED"].includes(conference.status)
+    ) {
       actions.push("WAIVE");
     }
     return actions;
@@ -173,11 +185,13 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
       }
       if (action === "MARK_HELD") {
         payload.heldAt = actionForm.heldAt;
-        payload.participantAttendance = conference.participants.map((participant) => ({
-          participantId: participant.id,
-          attendanceStatus:
-            actionForm[`attendance-${participant.id}`] ?? "ATTENDED",
-        }));
+        payload.participantAttendance = conference.participants.map(
+          (participant) => ({
+            participantId: participant.id,
+            attendanceStatus:
+              actionForm[`attendance-${participant.id}`] ?? "ATTENDED",
+          }),
+        );
       }
       const saved = await aemsEntryConferenceApi.transition(
         engagementId,
@@ -242,35 +256,63 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
 
   if (loading) {
     return (
-      <div className="grid min-h-72 place-items-center" data-testid="entry-conference-loading">
+      <div
+        className="grid min-h-72 place-items-center"
+        data-testid="entry-conference-loading"
+      >
         <LoaderCircle className="animate-spin text-sky-700" size={30} />
       </div>
     );
   }
 
   if (!workspace) {
-    return <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div>;
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">
+        {error}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5" data-testid="entry-conference-workspace">
       {error && (
-        <div className={`rounded-xl border p-4 text-sm font-semibold ${conflict ? "border-amber-300 bg-amber-50 text-amber-800" : "border-red-200 bg-red-50 text-red-700"}`} role="alert">
+        <div
+          className={`rounded-xl border p-4 text-sm font-semibold ${conflict ? "border-amber-300 bg-amber-50 text-amber-800" : "border-red-200 bg-red-50 text-red-700"}`}
+          role="alert"
+        >
           {conflict && <strong className="block">Stale-state conflict</strong>}
           {error}
-          {conflict && <button className="ml-2 underline" onClick={load} type="button">Refresh</button>}
+          {conflict && (
+            <button className="ml-2 underline" onClick={load} type="button">
+              Refresh
+            </button>
+          )}
         </div>
       )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Official PGIAM gate</p>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">Entry Conference (Entrance Conference)</h2>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              Official PGIAM gate
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">
+              Entry Conference (Entrance Conference)
+            </h2>
           </div>
           <div className="flex items-center gap-2">
-            {conference && <StatusBadge tone={conference.immutable ? "success" : "info"}>{pretty(conference.status)}</StatusBadge>}
-            {conference?.immutable && <LockKeyhole className="text-emerald-700" size={18} aria-label="Immutable record" />}
+            {conference && (
+              <StatusBadge tone={conference.immutable ? "success" : "info"}>
+                {pretty(conference.status)}
+              </StatusBadge>
+            )}
+            {conference?.immutable && (
+              <LockKeyhole
+                className="text-emerald-700"
+                size={18}
+                aria-label="Immutable record"
+              />
+            )}
             {canManage && !conference?.immutable && (
               <button
                 className="rounded-lg bg-sky-700 px-3 py-2 text-xs font-bold text-white"
@@ -284,31 +326,54 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
         </div>
         {!conference ? (
           <p className="mt-5 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
-            Start the aggregate Entry Conference stage, then create the official record here.
+            Start the aggregate Entry Conference stage, then create the official
+            record here.
           </p>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl bg-slate-50 p-4">
               <CalendarClock className="text-sky-700" size={20} />
-              <strong className="mt-2 block text-sm text-slate-800">Schedule</strong>
+              <strong className="mt-2 block text-sm text-slate-800">
+                Schedule
+              </strong>
               <span className="text-xs text-slate-600">
-                {conference.scheduledStartAt ? new Date(conference.scheduledStartAt).toLocaleString() : "Not scheduled"}
+                {conference.scheduledStartAt
+                  ? new Date(conference.scheduledStartAt).toLocaleString()
+                  : "Not scheduled"}
               </span>
-              <p className="mt-1 text-xs text-slate-500">{conference.venue || conference.meetingLink || "Venue pending"}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {conference.venue || conference.meetingLink || "Venue pending"}
+              </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
               <Users className="text-sky-700" size={20} />
-              <strong className="mt-2 block text-sm text-slate-800">Participants</strong>
-              <span className="text-xs text-slate-600">{conference.participants.length} invited</span>
+              <strong className="mt-2 block text-sm text-slate-800">
+                Participants
+              </strong>
+              <span className="text-xs text-slate-600">
+                {conference.participants.length} invited
+              </span>
               <p className="mt-1 text-xs text-slate-500">
-                {conference.participants.filter((item) => item.attendanceStatus === "ATTENDED").length} attended
+                {
+                  conference.participants.filter(
+                    (item) => item.attendanceStatus === "ATTENDED",
+                  ).length
+                }{" "}
+                attended
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
               <FileText className="text-sky-700" size={20} />
-              <strong className="mt-2 block text-sm text-slate-800">Governed records</strong>
-              <span className="text-xs text-slate-600">{conference.attachments.length} immutable file versions</span>
-              <p className="mt-1 text-xs text-slate-500">{conference.matters.length} matters · {conference.agreements.length} agreements</p>
+              <strong className="mt-2 block text-sm text-slate-800">
+                Governed records
+              </strong>
+              <span className="text-xs text-slate-600">
+                {conference.attachments.length} immutable file versions
+              </span>
+              <p className="mt-1 text-xs text-slate-500">
+                {conference.matters.length} matters ·{" "}
+                {conference.agreements.length} agreements
+              </p>
             </div>
           </div>
         )}
@@ -319,61 +384,111 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="font-bold text-slate-900">Workflow actions</h3>
-              <button className="inline-flex items-center gap-2 text-xs font-bold text-sky-700" onClick={load} type="button">
+              <button
+                className="inline-flex items-center gap-2 text-xs font-bold text-sky-700"
+                onClick={load}
+                type="button"
+              >
                 <RefreshCw size={14} /> Refresh
               </button>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2" data-testid="entry-conference-actions">
-              {canManage && availableActions.map((item) => (
-                <button
-                  className={`rounded-lg px-3 py-2 text-xs font-bold ${item === "WAIVE" ? "border border-amber-300 bg-amber-50 text-amber-800" : "bg-sky-700 text-white"}`}
-                  key={item}
-                  onClick={() => {
-                    setAction(item);
-                    setActionForm({});
-                  }}
-                  type="button"
-                >
-                  {pretty(item)}
-                </button>
-              ))}
-              {canAcknowledge && ["NOTES_FOR_ACKNOWLEDGEMENT", "ACKNOWLEDGED"].includes(conference.status) && (
-                <button className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white" onClick={() => setAction("ACKNOWLEDGE")} type="button">
-                  Acknowledge notes
-                </button>
-              )}
-              {!availableActions.length && !["NOTES_FOR_ACKNOWLEDGEMENT", "ACKNOWLEDGED"].includes(conference.status) && (
-                <span className="text-sm text-slate-500">No action is available at this status.</span>
-              )}
+            <div
+              className="mt-4 flex flex-wrap gap-2"
+              data-testid="entry-conference-actions"
+            >
+              {canManage &&
+                availableActions.map((item) => (
+                  <button
+                    className={`rounded-lg px-3 py-2 text-xs font-bold ${item === "WAIVE" ? "border border-amber-300 bg-amber-50 text-amber-800" : "bg-sky-700 text-white"}`}
+                    key={item}
+                    onClick={() => {
+                      setAction(item);
+                      setActionForm({});
+                    }}
+                    type="button"
+                  >
+                    {pretty(item)}
+                  </button>
+                ))}
+              {canAcknowledge &&
+                ["NOTES_FOR_ACKNOWLEDGEMENT", "ACKNOWLEDGED"].includes(
+                  conference.status,
+                ) && (
+                  <button
+                    className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white"
+                    onClick={() => setAction("ACKNOWLEDGE")}
+                    type="button"
+                  >
+                    Acknowledge notes
+                  </button>
+                )}
+              {!availableActions.length &&
+                !["NOTES_FOR_ACKNOWLEDGEMENT", "ACKNOWLEDGED"].includes(
+                  conference.status,
+                ) && (
+                  <span className="text-sm text-slate-500">
+                    No action is available at this status.
+                  </span>
+                )}
             </div>
           </section>
 
           <div className="grid gap-5 xl:grid-cols-2">
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="font-bold text-slate-900">Agenda, briefing, and notes</h3>
+              <h3 className="font-bold text-slate-900">
+                Agenda, briefing, and notes
+              </h3>
               {[
                 ["Agenda", conference.agenda],
                 ["Auditee views", conference.auditeeViews],
                 ["Auditee expectations", conference.auditeeExpectations],
                 ["Entry Conference Notes", conference.conferenceNotes],
-                ["Material matters disposition", conference.materialMattersDisposition],
+                [
+                  "Material matters disposition",
+                  conference.materialMattersDisposition,
+                ],
               ].map(([label, value]) => (
                 <div className="mt-4" key={label}>
-                  <strong className="text-xs uppercase tracking-wide text-slate-400">{label}</strong>
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{value || "Not recorded."}</p>
+                  <strong className="text-xs uppercase tracking-wide text-slate-400">
+                    {label}
+                  </strong>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                    {value || "Not recorded."}
+                  </p>
                 </div>
               ))}
             </section>
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="font-bold text-slate-900">Matters and commitments</h3>
-              {[...conference.matters.map((item) => ({ id: `m-${item.id}`, title: item.description, meta: `${item.isMaterial ? "Material" : "General"} · ${pretty(item.dispositionStatus)}` })),
-                ...conference.agreements.map((item) => ({ id: `a-${item.id}`, title: item.agreement, meta: `Agreement · ${pretty(item.status)}` }))].map((item) => (
-                <div className="mt-3 rounded-lg border border-slate-200 p-3" key={item.id}>
-                  <strong className="block text-sm text-slate-800">{item.title}</strong>
+              <h3 className="font-bold text-slate-900">
+                Matters and commitments
+              </h3>
+              {[
+                ...conference.matters.map((item) => ({
+                  id: `m-${item.id}`,
+                  title: item.description,
+                  meta: `${item.isMaterial ? "Material" : "General"} · ${pretty(item.dispositionStatus)}`,
+                })),
+                ...conference.agreements.map((item) => ({
+                  id: `a-${item.id}`,
+                  title: item.agreement,
+                  meta: `Agreement · ${pretty(item.status)}`,
+                })),
+              ].map((item) => (
+                <div
+                  className="mt-3 rounded-lg border border-slate-200 p-3"
+                  key={item.id}
+                >
+                  <strong className="block text-sm text-slate-800">
+                    {item.title}
+                  </strong>
                   <span className="text-xs text-slate-500">{item.meta}</span>
                 </div>
               ))}
-              {!conference.matters.length && !conference.agreements.length && <p className="mt-4 text-sm text-slate-500">No matter or commitment is recorded.</p>}
+              {!conference.matters.length && !conference.agreements.length && (
+                <p className="mt-4 text-sm text-slate-500">
+                  No matter or commitment is recorded.
+                </p>
+              )}
             </section>
           </div>
 
@@ -476,10 +591,18 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
             <h3 className="font-bold text-slate-900">Immutable history</h3>
             <ol className="mt-4 space-y-3">
               {workspace.history.map((event) => (
-                <li className="border-l-2 border-sky-200 pl-3 text-sm" key={event.id}>
+                <li
+                  className="border-l-2 border-sky-200 pl-3 text-sm"
+                  key={event.id}
+                >
                   <strong>{pretty(event.action)}</strong>
-                  <span className="ml-2 text-xs text-slate-500">{event.actor?.name} · {new Date(event.createdAt).toLocaleString()}</span>
-                  {event.comment && <p className="text-xs text-slate-600">{event.comment}</p>}
+                  <span className="ml-2 text-xs text-slate-500">
+                    {event.actor?.name} ·{" "}
+                    {new Date(event.createdAt).toLocaleString()}
+                  </span>
+                  {event.comment && (
+                    <p className="text-xs text-slate-600">{event.comment}</p>
+                  )}
                 </li>
               ))}
             </ol>
@@ -494,23 +617,105 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
         title={conference ? "Edit Entry Conference" : "Create Entry Conference"}
         footer={
           <>
-            <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold" onClick={() => setEditing(false)} type="button">Cancel</button>
-            <button className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60" disabled={saving} onClick={saveRecord} type="button">{saving ? "Saving…" : "Save record"}</button>
+            <button
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold"
+              onClick={() => setEditing(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              onClick={saveRecord}
+              type="button"
+            >
+              {saving ? "Saving…" : "Save record"}
+            </button>
           </>
         }
       >
-        <div className="grid gap-4 md:grid-cols-2" data-testid="entry-conference-form">
-          <label className="text-sm font-semibold text-slate-700">Scheduled start<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setForm((value) => ({ ...value, scheduledStartAt: event.target.value }))} type="datetime-local" value={form.scheduledStartAt} /></label>
-          <label className="text-sm font-semibold text-slate-700">Scheduled end<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setForm((value) => ({ ...value, scheduledEndAt: event.target.value }))} type="datetime-local" value={form.scheduledEndAt} /></label>
-          <label className="text-sm font-semibold text-slate-700">Venue<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setForm((value) => ({ ...value, venue: event.target.value }))} value={form.venue} /></label>
-          <label className="text-sm font-semibold text-slate-700">Online meeting link<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setForm((value) => ({ ...value, meetingLink: event.target.value }))} value={form.meetingLink} /></label>
-          {[["Agenda", "agenda"], ["Auditee views", "auditeeViews"], ["Auditee expectations", "auditeeExpectations"], ["Entry Conference Notes", "conferenceNotes"], ["Material matters disposition", "materialMattersDisposition"]].map(([label, field]) => (
-            <label className="text-sm font-semibold text-slate-700 md:col-span-2" key={field}>{label}<textarea className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3" onChange={(event) => setForm((value) => ({ ...value, [field]: event.target.value }))} value={form[field]} /></label>
+        <div
+          className="grid gap-4 md:grid-cols-2"
+          data-testid="entry-conference-form"
+        >
+          <label className="text-sm font-semibold text-slate-700">
+            Scheduled start
+            <input
+              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+              onChange={(event) =>
+                setForm((value) => ({
+                  ...value,
+                  scheduledStartAt: event.target.value,
+                }))
+              }
+              type="datetime-local"
+              value={form.scheduledStartAt}
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Scheduled end
+            <input
+              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+              onChange={(event) =>
+                setForm((value) => ({
+                  ...value,
+                  scheduledEndAt: event.target.value,
+                }))
+              }
+              type="datetime-local"
+              value={form.scheduledEndAt}
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Venue
+            <input
+              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+              onChange={(event) =>
+                setForm((value) => ({ ...value, venue: event.target.value }))
+              }
+              value={form.venue}
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Online meeting link
+            <input
+              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+              onChange={(event) =>
+                setForm((value) => ({
+                  ...value,
+                  meetingLink: event.target.value,
+                }))
+              }
+              value={form.meetingLink}
+            />
+          </label>
+          {[
+            ["Agenda", "agenda"],
+            ["Auditee views", "auditeeViews"],
+            ["Auditee expectations", "auditeeExpectations"],
+            ["Entry Conference Notes", "conferenceNotes"],
+            ["Material matters disposition", "materialMattersDisposition"],
+          ].map(([label, field]) => (
+            <label
+              className="text-sm font-semibold text-slate-700 md:col-span-2"
+              key={field}
+            >
+              {label}
+              <textarea
+                className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3"
+                onChange={(event) =>
+                  setForm((value) => ({
+                    ...value,
+                    [field]: event.target.value,
+                  }))
+                }
+                value={form[field]}
+              />
+            </label>
           ))}
           <div className="rounded-xl border border-slate-200 p-4 md:col-span-2">
-            <strong className="text-sm text-slate-800">
-              Briefing paper
-            </strong>
+            <strong className="text-sm text-slate-800">Briefing paper</strong>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {[
                 ["Audit-selection background", "auditSelectionBackground"],
@@ -552,12 +757,110 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
             </div>
           </div>
           <div className="md:col-span-2">
-            <div className="flex items-center justify-between"><strong className="text-sm text-slate-700">Participants</strong><button className="inline-flex items-center gap-1 text-xs font-bold text-sky-700" onClick={() => setForm((value) => ({ ...value, participants: [...value.participants, { userId: "", officeId: "", participantType: "AUDIT_TEAM", participantRole: "", externalName: "", externalEmail: "" }] }))} type="button"><Plus size={14} /> Add participant</button></div>
+            <div className="flex items-center justify-between">
+              <strong className="text-sm text-slate-700">Participants</strong>
+              <button
+                className="inline-flex items-center gap-1 text-xs font-bold text-sky-700"
+                onClick={() =>
+                  setForm((value) => ({
+                    ...value,
+                    participants: [
+                      ...value.participants,
+                      {
+                        userId: "",
+                        officeId: "",
+                        participantType: "AUDIT_TEAM",
+                        participantRole: "",
+                        externalName: "",
+                        externalEmail: "",
+                      },
+                    ],
+                  }))
+                }
+                type="button"
+              >
+                <Plus size={14} /> Add participant
+              </button>
+            </div>
             {form.participants.map((participant, index) => (
-              <div className="mt-2 grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-3" key={`${participant.participantType}-${index}`}>
-                <select className="rounded-lg border border-slate-300 p-2" onChange={(event) => setForm((value) => ({ ...value, participants: value.participants.map((item, itemIndex) => itemIndex === index ? { ...item, participantType: event.target.value } : item) }))} value={participant.participantType}><option value="AUDIT_TEAM">Audit team</option><option value="AUDITEE">Auditee</option><option value="EXTERNAL">External</option></select>
-                {participant.participantType === "EXTERNAL" ? <input className="rounded-lg border border-slate-300 p-2" onChange={(event) => setForm((value) => ({ ...value, participants: value.participants.map((item, itemIndex) => itemIndex === index ? { ...item, externalName: event.target.value } : item) }))} placeholder="External name" value={participant.externalName} /> : <select className="rounded-lg border border-slate-300 p-2" onChange={(event) => setForm((value) => ({ ...value, participants: value.participants.map((item, itemIndex) => itemIndex === index ? { ...item, userId: event.target.value } : item) }))} value={participant.userId}><option value="">Select participant</option>{workspace.references.users.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select>}
-                <input className="rounded-lg border border-slate-300 p-2" onChange={(event) => setForm((value) => ({ ...value, participants: value.participants.map((item, itemIndex) => itemIndex === index ? { ...item, participantRole: event.target.value } : item) }))} placeholder="Conference role" value={participant.participantRole} />
+              <div
+                className="mt-2 grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-3"
+                key={`${participant.participantType}-${index}`}
+              >
+                <select
+                  className="rounded-lg border border-slate-300 p-2"
+                  onChange={(event) =>
+                    setForm((value) => ({
+                      ...value,
+                      participants: value.participants.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, participantType: event.target.value }
+                          : item,
+                      ),
+                    }))
+                  }
+                  value={participant.participantType}
+                >
+                  <option value="AUDIT_TEAM">Audit team</option>
+                  <option value="AUDITEE">Auditee</option>
+                  <option value="EXTERNAL">External</option>
+                </select>
+                {participant.participantType === "EXTERNAL" ? (
+                  <input
+                    className="rounded-lg border border-slate-300 p-2"
+                    onChange={(event) =>
+                      setForm((value) => ({
+                        ...value,
+                        participants: value.participants.map(
+                          (item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, externalName: event.target.value }
+                              : item,
+                        ),
+                      }))
+                    }
+                    placeholder="External name"
+                    value={participant.externalName}
+                  />
+                ) : (
+                  <select
+                    className="rounded-lg border border-slate-300 p-2"
+                    onChange={(event) =>
+                      setForm((value) => ({
+                        ...value,
+                        participants: value.participants.map(
+                          (item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, userId: event.target.value }
+                              : item,
+                        ),
+                      }))
+                    }
+                    value={participant.userId}
+                  >
+                    <option value="">Select participant</option>
+                    {workspace.references.users.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <input
+                  className="rounded-lg border border-slate-300 p-2"
+                  onChange={(event) =>
+                    setForm((value) => ({
+                      ...value,
+                      participants: value.participants.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, participantRole: event.target.value }
+                          : item,
+                      ),
+                    }))
+                  }
+                  placeholder="Conference role"
+                  value={participant.participantRole}
+                />
               </div>
             ))}
           </div>
@@ -851,14 +1154,140 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
         onClose={() => !saving && setAction(null)}
         open={Boolean(action)}
         title={pretty(action)}
-        footer={<><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold" onClick={() => setAction(null)} type="button">Cancel</button><button className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60" disabled={saving} onClick={action === "ACKNOWLEDGE" ? acknowledge : runAction} type="button">{saving ? "Processing…" : "Confirm"}</button></>}
+        footer={
+          <>
+            <button
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold"
+              onClick={() => setAction(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              onClick={action === "ACKNOWLEDGE" ? acknowledge : runAction}
+              type="button"
+            >
+              {saving ? "Processing…" : "Confirm"}
+            </button>
+          </>
+        }
       >
         <div className="space-y-4">
-          {["RESCHEDULE", "CANCEL", "WAIVE"].includes(action) && <label className="block text-sm font-semibold text-slate-700">Reason<textarea className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3" onChange={(event) => setActionForm((value) => ({ ...value, reason: event.target.value }))} value={actionForm.reason ?? ""} /></label>}
-          {action === "WAIVE" && <label className="block text-sm font-semibold text-slate-700">Approving authority<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setActionForm((value) => ({ ...value, authority: event.target.value }))} value={actionForm.authority ?? ""} /></label>}
-          {action === "MARK_HELD" && <><label className="block text-sm font-semibold text-slate-700">Held date and time<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setActionForm((value) => ({ ...value, heldAt: event.target.value }))} type="datetime-local" value={actionForm.heldAt ?? ""} /></label>{conference?.participants.map((participant) => <label className="block text-sm font-semibold text-slate-700" key={participant.id}>{participant.user?.name || participant.externalName}<select className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setActionForm((value) => ({ ...value, [`attendance-${participant.id}`]: event.target.value }))} value={actionForm[`attendance-${participant.id}`] ?? "ATTENDED"}><option value="ATTENDED">Attended</option><option value="ABSENT">Absent</option><option value="EXCUSED">Excused</option></select></label>)}</>}
-          {action === "ACKNOWLEDGE" && <><label className="block text-sm font-semibold text-slate-700">Acknowledgement<select className="mt-1 w-full rounded-lg border border-slate-300 p-2.5" onChange={(event) => setActionForm((value) => ({ ...value, status: event.target.value }))} value={actionForm.status ?? "ACKNOWLEDGED"}><option value="ACKNOWLEDGED">Acknowledge</option><option value="ACKNOWLEDGED_WITH_RESERVATION">Acknowledge with reservation</option></select></label><label className="block text-sm font-semibold text-slate-700">Reservation<textarea className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3" onChange={(event) => setActionForm((value) => ({ ...value, reservation: event.target.value }))} value={actionForm.reservation ?? ""} /></label></>}
-          {action === "CIRCULATE_NOTES" && <div className="flex gap-2 rounded-lg bg-sky-50 p-3 text-sm text-sky-800"><CheckCircle2 size={18} /> Circulate the current immutable Notes version to auditee participants.</div>}
+          {["RESCHEDULE", "CANCEL", "WAIVE"].includes(action) && (
+            <label className="block text-sm font-semibold text-slate-700">
+              Reason
+              <textarea
+                className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3"
+                onChange={(event) =>
+                  setActionForm((value) => ({
+                    ...value,
+                    reason: event.target.value,
+                  }))
+                }
+                value={actionForm.reason ?? ""}
+              />
+            </label>
+          )}
+          {action === "WAIVE" && (
+            <label className="block text-sm font-semibold text-slate-700">
+              Approving authority
+              <input
+                className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+                onChange={(event) =>
+                  setActionForm((value) => ({
+                    ...value,
+                    authority: event.target.value,
+                  }))
+                }
+                value={actionForm.authority ?? ""}
+              />
+            </label>
+          )}
+          {action === "MARK_HELD" && (
+            <>
+              <label className="block text-sm font-semibold text-slate-700">
+                Held date and time
+                <input
+                  className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+                  onChange={(event) =>
+                    setActionForm((value) => ({
+                      ...value,
+                      heldAt: event.target.value,
+                    }))
+                  }
+                  type="datetime-local"
+                  value={actionForm.heldAt ?? ""}
+                />
+              </label>
+              {conference?.participants.map((participant) => (
+                <label
+                  className="block text-sm font-semibold text-slate-700"
+                  key={participant.id}
+                >
+                  {participant.user?.name || participant.externalName}
+                  <select
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+                    onChange={(event) =>
+                      setActionForm((value) => ({
+                        ...value,
+                        [`attendance-${participant.id}`]: event.target.value,
+                      }))
+                    }
+                    value={
+                      actionForm[`attendance-${participant.id}`] ?? "ATTENDED"
+                    }
+                  >
+                    <option value="ATTENDED">Attended</option>
+                    <option value="ABSENT">Absent</option>
+                    <option value="EXCUSED">Excused</option>
+                  </select>
+                </label>
+              ))}
+            </>
+          )}
+          {action === "ACKNOWLEDGE" && (
+            <>
+              <label className="block text-sm font-semibold text-slate-700">
+                Acknowledgement
+                <select
+                  className="mt-1 w-full rounded-lg border border-slate-300 p-2.5"
+                  onChange={(event) =>
+                    setActionForm((value) => ({
+                      ...value,
+                      status: event.target.value,
+                    }))
+                  }
+                  value={actionForm.status ?? "ACKNOWLEDGED"}
+                >
+                  <option value="ACKNOWLEDGED">Acknowledge</option>
+                  <option value="ACKNOWLEDGED_WITH_RESERVATION">
+                    Acknowledge with reservation
+                  </option>
+                </select>
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Reservation
+                <textarea
+                  className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 p-3"
+                  onChange={(event) =>
+                    setActionForm((value) => ({
+                      ...value,
+                      reservation: event.target.value,
+                    }))
+                  }
+                  value={actionForm.reservation ?? ""}
+                />
+              </label>
+            </>
+          )}
+          {action === "CIRCULATE_NOTES" && (
+            <div className="flex gap-2 rounded-lg bg-sky-50 p-3 text-sm text-sky-800">
+              <CheckCircle2 size={18} /> Circulate the current immutable Notes
+              version to auditee participants.
+            </div>
+          )}
         </div>
       </Modal>
     </div>

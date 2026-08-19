@@ -205,8 +205,8 @@ export default function ProfilePage() {
             <KeyRound size={20} /> Change password
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Demo accounts initially use <strong>lala</strong>. Enter your current
-            password before selecting a new one with at least{" "}
+            Demo accounts initially use <strong>lala</strong>. Enter your
+            current password before selecting a new one with at least{" "}
             <strong>{runtimeConfig.passwordMinLength} characters</strong>.
           </p>
           <div className="mt-5 grid gap-4">

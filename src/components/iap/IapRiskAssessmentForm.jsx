@@ -1,10 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  Calculator,
-  CircleAlert,
-  Gauge,
-  ShieldAlert,
-} from "lucide-react";
+import { Calculator, CircleAlert, Gauge, ShieldAlert } from "lucide-react";
 import FormField from "../ui/FormField";
 import SearchableSelect from "../ui/SearchableSelect";
 import StatusBadge from "../ui/StatusBadge";
@@ -116,8 +111,7 @@ export default function IapRiskAssessmentForm({
   );
   const weightedScore = form.scores.reduce(
     (sum, score) =>
-      sum +
-      (Number(score.rating || 0) * Number(score.weight || 0)) / 100,
+      sum + (Number(score.rating || 0) * Number(score.weight || 0)) / 100,
     0,
   );
   const calculatedCode = riskCode(weightedScore);
@@ -154,8 +148,7 @@ export default function IapRiskAssessmentForm({
           assessmentDate: form.assessmentDate,
           lastAuditDate: form.lastAuditDate || null,
           inherentRiskNotes: form.inherentRiskNotes.trim() || null,
-          controlEnvironmentNotes:
-            form.controlEnvironmentNotes.trim() || null,
+          controlEnvironmentNotes: form.controlEnvironmentNotes.trim() || null,
           overrideRiskLevelId: form.overrideRiskLevelId
             ? Number(form.overrideRiskLevelId)
             : null,
@@ -179,8 +172,8 @@ export default function IapRiskAssessmentForm({
             Assessment subject
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Each office and audit-area combination may be assessed once per
-            plan revision.
+            Each office and audit-area combination may be assessed once per plan
+            revision.
           </p>
         </div>
         <FormField

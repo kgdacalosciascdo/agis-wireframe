@@ -1,9 +1,4 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  CirclePlus,
-  Trash2,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, CirclePlus, Trash2 } from "lucide-react";
 import FormField from "../ui/FormField";
 import { milestoneWeightState } from "./cms-action-plan";
 
@@ -67,9 +62,7 @@ export default function CmsActionPlanMilestoneEditor({
 
   function removeMilestone(index) {
     onChange(
-      normalizeOrder(
-        milestones.filter((_, candidate) => candidate !== index),
-      ),
+      normalizeOrder(milestones.filter((_, candidate) => candidate !== index)),
     );
   }
 
@@ -203,10 +196,7 @@ export default function CmsActionPlanMilestoneEditor({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
-                  error={firstError(
-                    errors,
-                    `milestones.${index}.title`,
-                  )}
+                  error={firstError(errors, `milestones.${index}.title`)}
                   htmlFor={`milestone-${index}-title`}
                   label="Title"
                   required
@@ -246,10 +236,7 @@ export default function CmsActionPlanMilestoneEditor({
                   />
                 </FormField>
                 <FormField
-                  error={firstError(
-                    errors,
-                    `milestones.${index}.description`,
-                  )}
+                  error={firstError(errors, `milestones.${index}.description`)}
                   htmlFor={`milestone-${index}-description`}
                   label="Description"
                 >
@@ -258,11 +245,7 @@ export default function CmsActionPlanMilestoneEditor({
                     disabled={disabled}
                     id={`milestone-${index}-description`}
                     onChange={(event) =>
-                      updateMilestone(
-                        index,
-                        "description",
-                        event.target.value,
-                      )
+                      updateMilestone(index, "description", event.target.value)
                     }
                     value={milestone.description}
                   />

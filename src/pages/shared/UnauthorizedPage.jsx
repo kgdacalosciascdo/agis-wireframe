@@ -12,7 +12,9 @@ export default function UnauthorizedPage() {
         <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-red-50 text-red-600">
           <ShieldX size={40} />
         </span>
-        <h2 className="mt-6 text-3xl font-bold text-slate-800">Access denied</h2>
+        <h2 className="mt-6 text-3xl font-bold text-slate-800">
+          Access denied
+        </h2>
         <p className="mt-3 text-sm leading-6 text-slate-500">
           Your role does not have permission to view this page. It has also been
           removed from your sidebar navigation.

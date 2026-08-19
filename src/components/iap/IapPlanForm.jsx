@@ -130,9 +130,7 @@ export default function IapPlanForm({
           fiscalYear: Number(form.fiscalYear),
           planningPeriodTypeId: Number(form.planningPeriodTypeId),
           preparedBy: Number(form.preparedBy),
-          coordinatorId: form.coordinatorId
-            ? Number(form.coordinatorId)
-            : null,
+          coordinatorId: form.coordinatorId ? Number(form.coordinatorId) : null,
           planCode: form.planCode.trim() || null,
         });
       }}
@@ -262,9 +260,7 @@ export default function IapPlanForm({
       </section>
 
       <section className="grid gap-4">
-        <h3 className="text-sm font-bold text-slate-800">
-          Planning rationale
-        </h3>
+        <h3 className="text-sm font-bold text-slate-800">Planning rationale</h3>
         <FormField
           error={firstError(errors, "executiveSummary")}
           htmlFor="iap-executive-summary"

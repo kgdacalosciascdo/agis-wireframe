@@ -114,9 +114,7 @@ export default function SiapPlanForm({
     setForm((current) => ({
       ...current,
       objectives: current.objectives.map((objective, objectiveIndex) =>
-        objectiveIndex === index
-          ? { ...objective, [field]: value }
-          : objective,
+        objectiveIndex === index ? { ...objective, [field]: value } : objective,
       ),
     }));
   }
@@ -263,8 +261,8 @@ export default function SiapPlanForm({
           <div>
             <h3 className="font-bold text-slate-800">Strategic objectives</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Every objective must identify an expected outcome and at least
-              one related audit area.
+              Every objective must identify an expected outcome and at least one
+              related audit area.
             </p>
           </div>
           <button
@@ -380,8 +378,7 @@ export default function SiapPlanForm({
               Audit priorities and themes
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              Define the strategic themes that guide annual risk-based
-              planning.
+              Define the strategic themes that guide annual risk-based planning.
             </p>
           </div>
           <button
@@ -466,11 +463,7 @@ export default function SiapPlanForm({
                 <textarea
                   className="min-h-20 rounded-lg border border-slate-300 p-3 sm:col-span-3"
                   onChange={(event) =>
-                    updatePriority(
-                      index,
-                      "expectedOutcome",
-                      event.target.value,
-                    )
+                    updatePriority(index, "expectedOutcome", event.target.value)
                   }
                   placeholder="Expected outcome"
                   required

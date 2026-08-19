@@ -12,9 +12,9 @@ function firstError(errors, key) {
 }
 
 function activeItems(masterLists, code) {
-  return (
-    masterLists.find((list) => list.code === code)?.items ?? []
-  ).filter((item) => item.isActive && !item.isArchived);
+  return (masterLists.find((list) => list.code === code)?.items ?? []).filter(
+    (item) => item.isActive && !item.isArchived,
+  );
 }
 
 function quarterDates(year, quarter) {
@@ -52,10 +52,7 @@ export default function IapPrioritizedEngagementForm({
         ? entry.code === "IMMEDIATE"
         : entry.code === item.riskLevelCode,
     )?.id ?? "";
-  const initialQuarter = Math.min(
-    4,
-    Math.max(1, Number(item.finalRank ?? 1)),
-  );
+  const initialQuarter = Math.min(4, Math.max(1, Number(item.finalRank ?? 1)));
   const [form, setForm] = useState({
     engagementCode: `${plan.planCode}-${String(item.finalRank ?? 1).padStart(2, "0")}`,
     title: item.subjectName,

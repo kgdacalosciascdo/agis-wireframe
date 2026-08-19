@@ -92,7 +92,9 @@ export default function AemsTeamPage() {
         sortDirection: "desc",
       });
       setEngagements(data.engagements);
-      setSelectedId((current) => current || String(data.engagements[0]?.id ?? ""));
+      setSelectedId(
+        (current) => current || String(data.engagements[0]?.id ?? ""),
+      );
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -115,7 +117,9 @@ export default function AemsTeamPage() {
       ]);
       if (teamResult.status === "rejected") throw teamResult.reason;
       setOverview(teamResult.value);
-      setSafeguards(safeguardResult.status === "fulfilled" ? safeguardResult.value : null);
+      setSafeguards(
+        safeguardResult.status === "fulfilled" ? safeguardResult.value : null,
+      );
     } catch (requestError) {
       setError(requestError.message);
       setOverview(null);
@@ -145,7 +149,8 @@ export default function AemsTeamPage() {
   }, [loadTeam]);
 
   useEffect(() => {
-    if (selectedId) setSearchParams({ engagementId: selectedId }, { replace: true });
+    if (selectedId)
+      setSearchParams({ engagementId: selectedId }, { replace: true });
   }, [selectedId, setSearchParams]);
 
   const engagementOptions = engagements.map((engagement) => ({
@@ -287,7 +292,9 @@ export default function AemsTeamPage() {
       sortValue: (row) => row.user?.name,
       render: (row) => (
         <div className="min-w-48">
-          <strong className="block text-sm text-slate-800">{row.user?.name}</strong>
+          <strong className="block text-sm text-slate-800">
+            {row.user?.name}
+          </strong>
           <span className="text-xs text-slate-500">{row.user?.employeeId}</span>
           {!!row.skills?.length && (
             <span className="mt-1 block text-[11px] text-sky-700">
@@ -313,7 +320,8 @@ export default function AemsTeamPage() {
         <div>
           <strong>{row.plannedPersonDays}</strong>
           <span className="block text-[11px] text-slate-500">
-            {row.allocatedPersonDays}/{row.availablePersonDays} annual allocation
+            {row.allocatedPersonDays}/{row.availablePersonDays} annual
+            allocation
           </span>
         </div>
       ),
@@ -422,10 +430,30 @@ export default function AemsTeamPage() {
       {overview && (
         <>
           <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard icon={UsersRound} label="Team members" value={overview.summary.members} tone="sky" />
-            <SummaryCard icon={ShieldCheck} label="Roles filled" value={`${overview.summary.rolesFilled}/4`} tone="emerald" />
-            <SummaryCard icon={CalendarDays} label="Assigned days" value={overview.summary.plannedPersonDays} tone="amber" />
-            <SummaryCard icon={AlertTriangle} label="Warnings" value={overview.warnings.length} tone={overview.warnings.length ? "red" : "slate"} />
+            <SummaryCard
+              icon={UsersRound}
+              label="Team members"
+              value={overview.summary.members}
+              tone="sky"
+            />
+            <SummaryCard
+              icon={ShieldCheck}
+              label="Roles filled"
+              value={`${overview.summary.rolesFilled}/4`}
+              tone="emerald"
+            />
+            <SummaryCard
+              icon={CalendarDays}
+              label="Assigned days"
+              value={overview.summary.plannedPersonDays}
+              tone="amber"
+            />
+            <SummaryCard
+              icon={AlertTriangle}
+              label="Warnings"
+              value={overview.warnings.length}
+              tone={overview.warnings.length ? "red" : "slate"}
+            />
           </section>
 
           {!!overview.warnings.length && (
@@ -454,7 +482,8 @@ export default function AemsTeamPage() {
             <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
               <h2 className="font-bold text-slate-800">Current team</h2>
               <p className="mt-1 text-xs text-slate-500">
-                {overview.engagement.engagementCode} · {overview.engagement.title}
+                {overview.engagement.engagementCode} ·{" "}
+                {overview.engagement.title}
               </p>
             </div>
             <DataTable
@@ -469,15 +498,22 @@ export default function AemsTeamPage() {
             <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
               <h2 className="font-bold text-slate-800">Assignment history</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Append-only assignment, update, reassignment, and removal events.
+                Append-only assignment, update, reassignment, and removal
+                events.
               </p>
             </div>
             <div className="divide-y divide-slate-100">
               {overview.history.map((item) => (
-                <div className="grid gap-2 px-4 py-3 text-xs sm:grid-cols-[9rem_1fr_auto] sm:px-5" key={item.id}>
-                  <strong className="text-sky-800">{roleLabel(item.action)}</strong>
+                <div
+                  className="grid gap-2 px-4 py-3 text-xs sm:grid-cols-[9rem_1fr_auto] sm:px-5"
+                  key={item.id}
+                >
+                  <strong className="text-sky-800">
+                    {roleLabel(item.action)}
+                  </strong>
                   <span className="text-slate-600">
-                    {item.reason || `${item.actor?.name} updated the team assignment.`}
+                    {item.reason ||
+                      `${item.actor?.name} updated the team assignment.`}
                   </span>
                   <span className="text-slate-400">
                     {new Intl.DateTimeFormat("en-PH", {
@@ -491,24 +527,76 @@ export default function AemsTeamPage() {
                 </div>
               ))}
               {!overview.history.length && (
-                <p className="p-5 text-sm text-slate-500">No assignment history yet.</p>
+                <p className="p-5 text-sm text-slate-500">
+                  No assignment history yet.
+                </p>
               )}
             </div>
           </section>
 
           <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
-              <h2 className="font-bold text-slate-800">Amendment authority and access history</h2>
-              <p className="mt-1 text-xs text-slate-500">Every assignment change records authority, consequence assessment, and access grant or revocation.</p>
+              <h2 className="font-bold text-slate-800">
+                Amendment authority and access history
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Every assignment change records authority, consequence
+                assessment, and access grant or revocation.
+              </p>
             </div>
             <div className="grid gap-5 p-4 lg:grid-cols-2 sm:p-5">
               <div className="space-y-2">
-                {(overview.amendments ?? []).map((item) => <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" key={item.id}><strong className="text-sky-800">{roleLabel(item.action)}</strong><p className="mt-1 text-slate-600">{item.reason}</p><p className="mt-1 text-slate-500">Authority: {item.authorityCode} · {item.consequenceAssessment}</p></div>)}
-                {!overview.amendments?.length && <p className="text-sm text-slate-500">No controlled amendments recorded.</p>}
+                {(overview.amendments ?? []).map((item) => (
+                  <div
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+                    key={item.id}
+                  >
+                    <strong className="text-sky-800">
+                      {roleLabel(item.action)}
+                    </strong>
+                    <p className="mt-1 text-slate-600">{item.reason}</p>
+                    <p className="mt-1 text-slate-500">
+                      Authority: {item.authorityCode} ·{" "}
+                      {item.consequenceAssessment}
+                    </p>
+                  </div>
+                ))}
+                {!overview.amendments?.length && (
+                  <p className="text-sm text-slate-500">
+                    No controlled amendments recorded.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
-                {(overview.accessHistory ?? []).map((item) => <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs" key={item.id}><span><strong className="text-slate-700">{item.user?.name}</strong><span className="ml-2 text-slate-500">{roleLabel(item.assignmentRoleCode)}</span></span><span className={item.action === "REVOKED" ? "font-bold text-red-700" : "font-bold text-emerald-700"}>{item.action}</span></div>)}
-                {!overview.accessHistory?.length && <p className="text-sm text-slate-500">No access history recorded.</p>}
+                {(overview.accessHistory ?? []).map((item) => (
+                  <div
+                    className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                    key={item.id}
+                  >
+                    <span>
+                      <strong className="text-slate-700">
+                        {item.user?.name}
+                      </strong>
+                      <span className="ml-2 text-slate-500">
+                        {roleLabel(item.assignmentRoleCode)}
+                      </span>
+                    </span>
+                    <span
+                      className={
+                        item.action === "REVOKED"
+                          ? "font-bold text-red-700"
+                          : "font-bold text-emerald-700"
+                      }
+                    >
+                      {item.action}
+                    </span>
+                  </div>
+                ))}
+                {!overview.accessHistory?.length && (
+                  <p className="text-sm text-slate-500">
+                    No access history recorded.
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -556,7 +644,11 @@ export default function AemsTeamPage() {
               onClick={save}
               type="button"
             >
-              {saving ? "Saving..." : formMode === "reassign" ? "Reassign" : "Save assignment"}
+              {saving
+                ? "Saving..."
+                : formMode === "reassign"
+                  ? "Reassign"
+                  : "Save assignment"}
             </button>
           </>
         }
@@ -570,11 +662,19 @@ export default function AemsTeamPage() {
                   options={candidateOptions}
                   placeholder="Search active CIAS employees..."
                   value={form.userId}
-                  onChange={(value) => setForm((current) => ({ ...current, userId: value }))}
+                  onChange={(value) =>
+                    setForm((current) => ({ ...current, userId: value }))
+                  }
                 />
               </span>
-              {errors.userId && <small className="text-red-600">{errors.userId[0]}</small>}
-              {errors.replacementUserId && <small className="text-red-600">{errors.replacementUserId[0]}</small>}
+              {errors.userId && (
+                <small className="text-red-600">{errors.userId[0]}</small>
+              )}
+              {errors.replacementUserId && (
+                <small className="text-red-600">
+                  {errors.replacementUserId[0]}
+                </small>
+              )}
             </label>
           )}
           <label className="text-sm font-semibold text-slate-700">
@@ -582,13 +682,24 @@ export default function AemsTeamPage() {
             <select
               className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
               value={form.assignmentRoleCode}
-              onChange={(event) => setForm((current) => ({ ...current, assignmentRoleCode: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  assignmentRoleCode: event.target.value,
+                }))
+              }
             >
               {(overview?.roles ?? []).map((role) => (
-                <option key={role.code} value={role.code}>{role.label}</option>
+                <option key={role.code} value={role.code}>
+                  {role.label}
+                </option>
               ))}
             </select>
-            {errors.assignmentRoleCode && <small className="text-red-600">{errors.assignmentRoleCode[0]}</small>}
+            {errors.assignmentRoleCode && (
+              <small className="text-red-600">
+                {errors.assignmentRoleCode[0]}
+              </small>
+            )}
           </label>
           <label className="text-sm font-semibold text-slate-700">
             Planned person-days
@@ -598,7 +709,12 @@ export default function AemsTeamPage() {
               step="0.25"
               type="number"
               value={form.plannedPersonDays}
-              onChange={(event) => setForm((current) => ({ ...current, plannedPersonDays: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  plannedPersonDays: event.target.value,
+                }))
+              }
             />
           </label>
           <label className="text-sm font-semibold text-slate-700">
@@ -607,7 +723,12 @@ export default function AemsTeamPage() {
               className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3"
               type="date"
               value={form.assignedFrom}
-              onChange={(event) => setForm((current) => ({ ...current, assignedFrom: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  assignedFrom: event.target.value,
+                }))
+              }
             />
           </label>
           <label className="text-sm font-semibold text-slate-700">
@@ -616,7 +737,12 @@ export default function AemsTeamPage() {
               className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3"
               type="date"
               value={form.assignedUntil}
-              onChange={(event) => setForm((current) => ({ ...current, assignedUntil: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  assignedUntil: event.target.value,
+                }))
+              }
             />
           </label>
           <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
@@ -624,7 +750,12 @@ export default function AemsTeamPage() {
             <textarea
               className="mt-1.5 min-h-24 w-full rounded-lg border border-slate-300 p-3"
               value={form.assignmentNotes}
-              onChange={(event) => setForm((current) => ({ ...current, assignmentNotes: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  assignmentNotes: event.target.value,
+                }))
+              }
             />
           </label>
           {formMode === "reassign" && (
@@ -633,20 +764,46 @@ export default function AemsTeamPage() {
               <textarea
                 className="mt-1.5 min-h-24 w-full rounded-lg border border-slate-300 p-3"
                 value={form.reason}
-                onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    reason: event.target.value,
+                  }))
+                }
               />
-              {errors.reason && <small className="text-red-600">{errors.reason[0]}</small>}
+              {errors.reason && (
+                <small className="text-red-600">{errors.reason[0]}</small>
+              )}
             </label>
           )}
           {formMode !== "assign" && (
             <>
               <label className="text-sm font-semibold text-slate-700">
                 Amendment authority
-                <input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={form.amendmentAuthority} onChange={(event) => setForm((current) => ({ ...current, amendmentAuthority: event.target.value }))} />
+                <input
+                  className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal"
+                  value={form.amendmentAuthority}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      amendmentAuthority: event.target.value,
+                    }))
+                  }
+                />
               </label>
               <label className="text-sm font-semibold text-slate-700">
                 Consequence assessment
-                <textarea className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 p-3 font-normal" value={form.consequenceAssessment} onChange={(event) => setForm((current) => ({ ...current, consequenceAssessment: event.target.value }))} placeholder="Assess independence, capacity, schedule, and control consequences." />
+                <textarea
+                  className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 p-3 font-normal"
+                  value={form.consequenceAssessment}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      consequenceAssessment: event.target.value,
+                    }))
+                  }
+                  placeholder="Assess independence, capacity, schedule, and control consequences."
+                />
               </label>
             </>
           )}

@@ -4,7 +4,14 @@ namespace App\Http\Controllers\Api\Core;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\AuditArea;
+use App\Models\AuditFocus;
 use App\Models\AuditLog;
+use App\Models\DocumentVersion;
+use App\Models\MasterListItem;
+use App\Models\Office;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\ActivityRecorder;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -63,9 +70,11 @@ class LogController extends Controller
             ->latest()
             ->paginate($filters['perPage']);
 
+        $valueLabels = $this->auditValueLabels(collect($page->items()));
+
         return $this->success([
             'auditLogs' => collect($page->items())
-                ->map(fn (AuditLog $log): array => $this->auditData($log))
+                ->map(fn (AuditLog $log): array => $this->auditData($log, $valueLabels))
                 ->values(),
             'pagination' => $this->pagination($page),
             'summary' => [
@@ -116,21 +125,22 @@ class LogController extends Controller
     {
         abort_unless($request->user()->hasPermission('audit_logs.export'), 403);
         $filters = $this->filters($request, false);
-        $rows = $this->auditQuery($filters)
+        $logs = $this->auditQuery($filters)
             ->with('user:id,name,employee_id')
             ->latest()
             ->limit(10000)
-            ->get()
-            ->map(fn (AuditLog $log): array => [
+            ->get();
+        $valueLabels = $this->auditValueLabels($logs);
+        $rows = $logs->map(fn (AuditLog $log): array => [
                 'Date and Time' => $log->created_at?->format('Y-m-d H:i:s'),
                 'Actor' => $log->user?->name ?? 'System',
                 'Employee ID' => $log->user?->employee_id,
                 'Module' => $this->moduleFor($log->action, $log->metadata),
                 'Action' => $log->action,
                 'Record Type' => $this->recordType($log->auditable_type),
-                'Record ID' => $log->auditable_id,
-                'Old Values' => $this->json($log->old_values),
-                'New Values' => $this->json($log->new_values),
+                'Record' => $this->recordLabel($log),
+                'Old Values' => $this->json($this->displayValues($log->old_values, $valueLabels)),
+                'New Values' => $this->json($this->displayValues($log->new_values, $valueLabels)),
                 'IP Address' => $log->ip_address,
             ]);
 
@@ -251,7 +261,10 @@ class LogController extends Controller
         ];
     }
 
-    private function auditData(AuditLog $log): array
+    /**
+     * @param  array<string, array<int, string>>  $valueLabels
+     */
+    private function auditData(AuditLog $log, array $valueLabels = []): array
     {
         return [
             'id' => $log->id,
@@ -267,7 +280,12 @@ class LogController extends Controller
             'recordLabel' => $this->recordLabel($log),
             'oldValues' => $log->old_values,
             'newValues' => $log->new_values,
+            // Raw values remain available for machine-level audit integrity;
+            // the display values are resolved labels for human review.
+            'displayOldValues' => $this->displayValues($log->old_values, $valueLabels),
+            'displayNewValues' => $this->displayValues($log->new_values, $valueLabels),
             'metadata' => $log->metadata,
+            'displayMetadata' => $this->displayValues($log->metadata, $valueLabels),
             'ipAddress' => $log->ip_address,
             'userAgent' => $log->user_agent,
             'createdAt' => $log->created_at?->toIso8601String(),
@@ -284,12 +302,138 @@ class LogController extends Controller
             }
         }
 
-        return $this->recordType($log->auditable_type).' #'.($log->auditable_id ?? 'N/A');
+        return $this->recordType($log->auditable_type).' (unnamed record)';
     }
 
     private function recordType(?string $type): string
     {
         return $type ? Str::headline(class_basename($type)) : 'System record';
+    }
+
+    /**
+     * Resolve foreign-key values in the current page in bulk. This keeps the
+     * persisted audit payload immutable while avoiding one query per changed
+     * field or log row.
+     *
+     * @param  Collection<int, AuditLog>  $logs
+     * @return array<string, array<int, string>>
+     */
+    private function auditValueLabels(Collection $logs): array
+    {
+        $ids = [
+            'offices' => collect(),
+            'areas' => collect(),
+            'focuses' => collect(),
+            'users' => collect(),
+            'masterLists' => collect(),
+            'roles' => collect(),
+            'permissions' => collect(),
+            'documents' => collect(),
+        ];
+
+        $logs->each(function (AuditLog $log) use (&$ids): void {
+            foreach ([$log->old_values, $log->new_values, $log->metadata] as $values) {
+                $this->collectAuditValueIds($values, $ids);
+            }
+        });
+
+        return [
+            'offices' => Office::withTrashed()->whereIn('id', $ids['offices']->unique())->get(['id', 'code', 'name'])
+                ->mapWithKeys(fn (Office $office): array => [$office->id => $this->codedLabel($office->code, $office->name)])->all(),
+            'areas' => AuditArea::withTrashed()->whereIn('id', $ids['areas']->unique())->get(['id', 'code', 'name'])
+                ->mapWithKeys(fn (AuditArea $area): array => [$area->id => $this->codedLabel($area->code, $area->name)])->all(),
+            'focuses' => AuditFocus::withTrashed()->whereIn('id', $ids['focuses']->unique())->get(['id', 'code', 'name'])
+                ->mapWithKeys(fn (AuditFocus $focus): array => [$focus->id => $this->codedLabel($focus->code, $focus->name)])->all(),
+            'users' => User::withTrashed()->whereIn('id', $ids['users']->unique())->get(['id', 'name', 'employee_id'])
+                ->mapWithKeys(fn (User $user): array => [$user->id => $user->employee_id ? $user->name.' ('.$user->employee_id.')' : $user->name])->all(),
+            'masterLists' => MasterListItem::withTrashed()->whereIn('id', $ids['masterLists']->unique())->get(['id', 'code', 'label'])
+                ->mapWithKeys(fn (MasterListItem $item): array => [$item->id => $this->codedLabel($item->code, $item->label)])->all(),
+            'roles' => Role::withTrashed()->whereIn('id', $ids['roles']->unique())->get(['id', 'code', 'name'])
+                ->mapWithKeys(fn (Role $role): array => [$role->id => $this->codedLabel($role->code, $role->name)])->all(),
+            'permissions' => Permission::whereIn('id', $ids['permissions']->unique())->get(['id', 'code', 'name'])
+                ->mapWithKeys(fn (Permission $permission): array => [$permission->id => $this->codedLabel($permission->code, $permission->name)])->all(),
+            'documents' => DocumentVersion::with(['document:id,title'])->whereIn('id', $ids['documents']->unique())->get(['id', 'document_id', 'version_number', 'version_label', 'original_file_name'])
+                ->mapWithKeys(fn (DocumentVersion $version): array => [
+                    $version->id => ($version->document?->title ?: $version->original_file_name ?: 'Document').' · '.($version->version_label ?: 'Version '.$version->version_number),
+                ])->all(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $values
+     * @param  array<string, Collection<int, int>>  $ids
+     */
+    private function collectAuditValueIds(?array $values, array &$ids): void
+    {
+        if (! is_array($values)) {
+            return;
+        }
+
+        foreach ($values as $key => $value) {
+            $kind = $this->auditValueKind((string) $key);
+            if ($kind && $kind !== 'unknown') {
+                foreach (is_array($value) ? $value : [$value] as $id) {
+                    if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+                        $ids[$kind]->push((int) $id);
+                    }
+                }
+            }
+
+            if (is_array($value) && ! $kind) {
+                $this->collectAuditValueIds($value, $ids);
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $values
+     * @param  array<string, array<int, string>>  $labels
+     * @return array<string, mixed>|null
+     */
+    private function displayValues(?array $values, array $labels): ?array
+    {
+        if (! is_array($values)) {
+            return $values;
+        }
+
+        $display = [];
+        foreach ($values as $key => $value) {
+            $kind = $this->auditValueKind((string) $key);
+            if ($kind && $kind !== 'unknown') {
+                $resolved = collect(is_array($value) ? $value : [$value])
+                    ->map(fn ($id) => $labels[$kind][(int) $id] ?? $id)
+                    ->values();
+                $display[$key] = is_array($value) ? $resolved->all() : $resolved->first();
+            } elseif (is_array($value)) {
+                $display[$key] = $this->displayValues($value, $labels);
+            } else {
+                $display[$key] = $value;
+            }
+        }
+
+        return $display;
+    }
+
+    private function auditValueKind(string $key): ?string
+    {
+        $normalized = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $key));
+
+        return match (true) {
+            preg_match('/(?:^|)officeids?$/', $normalized) === 1 => 'offices',
+            preg_match('/(?:^|)(?:audit)?areaids?$/', $normalized) === 1 => 'areas',
+            preg_match('/(?:^|)(?:audit)?focusids?$/', $normalized) === 1 => 'focuses',
+            $normalized === 'userid' || str_ends_with($normalized, 'userid') || str_ends_with($normalized, 'userids') || str_ends_with($normalized, 'byid') => 'users',
+            in_array($normalized, ['audittypeid', 'engagementtypeid', 'officetypeid', 'auditareatypeid'], true) => 'masterLists',
+            $normalized === 'roleid' || str_ends_with($normalized, 'roleid') => 'roles',
+            $normalized === 'permissionid' || str_ends_with($normalized, 'permissionid') => 'permissions',
+            $normalized === 'documentversionid' || str_ends_with($normalized, 'documentversionids') => 'documents',
+            default => null,
+        };
+    }
+
+    private function codedLabel(?string $code, ?string $label): string
+    {
+        return $code && $label ? $code.' — '.$label : ($label ?: ($code ?: 'Unknown'));
     }
 
     private function moduleFor(string $action, ?array $metadata = null): string

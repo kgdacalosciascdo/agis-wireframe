@@ -234,17 +234,23 @@ export default function IapPlanWorkspacePage() {
     setLoading(true);
     setLoadError("");
     try {
-      const [record, check, lists, officeRecords, riskRecords, prioritizations] =
-        await Promise.all([
+      const [
+        record,
+        check,
+        lists,
+        officeRecords,
+        riskRecords,
+        prioritizations,
+      ] = await Promise.all([
         iapApi.show(planId),
         iapApi.completeness(planId),
         masterListApi.list(),
-          canAssessRisk ? officeApi.list() : Promise.resolve([]),
-          canAssessRisk
-            ? iapApi.listRiskAssessments(planId, { includeArchived: true })
-            : Promise.resolve(null),
-          prioritizationApi.list({ status: "FINALIZED", perPage: 100 }),
-        ]);
+        canAssessRisk ? officeApi.list() : Promise.resolve([]),
+        canAssessRisk
+          ? iapApi.listRiskAssessments(planId, { includeArchived: true })
+          : Promise.resolve(null),
+        prioritizationApi.list({ status: "FINALIZED", perPage: 100 }),
+      ]);
       setPlan(record);
       setCompleteness(check);
       setMasterLists(lists);
@@ -331,10 +337,7 @@ export default function IapPlanWorkspacePage() {
         actions.push("approve");
       }
     }
-    if (
-      plan.status === "APPROVED" &&
-      hasPermission(user, "iap.activate")
-    ) {
+    if (plan.status === "APPROVED" && hasPermission(user, "iap.activate")) {
       actions.push("activate");
     }
     if (plan.status === "ACTIVE" && hasPermission(user, "iap.complete")) {
@@ -352,8 +355,8 @@ export default function IapPlanWorkspacePage() {
   const riskCriteria = useMemo(
     () =>
       (
-        masterLists.find((list) => list.code === "IAP_RISK_CRITERION")
-          ?.items ?? []
+        masterLists.find((list) => list.code === "IAP_RISK_CRITERION")?.items ??
+        []
       ).filter((item) => item.isActive && !item.isArchived),
     [masterLists],
   );
@@ -794,9 +797,9 @@ export default function IapPlanWorkspacePage() {
       ? prioritizationItems
       : prioritizationFilter === "SELECTED"
         ? prioritizationItems.filter((item) => item.decision === "SELECTED")
-      : prioritizationItems.filter(
-          (item) => item.planningState === prioritizationFilter,
-        );
+        : prioritizationItems.filter(
+            (item) => item.planningState === prioritizationFilter,
+          );
   const prioritizationColumns = [
     {
       key: "finalRank",
@@ -1073,9 +1076,8 @@ export default function IapPlanWorkspacePage() {
                   Audit prioritization source
                 </h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Import selected Audit Universe subjects while preserving
-                  their assessment, ranking, decision, office, and audit-area
-                  lineage.
+                  Import selected Audit Universe subjects while preserving their
+                  assessment, ranking, decision, office, and audit-area lineage.
                 </p>
               </div>
               {plan.prioritizationRun && (
@@ -1135,8 +1137,7 @@ export default function IapPlanWorkspacePage() {
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">
-                    No finalized prioritization has been connected to this
-                    plan.
+                    No finalized prioritization has been connected to this plan.
                   </p>
                 )}
               </div>
@@ -1155,35 +1156,35 @@ export default function IapPlanWorkspacePage() {
                           ).length
                         : (prioritizationCounts[state] ?? 0);
                     return (
-                    <button
-                      className={`rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${
-                        prioritizationFilter === state
-                          ? "border-sky-400 bg-white ring-2 ring-sky-100"
-                          : "border-slate-200 bg-white"
-                      }`}
-                      key={state}
-                      onClick={() =>
-                        setPrioritizationFilter((current) =>
-                          current === state ? "ALL" : state,
-                        )
-                      }
-                      type="button"
-                    >
-                      <span
-                        className={`text-2xl font-black ${
-                          tone === "emerald"
-                            ? "text-emerald-700"
-                            : tone === "amber"
-                              ? "text-amber-700"
-                              : "text-slate-700"
+                      <button
+                        className={`rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${
+                          prioritizationFilter === state
+                            ? "border-sky-400 bg-white ring-2 ring-sky-100"
+                            : "border-slate-200 bg-white"
                         }`}
+                        key={state}
+                        onClick={() =>
+                          setPrioritizationFilter((current) =>
+                            current === state ? "ALL" : state,
+                          )
+                        }
+                        type="button"
                       >
-                        {value}
-                      </span>
-                      <span className="ml-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                        {label}
-                      </span>
-                    </button>
+                        <span
+                          className={`text-2xl font-black ${
+                            tone === "emerald"
+                              ? "text-emerald-700"
+                              : tone === "amber"
+                                ? "text-amber-700"
+                                : "text-slate-700"
+                          }`}
+                        >
+                          {value}
+                        </span>
+                        <span className="ml-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                          {label}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
@@ -1277,10 +1278,7 @@ export default function IapPlanWorkspacePage() {
           >
             <div className="flex items-start gap-3">
               {completeness.complete ? (
-                <CheckCircle2
-                  className="shrink-0 text-emerald-700"
-                  size={22}
-                />
+                <CheckCircle2 className="shrink-0 text-emerald-700" size={22} />
               ) : (
                 <ListChecks className="shrink-0 text-amber-700" size={22} />
               )}
@@ -1395,7 +1393,7 @@ export default function IapPlanWorkspacePage() {
           masterLists={masterLists}
           onSubmit={updatePlan}
           plan={plan}
-        users={users}
+          users={users}
         />
       </Modal>
 

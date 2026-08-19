@@ -11,13 +11,7 @@ import {
   RotateCcw,
   Send,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import CmsActionPlanForm from "../../components/cms/CmsActionPlanForm";
@@ -129,8 +123,7 @@ function draftPayload(form, lockVersion) {
       plannedStartDate: milestone.plannedStartDate || null,
       plannedTargetDate: milestone.plannedTargetDate || null,
       weightPercentage:
-        milestone.weightPercentage === "" ||
-        milestone.weightPercentage === null
+        milestone.weightPercentage === "" || milestone.weightPercentage === null
           ? null
           : Number(milestone.weightPercentage),
       displayOrder: index + 1,
@@ -140,10 +133,7 @@ function draftPayload(form, lockVersion) {
 
 function LoadingState() {
   return (
-    <div
-      aria-label="Loading Corrective Action Plan"
-      className="grid gap-4"
-    >
+    <div aria-label="Loading Corrective Action Plan" className="grid gap-4">
       <div className="h-24 animate-pulse rounded-xl bg-slate-200" />
       <div className="h-36 animate-pulse rounded-xl bg-slate-200" />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -273,9 +263,7 @@ export default function CmsActionPlanPage() {
         setNoPlanActions(workspace?.permittedActions ?? []);
         const nextPlan = workspace?.actionPlan ?? null;
         setPlan(nextPlan);
-        setCaseContext(
-          nextPlan?.caseContext ?? workspace?.caseContext ?? null,
-        );
+        setCaseContext(nextPlan?.caseContext ?? workspace?.caseContext ?? null);
         const nextVersion =
           nextPlan?.currentVersion ?? nextPlan?.acceptedVersion ?? null;
         setSelectedVersionId(nextVersion?.id ?? null);
@@ -323,7 +311,8 @@ export default function CmsActionPlanPage() {
           : candidate.name,
       });
     };
-    if (ownerOffice?.code === user?.officeCode && !user?.isLocked) addUser(user);
+    if (ownerOffice?.code === user?.officeCode && !user?.isLocked)
+      addUser(user);
     for (const version of versions) {
       addUser(version.focalUser);
       for (const milestone of version.milestones ?? []) {
@@ -653,20 +642,16 @@ export default function CmsActionPlanPage() {
     hasPermission(user, "cms.action-plan.create");
   const actions = selectedVersion?.availableActions ?? [];
   const canSubmit =
-    actions.includes("submit") &&
-    hasPermission(user, "cms.action-plan.submit");
+    actions.includes("submit") && hasPermission(user, "cms.action-plan.submit");
   const canStartReview =
     actions.includes("start-review") &&
     hasPermission(user, "cms.action-plan.review");
   const canReturn =
-    actions.includes("return") &&
-    hasPermission(user, "cms.action-plan.return");
+    actions.includes("return") && hasPermission(user, "cms.action-plan.return");
   const canAccept =
-    actions.includes("accept") &&
-    hasPermission(user, "cms.action-plan.accept");
+    actions.includes("accept") && hasPermission(user, "cms.action-plan.accept");
   const canRevise =
-    actions.includes("revise") &&
-    hasPermission(user, "cms.action-plan.revise");
+    actions.includes("revise") && hasPermission(user, "cms.action-plan.revise");
 
   return (
     <div className="min-w-0">

@@ -244,12 +244,13 @@ export default function AemsEngagementRegistryPage() {
           engagement.engagementCode,
           engagement.title,
           engagement.specialAuthorityReference,
-          ...engagement.offices.flatMap((office) => [
-            office.code,
-            office.name,
-          ]),
+          ...engagement.offices.flatMap((office) => [office.code, office.name]),
           ...engagement.auditAreas.flatMap((area) => [area.code, area.name]),
-        ].some((value) => String(value ?? "").toLowerCase().includes(query));
+        ].some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(query),
+        );
       const matchesSource =
         !sourceFilter || engagement.sourceType === sourceFilter;
       const matchesStatus =
@@ -485,11 +486,11 @@ export default function AemsEngagementRegistryPage() {
 
   const hasFilters = Boolean(
     search ||
-      sourceFilter ||
-      statusFilter ||
-      phaseFilter ||
-      administrativeFilter ||
-      officeFilter,
+    sourceFilter ||
+    statusFilter ||
+    phaseFilter ||
+    administrativeFilter ||
+    officeFilter,
   );
 
   return (

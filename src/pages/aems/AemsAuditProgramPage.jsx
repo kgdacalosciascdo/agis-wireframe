@@ -30,7 +30,18 @@ import {
 } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 
-const emptyProgram = { title: "", objective: "", auditAreaId: "", auditTypeId: "", auditPeriodStart: "", auditPeriodEnd: "", auditCriteria: "", riskStatementSet: [], samplingApproach: "", plannedWorkingPaperRequirements: [] };
+const emptyProgram = {
+  title: "",
+  objective: "",
+  auditAreaId: "",
+  auditTypeId: "",
+  auditPeriodStart: "",
+  auditPeriodEnd: "",
+  auditCriteria: "",
+  riskStatementSet: [],
+  samplingApproach: "",
+  plannedWorkingPaperRequirements: [],
+};
 const emptyProcedure = {
   id: null,
   procedureCode: "",
@@ -239,26 +250,35 @@ export default function AemsAuditProgramPage() {
       label: `${member.user.name} — ${label(member.role)}`,
       keywords: member.user.employeeId,
     }));
-  const auditAreaOptions = (workspace?.engagement?.auditAreas ?? []).map((area) => ({
-    value: area.id,
-    label: `${area.code ? `${area.code} — ` : ""}${area.name}`,
-    keywords: area.name,
-  }));
-  const auditFocusOptions = (workspace?.engagement?.auditFocuses ?? []).map((focus) => ({
-    value: focus.id,
-    label: `${focus.code ? `${focus.code} — ` : ""}${focus.name}`,
-    keywords: focus.name,
-    auditAreaId: focus.auditAreaId,
-  }));
+  const auditAreaOptions = (workspace?.engagement?.auditAreas ?? []).map(
+    (area) => ({
+      value: area.id,
+      label: `${area.code ? `${area.code} — ` : ""}${area.name}`,
+      keywords: area.name,
+    }),
+  );
+  const auditFocusOptions = (workspace?.engagement?.auditFocuses ?? []).map(
+    (focus) => ({
+      value: focus.id,
+      label: `${focus.code ? `${focus.code} — ` : ""}${focus.name}`,
+      keywords: focus.name,
+      auditAreaId: focus.auditAreaId,
+    }),
+  );
   const auditTypeOptions = workspace?.engagement?.auditType
-    ? [{
-        value: workspace.engagement.auditType.id,
-        label: `${workspace.engagement.auditType.code ? `${workspace.engagement.auditType.code} — ` : ""}${workspace.engagement.auditType.label}`,
-        keywords: workspace.engagement.auditType.label,
-      }]
+    ? [
+        {
+          value: workspace.engagement.auditType.id,
+          label: `${workspace.engagement.auditType.code ? `${workspace.engagement.auditType.code} — ` : ""}${workspace.engagement.auditType.label}`,
+          keywords: workspace.engagement.auditType.label,
+        },
+      ]
     : [];
   const procedureAuditFocusOptions = procedureForm.auditAreaId
-    ? auditFocusOptions.filter((option) => String(option.auditAreaId) === String(procedureForm.auditAreaId))
+    ? auditFocusOptions.filter(
+        (option) =>
+          String(option.auditAreaId) === String(procedureForm.auditAreaId),
+      )
     : auditFocusOptions;
 
   const actions = useMemo(() => {
@@ -289,7 +309,12 @@ export default function AemsAuditProgramPage() {
     }
     if (program.status === "ACTIVE") {
       if (canManage) {
-        available.push(["COMPLETE", "Complete program", CheckCircle2, "success"]);
+        available.push([
+          "COMPLETE",
+          "Complete program",
+          CheckCircle2,
+          "success",
+        ]);
       }
       if (canApprove) {
         available.push(["REVISE", "Create revision", RotateCcw, "warning"]);
@@ -308,7 +333,8 @@ export default function AemsAuditProgramPage() {
         ? { ...emptyProgram, ...program }
         : {
             ...emptyProgram,
-            auditAreaId: engagementAreas.length === 1 ? engagementAreas[0].id : "",
+            auditAreaId:
+              engagementAreas.length === 1 ? engagementAreas[0].id : "",
             auditTypeId: workspace?.engagement?.auditTypeId ?? "",
           },
     );
@@ -353,9 +379,10 @@ export default function AemsAuditProgramPage() {
             ...emptyProcedure,
             sequenceNumber: (program?.procedures.length ?? 0) + 1,
             procedureCode: `PROC-${String((program?.procedures.length ?? 0) + 1).padStart(2, "0")}`,
-            auditAreaId: workspace?.engagement?.auditAreas?.length === 1
-              ? workspace.engagement.auditAreas[0].id
-              : "",
+            auditAreaId:
+              workspace?.engagement?.auditAreas?.length === 1
+                ? workspace.engagement.auditAreas[0].id
+                : "",
           },
     );
     setProcedureOpen(true);
@@ -643,7 +670,9 @@ export default function AemsAuditProgramPage() {
                     {label(program.status)}
                   </StatusBadge>
                   {!program.isCurrentRevision && (
-                    <StatusBadge tone="inactive">Historical baseline</StatusBadge>
+                    <StatusBadge tone="inactive">
+                      Historical baseline
+                    </StatusBadge>
                   )}
                 </div>
                 <h3 className="mt-2 text-lg font-bold text-slate-800">
@@ -883,9 +912,7 @@ export default function AemsAuditProgramPage() {
               </header>
               <div className="divide-y divide-slate-100">
                 {(workspace.programs ?? [])
-                  .filter(
-                    (item) => item.programCode === program.programCode,
-                  )
+                  .filter((item) => item.programCode === program.programCode)
                   .map((item) => (
                     <button
                       className="grid w-full gap-1 px-4 py-3 text-left text-xs hover:bg-slate-50 sm:grid-cols-[7rem_1fr_auto] sm:px-5"
@@ -994,7 +1021,12 @@ export default function AemsAuditProgramPage() {
                 emptyMessage="No audit areas are configured on this engagement. Update its scope first."
                 value={programForm.auditAreaId ?? ""}
                 disabled={auditAreaOptions.length === 0}
-                onChange={(value) => setProgramForm((current) => ({ ...current, auditAreaId: value }))}
+                onChange={(value) =>
+                  setProgramForm((current) => ({
+                    ...current,
+                    auditAreaId: value,
+                  }))
+                }
               />
             </Field>
             <Field label="Audit type">
@@ -1005,13 +1037,65 @@ export default function AemsAuditProgramPage() {
                 emptyMessage="No audit type is configured on this engagement. Update it first."
                 value={programForm.auditTypeId ?? ""}
                 disabled={!workspace?.engagement?.auditTypeId}
-                onChange={(value) => setProgramForm((current) => ({ ...current, auditTypeId: value }))}
+                onChange={(value) =>
+                  setProgramForm((current) => ({
+                    ...current,
+                    auditTypeId: value,
+                  }))
+                }
               />
             </Field>
-            <Field label="Audit period start"><input className={inputClass} type="date" value={programForm.auditPeriodStart ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditPeriodStart: event.target.value }))} /></Field>
-            <Field label="Audit period end"><input className={inputClass} type="date" value={programForm.auditPeriodEnd ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditPeriodEnd: event.target.value }))} /></Field>
-            <Field label="Audit criteria" wide><textarea className={textAreaClass} value={programForm.auditCriteria ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, auditCriteria: event.target.value }))} /></Field>
-            <Field label="Sampling approach" wide><textarea className={textAreaClass} value={programForm.samplingApproach ?? ""} onChange={(event) => setProgramForm((current) => ({ ...current, samplingApproach: event.target.value }))} placeholder="Population, sampling method, and rationale" /></Field>
+            <Field label="Audit period start">
+              <input
+                className={inputClass}
+                type="date"
+                value={programForm.auditPeriodStart ?? ""}
+                onChange={(event) =>
+                  setProgramForm((current) => ({
+                    ...current,
+                    auditPeriodStart: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Audit period end">
+              <input
+                className={inputClass}
+                type="date"
+                value={programForm.auditPeriodEnd ?? ""}
+                onChange={(event) =>
+                  setProgramForm((current) => ({
+                    ...current,
+                    auditPeriodEnd: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Audit criteria" wide>
+              <textarea
+                className={textAreaClass}
+                value={programForm.auditCriteria ?? ""}
+                onChange={(event) =>
+                  setProgramForm((current) => ({
+                    ...current,
+                    auditCriteria: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Sampling approach" wide>
+              <textarea
+                className={textAreaClass}
+                value={programForm.samplingApproach ?? ""}
+                onChange={(event) =>
+                  setProgramForm((current) => ({
+                    ...current,
+                    samplingApproach: event.target.value,
+                  }))
+                }
+                placeholder="Population, sampling method, and rationale"
+              />
+            </Field>
           </div>
         </div>
       </Modal>
@@ -1020,7 +1104,9 @@ export default function AemsAuditProgramPage() {
         open={procedureOpen}
         onClose={() => !saving && setProcedureOpen(false)}
         size="lg"
-        title={procedureForm.id ? "Edit audit procedure" : "Add audit procedure"}
+        title={
+          procedureForm.id ? "Edit audit procedure" : "Add audit procedure"
+        }
         description="Every baseline procedure has a stable number, assigned auditor, target date, expected evidence, and working-paper reference."
         footer={
           <>
@@ -1118,7 +1204,12 @@ export default function AemsAuditProgramPage() {
               emptyMessage="No audit areas are configured on this engagement."
               value={procedureForm.auditAreaId ?? ""}
               disabled={auditAreaOptions.length === 0}
-              onChange={(value) => setProcedureForm((current) => ({ ...current, auditAreaId: value }))}
+              onChange={(value) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  auditAreaId: value,
+                }))
+              }
             />
           </Field>
           <Field label="Audit focus">
@@ -1128,19 +1219,160 @@ export default function AemsAuditProgramPage() {
               searchPlaceholder="Search audit focuses..."
               emptyMessage="No audit focuses are configured for the selected engagement area."
               value={procedureForm.auditFocusId ?? ""}
-              onChange={(value) => setProcedureForm((current) => ({ ...current, auditFocusId: value }))}
+              onChange={(value) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  auditFocusId: value,
+                }))
+              }
             />
           </Field>
-          <Field label="Process name"><input className={inputClass} value={procedureForm.processName ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, processName: event.target.value }))} /></Field>
-          <Field label="Process Flow ID"><input className={inputClass} value={procedureForm.processFlowId ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, processFlowId: event.target.value }))} /></Field>
-          <Field label="Audit method"><input className={inputClass} value={procedureForm.auditMethod ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditMethod: event.target.value }))} placeholder="Inspection, interview, analysis..." /></Field>
-          <Field label="Planned person-days"><input className={inputClass} type="number" min="0" step="0.25" value={procedureForm.plannedPersonDays ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, plannedPersonDays: event.target.value }))} /></Field>
-          <Field label="Procedure criteria" wide><textarea className={textAreaClass} value={procedureForm.auditCriteria ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, auditCriteria: event.target.value }))} /></Field>
-          <Field label="Sampling method"><input className={inputClass} value={procedureForm.samplingRequirement?.method ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, samplingRequirement: { ...current.samplingRequirement, method: event.target.value } }))} /></Field>
-          <Field label="Sample size"><input className={inputClass} type="number" min="0" value={procedureForm.samplingRequirement?.sampleSize ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, samplingRequirement: { ...current.samplingRequirement, sampleSize: event.target.value } }))} /></Field>
-          <Field label="Population" wide><textarea className={textAreaClass} value={procedureForm.samplingRequirement?.population ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, samplingRequirement: { ...current.samplingRequirement, population: event.target.value } }))} /></Field>
-          <Field label="Planned Working Paper reference"><input className={inputClass} value={procedureForm.plannedWorkingPaperRequirement?.reference ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, plannedWorkingPaperRequirement: { ...current.plannedWorkingPaperRequirement, reference: event.target.value } }))} /></Field>
-          <Field label="Planned WP required evidence"><input className={inputClass} value={procedureForm.plannedWorkingPaperRequirement?.requiredEvidence ?? ""} onChange={(event) => setProcedureForm((current) => ({ ...current, plannedWorkingPaperRequirement: { ...current.plannedWorkingPaperRequirement, requiredEvidence: event.target.value } }))} /></Field>
+          <Field label="Process name">
+            <input
+              className={inputClass}
+              value={procedureForm.processName ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  processName: event.target.value,
+                }))
+              }
+            />
+          </Field>
+          <Field label="Process Flow ID">
+            <input
+              className={inputClass}
+              value={procedureForm.processFlowId ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  processFlowId: event.target.value,
+                }))
+              }
+            />
+          </Field>
+          <Field label="Audit method">
+            <input
+              className={inputClass}
+              value={procedureForm.auditMethod ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  auditMethod: event.target.value,
+                }))
+              }
+              placeholder="Inspection, interview, analysis..."
+            />
+          </Field>
+          <Field label="Planned person-days">
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              step="0.25"
+              value={procedureForm.plannedPersonDays ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  plannedPersonDays: event.target.value,
+                }))
+              }
+            />
+          </Field>
+          <Field label="Procedure criteria" wide>
+            <textarea
+              className={textAreaClass}
+              value={procedureForm.auditCriteria ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  auditCriteria: event.target.value,
+                }))
+              }
+            />
+          </Field>
+          <Field label="Sampling method">
+            <input
+              className={inputClass}
+              value={procedureForm.samplingRequirement?.method ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  samplingRequirement: {
+                    ...current.samplingRequirement,
+                    method: event.target.value,
+                  },
+                }))
+              }
+            />
+          </Field>
+          <Field label="Sample size">
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              value={procedureForm.samplingRequirement?.sampleSize ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  samplingRequirement: {
+                    ...current.samplingRequirement,
+                    sampleSize: event.target.value,
+                  },
+                }))
+              }
+            />
+          </Field>
+          <Field label="Population" wide>
+            <textarea
+              className={textAreaClass}
+              value={procedureForm.samplingRequirement?.population ?? ""}
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  samplingRequirement: {
+                    ...current.samplingRequirement,
+                    population: event.target.value,
+                  },
+                }))
+              }
+            />
+          </Field>
+          <Field label="Planned Working Paper reference">
+            <input
+              className={inputClass}
+              value={
+                procedureForm.plannedWorkingPaperRequirement?.reference ?? ""
+              }
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  plannedWorkingPaperRequirement: {
+                    ...current.plannedWorkingPaperRequirement,
+                    reference: event.target.value,
+                  },
+                }))
+              }
+            />
+          </Field>
+          <Field label="Planned WP required evidence">
+            <input
+              className={inputClass}
+              value={
+                procedureForm.plannedWorkingPaperRequirement
+                  ?.requiredEvidence ?? ""
+              }
+              onChange={(event) =>
+                setProcedureForm((current) => ({
+                  ...current,
+                  plannedWorkingPaperRequirement: {
+                    ...current.plannedWorkingPaperRequirement,
+                    requiredEvidence: event.target.value,
+                  },
+                }))
+              }
+            />
+          </Field>
           <Field error={errors.assignedTo} label="Responsible auditor">
             <SearchableSelect
               options={auditorOptions}

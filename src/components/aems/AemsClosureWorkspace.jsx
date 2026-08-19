@@ -107,9 +107,8 @@ export default function AemsClosureWorkspace({ engagementId }) {
     );
   }
 
-  const { engagement, closure, readiness, evaluatedChecklist, cms } =
-    workspace;
-  const actions = closure ? workspace.permittedActions ?? [] : [];
+  const { engagement, closure, readiness, evaluatedChecklist, cms } = workspace;
+  const actions = closure ? (workspace.permittedActions ?? []) : [];
 
   return (
     <div className="space-y-5" data-testid="closure-workspace">
@@ -128,8 +127,8 @@ export default function AemsClosureWorkspace({ engagementId }) {
             </div>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
               Tracker readiness is advisory. Final closure requires the current
-              approved Completion Assessment, an approved Closure record, and
-              an atomic re-evaluation of every authoritative gate.
+              approved Completion Assessment, an approved Closure record, and an
+              atomic re-evaluation of every authoritative gate.
             </p>
           </div>
           <div className="text-right">
@@ -155,8 +154,8 @@ export default function AemsClosureWorkspace({ engagementId }) {
             <div>
               <strong className="block">Immutable closed engagement</strong>
               Official child records and the final document index are locked.
-              Authorized downloads remain available; archive remains a
-              separate records action.
+              Authorized downloads remain available; archive remains a separate
+              records action.
             </div>
           </div>
         )}
@@ -178,10 +177,7 @@ export default function AemsClosureWorkspace({ engagementId }) {
             "Completion assessment",
             closure?.completionAssessmentStatus ?? "MISSING",
           ],
-          [
-            "CMS disposition",
-            `${cms.transferred + cms.excluded}/${cms.total}`,
-          ],
+          ["CMS disposition", `${cms.transferred + cms.excluded}/${cms.total}`],
           [
             "Final document index",
             closure?.documentIndexLockedAt
@@ -190,10 +186,7 @@ export default function AemsClosureWorkspace({ engagementId }) {
                 ? "READY"
                 : "OPEN",
           ],
-          [
-            "Closure status",
-            closure?.statusCode ?? "NOT CREATED",
-          ],
+          ["Closure status", closure?.statusCode ?? "NOT CREATED"],
         ].map(([label, value]) => (
           <div
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -473,11 +466,7 @@ export default function AemsClosureWorkspace({ engagementId }) {
                       "Exact written-authority DocumentVersion ID:",
                     ),
                   );
-                  if (
-                    !reasonCode ||
-                    !reasonText ||
-                    !authorityDocumentVersionId
-                  )
+                  if (!reasonCode || !reasonText || !authorityDocumentVersionId)
                     return;
                   void act(
                     () =>
@@ -508,15 +497,10 @@ export default function AemsClosureWorkspace({ engagementId }) {
                     {item.statusCode.replaceAll("_", " ")}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-slate-600">
-                  {item.reasonText}
-                </p>
+                <p className="mt-2 text-sm text-slate-600">{item.reasonText}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {item.statusCode === "DRAFT" &&
-                    hasPermission(
-                      user,
-                      "aems.engagement.reopen_request",
-                    ) && (
+                    hasPermission(user, "aems.engagement.reopen_request") && (
                       <button
                         className="rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white"
                         onClick={() =>
@@ -537,10 +521,7 @@ export default function AemsClosureWorkspace({ engagementId }) {
                       </button>
                     )}
                   {item.statusCode === "PENDING_APPROVAL" &&
-                    hasPermission(
-                      user,
-                      "aems.engagement.reopen_approve",
-                    ) && (
+                    hasPermission(user, "aems.engagement.reopen_approve") && (
                       <>
                         <button
                           className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white"
@@ -563,9 +544,8 @@ export default function AemsClosureWorkspace({ engagementId }) {
                         <button
                           className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700"
                           onClick={() => {
-                            const reviewComment = window.prompt(
-                              "Rejection reason:",
-                            );
+                            const reviewComment =
+                              window.prompt("Rejection reason:");
                             if (!reviewComment) return;
                             void act(
                               () =>
@@ -588,10 +568,7 @@ export default function AemsClosureWorkspace({ engagementId }) {
                       </>
                     )}
                   {item.statusCode === "APPROVED" &&
-                    hasPermission(
-                      user,
-                      "aems.engagement.reopen_approve",
-                    ) && (
+                    hasPermission(user, "aems.engagement.reopen_approve") && (
                       <button
                         className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white"
                         onClick={() => {

@@ -22,7 +22,10 @@ import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
-import { hasPermission, notificationPathForUser } from "../../config/navigation";
+import {
+  hasPermission,
+  notificationPathForUser,
+} from "../../config/navigation";
 import { notificationApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 import useRecordView from "../../hooks/useRecordView";
@@ -380,7 +383,12 @@ export default function NotificationCenterPage() {
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard icon={Bell} label="Inbox" tone="sky" value={summary.total ?? 0} />
+        <SummaryCard
+          icon={Bell}
+          label="Inbox"
+          tone="sky"
+          value={summary.total ?? 0}
+        />
         <SummaryCard
           icon={Mail}
           label="Unread"
@@ -410,7 +418,10 @@ export default function NotificationCenterPage() {
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="grid gap-3 border-b border-slate-200 p-4 xl:grid-cols-[minmax(20rem,1fr)_11rem_10rem_10rem_10rem_auto]">
           <label className="relative">
-            <Search className="absolute left-3 top-3.5 text-slate-400" size={17} />
+            <Search
+              className="absolute left-3 top-3.5 text-slate-400"
+              size={17}
+            />
             <input
               className={`${inputClass} pl-10`}
               onChange={(event) => changeFilter("search", event.target.value)}
@@ -491,14 +502,19 @@ export default function NotificationCenterPage() {
         {loading ? (
           <div className="space-y-3 p-5">
             {[1, 2, 3, 4].map((item) => (
-              <div className="h-20 animate-pulse rounded-lg bg-slate-100" key={item} />
+              <div
+                className="h-20 animate-pulse rounded-lg bg-slate-100"
+                key={item}
+              />
             ))}
           </div>
         ) : records.length === 0 ? (
           <div className="grid min-h-72 place-items-center p-6 text-center">
             <div>
               <Bell className="mx-auto text-slate-300" size={46} />
-              <p className="mt-3 font-bold text-slate-700">Your inbox is clear</p>
+              <p className="mt-3 font-bold text-slate-700">
+                Your inbox is clear
+              </p>
               <p className="mt-1 text-sm text-slate-500">
                 New assignments, approvals, and reminders will appear here.
               </p>
@@ -560,7 +576,11 @@ export default function NotificationCenterPage() {
                   onClick={() => toggleRead(notification)}
                   type="button"
                 >
-                  {notification.isRead ? <Mail size={17} /> : <MailOpen size={17} />}
+                  {notification.isRead ? (
+                    <Mail size={17} />
+                  ) : (
+                    <MailOpen size={17} />
+                  )}
                 </button>
               </div>
             ))}
@@ -745,12 +765,36 @@ export default function NotificationCenterPage() {
       >
         <div className="space-y-3">
           {[
-            ["inAppEnabled", "In-app notifications", "Master switch for Notification Center delivery."],
-            ["workflowEnabled", "Workflow actions", "Submissions, returns, approvals, and workflow steps."],
-            ["assignmentsEnabled", "Assignments", "Audit team, evidence, and task assignments."],
-            ["dueDatesEnabled", "Deadlines and overdue alerts", "Upcoming and overdue workflow or audit dates."],
-            ["systemEnabled", "System advisories", "Policy, configuration, and service announcements."],
-            ["emailEnabled", "Email delivery", "Prepared for email delivery once mail configuration is enabled."],
+            [
+              "inAppEnabled",
+              "In-app notifications",
+              "Master switch for Notification Center delivery.",
+            ],
+            [
+              "workflowEnabled",
+              "Workflow actions",
+              "Submissions, returns, approvals, and workflow steps.",
+            ],
+            [
+              "assignmentsEnabled",
+              "Assignments",
+              "Audit team, evidence, and task assignments.",
+            ],
+            [
+              "dueDatesEnabled",
+              "Deadlines and overdue alerts",
+              "Upcoming and overdue workflow or audit dates.",
+            ],
+            [
+              "systemEnabled",
+              "System advisories",
+              "Policy, configuration, and service announcements.",
+            ],
+            [
+              "emailEnabled",
+              "Email delivery",
+              "Prepared for email delivery once mail configuration is enabled.",
+            ],
           ].map(([key, label, description]) => (
             <label
               className="flex items-start gap-3 rounded-xl border border-slate-200 p-3"
@@ -768,7 +812,9 @@ export default function NotificationCenterPage() {
                 type="checkbox"
               />
               <span>
-                <strong className="block text-sm text-slate-800">{label}</strong>
+                <strong className="block text-sm text-slate-800">
+                  {label}
+                </strong>
                 <small className="text-xs leading-5 text-slate-500">
                   {description}
                 </small>
@@ -838,7 +884,8 @@ export default function NotificationCenterPage() {
                 busy ||
                 !delivery.title.trim() ||
                 !delivery.message.trim() ||
-                (delivery.targetType === "USER" && delivery.userIds.length === 0) ||
+                (delivery.targetType === "USER" &&
+                  delivery.userIds.length === 0) ||
                 (delivery.targetType === "ROLE" && !delivery.roleId) ||
                 (delivery.targetType === "OFFICE" && !delivery.officeId)
               }

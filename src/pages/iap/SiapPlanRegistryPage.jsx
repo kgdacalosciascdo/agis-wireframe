@@ -25,12 +25,7 @@ import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
 import { hasPermission } from "../../config/navigation";
-import {
-  ApiError,
-  auditAreaApi,
-  siapApi,
-  userApi,
-} from "../../services/api";
+import { ApiError, auditAreaApi, siapApi, userApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 import useRecordView from "../../hooks/useRecordView";
 
@@ -413,7 +408,7 @@ export default function SiapPlanRegistryPage() {
         </span>
       ),
     },
-    ...((canUpdate || canArchive || canRestore)
+    ...(canUpdate || canArchive || canRestore
       ? [
           {
             key: "actions",
@@ -736,33 +731,31 @@ export default function SiapPlanRegistryPage() {
                   Approval and revision history
                 </h3>
                 <div className="mt-3 grid gap-2">
-                  {[...selected.workflowEvents]
-                    .reverse()
-                    .map((event) => (
-                      <article
-                        className="flex gap-3 rounded-lg border border-slate-200 p-3"
-                        key={event.id}
-                      >
-                        <CheckCircle2
-                          className="mt-0.5 shrink-0 text-sky-600"
-                          size={17}
-                        />
-                        <div>
-                          <strong className="text-sm text-slate-800">
-                            {event.action.replaceAll("_", " ")}
-                          </strong>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {event.actor?.name ?? "System"} ·{" "}
-                            {formatDateTime(event.createdAt)}
+                  {[...selected.workflowEvents].reverse().map((event) => (
+                    <article
+                      className="flex gap-3 rounded-lg border border-slate-200 p-3"
+                      key={event.id}
+                    >
+                      <CheckCircle2
+                        className="mt-0.5 shrink-0 text-sky-600"
+                        size={17}
+                      />
+                      <div>
+                        <strong className="text-sm text-slate-800">
+                          {event.action.replaceAll("_", " ")}
+                        </strong>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {event.actor?.name ?? "System"} ·{" "}
+                          {formatDateTime(event.createdAt)}
+                        </p>
+                        {event.comment && (
+                          <p className="mt-2 text-sm leading-5 text-slate-600">
+                            {event.comment}
                           </p>
-                          {event.comment && (
-                            <p className="mt-2 text-sm leading-5 text-slate-600">
-                              {event.comment}
-                            </p>
-                          )}
-                        </div>
-                      </article>
-                    ))}
+                        )}
+                      </div>
+                    </article>
+                  ))}
                 </div>
               </section>
             </div>

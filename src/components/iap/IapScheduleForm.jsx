@@ -71,10 +71,7 @@ export default function IapScheduleForm({
     setForm((current) => ({
       ...current,
       [key]: value,
-      acknowledgeConflicts:
-        key === "acknowledgeConflicts"
-          ? value
-          : false,
+      acknowledgeConflicts: key === "acknowledgeConflicts" ? value : false,
     }));
     if (key !== "acknowledgeConflicts") setConflicts([]);
   }
@@ -204,8 +201,8 @@ export default function IapScheduleForm({
                 : "bg-amber-50 text-amber-800"
             }`}
           >
-            {assignedTotal.toFixed(2)} / {schedule.estimatedPersonDays.toFixed(2)}{" "}
-            person-days
+            {assignedTotal.toFixed(2)} /{" "}
+            {schedule.estimatedPersonDays.toFixed(2)} person-days
           </div>
         </div>
         {firstError(errors, "members") && (
@@ -359,12 +356,10 @@ export default function IapScheduleForm({
       <section className="rounded-xl border border-slate-200 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-800">
-              Conflict check
-            </h3>
+            <h3 className="text-sm font-bold text-slate-800">Conflict check</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Checks auditor dates, office audit overlaps, and annual
-              person-day capacity.
+              Checks auditor dates, office audit overlaps, and annual person-day
+              capacity.
             </p>
           </div>
           <button

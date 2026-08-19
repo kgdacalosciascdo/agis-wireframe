@@ -232,9 +232,7 @@ export default function IapSupportingRecordsPanel({ planId }) {
         attachmentTypeId: upload.attachmentTypeId,
         visibility: upload.visibility,
         planEngagementId:
-          upload.linkedRecordType === "ENGAGEMENT"
-            ? upload.linkedRecordId
-            : "",
+          upload.linkedRecordType === "ENGAGEMENT" ? upload.linkedRecordId : "",
         riskAssessmentId:
           upload.linkedRecordType === "RISK_ASSESSMENT"
             ? upload.linkedRecordId
@@ -364,8 +362,8 @@ export default function IapSupportingRecordsPanel({ planId }) {
         <div className="flex items-start gap-3 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900">
           <LockKeyhole className="mt-0.5 shrink-0" size={18} />
           <span>
-            These records are frozen with the approved plan version. They may
-            be downloaded and reviewed, but changes require a formal revision.
+            These records are frozen with the approved plan version. They may be
+            downloaded and reviewed, but changes require a formal revision.
           </span>
         </div>
       )}
@@ -386,7 +384,9 @@ export default function IapSupportingRecordsPanel({ planId }) {
             className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3"
             key={label}
           >
-            <span className={`grid h-10 w-10 place-items-center rounded-lg bg-slate-50 ${color}`}>
+            <span
+              className={`grid h-10 w-10 place-items-center rounded-lg bg-slate-50 ${color}`}
+            >
               <Icon size={19} />
             </span>
             <div>
@@ -402,7 +402,12 @@ export default function IapSupportingRecordsPanel({ planId }) {
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 pt-3">
         {[
           ["ATTACHMENTS", Paperclip, "Attachments", records.attachments.length],
-          ["COMMENTS", MessageSquareText, "Comments and instructions", records.comments.length],
+          [
+            "COMMENTS",
+            MessageSquareText,
+            "Comments and instructions",
+            records.comments.length,
+          ],
         ].map(([tab, Icon, label, count]) => (
           <button
             className={`inline-flex min-h-10 items-center gap-2 border-b-2 px-3 text-sm font-bold transition ${
@@ -500,7 +505,9 @@ export default function IapSupportingRecordsPanel({ planId }) {
               <tbody className="divide-y divide-slate-100">
                 {filteredAttachments.map((attachment) => (
                   <tr
-                    className={attachment.isArchived ? "bg-slate-50 opacity-75" : ""}
+                    className={
+                      attachment.isArchived ? "bg-slate-50 opacity-75" : ""
+                    }
                     key={attachment.id}
                   >
                     <td className="px-5 py-4">
@@ -513,7 +520,8 @@ export default function IapSupportingRecordsPanel({ planId }) {
                             {attachment.displayName}
                           </strong>
                           <span className="mt-0.5 block text-xs text-slate-500">
-                            {attachment.fileName} · {formatSize(attachment.fileSize)}
+                            {attachment.fileName} ·{" "}
+                            {formatSize(attachment.fileSize)}
                           </span>
                           {attachment.description && (
                             <span className="mt-1 block max-w-lg text-xs leading-5 text-slate-500">
@@ -526,7 +534,8 @@ export default function IapSupportingRecordsPanel({ planId }) {
                     <td className="px-5 py-4">
                       <StatusBadge
                         tone={
-                          typeTones[attachment.attachmentType?.code] ?? "inactive"
+                          typeTones[attachment.attachmentType?.code] ??
+                          "inactive"
                         }
                       >
                         {attachment.attachmentType?.label ?? "Supporting file"}

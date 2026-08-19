@@ -40,8 +40,7 @@ export default function IapAuditUniverseForm({
 }) {
   const [form, setForm] = useState(() => initialForm(item));
   const selectedOffice = offices.find(
-    (office) =>
-      String(office.id) === String(form.responsibleOfficeId),
+    (office) => String(office.id) === String(form.responsibleOfficeId),
   );
 
   const officeOptions = useMemo(
@@ -55,8 +54,7 @@ export default function IapAuditUniverseForm({
     [offices],
   );
   const stakeholderOptions = officeOptions.filter(
-    (option) =>
-      String(option.value) !== String(form.responsibleOfficeId),
+    (option) => String(option.value) !== String(form.responsibleOfficeId),
   );
   const areaOptions = (selectedOffice?.auditAreas ?? []).map((area) => ({
     value: area.id,
@@ -87,8 +85,7 @@ export default function IapAuditUniverseForm({
           auditScope: form.auditScope.trim() || null,
           materialityExposure: form.materialityExposure.trim() || null,
           lastAuditDate: form.lastAuditDate || null,
-          historicalAuditSummary:
-            form.historicalAuditSummary.trim() || null,
+          historicalAuditSummary: form.historicalAuditSummary.trim() || null,
           stakeholderOfficeIds: form.stakeholderOfficeIds.map(Number),
           isActive: form.isActive,
           ...(item ? { lockVersion: form.lockVersion } : {}),

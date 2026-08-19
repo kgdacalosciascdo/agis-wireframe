@@ -64,7 +64,9 @@ function tone(status) {
   if (["FAIL", "RETURNED_FOR_REVISION", "UNSATISFACTORY"].includes(status)) {
     return "border-rose-200 bg-rose-50 text-rose-700";
   }
-  if (["PARTIAL", "PENDING", "PENDING_REVIEW", "RESUBMITTED"].includes(status)) {
+  if (
+    ["PARTIAL", "PENDING", "PENDING_REVIEW", "RESUBMITTED"].includes(status)
+  ) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
   return "border-slate-200 bg-slate-50 text-slate-600";
@@ -103,26 +105,11 @@ export default function AemsCompletionAssessmentWorkspace({ engagementId }) {
   const editable =
     !assessment ||
     ["DRAFT", "RETURNED_FOR_REVISION"].includes(assessment.statusCode);
-  const canCreate = hasPermission(
-    user,
-    "aems.completion-assessment.create",
-  );
-  const canUpdate = hasPermission(
-    user,
-    "aems.completion-assessment.update",
-  );
-  const canSubmit = hasPermission(
-    user,
-    "aems.completion-assessment.submit",
-  );
-  const canReview = hasPermission(
-    user,
-    "aems.completion-assessment.review",
-  );
-  const canApprove = hasPermission(
-    user,
-    "aems.completion-assessment.approve",
-  );
+  const canCreate = hasPermission(user, "aems.completion-assessment.create");
+  const canUpdate = hasPermission(user, "aems.completion-assessment.update");
+  const canSubmit = hasPermission(user, "aems.completion-assessment.submit");
+  const canReview = hasPermission(user, "aems.completion-assessment.review");
+  const canApprove = hasPermission(user, "aems.completion-assessment.approve");
   const unresolved = useMemo(
     () =>
       (assessment?.items ?? []).filter(
@@ -302,9 +289,9 @@ export default function AemsCompletionAssessmentWorkspace({ engagementId }) {
                         [key]: event.target.value,
                       }))
                     }
-                    required={!["limitationsSummary", "lessonsSummary"].includes(
-                      key,
-                    )}
+                    required={
+                      !["limitationsSummary", "lessonsSummary"].includes(key)
+                    }
                     value={form[key]}
                   />
                 </label>
@@ -446,8 +433,8 @@ export default function AemsCompletionAssessmentWorkspace({ engagementId }) {
           {unresolved.length > 0 && (
             <div className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               <AlertTriangle className="mt-0.5 shrink-0" size={17} />
-              {unresolved.length} unresolved blocking assessment item(s)
-              prevent approval.
+              {unresolved.length} unresolved blocking assessment item(s) prevent
+              approval.
             </div>
           )}
           <textarea
@@ -467,17 +454,16 @@ export default function AemsCompletionAssessmentWorkspace({ engagementId }) {
                 <Send size={15} /> Submit
               </button>
             )}
-            {canSubmit &&
-              assessment.statusCode === "RETURNED_FOR_REVISION" && (
-                <button
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-violet-700 px-4 text-sm font-bold text-white"
-                  disabled={busy}
-                  onClick={() => void transition("RESUBMIT")}
-                  type="button"
-                >
-                  <Send size={15} /> Resubmit
-                </button>
-              )}
+            {canSubmit && assessment.statusCode === "RETURNED_FOR_REVISION" && (
+              <button
+                className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-violet-700 px-4 text-sm font-bold text-white"
+                disabled={busy}
+                onClick={() => void transition("RESUBMIT")}
+                type="button"
+              >
+                <Send size={15} /> Resubmit
+              </button>
+            )}
             {canReview &&
               ["PENDING_REVIEW", "RESUBMITTED"].includes(
                 assessment.statusCode,

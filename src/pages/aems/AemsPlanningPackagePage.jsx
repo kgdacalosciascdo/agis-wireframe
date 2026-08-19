@@ -60,13 +60,41 @@ const sections = [
 ];
 
 const surveyFields = [
-  ["purpose", "Purpose and audit objectives", "Describe why the engagement is being performed."],
-  ["background", "Background and understanding", "Capture the office, process, system, and control context."],
-  ["informationSources", "Information sources", "List policies, records, interviews, systems, and other sources."],
-  ["interviews", "Interviews and inquiries", "Summarize people consulted and key information obtained."],
-  ["walkthroughs", "Walkthroughs", "Describe walkthroughs performed and the process points observed."],
-  ["observations", "Preliminary observations", "Record initial conditions, risks, control observations, or limitations."],
-  ["planningImplications", "Planning implications", "Explain how the survey changes the planned work."],
+  [
+    "purpose",
+    "Purpose and audit objectives",
+    "Describe why the engagement is being performed.",
+  ],
+  [
+    "background",
+    "Background and understanding",
+    "Capture the office, process, system, and control context.",
+  ],
+  [
+    "informationSources",
+    "Information sources",
+    "List policies, records, interviews, systems, and other sources.",
+  ],
+  [
+    "interviews",
+    "Interviews and inquiries",
+    "Summarize people consulted and key information obtained.",
+  ],
+  [
+    "walkthroughs",
+    "Walkthroughs",
+    "Describe walkthroughs performed and the process points observed.",
+  ],
+  [
+    "observations",
+    "Preliminary observations",
+    "Record initial conditions, risks, control observations, or limitations.",
+  ],
+  [
+    "planningImplications",
+    "Planning implications",
+    "Explain how the survey changes the planned work.",
+  ],
 ];
 
 const emptySurvey = {
@@ -131,7 +159,10 @@ function listText(value) {
 }
 
 function listValue(value) {
-  return String(value ?? "").split("\n").map((entry) => entry.trim()).filter(Boolean);
+  return String(value ?? "")
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 function makeItem(sequence = 0) {
@@ -168,7 +199,13 @@ function makeItem(sequence = 0) {
 
 function normalizeVersion(version) {
   const matrix = version?.riskMatrix ?? {};
-  const matrices = (version?.riskMatrices?.length ? version.riskMatrices : (version?.riskMatrix ? [version.riskMatrix] : [])).map((entry) => ({
+  const matrices = (
+    version?.riskMatrices?.length
+      ? version.riskMatrices
+      : version?.riskMatrix
+        ? [version.riskMatrix]
+        : []
+  ).map((entry) => ({
     ...emptyForm.riskMatrix,
     code: entry.code ?? "",
     title: entry.title ?? "",
@@ -179,7 +216,10 @@ function normalizeVersion(version) {
     auditFocusId: entry.auditFocusId ?? "",
     matrixType: entry.matrixType ?? "",
     status: entry.status ?? "DRAFT",
-    riskItems: (entry.items ?? entry.riskItems ?? []).map((item, index) => ({ ...makeItem(index), ...item })),
+    riskItems: (entry.items ?? entry.riskItems ?? []).map((item, index) => ({
+      ...makeItem(index),
+      ...item,
+    })),
   }));
   return {
     preliminarySurvey: {
@@ -232,22 +272,41 @@ function normalizeVersion(version) {
       ...makeItem(index),
       ...item,
       objectiveCodes:
-        item.objectiveCodes ?? item.objectives?.map((objective) => objective.code) ?? [],
+        item.objectiveCodes ??
+        item.objectives?.map((objective) => objective.code) ??
+        [],
       procedureIds:
-        item.procedureIds ?? item.procedures?.map((procedure) => procedure.id) ?? [],
+        item.procedureIds ??
+        item.procedures?.map((procedure) => procedure.id) ??
+        [],
       workingPapers: item.workingPapers ?? [],
     })),
     riskMatrices: matrices,
-    kpis: (version?.kpis ?? []).map((kpi, index) => ({ ...kpi, code: kpi.code ?? `KPI-${index + 1}`, sequence: kpi.sequence ?? index })),
-    plannedWorkingPapers: (version?.plannedWorkingPapers ?? []).map((paper, index) => ({ ...paper, reference: paper.reference ?? `WP-${index + 1}`, sequence: paper.sequence ?? index, isRequired: paper.isRequired ?? true })),
+    kpis: (version?.kpis ?? []).map((kpi, index) => ({
+      ...kpi,
+      code: kpi.code ?? `KPI-${index + 1}`,
+      sequence: kpi.sequence ?? index,
+    })),
+    plannedWorkingPapers: (version?.plannedWorkingPapers ?? []).map(
+      (paper, index) => ({
+        ...paper,
+        reference: paper.reference ?? `WP-${index + 1}`,
+        sequence: paper.sequence ?? index,
+        isRequired: paper.isRequired ?? true,
+      }),
+    ),
   };
 }
 
 function Field({ label: fieldLabel, hint, error, wide = false, children }) {
   return (
-    <label className={`text-sm font-semibold text-slate-700 ${wide ? "sm:col-span-2" : ""}`}>
+    <label
+      className={`text-sm font-semibold text-slate-700 ${wide ? "sm:col-span-2" : ""}`}
+    >
       {fieldLabel}
-      {hint && <span className="ml-1 text-xs font-normal text-slate-400">{hint}</span>}
+      {hint && (
+        <span className="ml-1 text-xs font-normal text-slate-400">{hint}</span>
+      )}
       <span className="mt-1.5 block">{children}</span>
       {error && <small className="mt-1 block text-red-600">{error[0]}</small>}
     </label>
@@ -274,11 +333,17 @@ function TextArea({ className = "", ...props }) {
 
 function Panel({ title, description, actions, children, className = "" }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
+    <section
+      className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}
+    >
       <header className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div>
           <h3 className="text-base font-bold text-slate-800">{title}</h3>
-          {description && <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>}
+          {description && (
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              {description}
+            </p>
+          )}
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </header>
@@ -287,13 +352,21 @@ function Panel({ title, description, actions, children, className = "" }) {
   );
 }
 
-function SmallButton({ children, onClick, tone = "secondary", icon: Icon, disabled = false, type = "button" }) {
+function SmallButton({
+  children,
+  onClick,
+  tone = "secondary",
+  icon: Icon,
+  disabled = false,
+  type = "button",
+}) {
   const tones = {
     primary: "bg-sky-700 text-white hover:bg-sky-800",
     success: "bg-emerald-700 text-white hover:bg-emerald-800",
     warning: "bg-amber-500 text-white hover:bg-amber-600",
     danger: "bg-red-600 text-white hover:bg-red-700",
-    secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+    secondary:
+      "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
   };
   return (
     <button
@@ -319,21 +392,33 @@ function EmptyState({ title, description }) {
 
 function ErrorSummary({ errors }) {
   const messages = Object.entries(errors ?? {}).flatMap(([key, values]) =>
-    (Array.isArray(values) ? values : [values]).filter(Boolean).map((message) => `${label(key)}: ${message}`),
+    (Array.isArray(values) ? values : [values])
+      .filter(Boolean)
+      .map((message) => `${label(key)}: ${message}`),
   );
   if (!messages.length) return null;
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+    <div
+      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+      role="alert"
+    >
       <p className="font-bold">Please address the following:</p>
       <ul className="mt-1 list-disc space-y-1 pl-5">
-        {messages.map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}
+        {messages.map((message, index) => (
+          <li key={`${message}-${index}`}>{message}</li>
+        ))}
       </ul>
     </div>
   );
 }
 
 function ReadOnlyBadge({ children = "Read-only approved version" }) {
-  return <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 ring-1 ring-amber-200"><BadgeCheck size={14} />{children}</span>;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
+      <BadgeCheck size={14} />
+      {children}
+    </span>
+  );
 }
 
 function MetadataGrid({ values }) {
@@ -341,8 +426,12 @@ function MetadataGrid({ values }) {
     <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {values.map(([name, value]) => (
         <div key={name} className="min-w-0">
-          <dt className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{name}</dt>
-          <dd className="mt-1 break-words text-sm font-semibold text-slate-700">{valueOrDash(value)}</dd>
+          <dt className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+            {name}
+          </dt>
+          <dd className="mt-1 break-words text-sm font-semibold text-slate-700">
+            {valueOrDash(value)}
+          </dd>
         </div>
       ))}
     </dl>
@@ -354,8 +443,12 @@ export default function AemsPlanningPackagePage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [engagements, setEngagements] = useState([]);
-  const [selectedId, setSelectedId] = useState(params.get("engagementId") ?? "");
-  const [activeSection, setActiveSection] = useState(params.get("section") ?? "overview");
+  const [selectedId, setSelectedId] = useState(
+    params.get("engagementId") ?? "",
+  );
+  const [activeSection, setActiveSection] = useState(
+    params.get("section") ?? "overview",
+  );
   const [workspace, setWorkspace] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [flowDraft, setFlowDraft] = useState(null);
@@ -378,29 +471,53 @@ export default function AemsPlanningPackagePage() {
   const canApprove = hasPermission(user, "aems.planning-package.approve");
   const canRevise = hasPermission(user, "aems.planning-package.revise");
 
-  const selectedEngagement = engagements.find((engagement) => String(engagement.id) === String(selectedId));
+  const selectedEngagement = engagements.find(
+    (engagement) => String(engagement.id) === String(selectedId),
+  );
   const packageRecord = workspace?.package;
   const currentVersion = packageRecord?.latestVersion;
-  const editable = Boolean(packageRecord?.status && workspace?.capabilities?.canEdit && canUpdate);
-  const versions = packageRecord?.versions ?? (currentVersion ? [currentVersion] : []);
-  const inspectedVersion = versions.find((version) => String(version.versionNumber) === String(selectedVersionNumber)) ?? currentVersion;
-  const compareLeft = versions.find((version) => String(version.versionNumber) === String(compareFrom));
-  const compareRight = versions.find((version) => String(version.versionNumber) === String(compareTo));
+  const editable = Boolean(
+    packageRecord?.status && workspace?.capabilities?.canEdit && canUpdate,
+  );
+  const versions =
+    packageRecord?.versions ?? (currentVersion ? [currentVersion] : []);
+  const inspectedVersion =
+    versions.find(
+      (version) =>
+        String(version.versionNumber) === String(selectedVersionNumber),
+    ) ?? currentVersion;
+  const compareLeft = versions.find(
+    (version) => String(version.versionNumber) === String(compareFrom),
+  );
+  const compareRight = versions.find(
+    (version) => String(version.versionNumber) === String(compareTo),
+  );
 
-  const updateQuery = useCallback((values) => {
-    const next = new URLSearchParams(params);
-    Object.entries(values).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === "") next.delete(key);
-      else next.set(key, String(value));
-    });
-    if (next.toString() !== params.toString()) setParams(next, { replace: true });
-  }, [params, setParams]);
+  const updateQuery = useCallback(
+    (values) => {
+      const next = new URLSearchParams(params);
+      Object.entries(values).forEach(([key, value]) => {
+        if (value === null || value === undefined || value === "")
+          next.delete(key);
+        else next.set(key, String(value));
+      });
+      if (next.toString() !== params.toString())
+        setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
 
   const loadEngagements = useCallback(async () => {
     try {
-      const data = await aemsEngagementApi.list({ perPage: 100, sortBy: "updated_at", sortDirection: "desc" });
+      const data = await aemsEngagementApi.list({
+        perPage: 100,
+        sortBy: "updated_at",
+        sortDirection: "desc",
+      });
       setEngagements(data.engagements);
-      setSelectedId((current) => current || String(data.engagements[0]?.id ?? ""));
+      setSelectedId(
+        (current) => current || String(data.engagements[0]?.id ?? ""),
+      );
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -420,10 +537,18 @@ export default function AemsPlanningPackagePage() {
       const data = await aemsPlanningPackageApi.show(selectedId);
       setWorkspace(data);
       setForm(normalizeVersion(data.package?.latestVersion));
-      setSelectedVersionNumber(String(data.package?.currentVersionNumber ?? ""));
+      setSelectedVersionNumber(
+        String(data.package?.currentVersionNumber ?? ""),
+      );
       const availableVersions = data.package?.versions ?? [];
       setCompareTo(String(data.package?.currentVersionNumber ?? ""));
-      setCompareFrom(String(availableVersions.at(-2)?.versionNumber ?? data.package?.currentVersionNumber ?? ""));
+      setCompareFrom(
+        String(
+          availableVersions.at(-2)?.versionNumber ??
+            data.package?.currentVersionNumber ??
+            "",
+        ),
+      );
     } catch (requestError) {
       setWorkspace(null);
       setForm(emptyForm);
@@ -444,7 +569,8 @@ export default function AemsPlanningPackagePage() {
   }, [loadWorkspace]);
 
   useEffect(() => {
-    if (selectedId) updateQuery({ engagementId: selectedId, section: activeSection });
+    if (selectedId)
+      updateQuery({ engagementId: selectedId, section: activeSection });
   }, [activeSection, selectedId, updateQuery]);
 
   function changeSection(section) {
@@ -457,45 +583,112 @@ export default function AemsPlanningPackagePage() {
   }
 
   function updateNested(group, key, value) {
-    setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
+    setForm((current) => ({
+      ...current,
+      [group]: { ...current[group], [key]: value },
+    }));
   }
 
   function updateItem(index, key, value) {
     setForm((current) => ({
       ...current,
-      riskItems: current.riskItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item),
+      riskItems: current.riskItems.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      ),
     }));
   }
 
   function updateMatrix(index, key, value) {
-    setForm((current) => ({ ...current, riskMatrices: (current.riskMatrices?.length ? current.riskMatrices : [current.riskMatrix]).map((matrix, matrixIndex) => matrixIndex === index ? { ...matrix, [key]: value } : matrix) }));
+    setForm((current) => ({
+      ...current,
+      riskMatrices: (current.riskMatrices?.length
+        ? current.riskMatrices
+        : [current.riskMatrix]
+      ).map((matrix, matrixIndex) =>
+        matrixIndex === index ? { ...matrix, [key]: value } : matrix,
+      ),
+    }));
   }
 
   function addMatrix() {
-    setForm((current) => ({ ...current, riskMatrices: [...(current.riskMatrices?.length ? current.riskMatrices : [current.riskMatrix]), { ...emptyForm.riskMatrix, code: `RM-${(current.riskMatrices?.length ?? 1) + 1}`, title: "", riskItems: [] }] }));
+    setForm((current) => ({
+      ...current,
+      riskMatrices: [
+        ...(current.riskMatrices?.length
+          ? current.riskMatrices
+          : [current.riskMatrix]),
+        {
+          ...emptyForm.riskMatrix,
+          code: `RM-${(current.riskMatrices?.length ?? 1) + 1}`,
+          title: "",
+          riskItems: [],
+        },
+      ],
+    }));
   }
 
   function updateKpi(index, key, value) {
-    setForm((current) => ({ ...current, kpis: current.kpis.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+    setForm((current) => ({
+      ...current,
+      kpis: current.kpis.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      ),
+    }));
   }
 
   function addKpi() {
-    setForm((current) => ({ ...current, kpis: [...current.kpis, { code: `KPI-${current.kpis.length + 1}`, name: "", target: "", measurementMethod: "", sourceReference: "", sequence: current.kpis.length }] }));
+    setForm((current) => ({
+      ...current,
+      kpis: [
+        ...current.kpis,
+        {
+          code: `KPI-${current.kpis.length + 1}`,
+          name: "",
+          target: "",
+          measurementMethod: "",
+          sourceReference: "",
+          sequence: current.kpis.length,
+        },
+      ],
+    }));
   }
 
   function addPlannedWorkingPaper() {
-    setForm((current) => ({ ...current, plannedWorkingPapers: [...current.plannedWorkingPapers, { reference: `WP-${current.plannedWorkingPapers.length + 1}`, title: "", objective: "", requiredEvidence: "", procedureId: "", sequence: current.plannedWorkingPapers.length, isRequired: true }] }));
+    setForm((current) => ({
+      ...current,
+      plannedWorkingPapers: [
+        ...current.plannedWorkingPapers,
+        {
+          reference: `WP-${current.plannedWorkingPapers.length + 1}`,
+          title: "",
+          objective: "",
+          requiredEvidence: "",
+          procedureId: "",
+          sequence: current.plannedWorkingPapers.length,
+          isRequired: true,
+        },
+      ],
+    }));
   }
 
   function updatePlannedWorkingPaper(index, key, value) {
-    setForm((current) => ({ ...current, plannedWorkingPapers: current.plannedWorkingPapers.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+    setForm((current) => ({
+      ...current,
+      plannedWorkingPapers: current.plannedWorkingPapers.map(
+        (item, itemIndex) =>
+          itemIndex === index ? { ...item, [key]: value } : item,
+      ),
+    }));
   }
 
   function isStaleLockError(requestError) {
     const lockErrors = requestError?.errors?.lockVersion;
     return Boolean(
-      (Array.isArray(lockErrors) && lockErrors.some((message) => /changed|refresh/i.test(message))) ||
-      /changed in another session|refresh before continuing/i.test(requestError?.message ?? ""),
+      (Array.isArray(lockErrors) &&
+        lockErrors.some((message) => /changed|refresh/i.test(message))) ||
+      /changed in another session|refresh before continuing/i.test(
+        requestError?.message ?? "",
+      ),
     );
   }
 
@@ -512,14 +705,17 @@ export default function AemsPlanningPackagePage() {
     try {
       const configuredMatrices = form.riskMatrices?.length
         ? form.riskMatrices
-        : [form.riskMatrix].filter((matrix) => matrix?.code?.trim() || matrix?.title?.trim());
+        : [form.riskMatrix].filter(
+            (matrix) => matrix?.code?.trim() || matrix?.title?.trim(),
+          );
       const payload = {
         ...form,
         riskMatrices: configuredMatrices.map((matrix, index) => ({
           ...matrix,
           riskItems: index === 0 ? form.riskItems : (matrix.riskItems ?? []),
         })),
-        preliminarySurveyDocumentVersionId: form.preliminarySurveyDocumentVersionId || undefined,
+        preliminarySurveyDocumentVersionId:
+          form.preliminarySurveyDocumentVersionId || undefined,
       };
       if (packageRecord) {
         await aemsPlanningPackageApi.update(selectedId, packageRecord.id, {
@@ -570,16 +766,35 @@ export default function AemsPlanningPackagePage() {
   const actionOptions = useMemo(() => {
     if (!packageRecord) return [];
     const available = [];
-    if (packageRecord.status === "DRAFT" && canUpdate) available.push(["SUBMIT", "Submit for review", Send, "primary"]);
-    if (["PENDING_REVIEW", "RESUBMITTED"].includes(packageRecord.status) && canReview) {
-      available.push(["REVIEW", "Record independent review", FileCheck2, "primary"]);
+    if (packageRecord.status === "DRAFT" && canUpdate)
+      available.push(["SUBMIT", "Submit for review", Send, "primary"]);
+    if (
+      ["PENDING_REVIEW", "RESUBMITTED"].includes(packageRecord.status) &&
+      canReview
+    ) {
+      available.push([
+        "REVIEW",
+        "Record independent review",
+        FileCheck2,
+        "primary",
+      ]);
       available.push(["RETURN", "Return for revision", Undo2, "warning"]);
     }
-    if (["PENDING_REVIEW", "RESUBMITTED"].includes(packageRecord.status) && canApprove) {
-      available.push(["APPROVE", "Approve current version", BadgeCheck, "success"]);
+    if (
+      ["PENDING_REVIEW", "RESUBMITTED"].includes(packageRecord.status) &&
+      canApprove
+    ) {
+      available.push([
+        "APPROVE",
+        "Approve current version",
+        BadgeCheck,
+        "success",
+      ]);
     }
-    if (packageRecord.status === "RETURNED_FOR_REVISION" && canUpdate) available.push(["RESUBMIT", "Resubmit for review", Send, "primary"]);
-    if (packageRecord.status === "APPROVED" && canRevise) available.push(["REVISE", "Start formal revision", RotateCcw, "warning"]);
+    if (packageRecord.status === "RETURNED_FOR_REVISION" && canUpdate)
+      available.push(["RESUBMIT", "Resubmit for review", Send, "primary"]);
+    if (packageRecord.status === "APPROVED" && canRevise)
+      available.push(["REVISE", "Start formal revision", RotateCcw, "warning"]);
     return available;
   }, [canApprove, canRevise, canReview, canUpdate, packageRecord]);
 
@@ -628,9 +843,17 @@ export default function AemsPlanningPackagePage() {
   function saveObjectiveDraft() {
     const { index, ...objective } = objectiveDraft;
     if (index === undefined) {
-      updateForm("objectives", [...form.objectives, { ...objective, sequence: form.objectives.length }]);
+      updateForm("objectives", [
+        ...form.objectives,
+        { ...objective, sequence: form.objectives.length },
+      ]);
     } else {
-      updateForm("objectives", form.objectives.map((item, itemIndex) => itemIndex === index ? { ...item, ...objective } : item));
+      updateForm(
+        "objectives",
+        form.objectives.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, ...objective } : item,
+        ),
+      );
     }
     setObjectiveDraft(null);
   }
@@ -641,13 +864,27 @@ export default function AemsPlanningPackagePage() {
 
   function saveFlowDraft() {
     const { index, ...flow } = flowDraft;
-    if (index === undefined) updateForm("processFlows", [...form.processFlows, { ...flow, sequence: form.processFlows.length }]);
-    else updateForm("processFlows", form.processFlows.map((item, itemIndex) => itemIndex === index ? { ...item, ...flow } : item));
+    if (index === undefined)
+      updateForm("processFlows", [
+        ...form.processFlows,
+        { ...flow, sequence: form.processFlows.length },
+      ]);
+    else
+      updateForm(
+        "processFlows",
+        form.processFlows.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, ...flow } : item,
+        ),
+      );
     setFlowDraft(null);
   }
 
   function startNewItem() {
-    setItemDraft({ ...makeItem(form.riskItems.length), index: undefined, workingPaperText: "" });
+    setItemDraft({
+      ...makeItem(form.riskItems.length),
+      index: undefined,
+      workingPaperText: "",
+    });
   }
 
   function editItem(item, index) {
@@ -655,7 +892,9 @@ export default function AemsPlanningPackagePage() {
       ...makeItem(index),
       ...item,
       index,
-      workingPaperText: (item.workingPapers ?? []).map((paper) => paper.reference).join("\n"),
+      workingPaperText: (item.workingPapers ?? [])
+        .map((paper) => paper.reference)
+        .join("\n"),
     });
   }
 
@@ -669,8 +908,18 @@ export default function AemsPlanningPackagePage() {
         .filter(Boolean)
         .map((reference) => ({ reference })),
     };
-    if (index === undefined) updateForm("riskItems", [...form.riskItems, { ...nextItem, sequence: form.riskItems.length }]);
-    else updateForm("riskItems", form.riskItems.map((current, itemIndex) => itemIndex === index ? { ...current, ...nextItem } : current));
+    if (index === undefined)
+      updateForm("riskItems", [
+        ...form.riskItems,
+        { ...nextItem, sequence: form.riskItems.length },
+      ]);
+    else
+      updateForm(
+        "riskItems",
+        form.riskItems.map((current, itemIndex) =>
+          itemIndex === index ? { ...current, ...nextItem } : current,
+        ),
+      );
     setItemDraft(null);
   }
 
@@ -679,14 +928,27 @@ export default function AemsPlanningPackagePage() {
     label: `${engagement.engagementCode} — ${engagement.title}`,
     keywords: engagement.offices?.map((office) => office.name).join(" "),
   }));
-  const officeOptions = (selectedEngagement?.offices ?? []).map((office) => ({ value: office.id, label: office.name }));
-  const procedureOptions = (workspace?.procedures ?? []).map((procedure) => ({ value: procedure.id, label: `${procedure.code} — ${procedure.objective}` }));
-  const objectiveOptions = form.objectives.map((objective) => ({ value: objective.code, label: `${objective.code} — ${objective.statement}` }));
+  const officeOptions = (selectedEngagement?.offices ?? []).map((office) => ({
+    value: office.id,
+    label: office.name,
+  }));
+  const procedureOptions = (workspace?.procedures ?? []).map((procedure) => ({
+    value: procedure.id,
+    label: `${procedure.code} — ${procedure.objective}`,
+  }));
+  const objectiveOptions = form.objectives.map((objective) => ({
+    value: objective.code,
+    label: `${objective.code} — ${objective.statement}`,
+  }));
   const packageStatus = packageRecord?.status ?? "NOT_CREATED";
   const currentIsReadOnly = Boolean(packageRecord && !editable);
 
   if (loading && !workspace) {
-    return <div className="grid min-h-[calc(100vh-8rem)] place-items-center text-sm font-semibold text-slate-500">Loading Planning Package workspace…</div>;
+    return (
+      <div className="grid min-h-[calc(100vh-8rem)] place-items-center text-sm font-semibold text-slate-500">
+        Loading Planning Package workspace…
+      </div>
+    );
   }
 
   return (
@@ -696,7 +958,7 @@ export default function AemsPlanningPackagePage() {
         title="Planning Package"
         description="Prepare, review, approve, return, revise, and inspect the complete engagement planning baseline from one controlled workspace."
         readOnly={currentIsReadOnly && !canUpdate}
-        actions={(
+        actions={
           <>
             <div className="w-full sm:min-w-80 sm:w-80">
               <SearchableSelect
@@ -708,18 +970,57 @@ export default function AemsPlanningPackagePage() {
                 disabled={loading}
               />
             </div>
-            {editable && <SmallButton icon={Save} onClick={savePackage} disabled={saving}>{saving ? "Saving…" : "Save new version"}</SmallButton>}
-            {!packageRecord && canCreate && selectedId && <SmallButton icon={Plus} tone="primary" onClick={savePackage} disabled={saving}>{saving ? "Creating…" : "Create draft"}</SmallButton>}
-            {packageRecord && actionOptions.map(([key, text, Icon, tone]) => <SmallButton key={key} icon={Icon} tone={tone} onClick={() => openAction(key)} disabled={saving}>{text}</SmallButton>)}
+            {editable && (
+              <SmallButton icon={Save} onClick={savePackage} disabled={saving}>
+                {saving ? "Saving…" : "Save new version"}
+              </SmallButton>
+            )}
+            {!packageRecord && canCreate && selectedId && (
+              <SmallButton
+                icon={Plus}
+                tone="primary"
+                onClick={savePackage}
+                disabled={saving}
+              >
+                {saving ? "Creating…" : "Create draft"}
+              </SmallButton>
+            )}
+            {packageRecord &&
+              actionOptions.map(([key, text, Icon, tone]) => (
+                <SmallButton
+                  key={key}
+                  icon={Icon}
+                  tone={tone}
+                  onClick={() => openAction(key)}
+                  disabled={saving}
+                >
+                  {text}
+                </SmallButton>
+              ))}
           </>
-        )}
+        }
       />
 
-      {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</div>}
+      {error && (
+        <div
+          className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          role="alert"
+        >
+          {error}
+        </div>
+      )}
       {staleLock && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
-          <span><strong>This workspace is out of date.</strong> Another user changed the planning package. Reload before continuing.</span>
-          <SmallButton icon={RefreshCw} onClick={loadWorkspace}>Reload workspace</SmallButton>
+        <div
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="alert"
+        >
+          <span>
+            <strong>This workspace is out of date.</strong> Another user changed
+            the planning package. Reload before continuing.
+          </span>
+          <SmallButton icon={RefreshCw} onClick={loadWorkspace}>
+            Reload workspace
+          </SmallButton>
         </div>
       )}
       <ErrorSummary errors={errors} />
@@ -728,7 +1029,11 @@ export default function AemsPlanningPackagePage() {
         <>
           <AemsEngagementWorkspaceNav engagementId={selectedId} />
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="flex min-w-max gap-1 overflow-x-auto" role="tablist" aria-label="Planning Package sections">
+            <div
+              className="flex min-w-max gap-1 overflow-x-auto"
+              role="tablist"
+              aria-label="Planning Package sections"
+            >
               {sections.map((section) => {
                 const Icon = section.icon;
                 const active = section.key === activeSection;
@@ -741,7 +1046,8 @@ export default function AemsPlanningPackagePage() {
                     role="tab"
                     type="button"
                   >
-                    <Icon size={15} />{section.label}
+                    <Icon size={15} />
+                    {section.label}
                   </button>
                 );
               })}
@@ -749,42 +1055,219 @@ export default function AemsPlanningPackagePage() {
           </div>
 
           <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard icon={ClipboardCheck} label="Package status" value={label(packageStatus)} tone={statusTones[packageStatus] === "success" ? "emerald" : statusTones[packageStatus] === "danger" ? "red" : statusTones[packageStatus] === "warning" ? "amber" : "slate"} />
-            <SummaryCard icon={History} label="Current / approved version" value={`${packageRecord?.currentVersionNumber ?? "—"} / ${packageRecord?.approvedVersionNumber ?? "—"}`} tone="sky" />
-            <SummaryCard icon={CheckCircle2} label="Planning conformance" value={workspace.readiness?.fieldworkReady ? "Ready" : "Blocked"} tone={workspace.readiness?.fieldworkReady ? "emerald" : "amber"} />
-            <SummaryCard icon={Link2} label="Risk traceability items" value={form.riskItems.length} tone="slate" />
+            <SummaryCard
+              icon={ClipboardCheck}
+              label="Package status"
+              value={label(packageStatus)}
+              tone={
+                statusTones[packageStatus] === "success"
+                  ? "emerald"
+                  : statusTones[packageStatus] === "danger"
+                    ? "red"
+                    : statusTones[packageStatus] === "warning"
+                      ? "amber"
+                      : "slate"
+              }
+            />
+            <SummaryCard
+              icon={History}
+              label="Current / approved version"
+              value={`${packageRecord?.currentVersionNumber ?? "—"} / ${packageRecord?.approvedVersionNumber ?? "—"}`}
+              tone="sky"
+            />
+            <SummaryCard
+              icon={CheckCircle2}
+              label="Planning conformance"
+              value={workspace.readiness?.fieldworkReady ? "Ready" : "Blocked"}
+              tone={workspace.readiness?.fieldworkReady ? "emerald" : "amber"}
+            />
+            <SummaryCard
+              icon={Link2}
+              label="Risk traceability items"
+              value={form.riskItems.length}
+              tone="slate"
+            />
           </div>
 
-          {(!packageRecord || packageRecord.status !== "APPROVED" || packageRecord.currentVersionNumber !== packageRecord.approvedVersionNumber || !workspace.readiness?.fieldworkReady) && (
-            <div className="mb-5 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900" data-testid="planning-fieldwork-blocker" role="status">
+          {(!packageRecord ||
+            packageRecord.status !== "APPROVED" ||
+            packageRecord.currentVersionNumber !==
+              packageRecord.approvedVersionNumber ||
+            !workspace.readiness?.fieldworkReady) && (
+            <div
+              className="mb-5 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900"
+              data-testid="planning-fieldwork-blocker"
+              role="status"
+            >
               <ShieldAlert className="mt-0.5 shrink-0" size={20} />
-              <div><strong>Fieldwork is blocked.</strong> The aggregate engagement lifecycle requires an approved Planning Package whose current version matches the approved version and passes every planning conformance gate before `START_FIELDWORK` can proceed.</div>
+              <div>
+                <strong>Fieldwork is blocked.</strong> The aggregate engagement
+                lifecycle requires an approved Planning Package whose current
+                version matches the approved version and passes every planning
+                conformance gate before `START_FIELDWORK` can proceed.
+              </div>
             </div>
           )}
 
           {!packageRecord && (
-            <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-6 text-sky-900" role="note">
-              <strong>Planning Package sequence.</strong> Create the package draft here first; an Audit Program is not required to create the draft. Before this package can be approved and fieldwork can start, the AEP must be approved, the Audit Program must be approved, and the package readiness checks must pass. If the Create draft action returns an error, review the validation details above and confirm you are in the engagement-planning stage with the planning-package permission.
+            <div
+              className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-6 text-sky-900"
+              role="note"
+            >
+              <strong>Planning Package sequence.</strong> Create the package
+              draft here first; an Audit Program is not required to create the
+              draft. Before this package can be approved and fieldwork can
+              start, the AEP must be approved, the Audit Program must be
+              approved, and the package readiness checks must pass. If the
+              Create draft action returns an error, review the validation
+              details above and confirm you are in the engagement-planning stage
+              with the planning-package permission.
             </div>
           )}
 
-          {activeSection === "overview" && <>
-            <OverviewSection workspace={workspace} packageRecord={packageRecord} currentVersion={currentVersion} />
-            <ObjectivesSection objectives={form.objectives} editable={editable} onAdd={startNewObjective} onEdit={editObjective} onRemove={(index) => updateForm("objectives", form.objectives.filter((_, itemIndex) => itemIndex !== index))} />
-            <PlanningAttributesSection attributes={form.planningAttributes} editable={editable} onChange={(key, value) => updateNested("planningAttributes", key, value)} />
-          </>}
-          {activeSection === "survey" && <SurveySection form={form} editable={editable} errors={errors} updateNested={updateNested} updateForm={updateForm} />}
-          {activeSection === "process-flows" && <ProcessFlowsSection form={form} editable={editable} officeOptions={officeOptions} onAdd={startNewFlow} onEdit={editFlow} onRemove={(index) => updateForm("processFlows", form.processFlows.filter((_, itemIndex) => itemIndex !== index))} />}
-          {activeSection === "risk-matrix" && <RiskMatrixSection form={form} editable={editable} officeOptions={officeOptions} objectiveOptions={objectiveOptions} procedureOptions={procedureOptions} onChange={updateNested} onChangeMatrix={updateMatrix} onAddMatrix={addMatrix} onAdd={startNewItem} onEdit={editItem} onRemove={(index) => updateForm("riskItems", form.riskItems.filter((_, itemIndex) => itemIndex !== index))} updateItem={updateItem} />}
-          {activeSection === "kpis" && <PlanningConformanceSection kpis={form.kpis} plannedWorkingPapers={form.plannedWorkingPapers} procedures={workspace.procedures ?? []} editable={editable} onAddKpi={addKpi} onUpdateKpi={updateKpi} onRemoveKpi={(index) => updateForm("kpis", form.kpis.filter((_, itemIndex) => itemIndex !== index))} onAddWorkingPaper={addPlannedWorkingPaper} onUpdateWorkingPaper={updatePlannedWorkingPaper} onRemoveWorkingPaper={(index) => updateForm("plannedWorkingPapers", form.plannedWorkingPapers.filter((_, itemIndex) => itemIndex !== index))} />}
-          {activeSection === "traceability" && <TraceabilitySection workspace={workspace} form={form} />}
-          {activeSection === "readiness" && <ReadinessSection workspace={workspace} packageRecord={packageRecord} actionOptions={actionOptions} onAction={openAction} />}
-          {activeSection === "versions" && <VersionsSection packageRecord={packageRecord} versions={versions} inspectedVersion={inspectedVersion} selectedVersionNumber={selectedVersionNumber} setSelectedVersionNumber={setSelectedVersionNumber} compareFrom={compareFrom} compareTo={compareTo} setCompareFrom={setCompareFrom} setCompareTo={setCompareTo} compareLeft={compareLeft} compareRight={compareRight} />}
+          {activeSection === "overview" && (
+            <>
+              <OverviewSection
+                workspace={workspace}
+                packageRecord={packageRecord}
+                currentVersion={currentVersion}
+              />
+              <ObjectivesSection
+                objectives={form.objectives}
+                editable={editable}
+                onAdd={startNewObjective}
+                onEdit={editObjective}
+                onRemove={(index) =>
+                  updateForm(
+                    "objectives",
+                    form.objectives.filter(
+                      (_, itemIndex) => itemIndex !== index,
+                    ),
+                  )
+                }
+              />
+              <PlanningAttributesSection
+                attributes={form.planningAttributes}
+                editable={editable}
+                onChange={(key, value) =>
+                  updateNested("planningAttributes", key, value)
+                }
+              />
+            </>
+          )}
+          {activeSection === "survey" && (
+            <SurveySection
+              form={form}
+              editable={editable}
+              errors={errors}
+              updateNested={updateNested}
+              updateForm={updateForm}
+            />
+          )}
+          {activeSection === "process-flows" && (
+            <ProcessFlowsSection
+              form={form}
+              editable={editable}
+              officeOptions={officeOptions}
+              onAdd={startNewFlow}
+              onEdit={editFlow}
+              onRemove={(index) =>
+                updateForm(
+                  "processFlows",
+                  form.processFlows.filter(
+                    (_, itemIndex) => itemIndex !== index,
+                  ),
+                )
+              }
+            />
+          )}
+          {activeSection === "risk-matrix" && (
+            <RiskMatrixSection
+              form={form}
+              editable={editable}
+              officeOptions={officeOptions}
+              objectiveOptions={objectiveOptions}
+              procedureOptions={procedureOptions}
+              onChange={updateNested}
+              onChangeMatrix={updateMatrix}
+              onAddMatrix={addMatrix}
+              onAdd={startNewItem}
+              onEdit={editItem}
+              onRemove={(index) =>
+                updateForm(
+                  "riskItems",
+                  form.riskItems.filter((_, itemIndex) => itemIndex !== index),
+                )
+              }
+              updateItem={updateItem}
+            />
+          )}
+          {activeSection === "kpis" && (
+            <PlanningConformanceSection
+              kpis={form.kpis}
+              plannedWorkingPapers={form.plannedWorkingPapers}
+              procedures={workspace.procedures ?? []}
+              editable={editable}
+              onAddKpi={addKpi}
+              onUpdateKpi={updateKpi}
+              onRemoveKpi={(index) =>
+                updateForm(
+                  "kpis",
+                  form.kpis.filter((_, itemIndex) => itemIndex !== index),
+                )
+              }
+              onAddWorkingPaper={addPlannedWorkingPaper}
+              onUpdateWorkingPaper={updatePlannedWorkingPaper}
+              onRemoveWorkingPaper={(index) =>
+                updateForm(
+                  "plannedWorkingPapers",
+                  form.plannedWorkingPapers.filter(
+                    (_, itemIndex) => itemIndex !== index,
+                  ),
+                )
+              }
+            />
+          )}
+          {activeSection === "traceability" && (
+            <TraceabilitySection workspace={workspace} form={form} />
+          )}
+          {activeSection === "readiness" && (
+            <ReadinessSection
+              workspace={workspace}
+              packageRecord={packageRecord}
+              actionOptions={actionOptions}
+              onAction={openAction}
+            />
+          )}
+          {activeSection === "versions" && (
+            <VersionsSection
+              packageRecord={packageRecord}
+              versions={versions}
+              inspectedVersion={inspectedVersion}
+              selectedVersionNumber={selectedVersionNumber}
+              setSelectedVersionNumber={setSelectedVersionNumber}
+              compareFrom={compareFrom}
+              compareTo={compareTo}
+              setCompareFrom={setCompareFrom}
+              setCompareTo={setCompareTo}
+              compareLeft={compareLeft}
+              compareRight={compareRight}
+            />
+          )}
 
           {editable && activeSection !== "overview" && (
             <div className="mt-5 flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-3">
-              <span className="mr-auto text-sm text-sky-900">Changes are saved as a new immutable Planning Package version.</span>
-              <SmallButton icon={Save} tone="primary" onClick={savePackage} disabled={saving}>{saving ? "Saving…" : "Save new version"}</SmallButton>
+              <span className="mr-auto text-sm text-sky-900">
+                Changes are saved as a new immutable Planning Package version.
+              </span>
+              <SmallButton
+                icon={Save}
+                tone="primary"
+                onClick={savePackage}
+                disabled={saving}
+              >
+                {saving ? "Saving…" : "Save new version"}
+              </SmallButton>
             </div>
           )}
         </>
@@ -792,48 +1275,166 @@ export default function AemsPlanningPackagePage() {
 
       <Modal
         open={Boolean(objectiveDraft)}
-        title={objectiveDraft?.index === undefined ? "Add planning objective" : "Edit planning objective"}
+        title={
+          objectiveDraft?.index === undefined
+            ? "Add planning objective"
+            : "Edit planning objective"
+        }
         description="Planning objectives anchor the risk matrix and preserve the relationship to the approved audit plan."
         onClose={() => setObjectiveDraft(null)}
         size="md"
-        footer={<><SmallButton onClick={() => setObjectiveDraft(null)}>Cancel</SmallButton><SmallButton tone="primary" onClick={saveObjectiveDraft}>Keep objective in draft</SmallButton></>}
+        footer={
+          <>
+            <SmallButton onClick={() => setObjectiveDraft(null)}>
+              Cancel
+            </SmallButton>
+            <SmallButton tone="primary" onClick={saveObjectiveDraft}>
+              Keep objective in draft
+            </SmallButton>
+          </>
+        }
       >
-        {objectiveDraft && <ObjectiveEditor objective={objectiveDraft} setObjective={setObjectiveDraft} />}
+        {objectiveDraft && (
+          <ObjectiveEditor
+            objective={objectiveDraft}
+            setObjective={setObjectiveDraft}
+          />
+        )}
       </Modal>
 
       <Modal
         open={Boolean(flowDraft)}
-        title={flowDraft?.index === undefined ? "Add process flow" : "Edit process flow"}
+        title={
+          flowDraft?.index === undefined
+            ? "Add process flow"
+            : "Edit process flow"
+        }
         description="Describe the process flow or point to the exact Core Document Version used as the controlled source."
         onClose={() => setFlowDraft(null)}
         size="lg"
-        footer={<><SmallButton onClick={() => setFlowDraft(null)}>Close</SmallButton>{editable && <SmallButton tone="primary" onClick={saveFlowDraft}>Keep flow in draft</SmallButton>}</>}
+        footer={
+          <>
+            <SmallButton onClick={() => setFlowDraft(null)}>Close</SmallButton>
+            {editable && (
+              <SmallButton tone="primary" onClick={saveFlowDraft}>
+                Keep flow in draft
+              </SmallButton>
+            )}
+          </>
+        }
       >
-        {flowDraft && <FlowEditor flow={flowDraft} setFlow={setFlowDraft} officeOptions={officeOptions} editable={editable} />}
+        {flowDraft && (
+          <FlowEditor
+            flow={flowDraft}
+            setFlow={setFlowDraft}
+            officeOptions={officeOptions}
+            editable={editable}
+          />
+        )}
       </Modal>
 
       <Modal
         open={Boolean(itemDraft)}
-        title={itemDraft?.index === undefined ? "Add risk matrix item" : `Risk matrix item ${itemDraft?.riskCode ?? ""}`}
+        title={
+          itemDraft?.index === undefined
+            ? "Add risk matrix item"
+            : `Risk matrix item ${itemDraft?.riskCode ?? ""}`
+        }
         description="Capture the risk, control context, residual rating, and exact traceability links for this planning version."
         onClose={() => setItemDraft(null)}
         size="xl"
-        footer={<><SmallButton onClick={() => setItemDraft(null)}>Close</SmallButton>{editable && <SmallButton tone="primary" onClick={saveItemDraft}>Keep item in draft</SmallButton>}</>}
+        footer={
+          <>
+            <SmallButton onClick={() => setItemDraft(null)}>Close</SmallButton>
+            {editable && (
+              <SmallButton tone="primary" onClick={saveItemDraft}>
+                Keep item in draft
+              </SmallButton>
+            )}
+          </>
+        }
       >
-        {itemDraft && <RiskItemEditor item={itemDraft} setItem={setItemDraft} objectiveOptions={objectiveOptions} procedureOptions={procedureOptions} officeOptions={officeOptions} editable={editable} />}
+        {itemDraft && (
+          <RiskItemEditor
+            item={itemDraft}
+            setItem={setItemDraft}
+            objectiveOptions={objectiveOptions}
+            procedureOptions={procedureOptions}
+            officeOptions={officeOptions}
+            editable={editable}
+          />
+        )}
       </Modal>
 
       <Modal
         open={Boolean(action)}
-        title={action === "REVISE" ? "Start formal Planning Package revision" : `${label(action)} Planning Package`}
-        description={action === "RETURN" ? "Explain what must be corrected before the package can be resubmitted." : action === "REVISE" ? "The approved version remains immutable; this creates a new editable draft version." : "The server will validate role, scope, state, readiness, independence, and lock version before completing this action."}
+        title={
+          action === "REVISE"
+            ? "Start formal Planning Package revision"
+            : `${label(action)} Planning Package`
+        }
+        description={
+          action === "RETURN"
+            ? "Explain what must be corrected before the package can be resubmitted."
+            : action === "REVISE"
+              ? "The approved version remains immutable; this creates a new editable draft version."
+              : "The server will validate role, scope, state, readiness, independence, and lock version before completing this action."
+        }
         onClose={() => !saving && setAction(null)}
         size="md"
-        footer={<><SmallButton onClick={() => setAction(null)} disabled={saving}>Cancel</SmallButton><SmallButton tone={action === "RETURN" || action === "REVISE" ? "warning" : action === "APPROVE" ? "success" : "primary"} onClick={performAction} disabled={saving || ((action === "RETURN" || action === "REVISE") && actionComment.trim().length < 5)}>{saving ? "Working…" : label(action)}</SmallButton></>}
+        footer={
+          <>
+            <SmallButton onClick={() => setAction(null)} disabled={saving}>
+              Cancel
+            </SmallButton>
+            <SmallButton
+              tone={
+                action === "RETURN" || action === "REVISE"
+                  ? "warning"
+                  : action === "APPROVE"
+                    ? "success"
+                    : "primary"
+              }
+              onClick={performAction}
+              disabled={
+                saving ||
+                ((action === "RETURN" || action === "REVISE") &&
+                  actionComment.trim().length < 5)
+              }
+            >
+              {saving ? "Working…" : label(action)}
+            </SmallButton>
+          </>
+        }
       >
-        {(action === "RETURN" || action === "REVISE" || action === "REVIEW" || action === "APPROVE") && (
-          <Field label={action === "REVISE" ? "Revision reason" : action === "RETURN" ? "Return instructions" : "Review comment"} hint={action === "RETURN" || action === "REVISE" ? "Required" : "Optional"}>
-            <TextArea autoFocus value={actionComment} onChange={(event) => setActionComment(event.target.value)} placeholder={action === "RETURN" ? "State the specific corrections required..." : "Add a concise professional note..."} />
+        {(action === "RETURN" ||
+          action === "REVISE" ||
+          action === "REVIEW" ||
+          action === "APPROVE") && (
+          <Field
+            label={
+              action === "REVISE"
+                ? "Revision reason"
+                : action === "RETURN"
+                  ? "Return instructions"
+                  : "Review comment"
+            }
+            hint={
+              action === "RETURN" || action === "REVISE"
+                ? "Required"
+                : "Optional"
+            }
+          >
+            <TextArea
+              autoFocus
+              value={actionComment}
+              onChange={(event) => setActionComment(event.target.value)}
+              placeholder={
+                action === "RETURN"
+                  ? "State the specific corrections required..."
+                  : "Add a concise professional note..."
+              }
+            />
           </Field>
         )}
       </Modal>
@@ -845,35 +1446,88 @@ function OverviewSection({ workspace, packageRecord, currentVersion }) {
   const engagement = workspace.engagement ?? {};
   return (
     <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
-      <Panel title="Engagement and planning baseline" description="The Planning Package stays linked to the engagement, approved AEP, current Audit Program, and original IAP source lineage.">
-        <MetadataGrid values={[
-          ["Engagement", `${engagement.engagementCode ?? "—"} — ${engagement.title ?? "—"}`],
-          ["Source type", label(engagement.sourceType)],
-          ["Engagement status", <StatusBadge key="status" tone={statusTones[engagement.status] ?? "info"}>{label(engagement.status)}</StatusBadge>],
-          ["Package code", packageRecord?.packageCode],
-          ["AEP approval", workspace.approvedAep ? "Approved" : "Not approved"],
-          ["Audit Program approval", workspace.approvedProgram ? "Approved" : "Not approved"],
-          ["Checksum", currentVersion?.checksumSha256],
-          ["Lock version", packageRecord?.lockVersion],
-          ["Created version", currentVersion ? `Version ${currentVersion.versionNumber}` : "No package yet"],
-        ]} />
+      <Panel
+        title="Engagement and planning baseline"
+        description="The Planning Package stays linked to the engagement, approved AEP, current Audit Program, and original IAP source lineage."
+      >
+        <MetadataGrid
+          values={[
+            [
+              "Engagement",
+              `${engagement.engagementCode ?? "—"} — ${engagement.title ?? "—"}`,
+            ],
+            ["Source type", label(engagement.sourceType)],
+            [
+              "Engagement status",
+              <StatusBadge
+                key="status"
+                tone={statusTones[engagement.status] ?? "info"}
+              >
+                {label(engagement.status)}
+              </StatusBadge>,
+            ],
+            ["Package code", packageRecord?.packageCode],
+            [
+              "AEP approval",
+              workspace.approvedAep ? "Approved" : "Not approved",
+            ],
+            [
+              "Audit Program approval",
+              workspace.approvedProgram ? "Approved" : "Not approved",
+            ],
+            ["Checksum", currentVersion?.checksumSha256],
+            ["Lock version", packageRecord?.lockVersion],
+            [
+              "Created version",
+              currentVersion
+                ? `Version ${currentVersion.versionNumber}`
+                : "No package yet",
+            ],
+          ]}
+        />
         <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-4">
-          {[['Prepared by', packageRecord?.preparedBy], ['Submitted by', packageRecord?.submittedBy], ['Submitted at', formatDate(packageRecord?.submittedAt, true)], ['Approved by', packageRecord?.approvedBy]].map(([name, value]) => (
-            <div key={name}><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{name}</p><p className="mt-1 text-sm font-semibold text-slate-700">{typeof value === "object" ? value?.name ?? value?.employeeId ?? "—" : valueOrDash(value)}</p></div>
+          {[
+            ["Prepared by", packageRecord?.preparedBy],
+            ["Submitted by", packageRecord?.submittedBy],
+            ["Submitted at", formatDate(packageRecord?.submittedAt, true)],
+            ["Approved by", packageRecord?.approvedBy],
+          ].map(([name, value]) => (
+            <div key={name}>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                {name}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-700">
+                {typeof value === "object"
+                  ? (value?.name ?? value?.employeeId ?? "—")
+                  : valueOrDash(value)}
+              </p>
+            </div>
           ))}
         </div>
       </Panel>
-      <Panel title="IAP lineage snapshot" description="This lineage is read-only and is preserved from the authorized source engagement.">
-        <MetadataGrid values={[
-          ["Source type", label(workspace.lineage?.sourceType)],
-          ["IAP plan engagement", workspace.lineage?.iapPlanEngagementId],
-          ["IAP plan", workspace.lineage?.iapPlanId],
-          ["Prioritization item", workspace.lineage?.iapPrioritizationItemId],
-          ["Risk assessment", workspace.lineage?.iapRiskAssessmentId],
-          ["Audit Universe item", workspace.lineage?.iapAuditUniverseItemId],
-          ["Snapshot captured", formatDate(workspace.lineage?.capturedAt, true)],
-        ]} />
-        <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-900">IAP records remain authoritative for planning source history. This workspace owns the operational planning baseline and does not update IAP.</div>
+      <Panel
+        title="IAP lineage snapshot"
+        description="This lineage is read-only and is preserved from the authorized source engagement."
+      >
+        <MetadataGrid
+          values={[
+            ["Source type", label(workspace.lineage?.sourceType)],
+            ["IAP plan engagement", workspace.lineage?.iapPlanEngagementId],
+            ["IAP plan", workspace.lineage?.iapPlanId],
+            ["Prioritization item", workspace.lineage?.iapPrioritizationItemId],
+            ["Risk assessment", workspace.lineage?.iapRiskAssessmentId],
+            ["Audit Universe item", workspace.lineage?.iapAuditUniverseItemId],
+            [
+              "Snapshot captured",
+              formatDate(workspace.lineage?.capturedAt, true),
+            ],
+          ]}
+        />
+        <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-900">
+          IAP records remain authoritative for planning source history. This
+          workspace owns the operational planning baseline and does not update
+          IAP.
+        </div>
       </Panel>
     </div>
   );
@@ -885,25 +1539,64 @@ function ObjectivesSection({ objectives, editable, onAdd, onEdit, onRemove }) {
       className="mt-5"
       title="Planning objectives"
       description="Define the engagement-specific objectives that anchor the risk matrix and preserve their source lineage."
-      actions={<>{!editable && <ReadOnlyBadge />}{editable && <SmallButton icon={Plus} tone="primary" onClick={onAdd}>Add objective</SmallButton>}</>}
+      actions={
+        <>
+          {!editable && <ReadOnlyBadge />}
+          {editable && (
+            <SmallButton icon={Plus} tone="primary" onClick={onAdd}>
+              Add objective
+            </SmallButton>
+          )}
+        </>
+      }
     >
       {!objectives.length ? (
-        <EmptyState title="No planning objectives recorded" description="Add at least one objective to satisfy the planning readiness gate." />
+        <EmptyState
+          title="No planning objectives recorded"
+          description="Add at least one objective to satisfy the planning readiness gate."
+        />
       ) : (
         <div className="space-y-3">
           {objectives.map((objective, index) => (
-            <article className="rounded-xl border border-slate-200 p-4" key={`${objective.code}-${index}`}>
+            <article
+              className="rounded-xl border border-slate-200 p-4"
+              key={`${objective.code}-${index}`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Target className="text-sky-700" size={17} />
                     <strong className="text-slate-800">{objective.code}</strong>
                     <span className="text-slate-300">·</span>
-                    <span className="text-sm font-semibold text-slate-700">{objective.statement || "No objective statement recorded."}</span>
+                    <span className="text-sm font-semibold text-slate-700">
+                      {objective.statement ||
+                        "No objective statement recorded."}
+                    </span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">Source: {objective.sourceType || "AEMS"}{objective.sourceReference ? ` · ${objective.sourceReference}` : ""}</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Source: {objective.sourceType || "AEMS"}
+                    {objective.sourceReference
+                      ? ` · ${objective.sourceReference}`
+                      : ""}
+                  </p>
                 </div>
-                {editable && <div className="flex gap-2"><SmallButton icon={FilePenLine} onClick={() => onEdit(objective, index)}>Edit</SmallButton><SmallButton icon={XCircle} tone="danger" onClick={() => onRemove(index)}>Remove</SmallButton></div>}
+                {editable && (
+                  <div className="flex gap-2">
+                    <SmallButton
+                      icon={FilePenLine}
+                      onClick={() => onEdit(objective, index)}
+                    >
+                      Edit
+                    </SmallButton>
+                    <SmallButton
+                      icon={XCircle}
+                      tone="danger"
+                      onClick={() => onRemove(index)}
+                    >
+                      Remove
+                    </SmallButton>
+                  </div>
+                )}
               </div>
             </article>
           ))}
@@ -914,13 +1607,39 @@ function ObjectivesSection({ objectives, editable, onAdd, onEdit, onRemove }) {
 }
 
 function ObjectiveEditor({ objective, setObjective }) {
-  const update = (key, value) => setObjective((current) => ({ ...current, [key]: value }));
+  const update = (key, value) =>
+    setObjective((current) => ({ ...current, [key]: value }));
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Objective code"><TextInput value={objective.code} onChange={(event) => update("code", event.target.value)} /></Field>
-      <Field label="Source type"><TextInput value={objective.sourceType} onChange={(event) => update("sourceType", event.target.value)} /></Field>
-      <Field label="Objective statement" wide><TextArea autoFocus value={objective.statement} onChange={(event) => update("statement", event.target.value)} /></Field>
-      <Field label="Source reference" wide hint="Optional IAP, AEP, or engagement reference"><TextInput value={objective.sourceReference} onChange={(event) => update("sourceReference", event.target.value)} /></Field>
+      <Field label="Objective code">
+        <TextInput
+          value={objective.code}
+          onChange={(event) => update("code", event.target.value)}
+        />
+      </Field>
+      <Field label="Source type">
+        <TextInput
+          value={objective.sourceType}
+          onChange={(event) => update("sourceType", event.target.value)}
+        />
+      </Field>
+      <Field label="Objective statement" wide>
+        <TextArea
+          autoFocus
+          value={objective.statement}
+          onChange={(event) => update("statement", event.target.value)}
+        />
+      </Field>
+      <Field
+        label="Source reference"
+        wide
+        hint="Optional IAP, AEP, or engagement reference"
+      >
+        <TextInput
+          value={objective.sourceReference}
+          onChange={(event) => update("sourceReference", event.target.value)}
+        />
+      </Field>
     </div>
   );
 }
@@ -934,11 +1653,47 @@ function PlanningAttributesSection({ attributes, editable, onChange }) {
       actions={!editable && <ReadOnlyBadge />}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Methodology"><TextInput disabled={!editable} value={attributes.methodology ?? ""} onChange={(event) => onChange("methodology", event.target.value)} placeholder="Risk-based, compliance, performance..." /></Field>
-        <Field label="Criteria framework"><TextInput disabled={!editable} value={attributes.criteriaFramework ?? ""} onChange={(event) => onChange("criteriaFramework", event.target.value)} placeholder="Policies, laws, standards, or approved criteria" /></Field>
-        <Field label="Evidence requirements" wide><TextArea disabled={!editable} value={attributes.evidenceRequirements ?? ""} onChange={(event) => onChange("evidenceRequirements", event.target.value)} /></Field>
-        <Field label="Milestones"><TextArea disabled={!editable} value={attributes.milestones ?? ""} onChange={(event) => onChange("milestones", event.target.value)} /></Field>
-        <Field label="Schedule"><TextArea disabled={!editable} value={attributes.schedule ?? ""} onChange={(event) => onChange("schedule", event.target.value)} /></Field>
+        <Field label="Methodology">
+          <TextInput
+            disabled={!editable}
+            value={attributes.methodology ?? ""}
+            onChange={(event) => onChange("methodology", event.target.value)}
+            placeholder="Risk-based, compliance, performance..."
+          />
+        </Field>
+        <Field label="Criteria framework">
+          <TextInput
+            disabled={!editable}
+            value={attributes.criteriaFramework ?? ""}
+            onChange={(event) =>
+              onChange("criteriaFramework", event.target.value)
+            }
+            placeholder="Policies, laws, standards, or approved criteria"
+          />
+        </Field>
+        <Field label="Evidence requirements" wide>
+          <TextArea
+            disabled={!editable}
+            value={attributes.evidenceRequirements ?? ""}
+            onChange={(event) =>
+              onChange("evidenceRequirements", event.target.value)
+            }
+          />
+        </Field>
+        <Field label="Milestones">
+          <TextArea
+            disabled={!editable}
+            value={attributes.milestones ?? ""}
+            onChange={(event) => onChange("milestones", event.target.value)}
+          />
+        </Field>
+        <Field label="Schedule">
+          <TextArea
+            disabled={!editable}
+            value={attributes.schedule ?? ""}
+            onChange={(event) => onChange("schedule", event.target.value)}
+          />
+        </Field>
       </div>
     </Panel>
   );
@@ -946,33 +1701,150 @@ function PlanningAttributesSection({ attributes, editable, onChange }) {
 
 function SurveySection({ form, editable, errors, updateNested, updateForm }) {
   return (
-    <Panel title="Preliminary Survey" description="Document the initial understanding of the auditee, process, systems, controls, information flows, and planning implications." actions={!editable && <ReadOnlyBadge />}>
+    <Panel
+      title="Preliminary Survey"
+      description="Document the initial understanding of the auditee, process, systems, controls, information flows, and planning implications."
+      actions={!editable && <ReadOnlyBadge />}
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         {surveyFields.map(([key, fieldLabel, hint]) => (
-          <Field key={key} label={fieldLabel} hint={hint} wide error={errors?.[`preliminarySurvey.${key}`]}>
-            <TextArea disabled={!editable} value={form.preliminarySurvey[key] ?? ""} onChange={(event) => updateNested("preliminarySurvey", key, event.target.value)} />
+          <Field
+            key={key}
+            label={fieldLabel}
+            hint={hint}
+            wide
+            error={errors?.[`preliminarySurvey.${key}`]}
+          >
+            <TextArea
+              disabled={!editable}
+              value={form.preliminarySurvey[key] ?? ""}
+              onChange={(event) =>
+                updateNested("preliminarySurvey", key, event.target.value)
+              }
+            />
           </Field>
         ))}
-        <Field label="Core Document Version ID" hint="Optional exact survey source" error={errors?.preliminarySurveyDocumentVersionId}>
-          <TextInput disabled={!editable} inputMode="numeric" value={form.preliminarySurveyDocumentVersionId ?? ""} onChange={(event) => updateForm("preliminarySurveyDocumentVersionId", event.target.value)} placeholder="Document Version ID" />
+        <Field
+          label="Core Document Version ID"
+          hint="Optional exact survey source"
+          error={errors?.preliminarySurveyDocumentVersionId}
+        >
+          <TextInput
+            disabled={!editable}
+            inputMode="numeric"
+            value={form.preliminarySurveyDocumentVersionId ?? ""}
+            onChange={(event) =>
+              updateForm(
+                "preliminarySurveyDocumentVersionId",
+                event.target.value,
+              )
+            }
+            placeholder="Document Version ID"
+          />
         </Field>
       </div>
     </Panel>
   );
 }
 
-function ProcessFlowsSection({ form, editable, officeOptions, onAdd, onEdit, onRemove }) {
+function ProcessFlowsSection({
+  form,
+  editable,
+  officeOptions,
+  onAdd,
+  onEdit,
+  onRemove,
+}) {
   return (
-    <Panel title="Process Flow Documentation" description="Use a narrative, flowchart-backed document, or both. Each flow remains part of the immutable planning version." actions={<>{!editable && <ReadOnlyBadge />}{editable && <SmallButton icon={Plus} tone="primary" onClick={onAdd}>Add process flow</SmallButton>}</>}>
-      {!form.processFlows.length ? <EmptyState title="No process flows recorded" description="Add at least one process flow to satisfy the readiness gate." /> : (
+    <Panel
+      title="Process Flow Documentation"
+      description="Use a narrative, flowchart-backed document, or both. Each flow remains part of the immutable planning version."
+      actions={
+        <>
+          {!editable && <ReadOnlyBadge />}
+          {editable && (
+            <SmallButton icon={Plus} tone="primary" onClick={onAdd}>
+              Add process flow
+            </SmallButton>
+          )}
+        </>
+      }
+    >
+      {!form.processFlows.length ? (
+        <EmptyState
+          title="No process flows recorded"
+          description="Add at least one process flow to satisfy the readiness gate."
+        />
+      ) : (
         <div className="space-y-3">
           {form.processFlows.map((flow, index) => (
-            <article className="rounded-xl border border-slate-200 p-4" key={`${flow.code}-${index}`}>
+            <article
+              className="rounded-xl border border-slate-200 p-4"
+              key={`${flow.code}-${index}`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-bold text-slate-800">{flow.code}</span><span className="text-slate-300">·</span><span className="font-semibold text-slate-700">{flow.title || "Untitled process flow"}</span></div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{flow.description || "No narrative description recorded."}</p></div>
-                {editable && <div className="flex gap-2"><SmallButton icon={FilePenLine} onClick={() => onEdit(flow, index)}>Edit</SmallButton><SmallButton icon={XCircle} tone="danger" onClick={() => onRemove(index)}>Remove</SmallButton></div>}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-slate-800">
+                      {flow.code}
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <span className="font-semibold text-slate-700">
+                      {flow.title || "Untitled process flow"}
+                    </span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                    {flow.description || "No narrative description recorded."}
+                  </p>
+                </div>
+                {editable && (
+                  <div className="flex gap-2">
+                    <SmallButton
+                      icon={FilePenLine}
+                      onClick={() => onEdit(flow, index)}
+                    >
+                      Edit
+                    </SmallButton>
+                    <SmallButton
+                      icon={XCircle}
+                      tone="danger"
+                      onClick={() => onRemove(index)}
+                    >
+                      Remove
+                    </SmallButton>
+                  </div>
+                )}
               </div>
-              <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 text-xs sm:grid-cols-3"><div><span className="font-bold uppercase tracking-wide text-slate-400">Process owner</span><p className="mt-1 text-slate-700">{officeOptions.find((office) => String(office.value) === String(flow.processOwnerOfficeId))?.label ?? valueOrDash(flow.processOwnerOfficeId)}</p></div><div><span className="font-bold uppercase tracking-wide text-slate-400">Core Document Version</span><p className="mt-1 text-slate-700">{valueOrDash(flow.documentVersionId)}</p></div><div><span className="font-bold uppercase tracking-wide text-slate-400">Source reference</span><p className="mt-1 text-slate-700">{valueOrDash(flow.sourceReference)}</p></div></div>
+              <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 text-xs sm:grid-cols-3">
+                <div>
+                  <span className="font-bold uppercase tracking-wide text-slate-400">
+                    Process owner
+                  </span>
+                  <p className="mt-1 text-slate-700">
+                    {officeOptions.find(
+                      (office) =>
+                        String(office.value) ===
+                        String(flow.processOwnerOfficeId),
+                    )?.label ?? valueOrDash(flow.processOwnerOfficeId)}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-bold uppercase tracking-wide text-slate-400">
+                    Core Document Version
+                  </span>
+                  <p className="mt-1 text-slate-700">
+                    {valueOrDash(flow.documentVersionId)}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-bold uppercase tracking-wide text-slate-400">
+                    Source reference
+                  </span>
+                  <p className="mt-1 text-slate-700">
+                    {valueOrDash(flow.sourceReference)}
+                  </p>
+                </div>
+              </div>
             </article>
           ))}
         </div>
@@ -982,50 +1854,1214 @@ function ProcessFlowsSection({ form, editable, officeOptions, onAdd, onEdit, onR
 }
 
 function FlowEditor({ flow, setFlow, officeOptions, editable = true }) {
-  const update = (key, value) => setFlow((current) => ({ ...current, [key]: value }));
-  return <div className="grid gap-4 sm:grid-cols-2"><Field label="Flow code"><TextInput disabled={!editable} value={flow.code} onChange={(event) => update("code", event.target.value)} /></Field><Field label="Title"><TextInput disabled={!editable} value={flow.title} onChange={(event) => update("title", event.target.value)} /></Field><Field label="Process owner office"><SearchableSelect disabled={!editable} options={officeOptions} value={flow.processOwnerOfficeId} onChange={(value) => update("processOwnerOfficeId", value)} placeholder="Select linked office" /></Field><Field label="Audit area ID"><TextInput disabled={!editable} inputMode="numeric" value={flow.auditAreaId} onChange={(event) => update("auditAreaId", event.target.value)} /></Field><Field label="Audit focus ID"><TextInput disabled={!editable} inputMode="numeric" value={flow.auditFocusId} onChange={(event) => update("auditFocusId", event.target.value)} /></Field><Field label="Core Document Version ID" hint="Optional exact document"><TextInput disabled={!editable} inputMode="numeric" value={flow.documentVersionId} onChange={(event) => update("documentVersionId", event.target.value)} /></Field><Field label="Source reference" wide><TextInput disabled={!editable} value={flow.sourceReference} onChange={(event) => update("sourceReference", event.target.value)} placeholder="Policy, interview, system, or other source reference" /></Field><Field label="Scope statement" wide><TextArea disabled={!editable} value={flow.scopeStatement} onChange={(event) => update("scopeStatement", event.target.value)} placeholder="Boundary and population covered by this flow" /></Field><Field label="Description / narrative" wide><TextArea disabled={!editable} value={flow.description} onChange={(event) => update("description", event.target.value)} /></Field>{[["steps","Steps"],["inputs","Inputs"],["outputs","Outputs"],["recordsSystems","Records and systems"],["controls","Controls"],["decisionPoints","Decision points"],["riskPoints","Risk points"]].map(([key, title]) => <Field key={key} label={title} hint="One entry per line"><TextArea disabled={!editable} value={listText(flow[key])} onChange={(event) => update(key, listValue(event.target.value))} /></Field>)}<Field label="Limitations" wide><TextArea disabled={!editable} value={flow.limitations} onChange={(event) => update("limitations", event.target.value)} /></Field></div>;
-}
-
-function PlanningConformanceSection({ kpis, plannedWorkingPapers, procedures, editable, onAddKpi, onUpdateKpi, onRemoveKpi, onAddWorkingPaper, onUpdateWorkingPaper, onRemoveWorkingPaper }) {
-  return <div className="space-y-5"><Panel title="Planning KPI workspace" description="Define measurable targets for the engagement, or record a formal not-applicable decision in the planning attributes." actions={editable && <SmallButton icon={Plus} tone="primary" onClick={onAddKpi}>Add KPI</SmallButton>}>{!kpis.length ? <EmptyState title="No KPI records" description="Add at least one KPI before fieldwork, unless the backend records a justified not-applicable decision." /> : <div className="space-y-3">{kpis.map((kpi, index) => <div className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-4" key={`${kpi.code}-${index}`}><Field label="Code"><TextInput disabled={!editable} value={kpi.code ?? ""} onChange={(event) => onUpdateKpi(index, "code", event.target.value)} /></Field><Field label="Name"><TextInput disabled={!editable} value={kpi.name ?? ""} onChange={(event) => onUpdateKpi(index, "name", event.target.value)} /></Field><Field label="Target"><TextInput disabled={!editable} value={kpi.target ?? ""} onChange={(event) => onUpdateKpi(index, "target", event.target.value)} /></Field><Field label="Measurement method"><TextInput disabled={!editable} value={kpi.measurementMethod ?? ""} onChange={(event) => onUpdateKpi(index, "measurementMethod", event.target.value)} /></Field>{editable && <div className="sm:col-span-4 flex justify-end"><SmallButton icon={XCircle} tone="danger" onClick={() => onRemoveKpi(index)}>Remove KPI</SmallButton></div>}</div>)}</div>}</Panel><Panel title="Sampling and planned Working Paper traceability" description="Record the required work product and evidence before procedures are activated." actions={editable && <SmallButton icon={Plus} tone="primary" onClick={onAddWorkingPaper}>Add planned Working Paper</SmallButton>}>{!plannedWorkingPapers.length ? <EmptyState title="No planned Working Paper requirements" description="Every required procedure and risk should have a planned Working Paper and evidence expectation." /> : <div className="space-y-3">{plannedWorkingPapers.map((paper, index) => <div className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-2" key={`${paper.reference}-${index}`}><Field label="Reference"><TextInput disabled={!editable} value={paper.reference ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "reference", event.target.value)} /></Field><Field label="Procedure"><SearchableSelect disabled={!editable} options={procedures.map((procedure) => ({ value: procedure.id, label: `${procedure.code} — ${procedure.objective}` }))} value={paper.procedureId ?? ""} onChange={(value) => onUpdateWorkingPaper(index, "procedureId", value)} placeholder="Select procedure" /></Field><Field label="Title"><TextInput disabled={!editable} value={paper.title ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "title", event.target.value)} /></Field><Field label="Required evidence"><TextInput disabled={!editable} value={paper.requiredEvidence ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "requiredEvidence", event.target.value)} /></Field><Field label="Objective" wide><TextArea disabled={!editable} value={paper.objective ?? ""} onChange={(event) => onUpdateWorkingPaper(index, "objective", event.target.value)} /></Field>{editable && <div className="sm:col-span-2 flex justify-end"><SmallButton icon={XCircle} tone="danger" onClick={() => onRemoveWorkingPaper(index)}>Remove requirement</SmallButton></div>}</div>)}</div>}</Panel></div>;
-}
-
-function RiskMatrixSection({ form, editable, onChange, onChangeMatrix, onAddMatrix, onAdd, onEdit, onRemove }) {
+  const update = (key, value) =>
+    setFlow((current) => ({ ...current, [key]: value }));
   return (
-    <div className="space-y-5">
-      <Panel title="Risk Matrix register" description="Multiple matrices can be recorded when the engagement covers authorized areas. The first matrix remains the compatibility baseline for existing traceability." actions={<>{!editable && <ReadOnlyBadge />}{editable && <><SmallButton icon={Plus} onClick={onAddMatrix}>Add matrix</SmallButton><SmallButton icon={Plus} tone="primary" onClick={onAdd}>Add risk item</SmallButton></>}</>}>
-        <div className="space-y-4">{(form.riskMatrices?.length ? form.riskMatrices : [form.riskMatrix]).map((matrix, index) => <div className="grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2" key={`${matrix.code}-${index}`}><Field label={`Matrix ${index + 1} code`}><TextInput disabled={!editable} value={matrix.code ?? ""} onChange={(event) => index === 0 && !form.riskMatrices?.length ? onChange("riskMatrix", "code", event.target.value) : onChangeMatrix(index, "code", event.target.value)} /></Field><Field label="Title"><TextInput disabled={!editable} value={matrix.title ?? ""} onChange={(event) => index === 0 && !form.riskMatrices?.length ? onChange("riskMatrix", "title", event.target.value) : onChangeMatrix(index, "title", event.target.value)} /></Field><Field label="Audit area ID"><TextInput disabled={!editable} inputMode="numeric" value={matrix.auditAreaId ?? ""} onChange={(event) => onChangeMatrix(index, "auditAreaId", event.target.value)} /></Field><Field label="Audit focus ID"><TextInput disabled={!editable} inputMode="numeric" value={matrix.auditFocusId ?? ""} onChange={(event) => onChangeMatrix(index, "auditFocusId", event.target.value)} /></Field><Field label="Methodology" wide><TextArea disabled={!editable} value={matrix.methodology ?? ""} onChange={(event) => index === 0 && !form.riskMatrices?.length ? onChange("riskMatrix", "methodology", event.target.value) : onChangeMatrix(index, "methodology", event.target.value)} /></Field><Field label="Risk appetite"><TextInput disabled={!editable} value={matrix.riskAppetite ?? ""} onChange={(event) => onChangeMatrix(index, "riskAppetite", event.target.value)} /></Field><Field label="Overall conclusion"><TextArea disabled={!editable} value={matrix.overallConclusion ?? ""} onChange={(event) => onChangeMatrix(index, "overallConclusion", event.target.value)} /></Field></div>)}</div>
-      </Panel>
-      <Panel title="Risk Matrix Items" description="Open an item to inspect its control assessment and traceability links.">
-        {!form.riskItems.length ? <EmptyState title="No risk items recorded" description="Add risk items and link each one to an objective, approved-program procedure, and working-paper reference." /> : <div className="overflow-x-auto"><table className="min-w-[900px] w-full text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400"><tr><th className="px-3 py-3">Code</th><th className="px-3 py-3">Risk statement</th><th className="px-3 py-3">Category</th><th className="px-3 py-3">Residual rating</th><th className="px-3 py-3">Traceability</th><th className="px-3 py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{form.riskItems.map((item, index) => <tr key={`${item.riskCode}-${index}`}><td className="px-3 py-3 font-bold text-slate-800">{item.riskCode}</td><td className="max-w-xs whitespace-pre-wrap px-3 py-3 text-slate-700">{item.riskStatement || "—"}</td><td className="px-3 py-3 text-slate-600">{valueOrDash(item.riskCategory)}</td><td className="px-3 py-3"><StatusBadge tone={item.residualRating?.toLowerCase().includes("high") ? "danger" : item.residualRating ? "warning" : "inactive"}>{valueOrDash(item.residualRating)}</StatusBadge></td><td className="px-3 py-3 text-xs text-slate-600">{item.objectiveCodes?.length ?? 0} objectives · {item.procedureIds?.length ?? 0} procedures · {item.workingPapers?.length ?? 0} papers</td><td className="px-3 py-3"><div className="flex justify-end gap-2"><SmallButton icon={FilePenLine} onClick={() => onEdit(item, index)}>{editable ? "Edit" : "Inspect"}</SmallButton>{editable && <SmallButton icon={XCircle} tone="danger" onClick={() => onRemove(index)}>Remove</SmallButton>}</div></td></tr>)}</tbody></table></div>}
-      </Panel>
-      <div className="text-xs leading-5 text-slate-500">The backend remains authoritative for risk completeness, source references, scope, and readiness. This page only edits and presents the planning package content.</div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Field label="Flow code">
+        <TextInput
+          disabled={!editable}
+          value={flow.code}
+          onChange={(event) => update("code", event.target.value)}
+        />
+      </Field>
+      <Field label="Title">
+        <TextInput
+          disabled={!editable}
+          value={flow.title}
+          onChange={(event) => update("title", event.target.value)}
+        />
+      </Field>
+      <Field label="Process owner office">
+        <SearchableSelect
+          disabled={!editable}
+          options={officeOptions}
+          value={flow.processOwnerOfficeId}
+          onChange={(value) => update("processOwnerOfficeId", value)}
+          placeholder="Select linked office"
+        />
+      </Field>
+      <Field label="Audit area ID">
+        <TextInput
+          disabled={!editable}
+          inputMode="numeric"
+          value={flow.auditAreaId}
+          onChange={(event) => update("auditAreaId", event.target.value)}
+        />
+      </Field>
+      <Field label="Audit focus ID">
+        <TextInput
+          disabled={!editable}
+          inputMode="numeric"
+          value={flow.auditFocusId}
+          onChange={(event) => update("auditFocusId", event.target.value)}
+        />
+      </Field>
+      <Field label="Core Document Version ID" hint="Optional exact document">
+        <TextInput
+          disabled={!editable}
+          inputMode="numeric"
+          value={flow.documentVersionId}
+          onChange={(event) => update("documentVersionId", event.target.value)}
+        />
+      </Field>
+      <Field label="Source reference" wide>
+        <TextInput
+          disabled={!editable}
+          value={flow.sourceReference}
+          onChange={(event) => update("sourceReference", event.target.value)}
+          placeholder="Policy, interview, system, or other source reference"
+        />
+      </Field>
+      <Field label="Scope statement" wide>
+        <TextArea
+          disabled={!editable}
+          value={flow.scopeStatement}
+          onChange={(event) => update("scopeStatement", event.target.value)}
+          placeholder="Boundary and population covered by this flow"
+        />
+      </Field>
+      <Field label="Description / narrative" wide>
+        <TextArea
+          disabled={!editable}
+          value={flow.description}
+          onChange={(event) => update("description", event.target.value)}
+        />
+      </Field>
+      {[
+        ["steps", "Steps"],
+        ["inputs", "Inputs"],
+        ["outputs", "Outputs"],
+        ["recordsSystems", "Records and systems"],
+        ["controls", "Controls"],
+        ["decisionPoints", "Decision points"],
+        ["riskPoints", "Risk points"],
+      ].map(([key, title]) => (
+        <Field key={key} label={title} hint="One entry per line">
+          <TextArea
+            disabled={!editable}
+            value={listText(flow[key])}
+            onChange={(event) => update(key, listValue(event.target.value))}
+          />
+        </Field>
+      ))}
+      <Field label="Limitations" wide>
+        <TextArea
+          disabled={!editable}
+          value={flow.limitations}
+          onChange={(event) => update("limitations", event.target.value)}
+        />
+      </Field>
     </div>
   );
 }
 
-function RiskItemEditor({ item, setItem, objectiveOptions, procedureOptions, officeOptions, editable = true }) {
-  const update = (key, value) => setItem((current) => ({ ...current, [key]: value }));
-  return <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Field label="Risk code"><TextInput disabled={!editable} value={item.riskCode} onChange={(event) => update("riskCode", event.target.value)} /></Field><Field label="Risk category"><TextInput disabled={!editable} value={item.riskCategory} onChange={(event) => update("riskCategory", event.target.value)} /></Field><Field label="Status"><TextInput disabled={!editable} value={item.status} onChange={(event) => update("status", event.target.value)} /></Field><Field label="Risk statement" wide><TextArea disabled={!editable} value={item.riskStatement} onChange={(event) => update("riskStatement", event.target.value)} /></Field><Field label="Audit area ID"><TextInput disabled={!editable} inputMode="numeric" value={item.auditAreaId} onChange={(event) => update("auditAreaId", event.target.value)} /></Field><Field label="Audit focus ID"><TextInput disabled={!editable} inputMode="numeric" value={item.auditFocusId} onChange={(event) => update("auditFocusId", event.target.value)} /></Field><Field label="Process flow ID"><TextInput disabled={!editable} inputMode="numeric" value={item.processFlowId} onChange={(event) => update("processFlowId", event.target.value)} /></Field><Field label="Process name"><TextInput disabled={!editable} value={item.processName} onChange={(event) => update("processName", event.target.value)} /></Field><Field label="Risk area"><TextInput disabled={!editable} value={item.riskArea} onChange={(event) => update("riskArea", event.target.value)} /></Field><Field label="Responsible office"><SearchableSelect disabled={!editable} options={officeOptions} value={item.responsibleOfficeId} onChange={(value) => update("responsibleOfficeId", value)} placeholder="Select linked office" /></Field><Field label="Risk response"><TextInput disabled={!editable} value={item.riskResponse} onChange={(event) => update("riskResponse", event.target.value)} /></Field></div><div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3"><Field label="Inherent likelihood"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentLikelihood} onChange={(event) => update("inherentLikelihood", event.target.value)} /></Field><Field label="Inherent impact"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentImpact} onChange={(event) => update("inherentImpact", event.target.value)} /></Field><Field label="Inherent score"><TextInput disabled={!editable} inputMode="decimal" value={item.inherentScore} onChange={(event) => update("inherentScore", event.target.value)} /></Field><Field label="Residual likelihood"><TextInput disabled={!editable} inputMode="decimal" value={item.residualLikelihood} onChange={(event) => update("residualLikelihood", event.target.value)} /></Field><Field label="Residual impact"><TextInput disabled={!editable} inputMode="decimal" value={item.residualImpact} onChange={(event) => update("residualImpact", event.target.value)} /></Field><Field label="Residual score"><TextInput disabled={!editable} inputMode="decimal" value={item.residualScore} onChange={(event) => update("residualScore", event.target.value)} /></Field><Field label="Residual rating"><TextInput disabled={!editable} value={item.residualRating} onChange={(event) => update("residualRating", event.target.value)} /></Field><Field label="Control effectiveness"><TextInput disabled={!editable} value={item.controlEffectiveness} onChange={(event) => update("controlEffectiveness", event.target.value)} /></Field></div><Field label="Control description" wide><TextArea disabled={!editable} value={item.controlDescription} onChange={(event) => update("controlDescription", event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Planned audit approach" wide><TextArea disabled={!editable} value={item.plannedAuditApproach} onChange={(event) => update("plannedAuditApproach", event.target.value)} /></Field><Field label="Criteria" wide><TextArea disabled={!editable} value={item.criteria} onChange={(event) => update("criteria", event.target.value)} /></Field><Field label="Response rationale" wide><TextArea disabled={!editable} value={item.responseRationale} onChange={(event) => update("responseRationale", event.target.value)} /></Field><Field label="Linked planning objectives" hint="Select one or more"><SearchableSelect disabled={!editable} multiple multipleDisplay="summary" options={objectiveOptions} value={item.objectiveCodes} onChange={(value) => update("objectiveCodes", value)} placeholder="Select objectives" /></Field><Field label="Linked approved-program procedures" hint="Select one or more"><SearchableSelect disabled={!editable} multiple multipleDisplay="summary" options={procedureOptions} value={item.procedureIds} onChange={(value) => update("procedureIds", value)} placeholder="Select procedures" /></Field><Field label="Working-paper references" hint="One reference per line" wide><TextArea disabled={!editable} value={item.workingPaperText} onChange={(event) => update("workingPaperText", event.target.value)} placeholder="WP-01\nWP-02" /></Field></div></div>;
+function PlanningConformanceSection({
+  kpis,
+  plannedWorkingPapers,
+  procedures,
+  editable,
+  onAddKpi,
+  onUpdateKpi,
+  onRemoveKpi,
+  onAddWorkingPaper,
+  onUpdateWorkingPaper,
+  onRemoveWorkingPaper,
+}) {
+  return (
+    <div className="space-y-5">
+      <Panel
+        title="Planning KPI workspace"
+        description="Define measurable targets for the engagement, or record a formal not-applicable decision in the planning attributes."
+        actions={
+          editable && (
+            <SmallButton icon={Plus} tone="primary" onClick={onAddKpi}>
+              Add KPI
+            </SmallButton>
+          )
+        }
+      >
+        {!kpis.length ? (
+          <EmptyState
+            title="No KPI records"
+            description="Add at least one KPI before fieldwork, unless the backend records a justified not-applicable decision."
+          />
+        ) : (
+          <div className="space-y-3">
+            {kpis.map((kpi, index) => (
+              <div
+                className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-4"
+                key={`${kpi.code}-${index}`}
+              >
+                <Field label="Code">
+                  <TextInput
+                    disabled={!editable}
+                    value={kpi.code ?? ""}
+                    onChange={(event) =>
+                      onUpdateKpi(index, "code", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="Name">
+                  <TextInput
+                    disabled={!editable}
+                    value={kpi.name ?? ""}
+                    onChange={(event) =>
+                      onUpdateKpi(index, "name", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="Target">
+                  <TextInput
+                    disabled={!editable}
+                    value={kpi.target ?? ""}
+                    onChange={(event) =>
+                      onUpdateKpi(index, "target", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="Measurement method">
+                  <TextInput
+                    disabled={!editable}
+                    value={kpi.measurementMethod ?? ""}
+                    onChange={(event) =>
+                      onUpdateKpi(
+                        index,
+                        "measurementMethod",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+                {editable && (
+                  <div className="sm:col-span-4 flex justify-end">
+                    <SmallButton
+                      icon={XCircle}
+                      tone="danger"
+                      onClick={() => onRemoveKpi(index)}
+                    >
+                      Remove KPI
+                    </SmallButton>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+      <Panel
+        title="Sampling and planned Working Paper traceability"
+        description="Record the required work product and evidence before procedures are activated."
+        actions={
+          editable && (
+            <SmallButton icon={Plus} tone="primary" onClick={onAddWorkingPaper}>
+              Add planned Working Paper
+            </SmallButton>
+          )
+        }
+      >
+        {!plannedWorkingPapers.length ? (
+          <EmptyState
+            title="No planned Working Paper requirements"
+            description="Every required procedure and risk should have a planned Working Paper and evidence expectation."
+          />
+        ) : (
+          <div className="space-y-3">
+            {plannedWorkingPapers.map((paper, index) => (
+              <div
+                className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-2"
+                key={`${paper.reference}-${index}`}
+              >
+                <Field label="Reference">
+                  <TextInput
+                    disabled={!editable}
+                    value={paper.reference ?? ""}
+                    onChange={(event) =>
+                      onUpdateWorkingPaper(
+                        index,
+                        "reference",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+                <Field label="Procedure">
+                  <SearchableSelect
+                    disabled={!editable}
+                    options={procedures.map((procedure) => ({
+                      value: procedure.id,
+                      label: `${procedure.code} — ${procedure.objective}`,
+                    }))}
+                    value={paper.procedureId ?? ""}
+                    onChange={(value) =>
+                      onUpdateWorkingPaper(index, "procedureId", value)
+                    }
+                    placeholder="Select procedure"
+                  />
+                </Field>
+                <Field label="Title">
+                  <TextInput
+                    disabled={!editable}
+                    value={paper.title ?? ""}
+                    onChange={(event) =>
+                      onUpdateWorkingPaper(index, "title", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field label="Required evidence">
+                  <TextInput
+                    disabled={!editable}
+                    value={paper.requiredEvidence ?? ""}
+                    onChange={(event) =>
+                      onUpdateWorkingPaper(
+                        index,
+                        "requiredEvidence",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+                <Field label="Objective" wide>
+                  <TextArea
+                    disabled={!editable}
+                    value={paper.objective ?? ""}
+                    onChange={(event) =>
+                      onUpdateWorkingPaper(
+                        index,
+                        "objective",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+                {editable && (
+                  <div className="sm:col-span-2 flex justify-end">
+                    <SmallButton
+                      icon={XCircle}
+                      tone="danger"
+                      onClick={() => onRemoveWorkingPaper(index)}
+                    >
+                      Remove requirement
+                    </SmallButton>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function RiskMatrixSection({
+  form,
+  editable,
+  onChange,
+  onChangeMatrix,
+  onAddMatrix,
+  onAdd,
+  onEdit,
+  onRemove,
+}) {
+  return (
+    <div className="space-y-5">
+      <Panel
+        title="Risk Matrix register"
+        description="Multiple matrices can be recorded when the engagement covers authorized areas. The first matrix remains the compatibility baseline for existing traceability."
+        actions={
+          <>
+            {!editable && <ReadOnlyBadge />}
+            {editable && (
+              <>
+                <SmallButton icon={Plus} onClick={onAddMatrix}>
+                  Add matrix
+                </SmallButton>
+                <SmallButton icon={Plus} tone="primary" onClick={onAdd}>
+                  Add risk item
+                </SmallButton>
+              </>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {(form.riskMatrices?.length
+            ? form.riskMatrices
+            : [form.riskMatrix]
+          ).map((matrix, index) => (
+            <div
+              className="grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2"
+              key={`${matrix.code}-${index}`}
+            >
+              <Field label={`Matrix ${index + 1} code`}>
+                <TextInput
+                  disabled={!editable}
+                  value={matrix.code ?? ""}
+                  onChange={(event) =>
+                    index === 0 && !form.riskMatrices?.length
+                      ? onChange("riskMatrix", "code", event.target.value)
+                      : onChangeMatrix(index, "code", event.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Title">
+                <TextInput
+                  disabled={!editable}
+                  value={matrix.title ?? ""}
+                  onChange={(event) =>
+                    index === 0 && !form.riskMatrices?.length
+                      ? onChange("riskMatrix", "title", event.target.value)
+                      : onChangeMatrix(index, "title", event.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Audit area ID">
+                <TextInput
+                  disabled={!editable}
+                  inputMode="numeric"
+                  value={matrix.auditAreaId ?? ""}
+                  onChange={(event) =>
+                    onChangeMatrix(index, "auditAreaId", event.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Audit focus ID">
+                <TextInput
+                  disabled={!editable}
+                  inputMode="numeric"
+                  value={matrix.auditFocusId ?? ""}
+                  onChange={(event) =>
+                    onChangeMatrix(index, "auditFocusId", event.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Methodology" wide>
+                <TextArea
+                  disabled={!editable}
+                  value={matrix.methodology ?? ""}
+                  onChange={(event) =>
+                    index === 0 && !form.riskMatrices?.length
+                      ? onChange(
+                          "riskMatrix",
+                          "methodology",
+                          event.target.value,
+                        )
+                      : onChangeMatrix(index, "methodology", event.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Risk appetite">
+                <TextInput
+                  disabled={!editable}
+                  value={matrix.riskAppetite ?? ""}
+                  onChange={(event) =>
+                    onChangeMatrix(index, "riskAppetite", event.target.value)
+                  }
+                />
+              </Field>
+              <Field label="Overall conclusion">
+                <TextArea
+                  disabled={!editable}
+                  value={matrix.overallConclusion ?? ""}
+                  onChange={(event) =>
+                    onChangeMatrix(
+                      index,
+                      "overallConclusion",
+                      event.target.value,
+                    )
+                  }
+                />
+              </Field>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      <Panel
+        title="Risk Matrix Items"
+        description="Open an item to inspect its control assessment and traceability links."
+      >
+        {!form.riskItems.length ? (
+          <EmptyState
+            title="No risk items recorded"
+            description="Add risk items and link each one to an objective, approved-program procedure, and working-paper reference."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[900px] w-full text-left text-sm">
+              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-3">Code</th>
+                  <th className="px-3 py-3">Risk statement</th>
+                  <th className="px-3 py-3">Category</th>
+                  <th className="px-3 py-3">Residual rating</th>
+                  <th className="px-3 py-3">Traceability</th>
+                  <th className="px-3 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {form.riskItems.map((item, index) => (
+                  <tr key={`${item.riskCode}-${index}`}>
+                    <td className="px-3 py-3 font-bold text-slate-800">
+                      {item.riskCode}
+                    </td>
+                    <td className="max-w-xs whitespace-pre-wrap px-3 py-3 text-slate-700">
+                      {item.riskStatement || "—"}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      {valueOrDash(item.riskCategory)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusBadge
+                        tone={
+                          item.residualRating?.toLowerCase().includes("high")
+                            ? "danger"
+                            : item.residualRating
+                              ? "warning"
+                              : "inactive"
+                        }
+                      >
+                        {valueOrDash(item.residualRating)}
+                      </StatusBadge>
+                    </td>
+                    <td className="px-3 py-3 text-xs text-slate-600">
+                      {item.objectiveCodes?.length ?? 0} objectives ·{" "}
+                      {item.procedureIds?.length ?? 0} procedures ·{" "}
+                      {item.workingPapers?.length ?? 0} papers
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex justify-end gap-2">
+                        <SmallButton
+                          icon={FilePenLine}
+                          onClick={() => onEdit(item, index)}
+                        >
+                          {editable ? "Edit" : "Inspect"}
+                        </SmallButton>
+                        {editable && (
+                          <SmallButton
+                            icon={XCircle}
+                            tone="danger"
+                            onClick={() => onRemove(index)}
+                          >
+                            Remove
+                          </SmallButton>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+      <div className="text-xs leading-5 text-slate-500">
+        The backend remains authoritative for risk completeness, source
+        references, scope, and readiness. This page only edits and presents the
+        planning package content.
+      </div>
+    </div>
+  );
+}
+
+function RiskItemEditor({
+  item,
+  setItem,
+  objectiveOptions,
+  procedureOptions,
+  officeOptions,
+  editable = true,
+}) {
+  const update = (key, value) =>
+    setItem((current) => ({ ...current, [key]: value }));
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="Risk code">
+          <TextInput
+            disabled={!editable}
+            value={item.riskCode}
+            onChange={(event) => update("riskCode", event.target.value)}
+          />
+        </Field>
+        <Field label="Risk category">
+          <TextInput
+            disabled={!editable}
+            value={item.riskCategory}
+            onChange={(event) => update("riskCategory", event.target.value)}
+          />
+        </Field>
+        <Field label="Status">
+          <TextInput
+            disabled={!editable}
+            value={item.status}
+            onChange={(event) => update("status", event.target.value)}
+          />
+        </Field>
+        <Field label="Risk statement" wide>
+          <TextArea
+            disabled={!editable}
+            value={item.riskStatement}
+            onChange={(event) => update("riskStatement", event.target.value)}
+          />
+        </Field>
+        <Field label="Audit area ID">
+          <TextInput
+            disabled={!editable}
+            inputMode="numeric"
+            value={item.auditAreaId}
+            onChange={(event) => update("auditAreaId", event.target.value)}
+          />
+        </Field>
+        <Field label="Audit focus ID">
+          <TextInput
+            disabled={!editable}
+            inputMode="numeric"
+            value={item.auditFocusId}
+            onChange={(event) => update("auditFocusId", event.target.value)}
+          />
+        </Field>
+        <Field label="Process flow ID">
+          <TextInput
+            disabled={!editable}
+            inputMode="numeric"
+            value={item.processFlowId}
+            onChange={(event) => update("processFlowId", event.target.value)}
+          />
+        </Field>
+        <Field label="Process name">
+          <TextInput
+            disabled={!editable}
+            value={item.processName}
+            onChange={(event) => update("processName", event.target.value)}
+          />
+        </Field>
+        <Field label="Risk area">
+          <TextInput
+            disabled={!editable}
+            value={item.riskArea}
+            onChange={(event) => update("riskArea", event.target.value)}
+          />
+        </Field>
+        <Field label="Responsible office">
+          <SearchableSelect
+            disabled={!editable}
+            options={officeOptions}
+            value={item.responsibleOfficeId}
+            onChange={(value) => update("responsibleOfficeId", value)}
+            placeholder="Select linked office"
+          />
+        </Field>
+        <Field label="Risk response">
+          <TextInput
+            disabled={!editable}
+            value={item.riskResponse}
+            onChange={(event) => update("riskResponse", event.target.value)}
+          />
+        </Field>
+      </div>
+      <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+        <Field label="Inherent likelihood">
+          <TextInput
+            disabled={!editable}
+            inputMode="decimal"
+            value={item.inherentLikelihood}
+            onChange={(event) =>
+              update("inherentLikelihood", event.target.value)
+            }
+          />
+        </Field>
+        <Field label="Inherent impact">
+          <TextInput
+            disabled={!editable}
+            inputMode="decimal"
+            value={item.inherentImpact}
+            onChange={(event) => update("inherentImpact", event.target.value)}
+          />
+        </Field>
+        <Field label="Inherent score">
+          <TextInput
+            disabled={!editable}
+            inputMode="decimal"
+            value={item.inherentScore}
+            onChange={(event) => update("inherentScore", event.target.value)}
+          />
+        </Field>
+        <Field label="Residual likelihood">
+          <TextInput
+            disabled={!editable}
+            inputMode="decimal"
+            value={item.residualLikelihood}
+            onChange={(event) =>
+              update("residualLikelihood", event.target.value)
+            }
+          />
+        </Field>
+        <Field label="Residual impact">
+          <TextInput
+            disabled={!editable}
+            inputMode="decimal"
+            value={item.residualImpact}
+            onChange={(event) => update("residualImpact", event.target.value)}
+          />
+        </Field>
+        <Field label="Residual score">
+          <TextInput
+            disabled={!editable}
+            inputMode="decimal"
+            value={item.residualScore}
+            onChange={(event) => update("residualScore", event.target.value)}
+          />
+        </Field>
+        <Field label="Residual rating">
+          <TextInput
+            disabled={!editable}
+            value={item.residualRating}
+            onChange={(event) => update("residualRating", event.target.value)}
+          />
+        </Field>
+        <Field label="Control effectiveness">
+          <TextInput
+            disabled={!editable}
+            value={item.controlEffectiveness}
+            onChange={(event) =>
+              update("controlEffectiveness", event.target.value)
+            }
+          />
+        </Field>
+      </div>
+      <Field label="Control description" wide>
+        <TextArea
+          disabled={!editable}
+          value={item.controlDescription}
+          onChange={(event) => update("controlDescription", event.target.value)}
+        />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Planned audit approach" wide>
+          <TextArea
+            disabled={!editable}
+            value={item.plannedAuditApproach}
+            onChange={(event) =>
+              update("plannedAuditApproach", event.target.value)
+            }
+          />
+        </Field>
+        <Field label="Criteria" wide>
+          <TextArea
+            disabled={!editable}
+            value={item.criteria}
+            onChange={(event) => update("criteria", event.target.value)}
+          />
+        </Field>
+        <Field label="Response rationale" wide>
+          <TextArea
+            disabled={!editable}
+            value={item.responseRationale}
+            onChange={(event) =>
+              update("responseRationale", event.target.value)
+            }
+          />
+        </Field>
+        <Field label="Linked planning objectives" hint="Select one or more">
+          <SearchableSelect
+            disabled={!editable}
+            multiple
+            multipleDisplay="summary"
+            options={objectiveOptions}
+            value={item.objectiveCodes}
+            onChange={(value) => update("objectiveCodes", value)}
+            placeholder="Select objectives"
+          />
+        </Field>
+        <Field
+          label="Linked approved-program procedures"
+          hint="Select one or more"
+        >
+          <SearchableSelect
+            disabled={!editable}
+            multiple
+            multipleDisplay="summary"
+            options={procedureOptions}
+            value={item.procedureIds}
+            onChange={(value) => update("procedureIds", value)}
+            placeholder="Select procedures"
+          />
+        </Field>
+        <Field
+          label="Working-paper references"
+          hint="One reference per line"
+          wide
+        >
+          <TextArea
+            disabled={!editable}
+            value={item.workingPaperText}
+            onChange={(event) => update("workingPaperText", event.target.value)}
+            placeholder="WP-01\nWP-02"
+          />
+        </Field>
+      </div>
+    </div>
+  );
 }
 
 function TraceabilitySection({ workspace, form }) {
-  const procedureById = new Map((workspace.procedures ?? []).map((procedure) => [String(procedure.id), procedure]));
-  return <div className="grid gap-5 xl:grid-cols-2"><Panel title="Source-to-planning lineage" description="Read-only references preserved from the approved IAP engagement source."><MetadataGrid values={[["Source type", label(workspace.lineage?.sourceType)], ["Plan engagement", workspace.lineage?.iapPlanEngagementId], ["Plan", workspace.lineage?.iapPlanId], ["Prioritization item", workspace.lineage?.iapPrioritizationItemId], ["Risk assessment", workspace.lineage?.iapRiskAssessmentId], ["Audit Universe item", workspace.lineage?.iapAuditUniverseItemId]]} /></Panel><Panel title="Risk-to-objective and procedure links" description="Every link is carried into the immutable version and checked by the backend readiness service.">{!form.riskItems.length ? <EmptyState title="No traceability yet" description="Risk items will appear here after they are added." /> : <div className="space-y-3">{form.riskItems.map((item) => <article className="rounded-xl border border-slate-200 p-3" key={item.riskCode}><div className="flex items-center gap-2"><Link2 className="text-sky-700" size={16} /><strong className="text-slate-800">{item.riskCode}</strong><span className="text-sm text-slate-600">{item.riskStatement || "Unstated risk"}</span></div><div className="mt-3 grid gap-3 text-xs sm:grid-cols-3"><div><p className="font-bold uppercase tracking-wide text-slate-400">Objectives</p><p className="mt-1 text-slate-700">{item.objectiveCodes?.join(", ") || "None"}</p></div><div><p className="font-bold uppercase tracking-wide text-slate-400">Procedures</p><p className="mt-1 text-slate-700">{(item.procedureIds ?? []).map((id) => procedureById.get(String(id))?.code ?? id).join(", ") || "None"}</p></div><div><p className="font-bold uppercase tracking-wide text-slate-400">Working papers</p><p className="mt-1 text-slate-700">{(item.workingPapers ?? []).map((paper) => paper.reference).join(", ") || "None"}</p></div></div></article>)}</div>}</Panel><Panel title="Planning artifact references" description="Process flows and survey sources remain pinned to exact Core Document Versions when supplied."><div className="space-y-3">{form.processFlows.map((flow) => <div className="rounded-xl border border-slate-200 p-3" key={flow.code}><div className="flex items-center justify-between gap-3"><strong className="text-slate-800">{flow.code} — {flow.title}</strong><span className="text-xs font-bold text-slate-500">Document v{valueOrDash(flow.documentVersionId)}</span></div><p className="mt-1 text-sm text-slate-600">{flow.sourceReference || "No source reference recorded."}</p></div>)}{form.preliminarySurveyDocumentVersionId && <div className="rounded-xl border border-slate-200 p-3 text-sm text-slate-700">Preliminary Survey Core Document Version: <strong>{form.preliminarySurveyDocumentVersionId}</strong></div>}{!form.processFlows.length && !form.preliminarySurveyDocumentVersionId && <EmptyState title="No exact document references" description="Optional Core Document Version references can be added while editing." />}</div></Panel></div>;
+  const procedureById = new Map(
+    (workspace.procedures ?? []).map((procedure) => [
+      String(procedure.id),
+      procedure,
+    ]),
+  );
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <Panel
+        title="Source-to-planning lineage"
+        description="Read-only references preserved from the approved IAP engagement source."
+      >
+        <MetadataGrid
+          values={[
+            ["Source type", label(workspace.lineage?.sourceType)],
+            ["Plan engagement", workspace.lineage?.iapPlanEngagementId],
+            ["Plan", workspace.lineage?.iapPlanId],
+            ["Prioritization item", workspace.lineage?.iapPrioritizationItemId],
+            ["Risk assessment", workspace.lineage?.iapRiskAssessmentId],
+            ["Audit Universe item", workspace.lineage?.iapAuditUniverseItemId],
+          ]}
+        />
+      </Panel>
+      <Panel
+        title="Risk-to-objective and procedure links"
+        description="Every link is carried into the immutable version and checked by the backend readiness service."
+      >
+        {!form.riskItems.length ? (
+          <EmptyState
+            title="No traceability yet"
+            description="Risk items will appear here after they are added."
+          />
+        ) : (
+          <div className="space-y-3">
+            {form.riskItems.map((item) => (
+              <article
+                className="rounded-xl border border-slate-200 p-3"
+                key={item.riskCode}
+              >
+                <div className="flex items-center gap-2">
+                  <Link2 className="text-sky-700" size={16} />
+                  <strong className="text-slate-800">{item.riskCode}</strong>
+                  <span className="text-sm text-slate-600">
+                    {item.riskStatement || "Unstated risk"}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-slate-400">
+                      Objectives
+                    </p>
+                    <p className="mt-1 text-slate-700">
+                      {item.objectiveCodes?.join(", ") || "None"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-slate-400">
+                      Procedures
+                    </p>
+                    <p className="mt-1 text-slate-700">
+                      {(item.procedureIds ?? [])
+                        .map((id) => procedureById.get(String(id))?.code ?? id)
+                        .join(", ") || "None"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wide text-slate-400">
+                      Working papers
+                    </p>
+                    <p className="mt-1 text-slate-700">
+                      {(item.workingPapers ?? [])
+                        .map((paper) => paper.reference)
+                        .join(", ") || "None"}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </Panel>
+      <Panel
+        title="Planning artifact references"
+        description="Process flows and survey sources remain pinned to exact Core Document Versions when supplied."
+      >
+        <div className="space-y-3">
+          {form.processFlows.map((flow) => (
+            <div
+              className="rounded-xl border border-slate-200 p-3"
+              key={flow.code}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <strong className="text-slate-800">
+                  {flow.code} — {flow.title}
+                </strong>
+                <span className="text-xs font-bold text-slate-500">
+                  Document v{valueOrDash(flow.documentVersionId)}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600">
+                {flow.sourceReference || "No source reference recorded."}
+              </p>
+            </div>
+          ))}
+          {form.preliminarySurveyDocumentVersionId && (
+            <div className="rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+              Preliminary Survey Core Document Version:{" "}
+              <strong>{form.preliminarySurveyDocumentVersionId}</strong>
+            </div>
+          )}
+          {!form.processFlows.length &&
+            !form.preliminarySurveyDocumentVersionId && (
+              <EmptyState
+                title="No exact document references"
+                description="Optional Core Document Version references can be added while editing."
+              />
+            )}
+        </div>
+      </Panel>
+    </div>
+  );
 }
 
-function ReadinessSection({ workspace, packageRecord, actionOptions, onAction }) {
+function ReadinessSection({
+  workspace,
+  packageRecord,
+  actionOptions,
+  onAction,
+}) {
   const conformanceReady = Boolean(workspace.readiness?.fieldworkReady);
-  return <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]"><Panel title="Planning readiness checklist" description="These checks come directly from the backend and are not recalculated in React."><div className="space-y-2" data-testid="planning-readiness">{(workspace.readiness?.checks ?? []).map((check) => <div className={`flex items-start gap-3 rounded-xl border px-3 py-3 ${check.met ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`} key={check.key}>{check.met ? <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-700" size={18} /> : <ShieldAlert className="mt-0.5 shrink-0 text-amber-700" size={18} />}<span className="text-sm font-semibold text-slate-700">{check.label}</span><StatusBadge tone={check.met ? "success" : "warning"}>{check.met ? "Met" : "Open"}</StatusBadge></div>)}</div><div className={`mt-4 rounded-xl px-4 py-3 text-sm font-bold ${conformanceReady ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}>{conformanceReady ? "Planning conformance is complete; an approved baseline may authorize fieldwork." : "Planning conformance is incomplete. Fieldwork remains blocked until every structured planning gate is met."}</div></Panel><Panel title="Review and approval queue" description="Available actions are derived from backend capabilities and the signed-in user's permissions."><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Current state</p><div className="mt-2 flex flex-wrap items-center gap-2"><StatusBadge tone={statusTones[packageRecord?.status] ?? "inactive"}>{label(packageRecord?.status ?? "Not created")}</StatusBadge>{packageRecord?.currentVersionNumber && <span className="text-sm font-semibold text-slate-600">Version {packageRecord.currentVersionNumber}</span>}</div></div><div className="mt-4 flex flex-wrap gap-2">{actionOptions.length ? actionOptions.map(([key, text, Icon, tone]) => <SmallButton key={key} icon={Icon} tone={tone} onClick={() => onAction(key)}>{text}</SmallButton>) : <p className="text-sm text-slate-500">No workflow action is currently available for this role and state.</p>}</div><div className="mt-5 border-t border-slate-100 pt-4"><h4 className="text-sm font-bold text-slate-700">Review history</h4>{!packageRecord?.reviews?.length ? <p className="mt-2 text-sm text-slate-500">No independent review recorded for this package yet.</p> : <div className="mt-3 space-y-3">{packageRecord.reviews.map((review) => <div className="rounded-xl border border-slate-200 p-3" key={review.id}><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-slate-700">Version {review.versionNumber} · {review.reviewer?.name ?? "Reviewer"}</strong><span className="text-xs text-slate-500">{formatDate(review.reviewedAt, true)}</span></div><p className="mt-1 text-sm leading-6 text-slate-600">{review.comment || "No comment recorded."}</p></div>)}</div>}</div></Panel></div>;
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <Panel
+        title="Planning readiness checklist"
+        description="These checks come directly from the backend and are not recalculated in React."
+      >
+        <div className="space-y-2" data-testid="planning-readiness">
+          {(workspace.readiness?.checks ?? []).map((check) => (
+            <div
+              className={`flex items-start gap-3 rounded-xl border px-3 py-3 ${check.met ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
+              key={check.key}
+            >
+              {check.met ? (
+                <CheckCircle2
+                  className="mt-0.5 shrink-0 text-emerald-700"
+                  size={18}
+                />
+              ) : (
+                <ShieldAlert
+                  className="mt-0.5 shrink-0 text-amber-700"
+                  size={18}
+                />
+              )}
+              <span className="text-sm font-semibold text-slate-700">
+                {check.label}
+              </span>
+              <StatusBadge tone={check.met ? "success" : "warning"}>
+                {check.met ? "Met" : "Open"}
+              </StatusBadge>
+            </div>
+          ))}
+        </div>
+        <div
+          className={`mt-4 rounded-xl px-4 py-3 text-sm font-bold ${conformanceReady ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`}
+        >
+          {conformanceReady
+            ? "Planning conformance is complete; an approved baseline may authorize fieldwork."
+            : "Planning conformance is incomplete. Fieldwork remains blocked until every structured planning gate is met."}
+        </div>
+      </Panel>
+      <Panel
+        title="Review and approval queue"
+        description="Available actions are derived from backend capabilities and the signed-in user's permissions."
+      >
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            Current state
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <StatusBadge
+              tone={statusTones[packageRecord?.status] ?? "inactive"}
+            >
+              {label(packageRecord?.status ?? "Not created")}
+            </StatusBadge>
+            {packageRecord?.currentVersionNumber && (
+              <span className="text-sm font-semibold text-slate-600">
+                Version {packageRecord.currentVersionNumber}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {actionOptions.length ? (
+            actionOptions.map(([key, text, Icon, tone]) => (
+              <SmallButton
+                key={key}
+                icon={Icon}
+                tone={tone}
+                onClick={() => onAction(key)}
+              >
+                {text}
+              </SmallButton>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">
+              No workflow action is currently available for this role and state.
+            </p>
+          )}
+        </div>
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <h4 className="text-sm font-bold text-slate-700">Review history</h4>
+          {!packageRecord?.reviews?.length ? (
+            <p className="mt-2 text-sm text-slate-500">
+              No independent review recorded for this package yet.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {packageRecord.reviews.map((review) => (
+                <div
+                  className="rounded-xl border border-slate-200 p-3"
+                  key={review.id}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <strong className="text-sm text-slate-700">
+                      Version {review.versionNumber} ·{" "}
+                      {review.reviewer?.name ?? "Reviewer"}
+                    </strong>
+                    <span className="text-xs text-slate-500">
+                      {formatDate(review.reviewedAt, true)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {review.comment || "No comment recorded."}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
 }
 
-function VersionsSection({ packageRecord, versions, inspectedVersion, selectedVersionNumber, setSelectedVersionNumber, compareFrom, compareTo, setCompareFrom, setCompareTo, compareLeft, compareRight }) {
-  const sectionDiffs = compareLeft && compareRight ? [
-    ["Preliminary survey", JSON.stringify(compareLeft.preliminarySurvey) !== JSON.stringify(compareRight.preliminarySurvey)],
-    ["Planning attributes", JSON.stringify(compareLeft.planningAttributes) !== JSON.stringify(compareRight.planningAttributes)],
-    ["Objectives", JSON.stringify(compareLeft.objectives) !== JSON.stringify(compareRight.objectives)],
-    ["Process flows", JSON.stringify(compareLeft.processFlows) !== JSON.stringify(compareRight.processFlows)],
-    ["Risk matrix", JSON.stringify(compareLeft.riskMatrix) !== JSON.stringify(compareRight.riskMatrix)],
-  ] : [];
-  return <div className="space-y-5"><Panel title="Immutable version history" description="Approved versions cannot be edited. New changes are stored as new versions with their own checksum and change reason."><div className="overflow-x-auto"><table className="min-w-[720px] w-full text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400"><tr><th className="px-3 py-3">Version</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Created by</th><th className="px-3 py-3">Change reason</th><th className="px-3 py-3 text-right">Inspect</th></tr></thead><tbody className="divide-y divide-slate-100">{versions.map((version) => <tr key={version.id ?? version.versionNumber}><td className="px-3 py-3 font-bold text-slate-800">v{version.versionNumber}{version.versionNumber === packageRecord?.approvedVersionNumber && <span className="ml-2"><StatusBadge tone="success">Approved</StatusBadge></span>}</td><td className="px-3 py-3 text-slate-600">{formatDate(version.createdAt, true)}</td><td className="px-3 py-3 text-slate-600">{version.createdBy?.name ?? "—"}</td><td className="max-w-sm px-3 py-3 text-slate-600">{version.changeReason || "Initial version"}</td><td className="px-3 py-3 text-right"><SmallButton icon={version.versionNumber === Number(selectedVersionNumber) ? Check : History} onClick={() => setSelectedVersionNumber(String(version.versionNumber))}>{version.versionNumber === Number(selectedVersionNumber) ? "Inspecting" : "Inspect"}</SmallButton></td></tr>)}</tbody></table></div></Panel><Panel title="Version comparison" description="Compare two immutable snapshots without changing the current working version."><div className="grid gap-4 sm:grid-cols-2"><Field label="Compare from"><SearchableSelect options={versions.map((version) => ({ value: version.versionNumber, label: `Version ${version.versionNumber}` }))} value={compareFrom} onChange={(value) => setCompareFrom(String(value))} placeholder="Select version" /></Field><Field label="Compare to"><SearchableSelect options={versions.map((version) => ({ value: version.versionNumber, label: `Version ${version.versionNumber}` }))} value={compareTo} onChange={(value) => setCompareTo(String(value))} placeholder="Select version" /></Field></div>{compareLeft && compareRight ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{sectionDiffs.map(([name, changed]) => <div className={`rounded-xl border px-3 py-3 ${changed ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`} key={name}><div className="flex items-center gap-2">{changed ? <GitCompareArrows className="text-amber-700" size={16} /> : <CheckCircle2 className="text-emerald-700" size={16} />}<strong className="text-sm text-slate-700">{name}</strong></div><p className="mt-1 text-xs text-slate-600">{changed ? "Different between selected snapshots" : "No change detected"}</p></div>)}</div> : <p className="mt-4 text-sm text-slate-500">Select two versions to compare.</p>}</Panel>{inspectedVersion && <Panel title={`Inspecting version ${inspectedVersion.versionNumber}`} description="Inspection is read-only and does not change the current draft."><div className="mb-4 flex flex-wrap items-center gap-2"><ReadOnlyBadge>{inspectedVersion.versionNumber === packageRecord?.approvedVersionNumber ? "Approved immutable version" : "Immutable version snapshot"}</ReadOnlyBadge><span className="text-xs text-slate-500">Checksum: {inspectedVersion.checksumSha256 ?? "—"}</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Objectives</p><p className="mt-1 text-lg font-bold text-slate-800">{inspectedVersion.objectives?.length ?? 0}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Process flows</p><p className="mt-1 text-lg font-bold text-slate-800">{inspectedVersion.processFlows?.length ?? 0}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Risk items</p><p className="mt-1 text-lg font-bold text-slate-800">{inspectedVersion.riskMatrix?.items?.length ?? 0}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Created</p><p className="mt-1 text-sm font-bold text-slate-800">{formatDate(inspectedVersion.createdAt, true)}</p></div></div></Panel>}</div>;
+function VersionsSection({
+  packageRecord,
+  versions,
+  inspectedVersion,
+  selectedVersionNumber,
+  setSelectedVersionNumber,
+  compareFrom,
+  compareTo,
+  setCompareFrom,
+  setCompareTo,
+  compareLeft,
+  compareRight,
+}) {
+  const sectionDiffs =
+    compareLeft && compareRight
+      ? [
+          [
+            "Preliminary survey",
+            JSON.stringify(compareLeft.preliminarySurvey) !==
+              JSON.stringify(compareRight.preliminarySurvey),
+          ],
+          [
+            "Planning attributes",
+            JSON.stringify(compareLeft.planningAttributes) !==
+              JSON.stringify(compareRight.planningAttributes),
+          ],
+          [
+            "Objectives",
+            JSON.stringify(compareLeft.objectives) !==
+              JSON.stringify(compareRight.objectives),
+          ],
+          [
+            "Process flows",
+            JSON.stringify(compareLeft.processFlows) !==
+              JSON.stringify(compareRight.processFlows),
+          ],
+          [
+            "Risk matrix",
+            JSON.stringify(compareLeft.riskMatrix) !==
+              JSON.stringify(compareRight.riskMatrix),
+          ],
+        ]
+      : [];
+  return (
+    <div className="space-y-5">
+      <Panel
+        title="Immutable version history"
+        description="Approved versions cannot be edited. New changes are stored as new versions with their own checksum and change reason."
+      >
+        <div className="overflow-x-auto">
+          <table className="min-w-[720px] w-full text-left text-sm">
+            <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+              <tr>
+                <th className="px-3 py-3">Version</th>
+                <th className="px-3 py-3">Created</th>
+                <th className="px-3 py-3">Created by</th>
+                <th className="px-3 py-3">Change reason</th>
+                <th className="px-3 py-3 text-right">Inspect</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {versions.map((version) => (
+                <tr key={version.id ?? version.versionNumber}>
+                  <td className="px-3 py-3 font-bold text-slate-800">
+                    v{version.versionNumber}
+                    {version.versionNumber ===
+                      packageRecord?.approvedVersionNumber && (
+                      <span className="ml-2">
+                        <StatusBadge tone="success">Approved</StatusBadge>
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-slate-600">
+                    {formatDate(version.createdAt, true)}
+                  </td>
+                  <td className="px-3 py-3 text-slate-600">
+                    {version.createdBy?.name ?? "—"}
+                  </td>
+                  <td className="max-w-sm px-3 py-3 text-slate-600">
+                    {version.changeReason || "Initial version"}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <SmallButton
+                      icon={
+                        version.versionNumber === Number(selectedVersionNumber)
+                          ? Check
+                          : History
+                      }
+                      onClick={() =>
+                        setSelectedVersionNumber(String(version.versionNumber))
+                      }
+                    >
+                      {version.versionNumber === Number(selectedVersionNumber)
+                        ? "Inspecting"
+                        : "Inspect"}
+                    </SmallButton>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+      <Panel
+        title="Version comparison"
+        description="Compare two immutable snapshots without changing the current working version."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Compare from">
+            <SearchableSelect
+              options={versions.map((version) => ({
+                value: version.versionNumber,
+                label: `Version ${version.versionNumber}`,
+              }))}
+              value={compareFrom}
+              onChange={(value) => setCompareFrom(String(value))}
+              placeholder="Select version"
+            />
+          </Field>
+          <Field label="Compare to">
+            <SearchableSelect
+              options={versions.map((version) => ({
+                value: version.versionNumber,
+                label: `Version ${version.versionNumber}`,
+              }))}
+              value={compareTo}
+              onChange={(value) => setCompareTo(String(value))}
+              placeholder="Select version"
+            />
+          </Field>
+        </div>
+        {compareLeft && compareRight ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {sectionDiffs.map(([name, changed]) => (
+              <div
+                className={`rounded-xl border px-3 py-3 ${changed ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}
+                key={name}
+              >
+                <div className="flex items-center gap-2">
+                  {changed ? (
+                    <GitCompareArrows className="text-amber-700" size={16} />
+                  ) : (
+                    <CheckCircle2 className="text-emerald-700" size={16} />
+                  )}
+                  <strong className="text-sm text-slate-700">{name}</strong>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  {changed
+                    ? "Different between selected snapshots"
+                    : "No change detected"}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">
+            Select two versions to compare.
+          </p>
+        )}
+      </Panel>
+      {inspectedVersion && (
+        <Panel
+          title={`Inspecting version ${inspectedVersion.versionNumber}`}
+          description="Inspection is read-only and does not change the current draft."
+        >
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <ReadOnlyBadge>
+              {inspectedVersion.versionNumber ===
+              packageRecord?.approvedVersionNumber
+                ? "Approved immutable version"
+                : "Immutable version snapshot"}
+            </ReadOnlyBadge>
+            <span className="text-xs text-slate-500">
+              Checksum: {inspectedVersion.checksumSha256 ?? "—"}
+            </span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Objectives
+              </p>
+              <p className="mt-1 text-lg font-bold text-slate-800">
+                {inspectedVersion.objectives?.length ?? 0}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Process flows
+              </p>
+              <p className="mt-1 text-lg font-bold text-slate-800">
+                {inspectedVersion.processFlows?.length ?? 0}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Risk items
+              </p>
+              <p className="mt-1 text-lg font-bold text-slate-800">
+                {inspectedVersion.riskMatrix?.items?.length ?? 0}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Created
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-800">
+                {formatDate(inspectedVersion.createdAt, true)}
+              </p>
+            </div>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
 }

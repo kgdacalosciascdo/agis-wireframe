@@ -151,7 +151,11 @@ export default function IapAuditUniversePage() {
             office.code,
             office.name,
           ]),
-        ].some((value) => String(value ?? "").toLowerCase().includes(query));
+        ].some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(query),
+        );
       const matchesOffice =
         !officeFilter ||
         String(item.responsibleOfficeId) === String(officeFilter) ||
@@ -159,8 +163,7 @@ export default function IapAuditUniversePage() {
           (office) => String(office.id) === String(officeFilter),
         );
       const matchesArea =
-        !areaFilter ||
-        String(item.primaryAuditAreaId) === String(areaFilter);
+        !areaFilter || String(item.primaryAuditAreaId) === String(areaFilter);
       const matchesStatus =
         !statusFilter ||
         (statusFilter === "ARCHIVED" && item.isArchived) ||
@@ -277,18 +280,10 @@ export default function IapAuditUniversePage() {
       render: (item) => (
         <StatusBadge
           tone={
-            item.isArchived
-              ? "inactive"
-              : item.isActive
-                ? "active"
-                : "warning"
+            item.isArchived ? "inactive" : item.isActive ? "active" : "warning"
           }
         >
-          {item.isArchived
-            ? "Archived"
-            : item.isActive
-              ? "Active"
-              : "Inactive"}
+          {item.isArchived ? "Archived" : item.isActive ? "Active" : "Inactive"}
         </StatusBadge>
       ),
     },
@@ -504,9 +499,7 @@ export default function IapAuditUniversePage() {
               { value: "ACTIVE", label: "Active" },
               { value: "INACTIVE", label: "Inactive" },
               { value: "NEVER_AUDITED", label: "Never Audited" },
-              ...(canManage
-                ? [{ value: "ARCHIVED", label: "Archived" }]
-                : []),
+              ...(canManage ? [{ value: "ARCHIVED", label: "Archived" }] : []),
             ]}
             placeholder="Filter by status"
             searchPlaceholder="Search statuses..."
@@ -574,9 +567,7 @@ export default function IapAuditUniversePage() {
         open={editorOpen}
         size="xl"
         title={
-          editing
-            ? `Edit ${editing.subjectCode}`
-            : "Add auditable subject"
+          editing ? `Edit ${editing.subjectCode}` : "Add auditable subject"
         }
       >
         <IapAuditUniverseForm
@@ -612,9 +603,7 @@ export default function IapAuditUniversePage() {
                 <div className="flex gap-2">
                   {selected.materialityLevel && (
                     <StatusBadge
-                      tone={materialityTone(
-                        selected.materialityLevel.code,
-                      )}
+                      tone={materialityTone(selected.materialityLevel.code)}
                     >
                       {selected.materialityLevel.label} exposure
                     </StatusBadge>

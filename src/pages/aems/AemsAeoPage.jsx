@@ -76,7 +76,9 @@ function roleLabel(value) {
 
 function accountLabel(account) {
   if (!account?.name) return "Pending authority";
-  return account.username ? `${account.name} (${account.username})` : account.name;
+  return account.username
+    ? `${account.name} (${account.username})`
+    : account.name;
 }
 
 function actionAuthorityRole(action) {
@@ -207,7 +209,10 @@ export default function AemsAeoPage() {
   }));
   const order = workspace?.order;
   const version = order?.latestVersion;
-  const recipientOptions = workspace?.recipientOptions ?? { offices: [], users: [] };
+  const recipientOptions = workspace?.recipientOptions ?? {
+    offices: [],
+    users: [],
+  };
   const authorityMatrix = workspace?.authorityMatrix;
   const authorityRoles = useMemo(
     () => authorityMatrix?.roles ?? [],
@@ -242,7 +247,7 @@ export default function AemsAeoPage() {
     if (["APPROVED", "ISSUED"].includes(order.status) && canAmend) {
       items.push(["AMEND", "Amend AEO", FilePenLine, "warning"]);
     }
-    if (!['CANCELLED', 'VOIDED', 'SUPERSEDED'].includes(order.status)) {
+    if (!["CANCELLED", "VOIDED", "SUPERSEDED"].includes(order.status)) {
       if (canCancel) items.push(["CANCEL", "Cancel AEO", Undo2, "warning"]);
       if (canVoid) items.push(["VOID", "Void AEO", Undo2, "warning"]);
     }
@@ -250,13 +255,31 @@ export default function AemsAeoPage() {
       items.push(["SUPERSEDE", "Supersede AEO", RotateCcw, "warning"]);
     }
     return items;
-  }, [canAmend, canApprove, canCancel, canIssue, canPrepare, canReview, canRevise, canSupersede, canVoid, order]);
+  }, [
+    canAmend,
+    canApprove,
+    canCancel,
+    canIssue,
+    canPrepare,
+    canReview,
+    canRevise,
+    canSupersede,
+    canVoid,
+    order,
+  ]);
 
   const nextAuthority = useMemo(() => {
     const relevant = actions
-      .map(([action]) => authorityRoles.find((entry) => entry.role === actionAuthorityRole(action)))
+      .map(([action]) =>
+        authorityRoles.find(
+          (entry) => entry.role === actionAuthorityRole(action),
+        ),
+      )
       .filter(Boolean)
-      .filter((entry, index, entries) => entries.findIndex((item) => item.role === entry.role) === index);
+      .filter(
+        (entry, index, entries) =>
+          entries.findIndex((item) => item.role === entry.role) === index,
+      );
     return relevant;
   }, [actions, authorityRoles]);
 
@@ -373,9 +396,10 @@ export default function AemsAeoPage() {
 
   function selectRecipient(event) {
     const id = event.target.value;
-    const options = distributionForm.recipientType === "OFFICE"
-      ? recipientOptions.offices
-      : recipientOptions.users;
+    const options =
+      distributionForm.recipientType === "OFFICE"
+        ? recipientOptions.offices
+        : recipientOptions.users;
     const selected = options.find((option) => String(option.id) === String(id));
     setDistributionForm((current) => ({
       ...current,
@@ -386,10 +410,18 @@ export default function AemsAeoPage() {
   }
 
   async function acknowledge(distribution) {
-    const note = window.prompt("Acknowledgement note", "AEO received and recorded.");
+    const note = window.prompt(
+      "Acknowledgement note",
+      "AEO received and recorded.",
+    );
     if (!note) return;
     try {
-      await aemsAeoApi.acknowledgeDistribution(selectedId, order.id, distribution.id, { note });
+      await aemsAeoApi.acknowledgeDistribution(
+        selectedId,
+        order.id,
+        distribution.id,
+        { note },
+      );
       toast.success("AEO transmittal acknowledged.");
       await loadWorkspace();
     } catch (requestError) {
@@ -550,7 +582,9 @@ export default function AemsAeoPage() {
             </div>
 
             <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4 sm:p-5">
-              <Detail label="Prepared by">{accountLabel(order.preparedBy)}</Detail>
+              <Detail label="Prepared by">
+                {accountLabel(order.preparedBy)}
+              </Detail>
               <Detail label="Submitted">
                 {order.submittedAt
                   ? `${order.submittedBy?.name} · ${date(order.submittedAt, true)}`
@@ -614,11 +648,14 @@ export default function AemsAeoPage() {
               </p>
               {!!nextAuthority.length && (
                 <div className="mt-3 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs text-slate-700">
-                  <strong className="text-sky-800">Responsible account guidance:</strong>{" "}
+                  <strong className="text-sky-800">
+                    Responsible account guidance:
+                  </strong>{" "}
                   {nextAuthority.map((entry, index) => (
                     <span key={entry.role}>
                       {index > 0 ? " · " : ""}
-                      {entry.label}: {entry.account?.name || entry.candidates?.length
+                      {entry.label}:{" "}
+                      {entry.account?.name || entry.candidates?.length
                         ? accountLabel(entry.account || entry.candidates[0])
                         : "No eligible account currently designated"}
                     </span>
@@ -705,11 +742,20 @@ export default function AemsAeoPage() {
           <section className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
               <div>
-                <h2 className="font-bold text-slate-800">Signatory matrix and transmittal</h2>
-                <p className="mt-1 text-xs text-slate-500">Each required authority is recorded against the immutable AEO version.</p>
+                <h2 className="font-bold text-slate-800">
+                  Signatory matrix and transmittal
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Each required authority is recorded against the immutable AEO
+                  version.
+                </p>
               </div>
               {order.status === "ISSUED" && canDistribute && (
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white" onClick={() => setDistributionOpen(true)} type="button">
+                <button
+                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white"
+                  onClick={() => setDistributionOpen(true)}
+                  type="button"
+                >
                   <Send size={14} /> Record transmittal
                 </button>
               )}
@@ -717,47 +763,115 @@ export default function AemsAeoPage() {
             <div className="grid gap-4 p-4 lg:grid-cols-2 sm:p-5">
               <div className="space-y-2">
                 {(order.signatories ?? []).map((entry) => (
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs" key={entry.id ?? entry.role}>
-                    <div><strong className="text-slate-700">{roleLabel(entry.role)}</strong><span className="ml-2 text-slate-500">{entry.user?.name || "Pending authority"}</span></div>
-                    <StatusBadge tone={entry.status === "SIGNED" ? "active" : "warning"}>{entry.status}</StatusBadge>
+                  <div
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+                    key={entry.id ?? entry.role}
+                  >
+                    <div>
+                      <strong className="text-slate-700">
+                        {roleLabel(entry.role)}
+                      </strong>
+                      <span className="ml-2 text-slate-500">
+                        {entry.user?.name || "Pending authority"}
+                      </span>
+                    </div>
+                    <StatusBadge
+                      tone={entry.status === "SIGNED" ? "active" : "warning"}
+                    >
+                      {entry.status}
+                    </StatusBadge>
                   </div>
                 ))}
               </div>
               <div className="space-y-2">
                 {(order.distributions ?? []).map((item) => (
-                  <div className="rounded-lg border border-slate-200 px-3 py-2 text-xs" key={item.id}>
-                    <div className="flex items-center justify-between gap-2"><strong className="text-slate-700">{item.recipientName || item.office?.name || item.recipientUser?.name || "Recipient"}</strong><StatusBadge tone={item.status === "ACKNOWLEDGED" ? "active" : "warning"}>{item.status}</StatusBadge></div>
-                    <p className="mt-1 text-slate-500">{item.transmittalMethod} · {item.transmittalReference || "No reference"}</p>
-                    {canAcknowledge && item.status !== "ACKNOWLEDGED" && <button className="mt-2 text-xs font-bold text-sky-700 hover:underline" onClick={() => acknowledge(item)} type="button">Acknowledge receipt</button>}
+                  <div
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                    key={item.id}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="text-slate-700">
+                        {item.recipientName ||
+                          item.office?.name ||
+                          item.recipientUser?.name ||
+                          "Recipient"}
+                      </strong>
+                      <StatusBadge
+                        tone={
+                          item.status === "ACKNOWLEDGED" ? "active" : "warning"
+                        }
+                      >
+                        {item.status}
+                      </StatusBadge>
+                    </div>
+                    <p className="mt-1 text-slate-500">
+                      {item.transmittalMethod} ·{" "}
+                      {item.transmittalReference || "No reference"}
+                    </p>
+                    {canAcknowledge && item.status !== "ACKNOWLEDGED" && (
+                      <button
+                        className="mt-2 text-xs font-bold text-sky-700 hover:underline"
+                        onClick={() => acknowledge(item)}
+                        type="button"
+                      >
+                        Acknowledge receipt
+                      </button>
+                    )}
                   </div>
                 ))}
-                {!order.distributions?.length && <p className="text-xs text-slate-500">No transmittal recorded for this version.</p>}
+                {!order.distributions?.length && (
+                  <p className="text-xs text-slate-500">
+                    No transmittal recorded for this version.
+                  </p>
+                )}
               </div>
             </div>
             <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-5">
               <div className="flex items-start gap-2">
-                <UsersRound className="mt-0.5 shrink-0 text-sky-700" size={16} />
+                <UsersRound
+                  className="mt-0.5 shrink-0 text-sky-700"
+                  size={16}
+                />
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Responsible accounts and authority rules</h3>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    Responsible accounts and authority rules
+                  </h3>
                   <p className="mt-1 text-xs leading-5 text-slate-600">
-                    The account shown beside a signed role is the immutable actor who performed that step. Pending candidates are guidance only; the backend still authorizes and records the actual account.
+                    The account shown beside a signed role is the immutable
+                    actor who performed that step. Pending candidates are
+                    guidance only; the backend still authorizes and records the
+                    actual account.
                   </p>
                 </div>
               </div>
               <div className="mt-3 grid gap-2 lg:grid-cols-3">
                 {authorityRoles.map((entry) => (
-                  <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs" key={entry.role}>
+                  <div
+                    className="rounded-lg border border-slate-200 bg-white p-3 text-xs"
+                    key={entry.role}
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <strong className="text-slate-800">{entry.label}</strong>
-                      <StatusBadge tone={entry.status === "SIGNED" ? "active" : "warning"}>{entry.status}</StatusBadge>
+                      <StatusBadge
+                        tone={entry.status === "SIGNED" ? "active" : "warning"}
+                      >
+                        {entry.status}
+                      </StatusBadge>
                     </div>
                     <p className="mt-1 font-semibold text-slate-700">
-                      {entry.account ? accountLabel(entry.account) : entry.signedBy ? accountLabel(entry.signedBy) : "Pending authority"}
+                      {entry.account
+                        ? accountLabel(entry.account)
+                        : entry.signedBy
+                          ? accountLabel(entry.signedBy)
+                          : "Pending authority"}
                     </p>
-                    <p className="mt-1 leading-5 text-slate-500">{entry.rule}</p>
+                    <p className="mt-1 leading-5 text-slate-500">
+                      {entry.rule}
+                    </p>
                     {!entry.account && !entry.signedBy && (
                       <p className="mt-2 text-sky-800">
-                        Candidates: {entry.candidates?.length
+                        Candidates:{" "}
+                        {entry.candidates?.length
                           ? entry.candidates.map(accountLabel).join(", ")
                           : "No eligible account currently designated"}
                       </p>
@@ -766,7 +880,12 @@ export default function AemsAeoPage() {
                 ))}
               </div>
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                AEO approval and issuance belong to active CIAS Management accounts. When the CIAS Head is the sole available management authority, the same account may review, approve, and issue the AEO she prepared. Auditee office heads and the City Mayor receive issued copies and acknowledge them through the CMS recipient portal.
+                AEO approval and issuance belong to active CIAS Management
+                accounts. When the CIAS Head is the sole available management
+                authority, the same account may review, approve, and issue the
+                AEO she prepared. Auditee office heads and the City Mayor
+                receive issued copies and acknowledge them through the CMS
+                recipient portal.
               </p>
             </div>
           </section>
@@ -935,27 +1054,124 @@ export default function AemsAeoPage() {
         </div>
       </Modal>
 
-      <Modal open={distributionOpen} onClose={() => !saving && setDistributionOpen(false)} title="Record AEO transmittal" description="Record the protected delivery method and reference for the issued AEO." footer={<><button className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold" onClick={() => setDistributionOpen(false)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white" disabled={saving} onClick={distribute} type="button">{saving ? "Saving…" : "Record transmittal"}</button></>}>
+      <Modal
+        open={distributionOpen}
+        onClose={() => !saving && setDistributionOpen(false)}
+        title="Record AEO transmittal"
+        description="Record the protected delivery method and reference for the issued AEO."
+        footer={
+          <>
+            <button
+              className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold"
+              onClick={() => setDistributionOpen(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white"
+              disabled={saving}
+              onClick={distribute}
+              type="button"
+            >
+              {saving ? "Saving…" : "Record transmittal"}
+            </button>
+          </>
+        }
+      >
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-700">Recipient type
-            <select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.recipientType} onChange={(event) => setDistributionForm((current) => ({ ...current, recipientType: event.target.value, recipientUserId: "", recipientOfficeId: "", recipientName: "" }))}>
-              <option value="OFFICE">Office</option><option value="USER">User</option>
+          <label className="text-sm font-semibold text-slate-700">
+            Recipient type
+            <select
+              className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal"
+              value={distributionForm.recipientType}
+              onChange={(event) =>
+                setDistributionForm((current) => ({
+                  ...current,
+                  recipientType: event.target.value,
+                  recipientUserId: "",
+                  recipientOfficeId: "",
+                  recipientName: "",
+                }))
+              }
+            >
+              <option value="OFFICE">Office</option>
+              <option value="USER">User</option>
             </select>
           </label>
-          <label className="text-sm font-semibold text-slate-700">Recipient name
-            <input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 font-normal" readOnly value={distributionForm.recipientName} placeholder="Select a recipient" />
+          <label className="text-sm font-semibold text-slate-700">
+            Recipient name
+            <input
+              className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 font-normal"
+              readOnly
+              value={distributionForm.recipientName}
+              placeholder="Select a recipient"
+            />
           </label>
-          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Recipient ID
-            <select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal" value={distributionForm.recipientType === "OFFICE" ? distributionForm.recipientOfficeId : distributionForm.recipientUserId} onChange={selectRecipient}>
-              <option value="">Select {distributionForm.recipientType === "OFFICE" ? "an office" : "a user"}</option>
-              {(distributionForm.recipientType === "OFFICE" ? recipientOptions.offices : recipientOptions.users).map((option) => (
-                <option key={option.id} value={option.id}>{option.name}{option.code ? ` (${option.code})` : ""}{option.employeeId ? ` · ${option.employeeId}` : ""}</option>
+          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+            Recipient ID
+            <select
+              className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-normal"
+              value={
+                distributionForm.recipientType === "OFFICE"
+                  ? distributionForm.recipientOfficeId
+                  : distributionForm.recipientUserId
+              }
+              onChange={selectRecipient}
+            >
+              <option value="">
+                Select{" "}
+                {distributionForm.recipientType === "OFFICE"
+                  ? "an office"
+                  : "a user"}
+              </option>
+              {(distributionForm.recipientType === "OFFICE"
+                ? recipientOptions.offices
+                : recipientOptions.users
+              ).map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                  {option.code ? ` (${option.code})` : ""}
+                  {option.employeeId ? ` · ${option.employeeId}` : ""}
+                </option>
               ))}
             </select>
-            <span className="mt-1 block text-xs font-normal text-slate-500">Only recipients within this engagement’s auditee office scope are available.</span>
+            <span className="mt-1 block text-xs font-normal text-slate-500">
+              Only recipients within this engagement’s auditee office scope are
+              available.
+            </span>
           </label>
-          <label className="text-sm font-semibold text-slate-700">Transmittal method<select className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.transmittalMethod} onChange={(event) => setDistributionForm((current) => ({ ...current, transmittalMethod: event.target.value }))}><option value="SECURE_PORTAL">Secure portal</option><option value="OFFICIAL_EMAIL">Official email</option><option value="PHYSICAL_TRANSMITTAL">Physical transmittal</option><option value="IN_PERSON">In person</option></select></label>
-          <label className="text-sm font-semibold text-slate-700">Reference<input className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal" value={distributionForm.transmittalReference} onChange={(event) => setDistributionForm((current) => ({ ...current, transmittalReference: event.target.value }))} /></label>
+          <label className="text-sm font-semibold text-slate-700">
+            Transmittal method
+            <select
+              className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal"
+              value={distributionForm.transmittalMethod}
+              onChange={(event) =>
+                setDistributionForm((current) => ({
+                  ...current,
+                  transmittalMethod: event.target.value,
+                }))
+              }
+            >
+              <option value="SECURE_PORTAL">Secure portal</option>
+              <option value="OFFICIAL_EMAIL">Official email</option>
+              <option value="PHYSICAL_TRANSMITTAL">Physical transmittal</option>
+              <option value="IN_PERSON">In person</option>
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Reference
+            <input
+              className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal"
+              value={distributionForm.transmittalReference}
+              onChange={(event) =>
+                setDistributionForm((current) => ({
+                  ...current,
+                  transmittalReference: event.target.value,
+                }))
+              }
+            />
+          </label>
         </div>
       </Modal>
 

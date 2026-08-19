@@ -14,7 +14,12 @@ import StatusBadge from "../ui/StatusBadge";
 import { aemsLifecycleApi } from "../../services/api";
 
 const requiredDetails = {
-  SUSPEND: ["authority", "effectiveDate", "expectedReviewDate", "resumeRequirements"],
+  SUSPEND: [
+    "authority",
+    "effectiveDate",
+    "expectedReviewDate",
+    "resumeRequirements",
+  ],
   CANCEL: ["authority", "effectOnIap", "workProductDisposition"],
 };
 
@@ -28,7 +33,9 @@ const fieldLabels = {
 };
 
 function pretty(value) {
-  return value?.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value
+    ?.replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default function AemsLifecycleWorkspace({ engagementId }) {
@@ -74,7 +81,10 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
       setError(reason.message);
       setConflict(
         reason.status === 409 ||
-          Object.prototype.hasOwnProperty.call(reason.errors ?? {}, "lockVersion"),
+          Object.prototype.hasOwnProperty.call(
+            reason.errors ?? {},
+            "lockVersion",
+          ),
       );
     } finally {
       setSaving(false);
@@ -83,7 +93,10 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
 
   if (loading) {
     return (
-      <div className="grid min-h-72 place-items-center" data-testid="lifecycle-loading">
+      <div
+        className="grid min-h-72 place-items-center"
+        data-testid="lifecycle-loading"
+      >
         <LoaderCircle className="animate-spin text-sky-700" size={30} />
       </div>
     );
@@ -110,7 +123,9 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
           }`}
           role="alert"
         >
-          {conflict && <strong className="mb-1 block">Stale-state conflict</strong>}
+          {conflict && (
+            <strong className="mb-1 block">Stale-state conflict</strong>
+          )}
           {error}
           {conflict && (
             <button className="ml-2 underline" onClick={load} type="button">
@@ -130,7 +145,9 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
               {workspace.engagement.engagementCode}
             </h2>
           </div>
-          <StatusBadge tone="info">{pretty(workspace.engagement.status)}</StatusBadge>
+          <StatusBadge tone="info">
+            {pretty(workspace.engagement.status)}
+          </StatusBadge>
         </div>
         <ol
           aria-label="Engagement status timeline"
@@ -151,7 +168,11 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
                 }`}
                 key={state}
               >
-                {passed ? <Check size={15} /> : <Circle fill={active ? "currentColor" : "none"} size={14} />}
+                {passed ? (
+                  <Check size={15} />
+                ) : (
+                  <Circle fill={active ? "currentColor" : "none"} size={14} />
+                )}
                 {pretty(state)}
               </li>
             );
@@ -163,15 +184,22 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <GitBranch className="text-sky-700" size={19} />
-            <h3 className="font-bold text-slate-900">Allowed actions and gates</h3>
+            <h3 className="font-bold text-slate-900">
+              Allowed actions and gates
+            </h3>
           </div>
           <div className="mt-4 space-y-3" data-testid="lifecycle-actions">
             {workspace.actions.length ? (
               workspace.actions.map((action) => (
-                <article className="rounded-xl border border-slate-200 p-4" key={action.action}>
+                <article
+                  className="rounded-xl border border-slate-200 p-4"
+                  key={action.action}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h4 className="font-bold text-slate-800">{action.label}</h4>
+                      <h4 className="font-bold text-slate-800">
+                        {action.label}
+                      </h4>
                       <p className="mt-1 text-xs text-slate-500">
                         Target: {pretty(action.targetStatus)}
                       </p>
@@ -192,11 +220,17 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
                     {action.requirements.map((requirement) => (
                       <li
                         className={`flex items-start gap-2 text-xs ${
-                          requirement.met ? "text-emerald-700" : "text-amber-800"
+                          requirement.met
+                            ? "text-emerald-700"
+                            : "text-amber-800"
                         }`}
                         key={requirement.key}
                       >
-                        {requirement.met ? <Check size={14} /> : <AlertTriangle size={14} />}
+                        {requirement.met ? (
+                          <Check size={14} />
+                        ) : (
+                          <AlertTriangle size={14} />
+                        )}
                         <span>{requirement.label}</span>
                       </li>
                     ))}
@@ -233,8 +267,8 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
                 <h3 className="font-bold">Formal closure deferred</h3>
               </div>
               <p className="mt-2 text-xs leading-5 text-amber-800">
-                Pre-closure review is available. Closure approval remains locked until
-                the formal closure workflow and records are implemented.
+                Pre-closure review is available. Closure approval remains locked
+                until the formal closure workflow and records are implemented.
               </p>
             </section>
           ) : (
@@ -244,8 +278,9 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
                 <h3 className="font-bold">Formal closure available</h3>
               </div>
               <p className="mt-2 text-xs leading-5 text-emerald-800">
-                Completion Assessment, Closure review, records indexing, retention,
-                and exceptional reopening are controlled in separate workspace tabs.
+                Completion Assessment, Closure review, records indexing,
+                retention, and exceptional reopening are controlled in separate
+                workspace tabs.
               </p>
               <Link
                 className="mt-3 inline-flex rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
@@ -259,14 +294,22 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="font-bold text-slate-900">Immutable transition history</h3>
+        <h3 className="font-bold text-slate-900">
+          Immutable transition history
+        </h3>
         <ol className="mt-4 space-y-3">
           {workspace.timeline.length ? (
             workspace.timeline.map((event) => (
-              <li className="border-l-2 border-sky-200 pl-3 text-sm" key={event.id}>
-                <strong className="text-slate-800">{pretty(event.action)}</strong>
+              <li
+                className="border-l-2 border-sky-200 pl-3 text-sm"
+                key={event.id}
+              >
+                <strong className="text-slate-800">
+                  {pretty(event.action)}
+                </strong>
                 <span className="ml-2 text-xs text-slate-500">
-                  {event.actor?.name} · {new Date(event.createdAt).toLocaleString()}
+                  {event.actor?.name} ·{" "}
+                  {new Date(event.createdAt).toLocaleString()}
                 </span>
                 <p className="text-xs text-slate-600">
                   {pretty(event.fromStatus)} → {pretty(event.toStatus)}
@@ -275,7 +318,9 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
               </li>
             ))
           ) : (
-            <li className="text-sm text-slate-500">No aggregate transition has been recorded.</li>
+            <li className="text-sm text-slate-500">
+              No aggregate transition has been recorded.
+            </li>
           )}
         </ol>
       </section>
@@ -307,31 +352,50 @@ export default function AemsLifecycleWorkspace({ engagementId }) {
         }
       >
         <div className="space-y-4">
-          {(selected?.requiresComment || ["SUSPEND", "CANCEL"].includes(selected?.action)) && (
+          {(selected?.requiresComment ||
+            ["SUSPEND", "CANCEL"].includes(selected?.action)) && (
             <label className="block text-sm font-semibold text-slate-700">
               Comment / reason
               <textarea
                 className="mt-1.5 min-h-24 w-full rounded-lg border border-slate-300 p-3"
-                onChange={(event) => setDetails((value) => ({ ...value, comment: event.target.value }))}
+                onChange={(event) =>
+                  setDetails((value) => ({
+                    ...value,
+                    comment: event.target.value,
+                  }))
+                }
                 required
                 value={details.comment ?? ""}
               />
             </label>
           )}
           {(requiredDetails[selected?.action] ?? []).map((field) => (
-            <label className="block text-sm font-semibold text-slate-700" key={field}>
+            <label
+              className="block text-sm font-semibold text-slate-700"
+              key={field}
+            >
               {fieldLabels[field]}
               {field.toLowerCase().includes("date") ? (
                 <input
                   className="mt-1.5 w-full rounded-lg border border-slate-300 p-2.5"
-                  onChange={(event) => setDetails((value) => ({ ...value, [field]: event.target.value }))}
+                  onChange={(event) =>
+                    setDetails((value) => ({
+                      ...value,
+                      [field]: event.target.value,
+                    }))
+                  }
                   type="date"
                   value={details[field] ?? ""}
                 />
               ) : (
                 <textarea
                   className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 p-3"
-                  onChange={(event) => setDetails((value) => ({ ...value, [field]: event.target.value }))}
+                  onChange={(event) =>
+                    setDetails((value) => ({
+                      ...value,
+                      [field]: event.target.value,
+                    }))
+                  }
                   value={details[field] ?? ""}
                 />
               )}

@@ -79,8 +79,7 @@ export default function SearchableSelect({
       onChange(
         exists
           ? selectedValues.filter(
-              (selectedValue) =>
-                String(selectedValue) !== String(optionValue),
+              (selectedValue) => String(selectedValue) !== String(optionValue),
             )
           : [...selectedValues, optionValue],
       );
@@ -126,8 +125,7 @@ export default function SearchableSelect({
               </span>
             )}
           {selectedOptions.map((option) =>
-            multiple && multipleDisplay === "summary" ? null :
-            multiple ? (
+            multiple && multipleDisplay === "summary" ? null : multiple ? (
               <span
                 className="inline-flex max-w-full items-center gap-1 rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800"
                 key={option.value}

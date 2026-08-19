@@ -74,7 +74,9 @@ export default function CmsActionPlanVersionViewer({ version }) {
               <StatusBadge tone="success">Accepted baseline</StatusBadge>
             )}
             {version.isSuperseded && (
-              <StatusBadge tone="warning">Superseded accepted version</StatusBadge>
+              <StatusBadge tone="warning">
+                Superseded accepted version
+              </StatusBadge>
             )}
           </div>
         </div>
@@ -190,7 +192,9 @@ export default function CmsActionPlanVersionViewer({ version }) {
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-center gap-2">
           <UserRound className="text-sky-700" size={18} />
-          <h3 className="font-bold text-slate-800">Controlled workflow record</h3>
+          <h3 className="font-bold text-slate-800">
+            Controlled workflow record
+          </h3>
         </div>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <WorkflowDatum

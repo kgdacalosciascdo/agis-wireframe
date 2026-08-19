@@ -21,11 +21,7 @@ import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
 import { hasPermission } from "../../config/navigation";
-import {
-  aemsAepApi,
-  aemsEngagementApi,
-  ApiError,
-} from "../../services/api";
+import { aemsAepApi, aemsEngagementApi, ApiError } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 
 const emptyForm = {
@@ -223,7 +219,12 @@ export default function AemsAepPage() {
       available.push(["RESUBMIT", "Resubmit AEP", Send, "primary"]);
     }
     if (plan.status === "APPROVED" && canRevise) {
-      available.push(["REVISE", "Create formal revision", RotateCcw, "warning"]);
+      available.push([
+        "REVISE",
+        "Create formal revision",
+        RotateCcw,
+        "warning",
+      ]);
     }
     return available;
   }, [canApprove, canCreate, canReview, canRevise, plan]);
@@ -261,10 +262,8 @@ export default function AemsAepPage() {
             materiality: workspace?.engagement.sourceMateriality ?? "",
             plannedStartDate: workspace?.engagement.plannedStartDate ?? "",
             plannedEndDate: workspace?.engagement.plannedEndDate ?? "",
-            expectedReportDate:
-              workspace?.engagement.expectedReportDate ?? "",
-            plannedPersonDays:
-              workspace?.engagement.plannedPersonDays || "",
+            expectedReportDate: workspace?.engagement.expectedReportDate ?? "",
+            plannedPersonDays: workspace?.engagement.plannedPersonDays || "",
             linkedRiskSnapshot: undefined,
           },
     );
@@ -381,8 +380,8 @@ export default function AemsAepPage() {
 
       {workspace && !workspace.issuedAeo && !plan && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <strong>Authorization prerequisite:</strong> issue the Audit Engagement
-          Order before preparing the AEP.
+          <strong>Authorization prerequisite:</strong> issue the Audit
+          Engagement Order before preparing the AEP.
         </div>
       )}
 
@@ -471,7 +470,10 @@ export default function AemsAepPage() {
                 <TextBlock title="Scope" value={version?.scope} />
                 <TextBlock title="Exclusions" value={version?.exclusions} />
                 <TextBlock title="Methodology" value={version?.methodology} />
-                <TextBlock title="Audit criteria" value={version?.auditCriteria} />
+                <TextBlock
+                  title="Audit criteria"
+                  value={version?.auditCriteria}
+                />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextBlock title="Materiality" value={version?.materiality} />
                   <TextBlock
@@ -747,10 +749,7 @@ export default function AemsAepPage() {
               }
             />
           </Field>
-          <Field
-            error={errors.confidentialityLevelId}
-            label="Confidentiality"
-          >
+          <Field error={errors.confidentialityLevelId} label="Confidentiality">
             <SearchableSelect
               options={(workspace?.confidentialityLevels ?? []).map((item) => ({
                 value: item.id,
@@ -884,7 +883,11 @@ export default function AemsAepPage() {
       >
         <Field
           error={errors.comment || errors.reason || errors.action}
-          label={["RETURN", "REVISE"].includes(action) ? "Required reason" : "Comment"}
+          label={
+            ["RETURN", "REVISE"].includes(action)
+              ? "Required reason"
+              : "Comment"
+          }
         >
           <textarea
             className={textAreaClass}

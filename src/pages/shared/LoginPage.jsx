@@ -93,8 +93,8 @@ export default function LoginPage() {
                 Sign in to your account
               </h2>
               <p className="mt-1 text-sm text-blue-100">
-                Enter your credentials to access{" "}
-                {runtimeConfig.systemShortName}.
+                Enter your credentials to access {runtimeConfig.systemShortName}
+                .
               </p>
             </div>
 

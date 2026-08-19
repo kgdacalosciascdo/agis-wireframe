@@ -73,7 +73,8 @@ const planningSteps = [
   {
     number: 6,
     title: "ARMIS Resources",
-    description: "Open ARMIS for authoritative person-days, availability, workload, and skills.",
+    description:
+      "Open ARMIS for authoritative person-days, availability, workload, and skills.",
     path: "/audit-resource-management/planning",
     icon: UsersRound,
   },
@@ -142,14 +143,7 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  note,
-  tone = "sky",
-  loading,
-}) {
+function MetricCard({ icon: Icon, label, value, note, tone = "sky", loading }) {
   const tones = {
     sky: "border-sky-200 bg-sky-50 text-sky-700",
     red: "border-red-200 bg-red-50 text-red-700",
@@ -414,9 +408,7 @@ export default function IapDashboardPage() {
             </>
           )}
         </span>
-        <span>
-          Updated {formatDateTime(dashboard?.context?.generatedAt)}
-        </span>
+        <span>Updated {formatDateTime(dashboard?.context?.generatedAt)}</span>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -666,10 +658,7 @@ export default function IapDashboardPage() {
               </div>
             ) : (
               <div className="py-12 text-center">
-                <ClipboardCheck
-                  className="mx-auto text-slate-300"
-                  size={38}
-                />
+                <ClipboardCheck className="mx-auto text-slate-300" size={38} />
                 <p className="mt-3 text-sm font-semibold text-slate-600">
                   No current annual plan is visible to your role.
                 </p>
@@ -833,7 +822,8 @@ export default function IapDashboardPage() {
                       {subject.subjectName}
                     </strong>
                     <p className="mt-1 text-xs text-slate-500">
-                      {subject.subjectCode} · {subject.officeCode ?? "No office"}
+                      {subject.subjectCode} ·{" "}
+                      {subject.officeCode ?? "No office"}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">

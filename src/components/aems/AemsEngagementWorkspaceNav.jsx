@@ -41,7 +41,8 @@ const tabs = [
     label: "Execution",
     icon: Files,
     permission: ["aems.fieldwork.view", "aems.evidence-request.view"],
-    href: ({ id }) => `/audit-engagement-management/execution?engagementId=${id}`,
+    href: ({ id }) =>
+      `/audit-engagement-management/execution?engagementId=${id}`,
     paths: [
       "/audit-engagement-management/execution",
       "/audit-engagement-management/working-papers",
@@ -61,15 +62,20 @@ const tabs = [
     label: "AFRs",
     icon: ClipboardCheck,
     permission: "aems.finding.view",
-    href: ({ id }) => `/audit-engagement-management/findings?engagementId=${id}`,
-    paths: ["/audit-engagement-management/findings", "/audit-engagement-management/auditee-responses"],
+    href: ({ id }) =>
+      `/audit-engagement-management/findings?engagementId=${id}`,
+    paths: [
+      "/audit-engagement-management/findings",
+      "/audit-engagement-management/auditee-responses",
+    ],
   },
   {
     key: "conferences",
     label: "Conferences",
     icon: CalendarCheck2,
     permission: "aems.conference.view",
-    href: ({ id }) => `/audit-engagement-management/conferences?engagementId=${id}`,
+    href: ({ id }) =>
+      `/audit-engagement-management/conferences?engagementId=${id}`,
     paths: [
       "/audit-engagement-management/entry-conferences",
       "/audit-engagement-management/entry-conference",
@@ -94,7 +100,8 @@ const tabs = [
       "aems.records.view",
       "aems.calendar.view",
     ],
-    href: ({ id }) => `/audit-engagement-management/${id}?tab=completion-assessment`,
+    href: ({ id }) =>
+      `/audit-engagement-management/${id}?tab=completion-assessment`,
     queryTabs: [
       "completion-assessment",
       "closure",
@@ -124,7 +131,9 @@ function isCurrentTab(tab, pathname, searchParams, engagementId) {
   }
 
   if (tab.queryTabs?.includes(searchParams.get("tab"))) return true;
-  if (tab.paths?.some((path) => pathname === path || pathname.startsWith(path))) {
+  if (
+    tab.paths?.some((path) => pathname === path || pathname.startsWith(path))
+  ) {
     const contextId =
       searchParams.get("engagementId") ?? searchParams.get("recordId");
     return contextId === String(engagementId);
@@ -136,7 +145,9 @@ export default function AemsEngagementWorkspaceNav({ engagementId }) {
   const { user } = useAuth();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const visibleTabs = tabs.filter((tab) => !tab.permission || hasPermission(user, tab.permission));
+  const visibleTabs = tabs.filter(
+    (tab) => !tab.permission || hasPermission(user, tab.permission),
+  );
 
   return (
     <nav

@@ -262,7 +262,9 @@ function WorkQueuePanel({ queue, loading }) {
             {queue.count} item{queue.count === 1 ? "" : "s"} in your scope
           </p>
         </div>
-        <span className={`grid h-9 min-w-9 place-items-center rounded-lg text-sm font-extrabold ${queue.count > 0 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+        <span
+          className={`grid h-9 min-w-9 place-items-center rounded-lg text-sm font-extrabold ${queue.count > 0 ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}
+        >
           {queue.count}
         </span>
       </div>
@@ -289,7 +291,10 @@ function WorkQueuePanel({ queue, loading }) {
         </p>
       )}
       {queue.count > 0 && queue.route && (
-        <Link className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-700 hover:text-sky-900" to={queue.route}>
+        <Link
+          className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-700 hover:text-sky-900"
+          to={queue.route}
+        >
           Open queue <ArrowRight size={13} />
         </Link>
       )}
@@ -303,15 +308,28 @@ function PhaseSummary({ phases, loading }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-bold text-slate-900">Engagements by phase</h2>
-          <p className="mt-1 text-xs text-slate-500">Scope-aware portfolio distribution.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Scope-aware portfolio distribution.
+          </p>
         </div>
         <Network className="text-sky-600" size={18} />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {(loading ? Array.from({ length: 5 }, (_, index) => ({ key: index, label: "Loading", count: "—" })) : phases).map((phase) => (
+        {(loading
+          ? Array.from({ length: 5 }, (_, index) => ({
+              key: index,
+              label: "Loading",
+              count: "—",
+            }))
+          : phases
+        ).map((phase) => (
           <div className="rounded-lg bg-slate-50 px-3 py-3" key={phase.key}>
-            <strong className="block text-xl text-slate-900">{phase.count}</strong>
-            <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{phase.label}</span>
+            <strong className="block text-xl text-slate-900">
+              {phase.count}
+            </strong>
+            <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-500">
+              {phase.label}
+            </span>
           </div>
         ))}
       </div>
@@ -325,9 +343,14 @@ function NotificationPanel({ notifications, loading }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-bold text-slate-900">Notification monitoring</h2>
-          <p className="mt-1 text-xs text-slate-500">Your actionable AEMS and system notifications.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Your actionable AEMS and system notifications.
+          </p>
         </div>
-        <Link className="inline-flex items-center gap-1 text-xs font-bold text-sky-700" to="/notifications">
+        <Link
+          className="inline-flex items-center gap-1 text-xs font-bold text-sky-700"
+          to="/notifications"
+        >
           Open notifications <ArrowRight size={13} />
         </Link>
       </div>
@@ -336,16 +359,41 @@ function NotificationPanel({ notifications, loading }) {
       ) : (
         <>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <div className="rounded-lg bg-sky-50 px-3 py-3"><strong className="block text-lg text-sky-800">{notifications.unread ?? 0}</strong><span className="text-xs font-bold text-sky-700">Unread</span></div>
-            <div className="rounded-lg bg-indigo-50 px-3 py-3"><strong className="block text-lg text-indigo-800">{notifications.aemsUnread ?? 0}</strong><span className="text-xs font-bold text-indigo-700">AEMS unread</span></div>
-            <div className="rounded-lg bg-rose-50 px-3 py-3"><strong className="block text-lg text-rose-800">{notifications.overdue ?? 0}</strong><span className="text-xs font-bold text-rose-700">Overdue</span></div>
+            <div className="rounded-lg bg-sky-50 px-3 py-3">
+              <strong className="block text-lg text-sky-800">
+                {notifications.unread ?? 0}
+              </strong>
+              <span className="text-xs font-bold text-sky-700">Unread</span>
+            </div>
+            <div className="rounded-lg bg-indigo-50 px-3 py-3">
+              <strong className="block text-lg text-indigo-800">
+                {notifications.aemsUnread ?? 0}
+              </strong>
+              <span className="text-xs font-bold text-indigo-700">
+                AEMS unread
+              </span>
+            </div>
+            <div className="rounded-lg bg-rose-50 px-3 py-3">
+              <strong className="block text-lg text-rose-800">
+                {notifications.overdue ?? 0}
+              </strong>
+              <span className="text-xs font-bold text-rose-700">Overdue</span>
+            </div>
           </div>
           {notifications.recent?.length > 0 && (
             <div className="mt-3 space-y-2">
               {notifications.recent.slice(0, 3).map((notification) => (
-                <Link className="block rounded-lg border border-slate-100 px-3 py-2 hover:bg-slate-50" key={notification.id} to={notification.actionUrl || "/notifications"}>
-                  <span className="block truncate text-xs font-bold text-slate-800">{notification.title}</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-500">{notification.message}</span>
+                <Link
+                  className="block rounded-lg border border-slate-100 px-3 py-2 hover:bg-slate-50"
+                  key={notification.id}
+                  to={notification.actionUrl || "/notifications"}
+                >
+                  <span className="block truncate text-xs font-bold text-slate-800">
+                    {notification.title}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                    {notification.message}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -402,8 +450,8 @@ function IntegrationStrip({ integrations, loading }) {
             <span
               className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
                 item.healthy
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-rose-100 text-rose-700"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-rose-100 text-rose-700"
               }`}
             >
               <Network size={16} />
@@ -503,7 +551,8 @@ function EngagementTrackerCard({ engagement, expanded, onToggle }) {
                 {titleCase(engagement.status)}
               </StatusBadge>
               <StatusBadge tone={healthTones[engagement.health] ?? "info"}>
-                {healthLabels[engagement.health] ?? titleCase(engagement.health)}
+                {healthLabels[engagement.health] ??
+                  titleCase(engagement.health)}
               </StatusBadge>
             </div>
             <p className="mt-2 truncate text-xs text-slate-500">
@@ -684,9 +733,7 @@ export default function AemsDashboardPage() {
       const data = await aemsDashboardApi.show(filters);
       setDashboard({
         cards: data?.cards ?? {},
-        engagements: Array.isArray(data?.engagements)
-          ? data.engagements
-          : [],
+        engagements: Array.isArray(data?.engagements) ? data.engagements : [],
         pagination: data?.pagination ?? {
           currentPage: 1,
           lastPage: 1,
@@ -697,7 +744,12 @@ export default function AemsDashboardPage() {
         capabilities: data?.capabilities ?? { canExport: false },
         phaseCounts: Array.isArray(data?.phaseCounts) ? data.phaseCounts : [],
         workQueues: data?.workQueues ?? {},
-        notifications: data?.notifications ?? { unread: 0, aemsUnread: 0, overdue: 0, recent: [] },
+        notifications: data?.notifications ?? {
+          unread: 0,
+          aemsUnread: 0,
+          overdue: 0,
+          recent: [],
+        },
         reminderRules: data?.reminderRules ?? {},
       });
     } catch (requestError) {
@@ -706,8 +758,8 @@ export default function AemsDashboardPage() {
         [401, 403].includes(requestError?.status)
           ? "You are not authorized to view the AEMS dashboard in this scope."
           : requestError instanceof Error
-          ? requestError.message
-          : "Unable to load the engagement tracker.",
+            ? requestError.message
+            : "Unable to load the engagement tracker.",
       );
     } finally {
       setLoading(false);
@@ -720,7 +772,10 @@ export default function AemsDashboardPage() {
   }, [load]);
 
   const filtersActive = useMemo(
-    () => Boolean(filters.search || filters.status || filters.officeId || filters.phase),
+    () =>
+      Boolean(
+        filters.search || filters.status || filters.officeId || filters.phase,
+      ),
     [filters],
   );
 
@@ -831,7 +886,9 @@ export default function AemsDashboardPage() {
       />
 
       {error && (
-        <div className={`mb-4 flex flex-col gap-3 rounded-xl border p-4 text-sm font-semibold sm:flex-row sm:items-center sm:justify-between ${unauthorized ? "border-amber-200 bg-amber-50 text-amber-800" : "border-red-200 bg-red-50 text-red-700"}`}>
+        <div
+          className={`mb-4 flex flex-col gap-3 rounded-xl border p-4 text-sm font-semibold sm:flex-row sm:items-center sm:justify-between ${unauthorized ? "border-amber-200 bg-amber-50 text-amber-800" : "border-red-200 bg-red-50 text-red-700"}`}
+        >
           <span>{error}</span>
           <button
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2"
@@ -862,16 +919,24 @@ export default function AemsDashboardPage() {
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.8fr)]">
         <PhaseSummary loading={loading} phases={dashboard.phaseCounts} />
-        <NotificationPanel loading={loading} notifications={dashboard.notifications} />
+        <NotificationPanel
+          loading={loading}
+          notifications={dashboard.notifications}
+        />
       </div>
 
       <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 shadow-sm sm:p-4">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
           <div>
             <h2 className="font-bold text-slate-900">Needs attention</h2>
-            <p className="mt-1 text-xs text-slate-500">Operational work queues calculated from your authorized AEMS scope.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Operational work queues calculated from your authorized AEMS
+              scope.
+            </p>
           </div>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"><PlugZap size={14} /> Live workflow data</span>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+            <PlugZap size={14} /> Live workflow data
+          </span>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {Object.values(dashboard.workQueues).map((queue) => (
@@ -889,13 +954,11 @@ export default function AemsDashboardPage() {
         <div className="border-b border-slate-200 p-4 sm:p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-bold text-slate-900">
-                Engagement progress
-              </h2>
+              <h2 className="font-bold text-slate-900">Engagement progress</h2>
               <p className="mt-1 text-xs text-slate-500">
                 {dashboard.pagination.total ?? 0} visible engagement
-                {(dashboard.pagination.total ?? 0) === 1 ? "" : "s"} · Click
-                an engagement to inspect all 13 tracked stages.
+                {(dashboard.pagination.total ?? 0) === 1 ? "" : "s"} · Click an
+                engagement to inspect all 13 tracked stages.
               </p>
             </div>
             <button

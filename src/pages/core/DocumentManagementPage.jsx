@@ -176,9 +176,7 @@ export default function DocumentManagementPage() {
     const active = documents.filter(
       (document) => document.isActive && !document.isArchived,
     ).length;
-    const archived = documents.filter(
-      (document) => document.isArchived,
-    ).length;
+    const archived = documents.filter((document) => document.isArchived).length;
     const inactive = documents.length - active - archived;
     return {
       total: documents.length,
@@ -430,9 +428,7 @@ export default function DocumentManagementPage() {
     {
       key: "documentType",
       label: "Document Type",
-      render: (document) => (
-        <StatusBadge>{document.documentType}</StatusBadge>
-      ),
+      render: (document) => <StatusBadge>{document.documentType}</StatusBadge>,
     },
     {
       key: "confidentialityLevel",
@@ -669,7 +665,10 @@ export default function DocumentManagementPage() {
             </label>
             <SearchableSelect
               onChange={setTypeFilter}
-              options={[{ value: "", label: "All document types" }, ...typeOptions]}
+              options={[
+                { value: "", label: "All document types" },
+                ...typeOptions,
+              ]}
               placeholder="Filter by document type"
               searchPlaceholder="Search document types..."
               value={typeFilter}
@@ -779,7 +778,10 @@ export default function DocumentManagementPage() {
               {[
                 ["Reference number", selectedDocument.referenceNumber || "—"],
                 ["Issuing authority", selectedDocument.issuingAuthority || "—"],
-                ["Publication date", formatDate(selectedDocument.publicationDate)],
+                [
+                  "Publication date",
+                  formatDate(selectedDocument.publicationDate),
+                ],
                 ["Version", selectedDocument.version || "—"],
                 ["File name", selectedDocument.fileName],
                 ["File size", formatBytes(selectedDocument.fileSize)],
@@ -939,7 +941,11 @@ export default function DocumentManagementPage() {
         size="lg"
         title={editing ? "Edit document" : "Add document"}
       >
-        <form className="grid gap-4" id="document-form" onSubmit={submitDocument}>
+        <form
+          className="grid gap-4"
+          id="document-form"
+          onSubmit={submitDocument}
+        >
           <FormField
             error={errors.documentTypeId?.[0]}
             label="Document type"
@@ -1082,22 +1088,22 @@ export default function DocumentManagementPage() {
           </FormField>
           {!editing && (
             <FormField
-            error={errors.file?.[0]}
-            htmlFor="document-file"
-            label="Document file"
-            required
-            hint={`PDF, Word, Excel, PowerPoint, text, or CSV; maximum ${runtimeConfig.documentUploadMaxMb} MB.`}
-          >
-            <input
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
-              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:font-semibold file:text-sky-700"
-              id="document-file"
-              onChange={(event) =>
-                setForm({ ...form, file: event.target.files?.[0] ?? null })
-              }
+              error={errors.file?.[0]}
+              htmlFor="document-file"
+              label="Document file"
               required
-              type="file"
-            />
+              hint={`PDF, Word, Excel, PowerPoint, text, or CSV; maximum ${runtimeConfig.documentUploadMaxMb} MB.`}
+            >
+              <input
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:font-semibold file:text-sky-700"
+                id="document-file"
+                onChange={(event) =>
+                  setForm({ ...form, file: event.target.files?.[0] ?? null })
+                }
+                required
+                type="file"
+              />
             </FormField>
           )}
           {editing && (

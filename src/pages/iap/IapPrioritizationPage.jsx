@@ -27,11 +27,7 @@ import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
 import { hasPermission } from "../../config/navigation";
-import {
-  ApiError,
-  prioritizationApi,
-  riskPeriodApi,
-} from "../../services/api";
+import { ApiError, prioritizationApi, riskPeriodApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 import useRecordView from "../../hooks/useRecordView";
 
@@ -178,9 +174,7 @@ function RunForm({
               description: `${period.assessmentYear} · ${statusLabels[period.status] ?? period.status}`,
             }))}
             value={form.riskPeriodId}
-            onChange={(riskPeriodId) =>
-              setForm({ ...form, riskPeriodId })
-            }
+            onChange={(riskPeriodId) => setForm({ ...form, riskPeriodId })}
             placeholder="Select a validated or locked period..."
           />
         </Field>
@@ -245,8 +239,7 @@ function ItemDecisionForm({
   const rankOverride = Number(form.finalRank) !== item.systemRank;
   const decisionOverride = form.decision !== item.recommendedDecision;
   const reasonRequired =
-    decisionOverride ||
-    ["DEFERRED", "NOT_SELECTED"].includes(form.decision);
+    decisionOverride || ["DEFERRED", "NOT_SELECTED"].includes(form.decision);
 
   return (
     <form
@@ -582,10 +575,7 @@ export default function IapPrioritizationPage() {
   const workflowActions = selected
     ? [
         selected.status === "DRAFT" &&
-          hasPermission(user, "iap.submit") && [
-            "submit",
-            "Submit for review",
-          ],
+          hasPermission(user, "iap.submit") && ["submit", "Submit for review"],
         selected.status === "RETURNED_FOR_REVISION" &&
           hasPermission(user, "iap.submit") && ["resubmit", "Resubmit"],
         ["PENDING_REVIEW", "RESUBMITTED"].includes(selected.status) &&
@@ -657,22 +647,23 @@ export default function IapPrioritizationPage() {
       label: "Actions",
       sortable: false,
       render: (run) => (
-        <div className="flex gap-1" onClick={(event) => event.stopPropagation()}>
-          {canCreate &&
-            run.status === "DRAFT" &&
-            !run.isArchived && (
-              <button
-                className="rounded-lg p-2 text-sky-700 hover:bg-sky-50"
-                onClick={() => {
-                  setErrors({});
-                  setEditor(run);
-                }}
-                title="Edit prioritization"
-                type="button"
-              >
-                <Pencil size={17} />
-              </button>
-            )}
+        <div
+          className="flex gap-1"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {canCreate && run.status === "DRAFT" && !run.isArchived && (
+            <button
+              className="rounded-lg p-2 text-sky-700 hover:bg-sky-50"
+              onClick={() => {
+                setErrors({});
+                setEditor(run);
+              }}
+              title="Edit prioritization"
+              type="button"
+            >
+              <Pencil size={17} />
+            </button>
+          )}
           {canArchive &&
             ["DRAFT", "FINALIZED"].includes(run.status) &&
             !run.isArchived && (
@@ -743,9 +734,8 @@ export default function IapPrioritizationPage() {
           label="Finalized rankings"
           tone="emerald"
           value={
-            runs.filter(
-              (run) => run.status === "FINALIZED" && !run.isArchived,
-            ).length
+            runs.filter((run) => run.status === "FINALIZED" && !run.isArchived)
+              .length
           }
         />
         <SummaryCard
@@ -757,8 +747,7 @@ export default function IapPrioritizationPage() {
               (period) =>
                 ["VALIDATED", "LOCKED"].includes(period.status) &&
                 !runs.some(
-                  (run) =>
-                    !run.isArchived && run.riskPeriodId === period.id,
+                  (run) => !run.isArchived && run.riskPeriodId === period.id,
                 ),
             ).length
           }
@@ -1008,8 +997,7 @@ export default function IapPrioritizationPage() {
                   {
                     key: "controlEffectivenessPercent",
                     label: "Control",
-                    render: (item) =>
-                      `${item.controlEffectivenessPercent}%`,
+                    render: (item) => `${item.controlEffectivenessPercent}%`,
                   },
                   {
                     key: "residualRiskScore",
@@ -1068,12 +1056,11 @@ export default function IapPrioritizationPage() {
                   <strong className="block text-slate-800">
                     2. Tie breaking
                   </strong>
-                  Residual risk, inherent risk, then Audit Universe subject name.
+                  Residual risk, inherent risk, then Audit Universe subject
+                  name.
                 </div>
                 <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                  <strong className="block text-slate-800">
-                    3. Overrides
-                  </strong>
+                  <strong className="block text-slate-800">3. Overrides</strong>
                   Final rank or decision changes require a documented reason.
                 </div>
               </div>

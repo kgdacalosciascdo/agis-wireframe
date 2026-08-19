@@ -104,9 +104,18 @@ export function CmsValidationStatusBadge({ status }) {
     RETURNED: { icon: RotateCcw, tone: "danger", label: "Returned" },
     FINALIZED: { icon: CheckCircle2, tone: "success", label: "Finalized" },
   };
-  const appearance = appearances[status] ?? { icon: CircleDot, tone: "info", label: labelFor(status, "Unknown") };
+  const appearance = appearances[status] ?? {
+    icon: CircleDot,
+    tone: "info",
+    label: labelFor(status, "Unknown"),
+  };
   const Icon = appearance.icon;
-  return <StatusBadge tone={appearance.tone}><Icon aria-hidden="true" className="mr-1" size={13} />{appearance.label}</StatusBadge>;
+  return (
+    <StatusBadge tone={appearance.tone}>
+      <Icon aria-hidden="true" className="mr-1" size={13} />
+      {appearance.label}
+    </StatusBadge>
+  );
 }
 
 export function CmsValidationConclusionBadge({ conclusion }) {
@@ -116,7 +125,10 @@ export function CmsValidationConclusionBadge({ conclusion }) {
     IMPLEMENTED: ["success", "Implemented"],
     INADEQUATE_BASIS: ["danger", "Inadequate Basis"],
   };
-  const [tone, label] = appearances[conclusion] ?? ["inactive", labelFor(conclusion, "Not concluded")];
+  const [tone, label] = appearances[conclusion] ?? [
+    "inactive",
+    labelFor(conclusion, "Not concluded"),
+  ];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
 }
 
@@ -128,6 +140,9 @@ export function CmsValidationItemConclusionBadge({ conclusion }) {
     INADEQUATE_BASIS: ["warning", "Inadequate Basis"],
     NOT_APPLICABLE: ["inactive", "Not Applicable"],
   };
-  const [tone, label] = appearances[conclusion] ?? ["inactive", labelFor(conclusion, "Not concluded")];
+  const [tone, label] = appearances[conclusion] ?? [
+    "inactive",
+    labelFor(conclusion, "Not concluded"),
+  ];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
 }

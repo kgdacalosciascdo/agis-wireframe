@@ -34,7 +34,9 @@ export default function CmsActionPlanWorkflowDialogs({
 }) {
   if (!dialog || !version) return null;
 
-  const weight = milestoneWeightState(form?.milestones ?? version.milestones ?? []);
+  const weight = milestoneWeightState(
+    form?.milestones ?? version.milestones ?? [],
+  );
   const commonTextArea = (
     <textarea
       autoFocus
@@ -82,9 +84,7 @@ export default function CmsActionPlanWorkflowDialogs({
           <SummaryDatum
             label="Weight"
             value={
-              weight.supplied === 0
-                ? "Not used"
-                : `${weight.total.toFixed(2)}%`
+              weight.supplied === 0 ? "Not used" : `${weight.total.toFixed(2)}%`
             }
           />
         </dl>

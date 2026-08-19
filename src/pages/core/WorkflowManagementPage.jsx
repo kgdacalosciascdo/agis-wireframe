@@ -85,14 +85,16 @@ const emptyDefinition = {
 };
 
 function statusTone(status) {
-  return {
-    DRAFT: "warning",
-    PUBLISHED: "success",
-    RETIRED: "inactive",
-    ACTIVE: "info",
-    COMPLETED: "success",
-    CANCELLED: "danger",
-  }[status] ?? "info";
+  return (
+    {
+      DRAFT: "warning",
+      PUBLISHED: "success",
+      RETIRED: "inactive",
+      ACTIVE: "info",
+      COMPLETED: "success",
+      CANCELLED: "danger",
+    }[status] ?? "info"
+  );
 }
 
 function dateTime(value) {
@@ -202,12 +204,12 @@ export default function WorkflowManagementPage() {
       }
       setSelectedDefinition((current) =>
         current
-          ? result.definitions.find((item) => item.id === current.id) ?? null
+          ? (result.definitions.find((item) => item.id === current.id) ?? null)
           : null,
       );
       setSelectedInstance((current) =>
         current
-          ? result.instances.find((item) => item.id === current.id) ?? null
+          ? (result.instances.find((item) => item.id === current.id) ?? null)
           : null,
       );
     } catch (error) {
@@ -223,8 +225,7 @@ export default function WorkflowManagementPage() {
   }, [load]);
 
   const records = useMemo(() => {
-    const source =
-      tab === "definitions" ? data.definitions : data.instances;
+    const source = tab === "definitions" ? data.definitions : data.instances;
     const needle = search.trim().toLowerCase();
     return source.filter((record) => {
       const text =
@@ -410,14 +411,10 @@ export default function WorkflowManagementPage() {
               lockVersion: selectedInstance.lockVersion,
               comment,
             })
-          : await workflowApi.transition(
-              selectedInstance.id,
-              transition.code,
-              {
-                lockVersion: selectedInstance.lockVersion,
-                comment: comment || null,
-              },
-            );
+          : await workflowApi.transition(selectedInstance.id, transition.code, {
+              lockVersion: selectedInstance.lockVersion,
+              comment: comment || null,
+            });
       setSelectedInstance(updated);
       setTransition(null);
       setComment("");
@@ -432,7 +429,10 @@ export default function WorkflowManagementPage() {
 
   const stepOptions = definitionForm.steps
     .filter((step) => step.code)
-    .map((step) => ({ value: step.code, label: `${step.code} — ${step.name}` }));
+    .map((step) => ({
+      value: step.code,
+      label: `${step.code} — ${step.name}`,
+    }));
   const publishedOptions = data.definitions
     .filter(
       (definition) =>
@@ -461,7 +461,11 @@ export default function WorkflowManagementPage() {
               </button>
             )}
             {canCreate && (
-              <button className={buttonPrimary} onClick={openCreate} type="button">
+              <button
+                className={buttonPrimary}
+                onClick={openCreate}
+                type="button"
+              >
                 <Plus size={17} /> Create workflow
               </button>
             )}
@@ -660,8 +664,7 @@ export default function WorkflowManagementPage() {
                     {instance.subjectCode} — {instance.subjectLabel}
                   </strong>
                   <small className="mt-1 block text-xs text-slate-500">
-                    {instance.definition.name} · v
-                    {instance.definition.version}
+                    {instance.definition.name} · v{instance.definition.version}
                   </small>
                 </span>
                 <span className="text-sm font-semibold text-slate-700">
@@ -1159,12 +1162,10 @@ export default function WorkflowManagementPage() {
                     Role: {item.actorRole?.name ?? "Any"} · Permission:{" "}
                     {item.requiredPermission?.code ?? "None"}
                   </p>
-                  {(item.requiresComment ||
-                    item.enforceSeparationOfDuties) && (
+                  {(item.requiresComment || item.enforceSeparationOfDuties) && (
                     <p className="mt-1 text-xs font-semibold text-amber-700">
                       {item.requiresComment ? "Comment required" : ""}
-                      {item.requiresComment &&
-                      item.enforceSeparationOfDuties
+                      {item.requiresComment && item.enforceSeparationOfDuties
                         ? " · "
                         : ""}
                       {item.enforceSeparationOfDuties

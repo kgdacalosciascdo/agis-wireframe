@@ -1,9 +1,4 @@
-import {
-  CheckCircle2,
-  ChevronRight,
-  History,
-  Layers3,
-} from "lucide-react";
+import { CheckCircle2, ChevronRight, History, Layers3 } from "lucide-react";
 import StatusBadge from "../ui/StatusBadge";
 import { CmsActionPlanStatusBadge } from "./CmsBadges";
 
@@ -96,7 +91,9 @@ export default function CmsActionPlanVersionHistory({
                     </StatusBadge>
                   )}
                   {version.isSuperseded && (
-                    <StatusBadge tone="warning">Superseded baseline</StatusBadge>
+                    <StatusBadge tone="warning">
+                      Superseded baseline
+                    </StatusBadge>
                   )}
                 </div>
                 {version.previousVersionId && (

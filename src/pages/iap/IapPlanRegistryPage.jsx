@@ -22,12 +22,7 @@ import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
 import { hasPermission } from "../../config/navigation";
-import {
-  ApiError,
-  iapApi,
-  masterListApi,
-  userApi,
-} from "../../services/api";
+import { ApiError, iapApi, masterListApi, userApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 
 const statusLabels = {
@@ -140,7 +135,11 @@ export default function IapPlanRegistryPage() {
           plan.preparer?.name,
           plan.fiscalYear,
           statusLabels[plan.status],
-        ].some((value) => String(value ?? "").toLowerCase().includes(query));
+        ].some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(query),
+        );
       const matchesStatus =
         !statusFilter ||
         (statusFilter === "ARCHIVED"
@@ -246,9 +245,7 @@ export default function IapPlanRegistryPage() {
       render: (plan) => (
         <StatusBadge
           tone={
-            plan.isArchived
-              ? "inactive"
-              : (statusTones[plan.status] ?? "info")
+            plan.isArchived ? "inactive" : (statusTones[plan.status] ?? "info")
           }
         >
           {plan.isArchived
@@ -274,9 +271,12 @@ export default function IapPlanRegistryPage() {
             </button>
           ) : (
             canArchive &&
-            ["DRAFT", "RETURNED_FOR_REVISION", "REJECTED", "COMPLETED"].includes(
-              plan.status,
-            ) && (
+            [
+              "DRAFT",
+              "RETURNED_FOR_REVISION",
+              "REJECTED",
+              "COMPLETED",
+            ].includes(plan.status) && (
               <button
                 aria-label={`Archive ${plan.planCode}`}
                 className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
@@ -457,8 +457,7 @@ export default function IapPlanRegistryPage() {
           emptyMessage="No annual internal audit plans match the current filters."
           loading={loading}
           onRowClick={(plan) =>
-            !plan.isArchived &&
-            navigate(`/internal-audit-planning/${plan.id}`)
+            !plan.isArchived && navigate(`/internal-audit-planning/${plan.id}`)
           }
           pageSizeOptions={[10, 25, 50, 100]}
           rows={filteredPlans}

@@ -16,7 +16,6 @@ export function milestoneWeightState(milestones) {
     partial: supplied.length > 0 && supplied.length !== milestones.length,
     valid:
       supplied.length === 0 ||
-      (supplied.length === milestones.length &&
-        Math.abs(total - 100) < 0.001),
+      (supplied.length === milestones.length && Math.abs(total - 100) < 0.001),
   };
 }

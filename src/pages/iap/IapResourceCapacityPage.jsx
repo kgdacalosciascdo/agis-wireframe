@@ -107,7 +107,11 @@ export default function IapResourceCapacityPage() {
         auditor.employeeId,
         auditor.position,
         ...auditor.skills.flatMap((skill) => [skill.code, skill.label]),
-      ].some((value) => String(value ?? "").toLowerCase().includes(term)),
+      ].some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(term),
+      ),
     );
   }, [data.auditors, search]);
 
@@ -129,7 +133,11 @@ export default function IapResourceCapacityPage() {
         engagement.planCode,
         ...engagement.offices.flatMap((office) => [office.code, office.name]),
         ...engagement.requirements.flatMap((item) => [item.code, item.label]),
-      ].some((value) => String(value ?? "").toLowerCase().includes(term)),
+      ].some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(term),
+      ),
     );
   }, [data.engagements, search]);
 
@@ -321,37 +329,55 @@ export default function IapResourceCapacityPage() {
                   <th className="px-5 py-3">Allocated</th>
                   <th className="px-5 py-3">Remaining</th>
                   <th className="px-5 py-3">Workload</th>
-                  {canManage && <th className="px-5 py-3 text-right">Action</th>}
+                  {canManage && (
+                    <th className="px-5 py-3 text-right">Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredAuditors.map((auditor) => (
                   <tr className="hover:bg-sky-50/50" key={auditor.id}>
                     <td className="px-5 py-4">
-                      <strong className="block text-slate-800">{auditor.name}</strong>
+                      <strong className="block text-slate-800">
+                        {auditor.name}
+                      </strong>
                       <span className="text-xs text-slate-500">
                         {auditor.employeeId} · {auditor.position}
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <StatusBadge tone={auditor.availableToday ? "success" : "danger"}>
-                        {auditor.availableToday ? "Available today" : "Unavailable"}
+                      <StatusBadge
+                        tone={auditor.availableToday ? "success" : "danger"}
+                      >
+                        {auditor.availableToday
+                          ? "Available today"
+                          : "Unavailable"}
                       </StatusBadge>
                     </td>
-                    <td className="px-5 py-4 font-bold">{auditor.availablePersonDays}</td>
+                    <td className="px-5 py-4 font-bold">
+                      {auditor.availablePersonDays}
+                    </td>
                     <td className="px-5 py-4">{auditor.allocatedPersonDays}</td>
-                    <td className={`px-5 py-4 font-bold ${auditor.isOverallocated ? "text-red-600" : "text-emerald-700"}`}>
+                    <td
+                      className={`px-5 py-4 font-bold ${auditor.isOverallocated ? "text-red-600" : "text-emerald-700"}`}
+                    >
                       {auditor.remainingPersonDays}
                     </td>
                     <td className="w-56 px-5 py-4">
                       <div className="mb-1 flex justify-between text-xs">
                         <span>{auditor.utilizationPercentage}% utilized</span>
-                        {auditor.isOverallocated && <span className="font-bold text-red-600">Overallocated</span>}
+                        {auditor.isOverallocated && (
+                          <span className="font-bold text-red-600">
+                            Overallocated
+                          </span>
+                        )}
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                         <div
                           className={`h-full rounded-full ${auditor.isOverallocated ? "bg-red-500" : auditor.utilizationPercentage >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
-                          style={{ width: `${Math.min(auditor.utilizationPercentage, 100)}%` }}
+                          style={{
+                            width: `${Math.min(auditor.utilizationPercentage, 100)}%`,
+                          }}
                         />
                       </div>
                     </td>
@@ -361,7 +387,9 @@ export default function IapResourceCapacityPage() {
                           className="inline-flex h-9 items-center gap-2 rounded-lg border border-sky-200 px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
                           onClick={() => {
                             setCapacityTarget(auditor);
-                            setCapacityDays(String(auditor.availablePersonDays));
+                            setCapacityDays(
+                              String(auditor.availablePersonDays),
+                            );
                           }}
                           type="button"
                         >
@@ -382,7 +410,9 @@ export default function IapResourceCapacityPage() {
               {canManage && (
                 <SearchableSelect
                   onChange={(value) => {
-                    const auditor = data.auditors.find((item) => String(item.id) === String(value));
+                    const auditor = data.auditors.find(
+                      (item) => String(item.id) === String(value),
+                    );
                     if (auditor) openAvailability(auditor);
                   }}
                   options={data.auditors.map((auditor) => ({
@@ -404,21 +434,40 @@ export default function IapResourceCapacityPage() {
                     <th className="px-5 py-3">Unavailable Period</th>
                     <th className="px-5 py-3">Reason</th>
                     <th className="px-5 py-3">Status</th>
-                    {canManage && <th className="px-5 py-3 text-right">Actions</th>}
+                    {canManage && (
+                      <th className="px-5 py-3 text-right">Actions</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {availabilityRows.map((row) => (
-                    <tr className={row.isArchived ? "bg-slate-50 opacity-70" : "hover:bg-sky-50/50"} key={row.id}>
-                      <td className="px-5 py-4 font-bold text-slate-800">{row.auditor.name}</td>
+                    <tr
+                      className={
+                        row.isArchived
+                          ? "bg-slate-50 opacity-70"
+                          : "hover:bg-sky-50/50"
+                      }
+                      key={row.id}
+                    >
+                      <td className="px-5 py-4 font-bold text-slate-800">
+                        {row.auditor.name}
+                      </td>
                       <td className="px-5 py-4">{row.typeLabel}</td>
-                      <td className="px-5 py-4">{formatDate(row.startDate)} — {formatDate(row.endDate)}</td>
                       <td className="px-5 py-4">
-                        <strong className="block">{row.title}</strong>
-                        {row.notes && <span className="text-xs text-slate-500">{row.notes}</span>}
+                        {formatDate(row.startDate)} — {formatDate(row.endDate)}
                       </td>
                       <td className="px-5 py-4">
-                        <StatusBadge tone={row.isArchived ? "inactive" : "warning"}>
+                        <strong className="block">{row.title}</strong>
+                        {row.notes && (
+                          <span className="text-xs text-slate-500">
+                            {row.notes}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge
+                          tone={row.isArchived ? "inactive" : "warning"}
+                        >
                           {row.isArchived ? "Archived" : "Recorded"}
                         </StatusBadge>
                       </td>
@@ -427,11 +476,39 @@ export default function IapResourceCapacityPage() {
                           <div className="flex justify-end gap-1">
                             {!row.isArchived ? (
                               <>
-                                <button className="grid h-9 w-9 place-items-center rounded-lg border text-sky-700 hover:bg-sky-50" onClick={() => openAvailability(row.auditor, row)} type="button"><Pencil size={15} /></button>
-                                <button className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50" onClick={() => setArchiveTarget(row)} type="button"><Archive size={15} /></button>
+                                <button
+                                  className="grid h-9 w-9 place-items-center rounded-lg border text-sky-700 hover:bg-sky-50"
+                                  onClick={() =>
+                                    openAvailability(row.auditor, row)
+                                  }
+                                  type="button"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                                  onClick={() => setArchiveTarget(row)}
+                                  type="button"
+                                >
+                                  <Archive size={15} />
+                                </button>
                               </>
                             ) : (
-                              <button className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50" onClick={() => run(() => resourceCapacityApi.restoreUnavailability(row.id), "Unavailable period restored.")} type="button"><RotateCcw size={14} /> Restore</button>
+                              <button
+                                className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                                onClick={() =>
+                                  run(
+                                    () =>
+                                      resourceCapacityApi.restoreUnavailability(
+                                        row.id,
+                                      ),
+                                    "Unavailable period restored.",
+                                  )
+                                }
+                                type="button"
+                              >
+                                <RotateCcw size={14} /> Restore
+                              </button>
                             )}
                           </div>
                         </td>
@@ -439,7 +516,14 @@ export default function IapResourceCapacityPage() {
                     </tr>
                   ))}
                   {availabilityRows.length === 0 && (
-                    <tr><td className="px-5 py-10 text-center text-slate-500" colSpan={6}>No unavailable periods match the search.</td></tr>
+                    <tr>
+                      <td
+                        className="px-5 py-10 text-center text-slate-500"
+                        colSpan={6}
+                      >
+                        No unavailable periods match the search.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -450,23 +534,41 @@ export default function IapResourceCapacityPage() {
         {tab === "skills" && (
           <div className="grid gap-3 p-4 lg:grid-cols-2">
             {filteredAuditors.map((auditor) => (
-              <article className="rounded-xl border border-slate-200 p-4" key={auditor.id}>
+              <article
+                className="rounded-xl border border-slate-200 p-4"
+                key={auditor.id}
+              >
                 <header className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-bold text-slate-800">{auditor.name}</h3>
-                    <p className="text-xs text-slate-500">{auditor.employeeId} · {auditor.position}</p>
+                    <p className="text-xs text-slate-500">
+                      {auditor.employeeId} · {auditor.position}
+                    </p>
                   </div>
                   {canManage && (
-                    <button className="grid h-9 w-9 place-items-center rounded-lg border text-sky-700 hover:bg-sky-50" onClick={() => openSkills(auditor)} type="button"><Pencil size={15} /></button>
+                    <button
+                      className="grid h-9 w-9 place-items-center rounded-lg border text-sky-700 hover:bg-sky-50"
+                      onClick={() => openSkills(auditor)}
+                      type="button"
+                    >
+                      <Pencil size={15} />
+                    </button>
                   )}
                 </header>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {auditor.skills.map((skill) => (
-                    <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-800" key={skill.id}>
+                    <span
+                      className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-800"
+                      key={skill.id}
+                    >
                       {skill.label} · {skill.proficiencyLevel}
                     </span>
                   ))}
-                  {auditor.skills.length === 0 && <span className="text-sm text-slate-400">No verified specializations.</span>}
+                  {auditor.skills.length === 0 && (
+                    <span className="text-sm text-slate-400">
+                      No verified specializations.
+                    </span>
+                  )}
                 </div>
               </article>
             ))}
@@ -476,31 +578,63 @@ export default function IapResourceCapacityPage() {
         {tab === "requirements" && (
           <div className="grid gap-3 p-4">
             {filteredEngagements.map((engagement) => (
-              <article className={`rounded-xl border p-4 ${engagement.skillGaps.length ? "border-amber-300 bg-amber-50/40" : "border-slate-200"}`} key={engagement.id}>
+              <article
+                className={`rounded-xl border p-4 ${engagement.skillGaps.length ? "border-amber-300 bg-amber-50/40" : "border-slate-200"}`}
+                key={engagement.id}
+              >
                 <header className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-slate-800">{engagement.engagementCode} — {engagement.title}</h3>
-                      {engagement.skillGaps.length ? <StatusBadge tone="warning">{engagement.skillGaps.length} skill gap(s)</StatusBadge> : <StatusBadge tone="success">Requirements met</StatusBadge>}
+                      <h3 className="font-bold text-slate-800">
+                        {engagement.engagementCode} — {engagement.title}
+                      </h3>
+                      {engagement.skillGaps.length ? (
+                        <StatusBadge tone="warning">
+                          {engagement.skillGaps.length} skill gap(s)
+                        </StatusBadge>
+                      ) : (
+                        <StatusBadge tone="success">
+                          Requirements met
+                        </StatusBadge>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
-                      {engagement.planCode} · {engagement.offices.map((office) => office.code).join(", ") || "No office"} · {engagement.assignedPersonDays}/{engagement.requiredPersonDays} person-days assigned
+                      {engagement.planCode} ·{" "}
+                      {engagement.offices
+                        .map((office) => office.code)
+                        .join(", ") || "No office"}{" "}
+                      · {engagement.assignedPersonDays}/
+                      {engagement.requiredPersonDays} person-days assigned
                     </p>
                   </div>
                   {canManage &&
                     ["DRAFT", "RETURNED_FOR_REVISION"].includes(
                       engagement.planStatus,
                     ) && (
-                    <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-sky-200 px-3 text-xs font-bold text-sky-700 hover:bg-sky-50" onClick={() => openRequirements(engagement)} type="button"><Pencil size={14} /> Requirements</button>
-                  )}
+                      <button
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-sky-200 px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
+                        onClick={() => openRequirements(engagement)}
+                        type="button"
+                      >
+                        <Pencil size={14} /> Requirements
+                      </button>
+                    )}
                 </header>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {engagement.requirements.map((item) => (
-                    <span className={`rounded-lg border px-3 py-2 text-xs ${item.hasGap ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`} key={item.id}>
-                      <strong>{item.label}</strong> · {item.qualifiedAuditors}/{item.minimumAuditors} at {item.minimumProficiency}
+                    <span
+                      className={`rounded-lg border px-3 py-2 text-xs ${item.hasGap ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
+                      key={item.id}
+                    >
+                      <strong>{item.label}</strong> · {item.qualifiedAuditors}/
+                      {item.minimumAuditors} at {item.minimumProficiency}
                     </span>
                   ))}
-                  {engagement.requirements.length === 0 && <span className="text-sm text-slate-400">No specialization requirements defined.</span>}
+                  {engagement.requirements.length === 0 && (
+                    <span className="text-sm text-slate-400">
+                      No specialization requirements defined.
+                    </span>
+                  )}
                 </div>
               </article>
             ))}
@@ -509,36 +643,209 @@ export default function IapResourceCapacityPage() {
       </section>
 
       <Modal
-        footer={<><button className="h-10 rounded-lg border px-4 text-sm font-bold" disabled={saving} onClick={() => setCapacityTarget(null)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60" disabled={saving} onClick={() => run(() => resourceCapacityApi.updateCapacity(capacityTarget.id, { fiscalYear: Number(year), availablePersonDays: Number(capacityDays) }), "Annual capacity updated.")} type="button">Save capacity</button></>}
+        footer={
+          <>
+            <button
+              className="h-10 rounded-lg border px-4 text-sm font-bold"
+              disabled={saving}
+              onClick={() => setCapacityTarget(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              onClick={() =>
+                run(
+                  () =>
+                    resourceCapacityApi.updateCapacity(capacityTarget.id, {
+                      fiscalYear: Number(year),
+                      availablePersonDays: Number(capacityDays),
+                    }),
+                  "Annual capacity updated.",
+                )
+              }
+              type="button"
+            >
+              Save capacity
+            </button>
+          </>
+        }
         onClose={() => setCapacityTarget(null)}
         open={Boolean(capacityTarget)}
         title={`Annual capacity · ${capacityTarget?.name ?? ""}`}
       >
         <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
           Available person-days for FY {year}
-          <input className={inputClass()} min="0" onChange={(event) => setCapacityDays(event.target.value)} step="0.5" type="number" value={capacityDays} />
+          <input
+            className={inputClass()}
+            min="0"
+            onChange={(event) => setCapacityDays(event.target.value)}
+            step="0.5"
+            type="number"
+            value={capacityDays}
+          />
         </label>
       </Modal>
 
       <Modal
-        footer={<><button className="h-10 rounded-lg border px-4 text-sm font-bold" disabled={saving} onClick={() => setAvailabilityTarget(null)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60" disabled={saving} onClick={() => run(() => availabilityTarget.period ? resourceCapacityApi.updateUnavailability(availabilityTarget.period.id, availabilityForm) : resourceCapacityApi.createUnavailability(availabilityTarget.auditor.id, availabilityForm), availabilityTarget?.period ? "Unavailable period updated." : "Unavailable period added.")} type="button">Save period</button></>}
+        footer={
+          <>
+            <button
+              className="h-10 rounded-lg border px-4 text-sm font-bold"
+              disabled={saving}
+              onClick={() => setAvailabilityTarget(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              onClick={() =>
+                run(
+                  () =>
+                    availabilityTarget.period
+                      ? resourceCapacityApi.updateUnavailability(
+                          availabilityTarget.period.id,
+                          availabilityForm,
+                        )
+                      : resourceCapacityApi.createUnavailability(
+                          availabilityTarget.auditor.id,
+                          availabilityForm,
+                        ),
+                  availabilityTarget?.period
+                    ? "Unavailable period updated."
+                    : "Unavailable period added.",
+                )
+              }
+              type="button"
+            >
+              Save period
+            </button>
+          </>
+        }
         onClose={() => setAvailabilityTarget(null)}
         open={Boolean(availabilityTarget)}
         title={`${availabilityTarget?.period ? "Edit" : "Add"} unavailable period`}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">Auditor<input className={`${inputClass()} bg-slate-50`} disabled value={availabilityTarget?.auditor?.name ?? ""} /></label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">Type<SearchableSelect onChange={(value) => setAvailabilityForm((form) => ({ ...form, typeId: value }))} options={data.unavailabilityTypes.map((item) => ({ value: item.id, label: item.label }))} value={availabilityForm.typeId} /></label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">Title<input className={inputClass()} onChange={(event) => setAvailabilityForm((form) => ({ ...form, title: event.target.value }))} value={availabilityForm.title ?? ""} /></label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">Start date<input className={inputClass()} onChange={(event) => setAvailabilityForm((form) => ({ ...form, startDate: event.target.value }))} type="date" value={availabilityForm.startDate ?? ""} /></label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">End date<input className={inputClass()} onChange={(event) => setAvailabilityForm((form) => ({ ...form, endDate: event.target.value }))} type="date" value={availabilityForm.endDate ?? ""} /></label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">Notes<textarea className={`${inputClass()} min-h-24 py-3`} onChange={(event) => setAvailabilityForm((form) => ({ ...form, notes: event.target.value }))} value={availabilityForm.notes ?? ""} /></label>
-          {Object.values(errors).flat().map((message) => <p className="text-xs font-semibold text-red-600 sm:col-span-2" key={message}>{message}</p>)}
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
+            Auditor
+            <input
+              className={`${inputClass()} bg-slate-50`}
+              disabled
+              value={availabilityTarget?.auditor?.name ?? ""}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
+            Type
+            <SearchableSelect
+              onChange={(value) =>
+                setAvailabilityForm((form) => ({ ...form, typeId: value }))
+              }
+              options={data.unavailabilityTypes.map((item) => ({
+                value: item.id,
+                label: item.label,
+              }))}
+              value={availabilityForm.typeId}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
+            Title
+            <input
+              className={inputClass()}
+              onChange={(event) =>
+                setAvailabilityForm((form) => ({
+                  ...form,
+                  title: event.target.value,
+                }))
+              }
+              value={availabilityForm.title ?? ""}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+            Start date
+            <input
+              className={inputClass()}
+              onChange={(event) =>
+                setAvailabilityForm((form) => ({
+                  ...form,
+                  startDate: event.target.value,
+                }))
+              }
+              type="date"
+              value={availabilityForm.startDate ?? ""}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+            End date
+            <input
+              className={inputClass()}
+              onChange={(event) =>
+                setAvailabilityForm((form) => ({
+                  ...form,
+                  endDate: event.target.value,
+                }))
+              }
+              type="date"
+              value={availabilityForm.endDate ?? ""}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
+            Notes
+            <textarea
+              className={`${inputClass()} min-h-24 py-3`}
+              onChange={(event) =>
+                setAvailabilityForm((form) => ({
+                  ...form,
+                  notes: event.target.value,
+                }))
+              }
+              value={availabilityForm.notes ?? ""}
+            />
+          </label>
+          {Object.values(errors)
+            .flat()
+            .map((message) => (
+              <p
+                className="text-xs font-semibold text-red-600 sm:col-span-2"
+                key={message}
+              >
+                {message}
+              </p>
+            ))}
         </div>
       </Modal>
 
       <Modal
-        footer={<><button className="h-10 rounded-lg border px-4 text-sm font-bold" disabled={saving} onClick={() => setSkillsTarget(null)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60" disabled={saving} onClick={() => run(() => resourceCapacityApi.syncSkills(skillsTarget.id, skillRows), "Auditor specializations updated.")} type="button">Save skills</button></>}
+        footer={
+          <>
+            <button
+              className="h-10 rounded-lg border px-4 text-sm font-bold"
+              disabled={saving}
+              onClick={() => setSkillsTarget(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              onClick={() =>
+                run(
+                  () =>
+                    resourceCapacityApi.syncSkills(skillsTarget.id, skillRows),
+                  "Auditor specializations updated.",
+                )
+              }
+              type="button"
+            >
+              Save skills
+            </button>
+          </>
+        }
         onClose={() => setSkillsTarget(null)}
         open={Boolean(skillsTarget)}
         size="lg"
@@ -553,7 +860,35 @@ export default function IapResourceCapacityPage() {
       </Modal>
 
       <Modal
-        footer={<><button className="h-10 rounded-lg border px-4 text-sm font-bold" disabled={saving} onClick={() => setRequirementTarget(null)} type="button">Cancel</button><button className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60" disabled={saving} onClick={() => run(() => resourceCapacityApi.syncRequirements(requirementTarget.id, requirementRows), "Engagement requirements updated.")} type="button">Save requirements</button></>}
+        footer={
+          <>
+            <button
+              className="h-10 rounded-lg border px-4 text-sm font-bold"
+              disabled={saving}
+              onClick={() => setRequirementTarget(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="h-10 rounded-lg bg-sky-700 px-5 text-sm font-bold text-white disabled:opacity-60"
+              disabled={saving}
+              onClick={() =>
+                run(
+                  () =>
+                    resourceCapacityApi.syncRequirements(
+                      requirementTarget.id,
+                      requirementRows,
+                    ),
+                  "Engagement requirements updated.",
+                )
+              }
+              type="button"
+            >
+              Save requirements
+            </button>
+          </>
+        }
         onClose={() => setRequirementTarget(null)}
         open={Boolean(requirementTarget)}
         size="lg"
@@ -572,7 +907,12 @@ export default function IapResourceCapacityPage() {
         confirmLabel="Archive period"
         description="This period will be soft-archived and can be restored later. It will no longer trigger scheduling conflicts."
         onCancel={() => setArchiveTarget(null)}
-        onConfirm={() => run(() => resourceCapacityApi.archiveUnavailability(archiveTarget.id), "Unavailable period archived.")}
+        onConfirm={() =>
+          run(
+            () => resourceCapacityApi.archiveUnavailability(archiveTarget.id),
+            "Unavailable period archived.",
+          )
+        }
         open={Boolean(archiveTarget)}
         title="Archive unavailable period?"
         tone="danger"
@@ -587,19 +927,29 @@ function EditableRows({ data, mode, rows, setRows }) {
     setRows((current) => [
       ...current,
       requirementMode
-        ? { specializationId: "", minimumAuditors: 1, minimumProficiency: "INTERMEDIATE", notes: "" }
+        ? {
+            specializationId: "",
+            minimumAuditors: 1,
+            minimumProficiency: "INTERMEDIATE",
+            notes: "",
+          }
         : { specializationId: "", proficiencyLevel: "INTERMEDIATE", notes: "" },
     ]);
   }
   function update(index, values) {
     setRows((current) =>
-      current.map((row, rowIndex) => rowIndex === index ? { ...row, ...values } : row),
+      current.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, ...values } : row,
+      ),
     );
   }
   return (
     <div className="grid gap-3">
       {rows.map((row, index) => (
-        <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(14rem,1fr)_13rem_auto]" key={`${row.specializationId}-${index}`}>
+        <div
+          className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(14rem,1fr)_13rem_auto]"
+          key={`${row.specializationId}-${index}`}
+        >
           <SearchableSelect
             onChange={(value) => update(index, { specializationId: value })}
             options={data.specializations.map((item) => ({
@@ -612,29 +962,63 @@ function EditableRows({ data, mode, rows, setRows }) {
           />
           {requirementMode ? (
             <div className="grid grid-cols-2 gap-2">
-              <input className={inputClass()} min="1" onChange={(event) => update(index, { minimumAuditors: Number(event.target.value) })} title="Minimum auditors" type="number" value={row.minimumAuditors} />
+              <input
+                className={inputClass()}
+                min="1"
+                onChange={(event) =>
+                  update(index, { minimumAuditors: Number(event.target.value) })
+                }
+                title="Minimum auditors"
+                type="number"
+                value={row.minimumAuditors}
+              />
               <SearchableSelect
-                onChange={(value) => update(index, { minimumProficiency: value })}
-                options={data.proficiencyLevels.map((item) => ({ value: item.code, label: item.label }))}
+                onChange={(value) =>
+                  update(index, { minimumProficiency: value })
+                }
+                options={data.proficiencyLevels.map((item) => ({
+                  value: item.code,
+                  label: item.label,
+                }))}
                 value={row.minimumProficiency}
               />
             </div>
           ) : (
             <SearchableSelect
               onChange={(value) => update(index, { proficiencyLevel: value })}
-              options={data.proficiencyLevels.map((item) => ({ value: item.code, label: item.label }))}
+              options={data.proficiencyLevels.map((item) => ({
+                value: item.code,
+                label: item.label,
+              }))}
               value={row.proficiencyLevel}
             />
           )}
-          <button className="grid h-11 w-11 place-items-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50" onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))} type="button"><Archive size={15} /></button>
+          <button
+            className="grid h-11 w-11 place-items-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+            onClick={() =>
+              setRows((current) =>
+                current.filter((_, rowIndex) => rowIndex !== index),
+              )
+            }
+            type="button"
+          >
+            <Archive size={15} />
+          </button>
         </div>
       ))}
       {rows.length === 0 && (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-slate-500">
-          No {requirementMode ? "engagement requirements" : "auditor skills"} have been added.
+          No {requirementMode ? "engagement requirements" : "auditor skills"}{" "}
+          have been added.
         </div>
       )}
-      <button className="inline-flex min-h-10 w-fit items-center gap-2 rounded-lg border border-sky-200 px-4 text-sm font-bold text-sky-700 hover:bg-sky-50" onClick={add} type="button"><Plus size={16} /> Add {requirementMode ? "requirement" : "skill"}</button>
+      <button
+        className="inline-flex min-h-10 w-fit items-center gap-2 rounded-lg border border-sky-200 px-4 text-sm font-bold text-sky-700 hover:bg-sky-50"
+        onClick={add}
+        type="button"
+      >
+        <Plus size={16} /> Add {requirementMode ? "requirement" : "skill"}
+      </button>
     </div>
   );
 }

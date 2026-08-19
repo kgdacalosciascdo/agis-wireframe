@@ -378,11 +378,9 @@ export default function AemsRetentionWorkspace({ engagementId }) {
               onClick={() =>
                 void act(
                   () =>
-                    aemsClosureApi.approveRetention(
-                      engagementId,
-                      record.id,
-                      { lockVersion: record.lockVersion },
-                    ),
+                    aemsClosureApi.approveRetention(engagementId, record.id, {
+                      lockVersion: record.lockVersion,
+                    }),
                   "Retention metadata approved and locked.",
                 )
               }

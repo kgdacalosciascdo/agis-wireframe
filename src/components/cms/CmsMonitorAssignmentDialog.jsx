@@ -101,7 +101,9 @@ export default function CmsMonitorAssignmentDialog({
         onClose();
       }}
       open={open}
-      title={replacing ? "Replace Compliance Monitor" : "Assign Compliance Monitor"}
+      title={
+        replacing ? "Replace Compliance Monitor" : "Assign Compliance Monitor"
+      }
     >
       <div className="grid gap-4">
         {currentMonitor?.user && (

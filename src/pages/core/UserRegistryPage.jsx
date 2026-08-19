@@ -126,10 +126,9 @@ export default function UserRegistryPage() {
   const isPlatformAdministrator = (currentUser.roles ?? []).some(
     (role) => role.code === "platform_admin",
   );
-  const assignableRoles =
-    isPlatformAdministrator
-      ? roles
-      : roles.filter((role) => role.code !== "platform_admin");
+  const assignableRoles = isPlatformAdministrator
+    ? roles
+    : roles.filter((role) => role.code !== "platform_admin");
 
   useEffect(() => {
     let active = true;
@@ -190,7 +189,7 @@ export default function UserRegistryPage() {
             ? user.isArchived
             : statusFilter === "locked"
               ? user.isLocked && !user.isArchived
-            : statusFilter === "active"
+              : statusFilter === "active"
                 ? user.isActive && !user.isLocked && !user.isArchived
                 : !user.isActive && !user.isArchived)),
     );
@@ -308,8 +307,8 @@ export default function UserRegistryPage() {
               assignableRoles.find(
                 (role) => role.code === "auditee_representative",
               )?.id ??
-              assignableRoles[0]?.id ??
-              "",
+                assignableRoles[0]?.id ??
+                "",
             ].filter(Boolean),
             primaryRoleId:
               assignableRoles.find(
@@ -711,22 +710,20 @@ export default function UserRegistryPage() {
                 <CircleOff size={16} />
               </button>
             )}
-          {canActivate &&
-            !user.isActive &&
-            !user.isArchived && (
-              <button
-                aria-label={`Activate ${user.name}`}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-emerald-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setAccountTarget({ action: "activate", user });
-                }}
-                title="Activate account"
-                type="button"
-              >
-                <CircleCheckBig size={16} />
-              </button>
-            )}
+          {canActivate && !user.isActive && !user.isArchived && (
+            <button
+              aria-label={`Activate ${user.name}`}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-emerald-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
+              onClick={(event) => {
+                event.stopPropagation();
+                setAccountTarget({ action: "activate", user });
+              }}
+              title="Activate account"
+              type="button"
+            >
+              <CircleCheckBig size={16} />
+            </button>
+          )}
           {canArchive && !user.isArchived && user.id !== currentUser.id && (
             <button
               aria-label={`Archive ${user.name}`}
@@ -1006,7 +1003,8 @@ export default function UserRegistryPage() {
                 Effective permissions ({selectedUser.permissionsCount ?? 0})
               </h3>
               <div className="mt-2 flex max-h-44 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                {(selectedUser.permissionDetails ??
+                {(
+                  selectedUser.permissionDetails ??
                   selectedUser.permissions?.map((code) => ({ code })) ??
                   []
                 ).map((permission) => (

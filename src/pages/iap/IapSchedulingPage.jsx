@@ -164,7 +164,11 @@ export default function IapSchedulingPage() {
           member.user?.name,
           member.user?.employeeId,
         ]),
-      ].some((value) => String(value ?? "").toLowerCase().includes(term));
+      ].some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(term),
+      );
     });
   }, [data.schedules, planId, search, status]);
 
@@ -182,10 +186,7 @@ export default function IapSchedulingPage() {
       ).length,
       personDays: visibleSchedules
         .filter((schedule) => schedule.scheduleStatus === "SCHEDULED")
-        .reduce(
-          (total, schedule) => total + schedule.estimatedPersonDays,
-          0,
-        ),
+        .reduce((total, schedule) => total + schedule.estimatedPersonDays, 0),
     }),
     [visibleSchedules],
   );
@@ -249,7 +250,6 @@ export default function IapSchedulingPage() {
       setSaving(false);
     }
   }
-
 
   const columns = [
     {
@@ -347,36 +347,36 @@ export default function IapSchedulingPage() {
             sortable: false,
             render: (schedule) =>
               canModify(schedule) ? (
-              <div
-                className="flex justify-end gap-1.5"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  aria-label="Edit schedule"
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-sky-200 text-sky-700 transition hover:bg-sky-50"
-                  onClick={() => {
-                    setErrors({});
-                    setEditing(schedule);
-                  }}
-                  type="button"
+                <div
+                  className="flex justify-end gap-1.5"
+                  onClick={(event) => event.stopPropagation()}
                 >
-                  <Pencil size={16} />
-                </button>
-                {schedule.scheduleStatus === "SCHEDULED" && (
                   <button
-                    aria-label="Cancel schedule"
-                    className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
+                    aria-label="Edit schedule"
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-sky-200 text-sky-700 transition hover:bg-sky-50"
                     onClick={() => {
                       setErrors({});
-                      setCancelReason("");
-                      setCancelTarget(schedule);
+                      setEditing(schedule);
                     }}
                     type="button"
                   >
-                    <XCircle size={16} />
+                    <Pencil size={16} />
                   </button>
-                )}
-              </div>
+                  {schedule.scheduleStatus === "SCHEDULED" && (
+                    <button
+                      aria-label="Cancel schedule"
+                      className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
+                      onClick={() => {
+                        setErrors({});
+                        setCancelReason("");
+                        setCancelTarget(schedule);
+                      }}
+                      type="button"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  )}
+                </div>
               ) : (
                 <span className="text-xs text-slate-400">View only</span>
               ),
@@ -555,13 +555,11 @@ export default function IapSchedulingPage() {
               </button>
             </div>
             <div className="grid min-w-[760px] grid-cols-7 border-l border-t border-slate-200 text-center text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                (day) => (
-                  <div className="border-b border-r p-2" key={day}>
-                    {day}
-                  </div>
-                ),
-              )}
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <div className="border-b border-r p-2" key={day}>
+                  {day}
+                </div>
+              ))}
               {cells.map((cell) => {
                 const daySchedules = visibleSchedules.filter(
                   (schedule) =>
@@ -578,9 +576,7 @@ export default function IapSchedulingPage() {
                   >
                     <span
                       className={`text-xs font-bold ${
-                        cell.currentMonth
-                          ? "text-slate-700"
-                          : "text-slate-400"
+                        cell.currentMonth ? "text-slate-700" : "text-slate-400"
                       }`}
                     >
                       {cell.date.getDate()}
@@ -759,7 +755,10 @@ export default function IapSchedulingPage() {
               </div>
               <dl className="mt-4 grid gap-4 sm:grid-cols-3">
                 {[
-                  ["Audit period", `${formatDate(selected.plannedStartDate)} – ${formatDate(selected.plannedEndDate)}`],
+                  [
+                    "Audit period",
+                    `${formatDate(selected.plannedStartDate)} – ${formatDate(selected.plannedEndDate)}`,
+                  ],
                   ["Expected report", formatDate(selected.expectedReportDate)],
                   ["Person-days", selected.estimatedPersonDays],
                 ].map(([label, value]) => (
@@ -913,7 +912,6 @@ export default function IapSchedulingPage() {
           </label>
         </div>
       </Modal>
-
     </main>
   );
 }

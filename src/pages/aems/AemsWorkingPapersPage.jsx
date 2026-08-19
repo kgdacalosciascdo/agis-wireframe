@@ -189,9 +189,7 @@ export default function AemsWorkingPapersPage() {
       const data = await aemsWorkingPaperApi.show(engagementId);
       setWorkspace(data);
       setSelectedPaperId((current) =>
-        data.workingPapers.some(
-          (paper) => String(paper.id) === String(current),
-        )
+        data.workingPapers.some((paper) => String(paper.id) === String(current))
           ? current
           : String(data.workingPapers[0]?.id ?? ""),
       );
@@ -199,9 +197,7 @@ export default function AemsWorkingPapersPage() {
         (record) => record.isCurrentRevision,
       );
       setSelectedEvidenceId((current) =>
-        currentEvidence.some(
-          (record) => String(record.id) === String(current),
-        )
+        currentEvidence.some((record) => String(record.id) === String(current))
           ? current
           : String(currentEvidence[0]?.id ?? ""),
       );
@@ -394,15 +390,11 @@ export default function AemsWorkingPapersPage() {
           reason: actionComment,
         });
       } else {
-        await aemsWorkingPaperApi.transition(
-          engagementId,
-          selectedPaper.id,
-          {
-            action: paperAction,
-            lockVersion: selectedPaper.lockVersion,
-            comment: actionComment || undefined,
-          },
-        );
+        await aemsWorkingPaperApi.transition(engagementId, selectedPaper.id, {
+          action: paperAction,
+          lockVersion: selectedPaper.lockVersion,
+          comment: actionComment || undefined,
+        });
       }
       toast.success(`${label(paperAction)} completed.`);
       setActionOpen(false);
@@ -461,14 +453,10 @@ export default function AemsWorkingPapersPage() {
     setErrors({});
     try {
       if (replacingEvidence) {
-        await aemsEvidenceApi.replace(
-          engagementId,
-          replacingEvidence.id,
-          {
-            ...evidenceForm,
-            lockVersion: replacingEvidence.lockVersion,
-          },
-        );
+        await aemsEvidenceApi.replace(engagementId, replacingEvidence.id, {
+          ...evidenceForm,
+          lockVersion: replacingEvidence.lockVersion,
+        });
       } else {
         await aemsEvidenceApi.upload(engagementId, evidenceForm);
       }
@@ -498,15 +486,11 @@ export default function AemsWorkingPapersPage() {
     setSaving(true);
     setErrors({});
     try {
-      await aemsEvidenceApi.transition(
-        engagementId,
-        selectedEvidence.id,
-        {
-          action: evidenceAction,
-          lockVersion: selectedEvidence.lockVersion,
-          reason: evidenceReason || undefined,
-        },
-      );
+      await aemsEvidenceApi.transition(engagementId, selectedEvidence.id, {
+        action: evidenceAction,
+        lockVersion: selectedEvidence.lockVersion,
+        reason: evidenceReason || undefined,
+      });
       toast.success(`Evidence ${label(evidenceAction).toLowerCase()}.`);
       setEvidenceActionOpen(false);
       await loadWorkspace();
@@ -986,9 +970,7 @@ export default function AemsWorkingPapersPage() {
                       <h3 className="text-lg font-bold text-slate-900">
                         {selectedEvidence.evidenceCode}
                       </h3>
-                      <StatusBadge
-                        tone={statusTones[selectedEvidence.status]}
-                      >
+                      <StatusBadge tone={statusTones[selectedEvidence.status]}>
                         {label(selectedEvidence.status)}
                       </StatusBadge>
                       <span className="text-xs font-bold text-slate-400">
@@ -1012,9 +994,7 @@ export default function AemsWorkingPapersPage() {
                       selectedEvidence.status !== "VOIDED" && (
                         <button
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-sky-300 px-3 text-xs font-bold text-sky-700"
-                          onClick={() =>
-                            openReplaceEvidence(selectedEvidence)
-                          }
+                          onClick={() => openReplaceEvidence(selectedEvidence)}
                           type="button"
                         >
                           <RefreshCw size={14} />
@@ -1051,10 +1031,7 @@ export default function AemsWorkingPapersPage() {
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                   {[
                     ["Evidence type", selectedEvidence.evidenceCategory?.label],
-                    [
-                      "Source type",
-                      selectedEvidence.evidenceSourceType?.label,
-                    ],
+                    ["Source type", selectedEvidence.evidenceSourceType?.label],
                     ["Date obtained", date(selectedEvidence.dateObtained)],
                     ["Custodian", selectedEvidence.custodianName],
                     [
@@ -1433,7 +1410,11 @@ export default function AemsWorkingPapersPage() {
               }
             />
           </Field>
-          <Field error={errors.sourceDescription} label="Source description" wide>
+          <Field
+            error={errors.sourceDescription}
+            label="Source description"
+            wide
+          >
             <textarea
               className={textAreaClass}
               value={evidenceForm.sourceDescription}
@@ -1474,18 +1455,89 @@ export default function AemsWorkingPapersPage() {
             />
           </Field>
           <Field error={errors.acquisitionMethod} label="Acquisition method">
-            <select className={inputClass} value={evidenceForm.acquisitionMethod} onChange={(event) => setEvidenceForm((current) => ({ ...current, acquisitionMethod: event.target.value }))}>
-              <option value="">Select method</option><option value="REQUESTED">Requested</option><option value="OBSERVED">Observed</option><option value="INTERVIEW">Interview</option><option value="SYSTEM_EXPORT">System export</option><option value="INSPECTION">Inspection</option><option value="OTHER">Other</option>
+            <select
+              className={inputClass}
+              value={evidenceForm.acquisitionMethod}
+              onChange={(event) =>
+                setEvidenceForm((current) => ({
+                  ...current,
+                  acquisitionMethod: event.target.value,
+                }))
+              }
+            >
+              <option value="">Select method</option>
+              <option value="REQUESTED">Requested</option>
+              <option value="OBSERVED">Observed</option>
+              <option value="INTERVIEW">Interview</option>
+              <option value="SYSTEM_EXPORT">System export</option>
+              <option value="INSPECTION">Inspection</option>
+              <option value="OTHER">Other</option>
             </select>
           </Field>
           <Field error={errors.acquisitionForm} label="Acquisition form">
-            <select className={inputClass} value={evidenceForm.acquisitionForm} onChange={(event) => setEvidenceForm((current) => ({ ...current, acquisitionForm: event.target.value }))}>
-              <option value="">Select form</option><option value="DIGITAL">Digital</option><option value="PHYSICAL">Physical</option><option value="ORAL">Oral</option><option value="EXTERNAL_CONFIRMATION">External confirmation</option>
+            <select
+              className={inputClass}
+              value={evidenceForm.acquisitionForm}
+              onChange={(event) =>
+                setEvidenceForm((current) => ({
+                  ...current,
+                  acquisitionForm: event.target.value,
+                }))
+              }
+            >
+              <option value="">Select form</option>
+              <option value="DIGITAL">Digital</option>
+              <option value="PHYSICAL">Physical</option>
+              <option value="ORAL">Oral</option>
+              <option value="EXTERNAL_CONFIRMATION">
+                External confirmation
+              </option>
             </select>
           </Field>
-          <Field error={errors.planningObjectiveId} label="Planning objective ID"><input className={inputClass} inputMode="numeric" value={evidenceForm.planningObjectiveId} onChange={(event) => setEvidenceForm((current) => ({ ...current, planningObjectiveId: event.target.value }))} placeholder="Optional objective link" /></Field>
-          <Field error={errors.riskMatrixItemId} label="Risk matrix item ID"><input className={inputClass} inputMode="numeric" value={evidenceForm.riskMatrixItemId} onChange={(event) => setEvidenceForm((current) => ({ ...current, riskMatrixItemId: event.target.value }))} placeholder="Optional risk link" /></Field>
-          <Field error={errors.controlReference} label="Control reference"><input className={inputClass} value={evidenceForm.controlReference} onChange={(event) => setEvidenceForm((current) => ({ ...current, controlReference: event.target.value }))} placeholder="Optional control ID/reference" /></Field>
+          <Field
+            error={errors.planningObjectiveId}
+            label="Planning objective ID"
+          >
+            <input
+              className={inputClass}
+              inputMode="numeric"
+              value={evidenceForm.planningObjectiveId}
+              onChange={(event) =>
+                setEvidenceForm((current) => ({
+                  ...current,
+                  planningObjectiveId: event.target.value,
+                }))
+              }
+              placeholder="Optional objective link"
+            />
+          </Field>
+          <Field error={errors.riskMatrixItemId} label="Risk matrix item ID">
+            <input
+              className={inputClass}
+              inputMode="numeric"
+              value={evidenceForm.riskMatrixItemId}
+              onChange={(event) =>
+                setEvidenceForm((current) => ({
+                  ...current,
+                  riskMatrixItemId: event.target.value,
+                }))
+              }
+              placeholder="Optional risk link"
+            />
+          </Field>
+          <Field error={errors.controlReference} label="Control reference">
+            <input
+              className={inputClass}
+              value={evidenceForm.controlReference}
+              onChange={(event) =>
+                setEvidenceForm((current) => ({
+                  ...current,
+                  controlReference: event.target.value,
+                }))
+              }
+              placeholder="Optional control ID/reference"
+            />
+          </Field>
           <Field error={errors.custodianName} label="Custodian name">
             <input
               className={inputClass}
@@ -1514,7 +1566,11 @@ export default function AemsWorkingPapersPage() {
               }
             />
           </Field>
-          <Field error={errors.workingPaperIds} label="Linked Working Papers" wide>
+          <Field
+            error={errors.workingPaperIds}
+            label="Linked Working Papers"
+            wide
+          >
             <SearchableSelect
               multiple
               multipleDisplay="summary"
@@ -1530,7 +1586,11 @@ export default function AemsWorkingPapersPage() {
             />
           </Field>
           {replacingEvidence && (
-            <Field error={errors.changeReason} label="Required change reason" wide>
+            <Field
+              error={errors.changeReason}
+              label="Required change reason"
+              wide
+            >
               <textarea
                 className={textAreaClass}
                 value={evidenceForm.changeReason}

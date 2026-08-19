@@ -5,8 +5,7 @@ const EVENT_LABELS = {
   INTAKE_CREATED: "Recommendation transferred to CMS",
   COMPLIANCE_MONITOR_ASSIGNED: "Compliance Monitor assigned",
   COMPLIANCE_MONITOR_REPLACED: "Compliance Monitor replaced",
-  COMPLIANCE_MONITOR_ASSIGNMENT_ENDED:
-    "Compliance Monitor assignment ended",
+  COMPLIANCE_MONITOR_ASSIGNMENT_ENDED: "Compliance Monitor assignment ended",
 };
 
 function formatDateTime(value) {

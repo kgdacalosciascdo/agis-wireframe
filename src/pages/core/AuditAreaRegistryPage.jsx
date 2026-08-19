@@ -137,8 +137,7 @@ export default function AuditAreaRegistryPage() {
               office.sector,
             ]),
           ].some((value) => value?.toLowerCase().includes(query))) &&
-        (!typeFilter ||
-          String(area.auditAreaTypeId) === String(typeFilter)) &&
+        (!typeFilter || String(area.auditAreaTypeId) === String(typeFilter)) &&
         (!officeFilter ||
           area.offices.some(
             (office) => String(office.id) === String(officeFilter),
@@ -521,10 +520,7 @@ export default function AuditAreaRegistryPage() {
 
             <SearchableSelect
               onChange={setOfficeFilter}
-              options={[
-                { value: "", label: "All offices" },
-                ...officeOptions,
-              ]}
+              options={[{ value: "", label: "All offices" }, ...officeOptions]}
               placeholder="Filter by office"
               searchPlaceholder="Search offices..."
               value={officeFilter}
@@ -763,8 +759,7 @@ export default function AuditAreaRegistryPage() {
                         aria-label={`Remove ${office.name}`}
                         className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                         disabled={
-                          String(office.id) ===
-                          String(form.responsibleOfficeId)
+                          String(office.id) === String(form.responsibleOfficeId)
                         }
                         onClick={() =>
                           setForm((current) => ({
@@ -939,7 +934,8 @@ export default function AuditAreaRegistryPage() {
             </section>
             <section>
               <h3 className="text-sm font-bold text-slate-800">
-                Related planned audits ({selectedArea.relatedAudits?.length ?? 0})
+                Related planned audits (
+                {selectedArea.relatedAudits?.length ?? 0})
               </h3>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {selectedArea.relatedAudits?.map((audit) => (
@@ -948,7 +944,9 @@ export default function AuditAreaRegistryPage() {
                     key={audit.id}
                   >
                     <strong className="block text-sm text-slate-800">
-                      {audit.engagementCode || audit.planCode || "Planned audit"}
+                      {audit.engagementCode ||
+                        audit.planCode ||
+                        "Planned audit"}
                     </strong>
                     <span className="mt-1 block text-sm text-slate-600">
                       {audit.title}

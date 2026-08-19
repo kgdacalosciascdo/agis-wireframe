@@ -30,12 +30,15 @@ export default function ModulePage() {
           {page?.label ?? "AGIS Module"}
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">
-          This route is ready and protected by your AGIS role. The module workflow,
-          forms, tables, and server endpoints will be implemented in the next phase.
+          This route is ready and protected by your AGIS role. The module
+          workflow, forms, tables, and server endpoints will be implemented in
+          the next phase.
         </p>
 
         <div className="mx-auto mt-7 max-w-xl rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
-          <h3 className="text-sm font-bold text-slate-700">Your allowed actions</h3>
+          <h3 className="text-sm font-bold text-slate-700">
+            Your allowed actions
+          </h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {allowedActions.map((action) => (
               <span

@@ -261,26 +261,75 @@ export default function DashboardPage() {
   const content = roleContent[user.roleCode] ?? roleContent.agis_user;
   useEffect(() => {
     let active = true;
-    coreDashboardApi.show()
-      .then((data) => { if (active) setLive(data); })
-      .catch((error) => { if (active) setDashboardError(error.message || "Live dashboard data is unavailable."); });
-    return () => { active = false; };
+    coreDashboardApi
+      .show()
+      .then((data) => {
+        if (active) setLive(data);
+      })
+      .catch((error) => {
+        if (active)
+          setDashboardError(
+            error.message || "Live dashboard data is unavailable.",
+          );
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const liveModules = useMemo(() => new Map((live?.modules || []).map((module) => [module.key, module])), [live]);
-  const allowedModules = visibleFor(user, modules).filter(
-    (module) => module.key !== "core",
-  ).map((module) => ({ ...module, ...(liveModules.get(module.key) || {}) }));
-  const tasks = live?.tasks?.length ? live.tasks.map((task) => [task.title, task.code, task.due || "Open"]) : content.tasks;
-  const activities = live?.upcomingActivities?.length ? live.upcomingActivities : upcomingActivities;
-  const recent = live?.recentEngagements?.length ? live.recentEngagements.map((item) => [item.number, item.office || "—", item.phase || item.status || "—", "—", "—"]) : recentEngagements;
+  const liveModules = useMemo(
+    () => new Map((live?.modules || []).map((module) => [module.key, module])),
+    [live],
+  );
+  const allowedModules = visibleFor(user, modules)
+    .filter((module) => module.key !== "core")
+    .map((module) => ({ ...module, ...(liveModules.get(module.key) || {}) }));
+  const tasks = live?.tasks?.length
+    ? live.tasks.map((task) => [task.title, task.code, task.due || "Open"])
+    : content.tasks;
+  const activities = live?.upcomingActivities?.length
+    ? live.upcomingActivities
+    : upcomingActivities;
+  const recent = live?.recentEngagements?.length
+    ? live.recentEngagements.map((item) => [
+        item.number,
+        item.office || "—",
+        item.phase || item.status || "—",
+        "—",
+        "—",
+      ])
+    : recentEngagements;
   const quickActions = live?.quickActions || [];
   const engagementStatus = live?.engagementStatus || {};
   const recommendationStatus = live?.recommendationStatus || {};
-  const liveEngagementTotal = Object.values(engagementStatus).reduce((sum, value) => sum + Number(value || 0), 0);
-  const liveRecommendationTotal = Object.values(recommendationStatus).reduce((sum, value) => sum + Number(value || 0), 0);
-  const engagementSegments = Object.entries(engagementStatus).map(([label, value], index) => ({ label: label.replaceAll("_", " "), value: String(value), percent: liveEngagementTotal ? Math.round((Number(value) / liveEngagementTotal) * 100) : 0, color: ["#4775b8", "#16ad62", "#ffa01c", "#6840a2", "#a9b5c5"][index % 5] }));
-  const recommendationSegments = Object.entries(recommendationStatus).map(([label, value], index) => ({ label: label.replaceAll("_", " "), value: String(value), percent: liveRecommendationTotal ? Math.round((Number(value) / liveRecommendationTotal) * 100) : 0, color: ["#16ad62", "#4775b8", "#ffa01c", "#a9b5c5"][index % 4] }));
+  const liveEngagementTotal = Object.values(engagementStatus).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0,
+  );
+  const liveRecommendationTotal = Object.values(recommendationStatus).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0,
+  );
+  const engagementSegments = Object.entries(engagementStatus).map(
+    ([label, value], index) => ({
+      label: label.replaceAll("_", " "),
+      value: String(value),
+      percent: liveEngagementTotal
+        ? Math.round((Number(value) / liveEngagementTotal) * 100)
+        : 0,
+      color: ["#4775b8", "#16ad62", "#ffa01c", "#6840a2", "#a9b5c5"][index % 5],
+    }),
+  );
+  const recommendationSegments = Object.entries(recommendationStatus).map(
+    ([label, value], index) => ({
+      label: label.replaceAll("_", " "),
+      value: String(value),
+      percent: liveRecommendationTotal
+        ? Math.round((Number(value) / liveRecommendationTotal) * 100)
+        : 0,
+      color: ["#16ad62", "#4775b8", "#ffa01c", "#a9b5c5"][index % 4],
+    }),
+  );
   const moduleCount = Math.min(Math.max(allowedModules.length, 1), 6);
   const moduleGridClasses = {
     1: "grid-cols-1",
@@ -307,7 +356,8 @@ export default function DashboardPage() {
       </div>
       {dashboardError && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Live metrics are temporarily unavailable; showing the last-known dashboard layout.
+          Live metrics are temporarily unavailable; showing the last-known
+          dashboard layout.
         </div>
       )}
 
@@ -384,22 +434,20 @@ export default function DashboardPage() {
               <span>Progress</span>
               <span>Risk Level</span>
             </div>
-            {recent.map(
-              ([number, office, status, progress, risk]) => (
-                <div
-                  className="grid min-h-10 grid-cols-[1.1fr_1.25fr_.7fr_.5fr_.5fr] items-center gap-3 border-b border-slate-100 px-2 text-slate-500"
-                  key={number}
-                >
-                  <span>{number}</span>
-                  <span>{office}</span>
-                  <span>{status}</span>
-                  <span>{progress}</span>
-                  <span className={risk === "High" ? "text-red-500" : ""}>
-                    {risk}
-                  </span>
-                </div>
-              ),
-            )}
+            {recent.map(([number, office, status, progress, risk]) => (
+              <div
+                className="grid min-h-10 grid-cols-[1.1fr_1.25fr_.7fr_.5fr_.5fr] items-center gap-3 border-b border-slate-100 px-2 text-slate-500"
+                key={number}
+              >
+                <span>{number}</span>
+                <span>{office}</span>
+                <span>{status}</span>
+                <span>{progress}</span>
+                <span className={risk === "High" ? "text-red-500" : ""}>
+                  {risk}
+                </span>
+              </div>
+            ))}
           </div>
         </Panel>
       </section>
@@ -408,68 +456,83 @@ export default function DashboardPage() {
         <DonutPanel
           title="Audit Engagement Status"
           total={live ? liveEngagementTotal : 18}
-          segments={live ? engagementSegments : [
-            {
-              label: "Planning",
-              value: "4 (22%)",
-              percent: 22,
-              color: "#4775b8",
-            },
-            {
-              label: "Execution",
-              value: "7 (39%)",
-              percent: 39,
-              color: "#16ad62",
-            },
-            {
-              label: "Reporting",
-              value: "4 (22%)",
-              percent: 22,
-              color: "#ffa01c",
-            },
-            {
-              label: "Completed",
-              value: "2 (11%)",
-              percent: 11,
-              color: "#6840a2",
-            },
-            { label: "Closed", value: "1 (6%)", percent: 6, color: "#a9b5c5" },
-          ]}
+          segments={
+            live
+              ? engagementSegments
+              : [
+                  {
+                    label: "Planning",
+                    value: "4 (22%)",
+                    percent: 22,
+                    color: "#4775b8",
+                  },
+                  {
+                    label: "Execution",
+                    value: "7 (39%)",
+                    percent: 39,
+                    color: "#16ad62",
+                  },
+                  {
+                    label: "Reporting",
+                    value: "4 (22%)",
+                    percent: 22,
+                    color: "#ffa01c",
+                  },
+                  {
+                    label: "Completed",
+                    value: "2 (11%)",
+                    percent: 11,
+                    color: "#6840a2",
+                  },
+                  {
+                    label: "Closed",
+                    value: "1 (6%)",
+                    percent: 6,
+                    color: "#a9b5c5",
+                  },
+                ]
+          }
         />
         <DonutPanel
           title="Recommendation Status (CMS)"
           total={live ? liveRecommendationTotal : 21}
-          segments={live ? recommendationSegments : [
-            {
-              label: "Completed",
-              value: "7 (33%)",
-              percent: 33,
-              color: "#16ad62",
-            },
-            {
-              label: "In Progress",
-              value: "8 (38%)",
-              percent: 38,
-              color: "#4775b8",
-            },
-            {
-              label: "Overdue",
-              value: "4 (19%)",
-              percent: 19,
-              color: "#ffa01c",
-            },
-            {
-              label: "Closed",
-              value: "2 (10%)",
-              percent: 10,
-              color: "#a9b5c5",
-            },
-          ]}
+          segments={
+            live
+              ? recommendationSegments
+              : [
+                  {
+                    label: "Completed",
+                    value: "7 (33%)",
+                    percent: 33,
+                    color: "#16ad62",
+                  },
+                  {
+                    label: "In Progress",
+                    value: "8 (38%)",
+                    percent: 38,
+                    color: "#4775b8",
+                  },
+                  {
+                    label: "Overdue",
+                    value: "4 (19%)",
+                    percent: 19,
+                    color: "#ffa01c",
+                  },
+                  {
+                    label: "Closed",
+                    value: "2 (10%)",
+                    percent: 10,
+                    color: "#a9b5c5",
+                  },
+                ]
+          }
         />
 
         <Panel title="Overdue Recommendations">
           <div className="p-4">
-            <strong className="text-2xl text-red-600">{live?.overdueRecommendations ?? 4}</strong>
+            <strong className="text-2xl text-red-600">
+              {live?.overdueRecommendations ?? 4}
+            </strong>
             <span className="ml-2 text-xs text-slate-500">Overdue Items</span>
             <ul className="mt-4 grid gap-3 text-xs text-slate-600">
               {[
@@ -504,7 +567,11 @@ export default function DashboardPage() {
                 </button>
               );
             })}
-            {!quickActions.length && <p className="px-3 py-2 text-xs text-slate-500">No authorized quick actions.</p>}
+            {!quickActions.length && (
+              <p className="px-3 py-2 text-xs text-slate-500">
+                No authorized quick actions.
+              </p>
+            )}
           </div>
         </Panel>
       </section>

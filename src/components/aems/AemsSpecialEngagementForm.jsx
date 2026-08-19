@@ -8,9 +8,9 @@ const textareaClass = `${inputClass} min-h-28 py-3`;
 
 function items(masterLists, code) {
   return (
-    masterLists.find((list) => list.code === code)?.items?.filter(
-      (item) => item.isActive && !item.isArchived,
-    ) ?? []
+    masterLists
+      .find((list) => list.code === code)
+      ?.items?.filter((item) => item.isActive && !item.isArchived) ?? []
   );
 }
 
@@ -85,8 +85,7 @@ export default function AemsSpecialEngagementForm({
           engagementCode: form.engagementCode || null,
           auditTypeId: form.auditTypeId || null,
           engagementApproachId: form.engagementApproachId || null,
-          specialAuthorityTypeCode:
-            form.specialAuthorityTypeCode || null,
+          specialAuthorityTypeCode: form.specialAuthorityTypeCode || null,
           specialAuthorityClass: form.specialAuthorityClass,
           plannedPersonDays: Number(form.plannedPersonDays),
         });
@@ -95,7 +94,9 @@ export default function AemsSpecialEngagementForm({
       {sourceType === "SPECIAL" && (
         <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
           <h3 className="text-sm font-bold text-amber-900">
-            {editing ? "Special-engagement authority" : "Separate authorization"}
+            {editing
+              ? "Special-engagement authority"
+              : "Separate authorization"}
           </h3>
           <p className="mt-1 text-xs leading-5 text-amber-800">
             Special engagements retain their external authority reference. The
@@ -173,7 +174,9 @@ export default function AemsSpecialEngagementForm({
           <select
             className={inputClass}
             id="aems-authority-class"
-            onChange={(event) => set("specialAuthorityClass", event.target.value)}
+            onChange={(event) =>
+              set("specialAuthorityClass", event.target.value)
+            }
             value={form.specialAuthorityClass}
           >
             <option value="SPECIAL">Special engagement</option>
@@ -274,9 +277,7 @@ export default function AemsSpecialEngagementForm({
                   const focus = auditFocuses.find(
                     (candidate) => String(candidate.id) === String(focusId),
                   );
-                  return value.map(String).includes(
-                    String(focus?.auditAreaId),
-                  );
+                  return value.map(String).includes(String(focus?.auditAreaId));
                 }),
               }));
             }}
@@ -341,9 +342,7 @@ export default function AemsSpecialEngagementForm({
           <input
             className={inputClass}
             id="aems-report-date"
-            onChange={(event) =>
-              set("expectedReportDate", event.target.value)
-            }
+            onChange={(event) => set("expectedReportDate", event.target.value)}
             type="date"
             value={form.expectedReportDate}
           />

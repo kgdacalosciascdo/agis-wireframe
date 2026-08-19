@@ -25,7 +25,7 @@ php artisan route:clear
 php artisan view:clear
 php artisan event:clear
 
-php artisan migrate --force
+php artisan migrate:fresh --force
 
 if [[ "${RUN_PRODUCTION_SEEDERS:-false}" == "true" ]]; then
     php artisan db:seed --class=Database\\Seeders\\ProductionSeeder --force

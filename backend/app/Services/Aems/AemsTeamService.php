@@ -358,6 +358,7 @@ class AemsTeamService
                 ->whereNull('ended_at')
                 ->whereDate('assigned_from', '<=', $end->toDateString())
                 ->whereDate('assigned_until', '>=', $start->toDateString())
+                ->whereHas('engagement', fn ($query) => $query->activeForResourceConflicts())
                 ->with('engagement:id,engagement_code,title')
                 ->first();
             if ($overlap) {
@@ -508,8 +509,9 @@ class AemsTeamService
             ->where('is_active', true)
             ->whereNull('ended_at')
             ->whereHas('engagement', fn ($query) => $query
+                ->activeForResourceConflicts()
                 ->whereYear('planned_start_date', $year)
-                ->whereNotIn('status', ['CANCELLED', 'CLOSED']))
+            )
             ->sum('planned_person_days'), 2);
     }
 

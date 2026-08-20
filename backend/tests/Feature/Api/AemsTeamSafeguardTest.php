@@ -182,6 +182,50 @@ class AemsTeamSafeguardTest extends TestCase
         ])->assertOk()->assertJsonPath('data.declaration.status', 'ACCEPTED');
     }
 
+    public function test_cancelled_or_archived_engagements_do_not_block_resource_overlap(): void
+    {
+        [$management, $engagement, $team] = $this->engagementWithTeam();
+        $member = $team[2];
+
+        $other = $engagement->replicate();
+        $other->forceFill([
+            'engagement_code' => 'AEMS-ARCHIVED-OVERLAP-TEST',
+            'iap_plan_engagement_id' => null,
+            ...AuditEngagement::lifecycleProjectionForStatus('CANCELLED'),
+            'is_active' => false,
+            'created_by' => $management->id,
+            'updated_by' => $management->id,
+            'lock_version' => 1,
+        ])->save();
+
+        EngagementTeam::query()->create([
+            'audit_engagement_id' => $other->id,
+            'user_id' => $member->user_id,
+            'assignment_role_code' => 'AUDITOR',
+            'planned_person_days' => 2,
+            'assigned_from' => $engagement->planned_start_date,
+            'assigned_until' => $engagement->planned_end_date,
+            'assigned_by' => $management->id,
+            'is_active' => true,
+        ]);
+
+        $evaluation = app(\App\Services\AemsTeamSafeguardService::class)->evaluate($engagement);
+        $this->assertEmpty(collect($evaluation['blockers'])->where('code', 'WORKLOAD_OVERLAP')->all());
+
+        $other->forceFill([
+            'status' => 'AUTHORIZED',
+            'phase' => 'FOUNDATION',
+            'administrative_status' => 'ACTIVE',
+            'is_active' => true,
+        ])->save();
+        $evaluation = app(\App\Services\AemsTeamSafeguardService::class)->evaluate($engagement);
+        $this->assertNotEmpty(collect($evaluation['blockers'])->where('code', 'WORKLOAD_OVERLAP')->all());
+
+        $other->delete();
+        $evaluation = app(\App\Services\AemsTeamSafeguardService::class)->evaluate($engagement);
+        $this->assertEmpty(collect($evaluation['blockers'])->where('code', 'WORKLOAD_OVERLAP')->all());
+    }
+
     public function test_authoritative_armis_mode_blocks_missing_resource_data(): void
     {
         [$management, $engagement] = $this->engagementWithTeam();

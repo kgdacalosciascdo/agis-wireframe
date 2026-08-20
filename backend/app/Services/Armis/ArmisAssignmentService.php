@@ -569,6 +569,7 @@ class ArmisAssignmentService
                 ->whereIn('status', ['SUBMITTED', 'APPROVED', 'LOCKED'])
                 ->whereKeyNot($assignment->id)
                 ->whereNull('deleted_at')
+                ->whereHas('engagement', fn ($query) => $query->activeForResourceConflicts())
                 ->with('engagement:id,engagement_code,title,status')
                 ->get()
                 ->filter(function (ArmisEngagementAssignment $other) use ($start, $end): bool {
@@ -603,6 +604,7 @@ class ArmisAssignmentService
                     ->whereIn('status', ['APPROVED', 'LOCKED'])
                     ->whereYear('assigned_from', $year)
                     ->whereKeyNot($assignment->id)
+                    ->whereHas('engagement', fn ($query) => $query->activeForResourceConflicts())
                     ->sum('planned_person_days');
                 $total = round($allocated + (float) $assignment->planned_person_days, 2);
                 if ($total > (float) $capacity->available_person_days) {
@@ -663,6 +665,7 @@ class ArmisAssignmentService
             ->whereIn('status', ['SUBMITTED', 'APPROVED', 'LOCKED'])
             ->whereNull('deleted_at')
             ->when($ignoreId, fn (Builder $query) => $query->whereKeyNot($ignoreId))
+            ->whereHas('engagement', fn ($query) => $query->activeForResourceConflicts())
             ->with('engagement:id,engagement_code,title,status,planned_start_date,planned_end_date')
             ->get()
             ->contains(function (ArmisEngagementAssignment $other) use ($startDate, $endDate): bool {

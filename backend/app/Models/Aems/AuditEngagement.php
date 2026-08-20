@@ -154,6 +154,22 @@ class AuditEngagement extends Model
         return app(AemsAccessService::class)->visibleEngagements($query, $user);
     }
 
+    /**
+     * Restrict engagement queries used for resource allocation conflicts to
+     * engagements that can still consume team capacity. Soft-deleted rows are
+     * excluded by the model's default scope; lifecycle flags are included here
+     * because cancellation and administrative archiving preserve the row for
+     * audit/history purposes.
+     */
+    public function scopeActiveForResourceConflicts(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->whereNotIn('status', ['CANCELLED', 'CLOSED'])
+            ->whereNotIn('administrative_status', ['CANCELLED', 'CLOSED', 'ARCHIVED']);
+    }
+
     public function sourcePlanEngagement(): BelongsTo
     {
         return $this->belongsTo(IapPlanEngagement::class, 'iap_plan_engagement_id')->withTrashed();

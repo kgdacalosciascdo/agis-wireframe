@@ -482,8 +482,8 @@ class AemsTeamSafeguardService
             ->where('is_active', true)
             ->whereNull('ended_at')
             ->whereHas('engagement', fn ($query) => $query
-                ->whereYear('planned_start_date', $year)
-                ->whereNotIn('status', ['CANCELLED', 'CLOSED']))
+                ->activeForResourceConflicts()
+                ->whereYear('planned_start_date', $year))
             ->sum('planned_person_days'), 2);
         $capacityMet = $allocated <= $available + 0.009;
         $capacity = [
@@ -514,6 +514,7 @@ class AemsTeamSafeguardService
             ->whereNull('ended_at')
             ->whereDate('assigned_from', '<=', $end->toDateString())
             ->whereDate('assigned_until', '>=', $start->toDateString())
+            ->whereHas('engagement', fn ($query) => $query->activeForResourceConflicts())
             ->with('engagement:id,engagement_code,title')
             ->first() : null;
         if ($overlap) {

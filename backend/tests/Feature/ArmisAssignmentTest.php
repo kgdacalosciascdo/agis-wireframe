@@ -124,6 +124,18 @@ class ArmisAssignmentTest extends TestCase
         $this->getJson("/api/armis/assignments/{$id}/conflicts")
             ->assertOk()->assertJsonFragment(['type' => 'ENGAGEMENT_OVERLAP']);
         $this->assertNotNull($existing->id);
+
+        // Cancellation is retained for audit history but must release the
+        // resource for future assignments and conflict checks.
+        $engagementTwo->forceFill([
+            'status' => 'CANCELLED',
+            'administrative_status' => 'CANCELLED',
+            'is_active' => false,
+        ])->save();
+        $conflicts = $this->getJson("/api/armis/assignments/{$id}/conflicts")
+            ->assertOk()
+            ->json('data.conflicts');
+        $this->assertFalse(collect($conflicts)->contains('type', 'ENGAGEMENT_OVERLAP'));
     }
 
     public function test_actual_person_days_require_approved_assignment_support_variance_and_revision(): void

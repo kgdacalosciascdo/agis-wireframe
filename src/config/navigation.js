@@ -373,7 +373,7 @@ export const aemsContextualScreens = [
   {
     id: "SCR-224",
     label: "Audit Procedure Details",
-    route: "/audit-engagement-management/audit-program",
+    route: "/audit-engagement-management/audit-procedure-details",
     group: "Planning",
     parentTab: "Planning",
     permission: "aems.program.view",

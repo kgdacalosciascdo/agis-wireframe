@@ -6,6 +6,7 @@ use App\Models\AuditEngagement;
 use App\Models\AuditEngagementPlan;
 use App\Models\AuditProgram;
 use App\Models\AuditProgramProcedure;
+use App\Models\AemsProcessFlowDocument;
 use App\Models\EngagementEvent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class AemsProgramService
     {
         $engagement->loadMissing([
             'engagementPlan.latestVersion',
+            'planningPackage.latestVersion.processFlows',
             'auditAreas:id,code,name',
             'auditFocuses:id,audit_area_id,code,name',
             'auditType:id,code,label',
@@ -36,6 +38,7 @@ class AemsProgramService
                 ->whereNull('ended_at')
                 ->with('user'),
         ]);
+        $planningFlows = $engagement->planningPackage?->latestVersion?->processFlows ?? collect();
         $programs = AuditProgram::query()
             ->withTrashed()
             ->where('audit_engagement_id', $engagement->id)
@@ -84,6 +87,14 @@ class AemsProgramService
                 'versionNumber' => $engagement->engagementPlan->current_version_number,
                 'objectives' => $engagement->engagementPlan->latestVersion?->objectives,
             ] : null,
+            'planningProcessFlows' => $planningFlows->map(fn (AemsProcessFlowDocument $flow): array => [
+                'id' => $flow->id,
+                'code' => $flow->flow_code,
+                'title' => $flow->title,
+                'auditAreaId' => $flow->audit_area_id,
+                'auditFocusId' => $flow->audit_focus_id,
+                'sequence' => $flow->sequence,
+            ])->values(),
             'programs' => $programs->map(
                 fn (AuditProgram $program): array => $this->program($program, $engagement),
             )->values(),
@@ -902,6 +913,35 @@ class AemsProgramService
             if ($focus && (int) $focus->audit_area_id !== $areaId) {
                 throw ValidationException::withMessages([
                     'auditFocusId' => ['The selected audit focus does not belong to the selected audit area.'],
+                ]);
+            }
+        }
+
+        $processFlowId = filled($attributes['processFlowId'] ?? null)
+            ? (int) $attributes['processFlowId']
+            : null;
+        if ($processFlowId !== null) {
+            $flow = AemsProcessFlowDocument::query()
+                ->whereKey($processFlowId)
+                ->whereHas('version.package', fn ($query) => $query->where('audit_engagement_id', $engagement->id))
+                ->whereHas('version', fn ($query) => $query->whereKey(
+                    $engagement->planningPackage?->latestVersion?->id,
+                ))
+                ->first();
+
+            if (! $flow) {
+                throw ValidationException::withMessages([
+                    'processFlowId' => ['The process flow must be selected from the current Planning Package version.'],
+                ]);
+            }
+            if ($areaId !== null && $flow->audit_area_id !== null && (int) $flow->audit_area_id !== $areaId) {
+                throw ValidationException::withMessages([
+                    'processFlowId' => ['The selected process flow does not belong to the selected audit area.'],
+                ]);
+            }
+            if ($focusId !== null && $flow->audit_focus_id !== null && (int) $flow->audit_focus_id !== $focusId) {
+                throw ValidationException::withMessages([
+                    'processFlowId' => ['The selected process flow does not belong to the selected audit focus.'],
                 ]);
             }
         }

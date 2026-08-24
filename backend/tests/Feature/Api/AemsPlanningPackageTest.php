@@ -119,6 +119,27 @@ class AemsPlanningPackageTest extends TestCase
         $this->assertDatabaseCount('aems_risk_matrices', 2);
     }
 
+    public function test_risk_matrix_register_narrative_fields_are_persisted_on_new_versions(): void
+    {
+        [$prepared, , , $engagement, $procedure] = $this->fixture();
+        Sanctum::actingAs($prepared);
+        $payload = $this->completePayload($procedure->id);
+        $payload['riskMatrices'] = [
+            ['code' => 'RM-1', 'title' => 'Planning risk matrix', 'methodology' => 'Initial methodology', 'riskAppetite' => 'Moderate', 'overallConclusion' => 'Initial conclusion', 'riskItems' => $payload['riskItems']],
+            ['code' => 'RM-2', 'title' => 'Second matrix', 'methodology' => 'Second methodology', 'riskAppetite' => 'Low', 'overallConclusion' => 'Second conclusion', 'riskItems' => []],
+        ];
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $payload)->assertCreated();
+        $package = $engagement->planningPackage()->firstOrFail();
+
+        $payload['riskMatrices'][0]['methodology'] = 'Updated methodology';
+        $payload['riskMatrices'][0]['riskAppetite'] = 'High';
+        $payload['riskMatrices'][0]['overallConclusion'] = 'Updated conclusion';
+        $this->putJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}", [...$payload, 'lockVersion' => 1])->assertOk();
+
+        $this->assertDatabaseHas('aems_risk_matrices', ['planning_package_version_id' => 2, 'matrix_code' => 'RM-1', 'methodology' => 'Updated methodology', 'risk_appetite' => 'High', 'overall_conclusion' => 'Updated conclusion']);
+        $this->assertDatabaseHas('aems_risk_matrices', ['planning_package_version_id' => 2, 'matrix_code' => 'RM-2', 'methodology' => 'Second methodology', 'risk_appetite' => 'Low', 'overall_conclusion' => 'Second conclusion']);
+    }
+
     /** @return array{User,User,User,AuditEngagement,AuditProgramProcedure} */
     private function fixture(): array
     {

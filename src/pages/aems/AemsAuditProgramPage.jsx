@@ -15,7 +15,7 @@ import {
   Undo2,
   UserCheck,
 } from "lucide-react";
-import { useLocation, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import Modal from "../../components/ui/Modal";
 import RegistryHeader from "../../components/ui/RegistryHeader";
@@ -285,6 +285,28 @@ export default function AemsAuditProgramPage() {
           String(option.auditAreaId) === String(procedureForm.auditAreaId),
       )
     : auditFocusOptions;
+  const planningProcessFlowOptions = (workspace?.planningProcessFlows ?? []).map(
+    (flow) => ({
+      value: flow.id,
+      label: `${flow.code ? `${flow.code} — ` : ""}${flow.title || "Untitled process flow"}`,
+      keywords: `${flow.code ?? ""} ${flow.title ?? ""}`,
+      auditAreaId: flow.auditAreaId,
+      auditFocusId: flow.auditFocusId,
+    }),
+  );
+  const procedureProcessFlowOptions = planningProcessFlowOptions.filter(
+    (option) => {
+      const areaMatches =
+        !procedureForm.auditAreaId ||
+        !option.auditAreaId ||
+        String(option.auditAreaId) === String(procedureForm.auditAreaId);
+      const focusMatches =
+        !procedureForm.auditFocusId ||
+        !option.auditFocusId ||
+        String(option.auditFocusId) === String(procedureForm.auditFocusId);
+      return areaMatches && focusMatches;
+    },
+  );
 
   const actions = useMemo(() => {
     if (!program || !program.isCurrentRevision) return [];
@@ -561,6 +583,8 @@ export default function AemsAuditProgramPage() {
   const procedureDetailsView = location.pathname.endsWith(
     "/audit-procedure-details",
   );
+  const programWorkspacePath = `/audit-engagement-management/audit-program?engagementId=${selectedId}&programId=${selectedProgramId}`;
+  const procedureDetailsPath = `/audit-engagement-management/audit-procedure-details?engagementId=${selectedId}&programId=${selectedProgramId}`;
 
   return (
     <main className="min-w-0 p-3 sm:p-5 lg:p-6">
@@ -574,7 +598,7 @@ export default function AemsAuditProgramPage() {
         }
         readOnly={!planningUnlocked || (!canManage && !canReview && !canApprove)}
         actions={
-          canManage && planningUnlocked && selectedId ? (
+          canManage && planningUnlocked && selectedId && !procedureDetailsView ? (
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800 disabled:opacity-50"
               disabled={!workspace?.approvedAep}
@@ -636,18 +660,37 @@ export default function AemsAuditProgramPage() {
 
       {workspace && (
         <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            icon={ClipboardList}
-            label="Current programs"
-            value={currentPrograms.length}
-            tone="sky"
-          />
-          <SummaryCard
-            icon={BadgeCheck}
-            label="Approved baselines"
-            value={approvedCount}
-            tone="emerald"
-          />
+          {!procedureDetailsView ? (
+            <>
+              <SummaryCard
+                icon={ClipboardList}
+                label="Current programs"
+                value={currentPrograms.length}
+                tone="sky"
+              />
+              <SummaryCard
+                icon={BadgeCheck}
+                label="Approved baselines"
+                value={approvedCount}
+                tone="emerald"
+              />
+            </>
+          ) : (
+            <>
+              <SummaryCard
+                icon={ClipboardList}
+                label="Selected program"
+                value={program ? 1 : 0}
+                tone="sky"
+              />
+              <SummaryCard
+                icon={BadgeCheck}
+                label="Program status"
+                value={program ? label(program.status) : "—"}
+                tone="emerald"
+              />
+            </>
+          )}
           <SummaryCard
             icon={ListChecks}
             label="Procedures"
@@ -671,8 +714,9 @@ export default function AemsAuditProgramPage() {
               No Audit Program selected
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Create a procedure-based program from the approved AEP or select
-              an existing revision above.
+              {procedureDetailsView
+                ? "Select an Audit Program above to add or manage its procedures."
+                : "Create a program from the approved AEP or select an existing revision above."}
             </p>
           </div>
         </section>
@@ -709,7 +753,7 @@ export default function AemsAuditProgramPage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {planningUnlocked && editable && canManage && (
+                {!procedureDetailsView && planningUnlocked && editable && canManage && (
                   <button
                     className="inline-flex h-10 items-center gap-2 rounded-lg border border-sky-300 px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
                     onClick={openProgramForm}
@@ -718,14 +762,31 @@ export default function AemsAuditProgramPage() {
                     <FilePenLine size={15} /> Edit program
                   </button>
                 )}
-                {planningUnlocked && editable && canManage && (
-                  <button
-                    className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white hover:bg-sky-800"
-                    onClick={() => openProcedure()}
-                    type="button"
+                {procedureDetailsView ? (
+                  <>
+                    <Link
+                      className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      to={programWorkspacePath}
+                    >
+                      <ClipboardList size={15} /> Audit Program
+                    </Link>
+                    {planningUnlocked && editable && canManage && (
+                      <button
+                        className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white hover:bg-sky-800"
+                        onClick={() => openProcedure()}
+                        type="button"
+                      >
+                        <Plus size={15} /> Add procedure
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <Link
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-sky-300 px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
+                    to={procedureDetailsPath}
                   >
-                    <Plus size={15} /> Add procedure
-                  </button>
+                    <ListChecks size={15} /> Procedure details
+                  </Link>
                 )}
               </div>
             </header>
@@ -765,6 +826,7 @@ export default function AemsAuditProgramPage() {
               </div>
             </div>
 
+            {procedureDetailsView ? (
             <div className="divide-y divide-slate-200">
               {program.procedures.map((procedure) => (
                 <article className="p-4 sm:p-5" key={procedure.id}>
@@ -896,9 +958,25 @@ export default function AemsAuditProgramPage() {
                 </div>
               )}
             </div>
+            ) : (
+              <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-800">Program definition workspace</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Manage this program’s objectives, criteria, sampling approach, revisions, and approval workflow here. Procedures are maintained separately in Audit Procedure Details.
+                  </p>
+                </div>
+                <Link
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-xs font-bold text-white hover:bg-sky-800"
+                  to={procedureDetailsPath}
+                >
+                  <ListChecks size={15} /> Open procedure details
+                </Link>
+              </div>
+            )}
           </section>
 
-          {!!actions.length && (
+          {!procedureDetailsView && !!actions.length && (
             <section className="mb-5 rounded-xl border border-sky-200 bg-sky-50 p-4">
               <h2 className="text-sm font-bold text-slate-800">
                 Available workflow actions
@@ -924,7 +1002,7 @@ export default function AemsAuditProgramPage() {
             </section>
           )}
 
-          <div className="grid gap-5 xl:grid-cols-2">
+          {!procedureDetailsView && <div className="grid gap-5 xl:grid-cols-2">
             <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <header className="border-b border-slate-200 px-4 py-3 sm:px-5">
                 <h2 className="flex items-center gap-2 font-bold text-slate-800">
@@ -978,7 +1056,7 @@ export default function AemsAuditProgramPage() {
                 ))}
               </div>
             </section>
-          </div>
+          </div>}
         </>
       )}
 
@@ -1230,6 +1308,7 @@ export default function AemsAuditProgramPage() {
                   ...current,
                   auditAreaId: value,
                   auditFocusId: "",
+                  processFlowId: "",
                 }))
               }
             />
@@ -1245,6 +1324,16 @@ export default function AemsAuditProgramPage() {
                 setProcedureForm((current) => ({
                   ...current,
                   auditFocusId: value,
+                  processFlowId: (() => {
+                    const selectedFlow = planningProcessFlowOptions.find(
+                      (option) => String(option.value) === String(current.processFlowId),
+                    );
+                    return selectedFlow &&
+                      selectedFlow.auditFocusId &&
+                      String(selectedFlow.auditFocusId) !== String(value)
+                      ? ""
+                      : current.processFlowId;
+                  })(),
                 }))
               }
             />
@@ -1261,14 +1350,22 @@ export default function AemsAuditProgramPage() {
               }
             />
           </Field>
-          <Field label="Process Flow ID">
-            <input
-              className={inputClass}
+          <Field label="Planning Process Flow">
+            <SearchableSelect
+              options={procedureProcessFlowOptions}
+              placeholder="Select a planning process flow"
+              searchPlaceholder="Search planning process flows..."
+              emptyMessage={
+                workspace?.planningProcessFlows?.length
+                  ? "No planning process flows match the selected audit area."
+                  : "No process flows are recorded in the current Planning Package."
+              }
               value={procedureForm.processFlowId ?? ""}
-              onChange={(event) =>
+              disabled={!workspace?.planningProcessFlows?.length}
+              onChange={(value) =>
                 setProcedureForm((current) => ({
                   ...current,
-                  processFlowId: event.target.value,
+                  processFlowId: value,
                 }))
               }
             />

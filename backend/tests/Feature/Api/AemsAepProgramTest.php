@@ -12,6 +12,9 @@ use App\Models\AuditArea;
 use App\Models\AuditFocus;
 use App\Models\AuditProgram;
 use App\Models\AuditProgramProcedure;
+use App\Models\AemsPlanningPackage;
+use App\Models\AemsPlanningPackageVersion;
+use App\Models\AemsProcessFlowDocument;
 use App\Models\ArmisCapacitySubmission;
 use App\Models\ArmisResourceProfile;
 use App\Models\IapPlanEngagement;
@@ -262,6 +265,77 @@ class AemsAepProgramTest extends TestCase
             'auditAreaId' => $selectedAreaIds->first(),
             'auditTypeId' => $otherType->id,
         ])->assertUnprocessable()->assertJsonValidationErrors('auditTypeId');
+    }
+
+    public function test_program_workspace_exposes_current_planning_flows_and_procedures_must_use_them(): void
+    {
+        [$management, $engagement, $team] = $this->preparedEngagement();
+        $preparer = $team['TEAM_LEADER'];
+        $this->issueAeo($management, $engagement, $team, $preparer);
+        $this->approveAep($management, $engagement, $preparer);
+
+        $package = AemsPlanningPackage::query()->create([
+            'audit_engagement_id' => $engagement->id,
+            'package_code' => 'APP-'.$engagement->engagement_code,
+            'status' => 'DRAFT',
+            'current_version_number' => 1,
+            'source_type' => $engagement->source_type,
+            'prepared_by' => $preparer->id,
+            'lock_version' => 1,
+            'is_active' => true,
+        ]);
+        $version = AemsPlanningPackageVersion::query()->create([
+            'planning_package_id' => $package->id,
+            'version_number' => 1,
+            'preliminary_survey' => [],
+            'planning_attributes' => [],
+            'iap_lineage_snapshot' => [],
+            'created_by' => $preparer->id,
+            'created_at' => now(),
+        ]);
+        $area = $engagement->auditAreas()->firstOrFail();
+        $focus = $engagement->auditFocuses()->where('audit_area_id', $area->id)->first();
+        $flow = AemsProcessFlowDocument::query()->create([
+            'planning_package_version_id' => $version->id,
+            'flow_code' => 'FLOW-CURRENT',
+            'title' => 'Current controlled flow',
+            'sequence' => 0,
+            'audit_area_id' => $area->id,
+            'audit_focus_id' => $focus?->id,
+        ]);
+
+        Sanctum::actingAs($preparer);
+        $this->getJson("/api/aems/engagements/{$engagement->id}/programs")
+            ->assertOk()
+            ->assertJsonPath('data.planningProcessFlows.0.id', $flow->id)
+            ->assertJsonPath('data.planningProcessFlows.0.code', 'FLOW-CURRENT');
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/programs", [
+            'title' => 'Controlled flow program',
+            'objective' => 'Test the controlled process-flow relationship.',
+            'auditAreaId' => $area->id,
+            'auditTypeId' => $engagement->audit_type_id,
+        ])->assertCreated();
+        $program = $this->currentProgram($engagement);
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/programs/{$program['id']}/procedures", [
+            'programLockVersion' => $program['lockVersion'],
+            'procedureCode' => 'FLOW-TEST-01',
+            'sequenceNumber' => 1,
+            'objective' => 'Test the current controlled flow.',
+            'procedureDescription' => 'Inspect records against the controlled flow.',
+            'expectedEvidence' => 'Process records and approved flow documentation.',
+            'assignedTo' => $team['AUDITOR']->id,
+            'targetDate' => '2026-08-14',
+            'auditAreaId' => $area->id,
+            'auditFocusId' => $focus?->id,
+            'processFlowId' => $flow->id,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('audit_program_procedures', [
+            'procedure_code' => 'FLOW-TEST-01',
+            'process_flow_id' => $flow->id,
+        ]);
     }
 
     /** @return array{User, AuditEngagement, array<string, User>} */

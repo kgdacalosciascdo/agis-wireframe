@@ -74,6 +74,12 @@ class AemsEntryConferenceService
             ->with($this->relations())
             ->first();
         $officeIds = $engagement->offices()->pluck('offices.id');
+        $ciasOffice = Office::query()->where('code', 'CIAS')->first();
+        $responsibleOfficeIds = $officeIds
+            ->push($ciasOffice?->id)
+            ->filter()
+            ->unique()
+            ->values();
         $teamIds = $engagement->teamMembers()
             ->where('is_active', true)
             ->whereNull('ended_at')
@@ -86,6 +92,8 @@ class AemsEntryConferenceService
             ->with('office')
             ->orderBy('name')
             ->get();
+        $teamIdLookup = $teamIds->map(fn ($id): int => (int) $id)->all();
+        $engagementOfficeIdLookup = $officeIds->map(fn ($id): int => (int) $id)->all();
 
         return [
             'engagement' => [
@@ -97,12 +105,23 @@ class AemsEntryConferenceService
             ],
             'conference' => $conference ? $this->conferenceData($conference) : null,
             'references' => [
-                'users' => $users->map(fn (User $user): array => $this->userData($user))->all(),
+                'users' => $users->map(function (User $user) use ($teamIdLookup, $engagementOfficeIdLookup): array {
+                    $participantTypes = [];
+                    if (in_array((int) $user->id, $teamIdLookup, true)) {
+                        $participantTypes[] = 'AUDIT_TEAM';
+                    }
+                    if (in_array((int) $user->office_id, $engagementOfficeIdLookup, true)) {
+                        $participantTypes[] = 'AUDITEE';
+                    }
+
+                    return $this->userData($user, $participantTypes);
+                })->all(),
                 'offices' => Office::query()
-                    ->whereIn('id', $officeIds)
+                    ->whereIn('id', $responsibleOfficeIds)
                     ->orderBy('name')
                     ->get()
                     ->map(fn (Office $office): array => $this->officeData($office))->all(),
+                'ciasOfficeId' => $ciasOffice?->id,
                 'statuses' => EntryConference::STATUSES,
                 'attachmentCategories' => EntryConferenceAttachment::CATEGORIES,
             ],
@@ -615,6 +634,32 @@ class AemsEntryConferenceService
         AuditEngagement $engagement,
         array $attributes,
     ): void {
+        $ciasOfficeId = Office::query()->where('code', 'CIAS')->value('id');
+        $allowedResponsibleOfficeIds = $engagement->offices()->pluck('offices.id')
+            ->push($ciasOfficeId)
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+        $activeTeamUserIds = $engagement->teamMembers()
+            ->where('is_active', true)
+            ->whereNull('ended_at')
+            ->pluck('user_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $resolveResponsibleOffice = function (?int $responsibleUserId, $responsibleOfficeId) use ($allowedResponsibleOfficeIds, $activeTeamUserIds, $ciasOfficeId, $engagement): ?int {
+            $user = $responsibleUserId ? User::query()->find($responsibleUserId) : null;
+            if ($responsibleUserId && in_array($responsibleUserId, $activeTeamUserIds, true) && $ciasOfficeId) {
+                return (int) $ciasOfficeId;
+            }
+            if ($responsibleOfficeId && $allowedResponsibleOfficeIds->contains((int) $responsibleOfficeId)) {
+                return (int) $responsibleOfficeId;
+            }
+            if ($user?->office_id && $engagement->offices()->whereKey($user->office_id)->exists()) {
+                return (int) $user->office_id;
+            }
+            return $ciasOfficeId ? (int) $ciasOfficeId : null;
+        };
         if (array_key_exists('participants', $attributes)) {
             $conference->participants()->delete();
             foreach ($attributes['participants'] as $index => $item) {
@@ -666,7 +711,7 @@ class AemsEntryConferenceService
                     'disposition_status' => $matter['dispositionStatus'] ?? 'OPEN',
                     'disposition' => $this->nullableTrim($matter['disposition'] ?? null),
                     'responsible_user_id' => $matter['responsibleUserId'] ?? null,
-                    'responsible_office_id' => $matter['responsibleOfficeId'] ?? null,
+                    'responsible_office_id' => $resolveResponsibleOffice($matter['responsibleUserId'] ?? null, $matter['responsibleOfficeId'] ?? null),
                     'due_date' => $matter['dueDate'] ?? null,
                 ]);
             }
@@ -677,7 +722,7 @@ class AemsEntryConferenceService
                 $conference->agreements()->create([
                     'agreement' => trim($agreement['agreement']),
                     'responsible_user_id' => $agreement['responsibleUserId'] ?? null,
-                    'responsible_office_id' => $agreement['responsibleOfficeId'] ?? null,
+                    'responsible_office_id' => $resolveResponsibleOffice($agreement['responsibleUserId'] ?? null, $agreement['responsibleOfficeId'] ?? null),
                     'due_date' => $agreement['dueDate'] ?? null,
                     'status' => $agreement['status'] ?? 'OPEN',
                 ]);
@@ -995,14 +1040,23 @@ class AemsEntryConferenceService
     }
 
     /** @return array<string, mixed>|null */
-    private function userData(?User $user): ?array
+    private function userData(?User $user, ?array $participantTypes = null): ?array
     {
-        return $user ? [
+        if (! $user) {
+            return null;
+        }
+
+        $data = [
             'id' => $user->id,
             'name' => $user->name,
             'username' => $user->username,
             'officeId' => $user->office_id,
-        ] : null;
+        ];
+        if ($participantTypes !== null) {
+            $data['participantTypes'] = $participantTypes;
+        }
+
+        return $data;
     }
 
     /** @return array<string, mixed>|null */

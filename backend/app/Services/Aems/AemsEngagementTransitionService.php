@@ -41,6 +41,9 @@ class AemsEngagementTransitionService
             'START_FINDINGS_COMMUNICATION' => 'FINDINGS_COMMUNICATION',
         ],
         'FINDINGS_COMMUNICATION' => [
+            'START_EXIT_CONFERENCE' => 'EXIT_CONFERENCE',
+        ],
+        'EXIT_CONFERENCE' => [
             'START_REPORTING' => 'REPORTING',
         ],
         'REPORTING' => [
@@ -61,6 +64,7 @@ class AemsEngagementTransitionService
         'AUTHORIZATION_PREPARATION',
         'ENGAGEMENT_PLANNING',
         'REPORTING',
+        'EXIT_CONFERENCE',
         'CLOSURE_REVIEW',
     ];
 
@@ -71,6 +75,7 @@ class AemsEngagementTransitionService
         'ENTRY_CONFERENCE',
         'FIELDWORK',
         'FINDINGS_COMMUNICATION',
+        'EXIT_CONFERENCE',
         'REPORTING',
     ];
 
@@ -83,6 +88,7 @@ class AemsEngagementTransitionService
         'ENTRY_CONFERENCE',
         'FIELDWORK',
         'FINDINGS_COMMUNICATION',
+        'EXIT_CONFERENCE',
         'REPORTING',
     ];
 
@@ -621,7 +627,33 @@ class AemsEngagementTransitionService
                 ),
                 $this->gate('blockers', 'No undisclosed fieldwork blocker remains', true),
             ],
+            'START_EXIT_CONFERENCE' => [
+                $this->gate(
+                    'issues',
+                    'All issues are dismissed or converted to findings',
+                    $engagement->issues->every(
+                        fn ($issue) => in_array($issue->status, ['DISMISSED', 'CONVERTED_TO_FINDING'], true),
+                    ),
+                    'issues',
+                ),
+                $this->gate(
+                    'dialogue',
+                    'All current findings have finalized dialogue disposition',
+                    $engagement->findings
+                        ->where('is_current_revision', true)
+                        ->every('status', 'FINALIZED'),
+                    'findings',
+                ),
+            ],
             'START_REPORTING' => [
+                $this->gate(
+                    'exitConference',
+                    'Exit Conference is completed or formally waived',
+                    $engagement->exitConferences->contains(
+                        fn ($conference) => in_array($conference->status, ['COMPLETED', 'WAIVED'], true),
+                    ),
+                    'conferences',
+                ),
                 $this->gate(
                     'issues',
                     'All issues are dismissed or converted to findings',

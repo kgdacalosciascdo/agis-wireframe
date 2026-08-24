@@ -202,6 +202,27 @@ class AemsExitConferenceTest extends TestCase
             ->update(['comment' => 'Attempted overwrite.']);
     }
 
+    public function test_exit_conference_is_locked_until_the_explicit_lifecycle_stage(): void
+    {
+        [$management, $auditor, $auditee, $engagement, $finding] = $this->conferenceContext();
+        $engagement->forceFill(['status' => 'FINDINGS_COMMUNICATION'])->save();
+        Sanctum::actingAs($auditor);
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/exit-conferences",
+            [
+                'scheduledStartAt' => now()->addWeek()->setTime(9, 0)->toISOString(),
+                'venue' => 'CIAS Conference Room',
+                'agenda' => 'Exit Conference agenda.',
+                'findingIds' => [$finding->id],
+                'participants' => [[
+                    'userId' => $auditee->id,
+                    'participantRole' => 'AUDITEE_REPRESENTATIVE',
+                ]],
+            ],
+        )->assertUnprocessable()->assertJsonValidationErrors('engagement');
+    }
+
     public function test_conference_rejects_uncommunicated_findings_and_non_participant_acknowledgement(): void
     {
         [$management, $auditor, $auditee, $engagement] = $this->conferenceContext();
@@ -253,7 +274,7 @@ class AemsExitConferenceTest extends TestCase
             'special_authority_approved_by' => $management->id,
             'objectives' => 'Assess collection controls.',
             'scope' => 'Revenue collection.',
-            'status' => 'FINDINGS_COMMUNICATION',
+            'status' => 'EXIT_CONFERENCE',
             'created_by' => $management->id,
             'updated_by' => $management->id,
         ]);
@@ -277,7 +298,7 @@ class AemsExitConferenceTest extends TestCase
             'cause' => 'The reconciliation control is not assigned.',
             'effect' => 'Posting errors may remain undetected.',
             'responsible_office_id' => $office->id,
-            'status' => 'COMMUNICATED',
+            'status' => 'FINALIZED',
             'authored_by' => $auditor->id,
             'communicated_at' => now(),
             'communicated_by' => $management->id,

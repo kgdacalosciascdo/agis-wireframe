@@ -44,6 +44,7 @@ class AemsDashboardService
         'ENTRY_CONFERENCE',
         'FIELDWORK',
         'FINDINGS_COMMUNICATION',
+        'EXIT_CONFERENCE',
         'REPORTING',
         'ISSUED',
         'CLOSURE_REVIEW',

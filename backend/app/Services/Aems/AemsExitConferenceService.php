@@ -202,6 +202,7 @@ class AemsExitConferenceService
             $engagement,
             'aems.conference.manage',
         );
+        $this->ensureEngagementState($engagement);
         $this->validateSchedule($attributes);
         $this->validateFindingIds($engagement, $attributes['findingIds']);
 
@@ -258,6 +259,7 @@ class AemsExitConferenceService
             $engagement,
             'aems.conference.manage',
         );
+        $this->ensureEngagementState($engagement);
 
         return DB::transaction(function () use ($request, $engagement, $conference, $attributes): ExitConference {
             $conference = $this->lock($engagement, $conference, $attributes['lockVersion']);
@@ -311,6 +313,7 @@ class AemsExitConferenceService
             $engagement,
             'aems.conference.manage',
         );
+        $this->ensureEngagementState($engagement);
 
         return DB::transaction(function () use (
             $request,
@@ -361,6 +364,7 @@ class AemsExitConferenceService
             $engagement,
             'aems.conference.manage',
         );
+        $this->ensureEngagementState($engagement);
         $stored = $this->storeFile($file, $engagement);
 
         try {
@@ -684,9 +688,9 @@ class AemsExitConferenceService
 
     private function ensureEngagementState(AuditEngagement $engagement): void
     {
-        if (! in_array($engagement->status, ['FINDINGS_COMMUNICATION', 'REPORTING'], true)) {
+        if ($engagement->status !== 'EXIT_CONFERENCE') {
             throw ValidationException::withMessages([
-                'engagement' => ['Exit conferences can be scheduled during findings communication or reporting.'],
+                'engagement' => ['Exit conferences can be scheduled only after Fieldwork and Issues & AFR are complete. Move the engagement to Exit Conference first.'],
             ]);
         }
     }

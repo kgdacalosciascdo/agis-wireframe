@@ -170,6 +170,7 @@ export default function AemsExitConferencesPage() {
 
   const canManage = hasPermission(user, "aems.conference.manage");
   const canAcknowledge = hasPermission(user, "aems.conference.acknowledge");
+  const exitStageOpen = workspace?.engagement?.status === "EXIT_CONFERENCE";
 
   const loadEngagements = useCallback(async () => {
     setLoading(true);
@@ -474,7 +475,7 @@ export default function AemsExitConferencesPage() {
           canManage ? (
             <button
               className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800"
-              disabled={!engagementId}
+              disabled={!engagementId || !exitStageOpen}
               onClick={() => openSchedule()}
               type="button"
             >
@@ -483,6 +484,14 @@ export default function AemsExitConferencesPage() {
           ) : null
         }
       />
+
+      {workspace && !exitStageOpen && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+          Exit Conference scheduling is locked. Complete Fieldwork and Issues
+          &amp; AFR, then move the engagement to the Exit Conference stage from
+          the lifecycle workspace before scheduling.
+        </div>
+      )}
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={CalendarCheck2} label="Conference records" value={summary.total} tone="sky" />
@@ -581,7 +590,7 @@ export default function AemsExitConferencesPage() {
           {selected ? (
             <ConferenceDetail
               canAcknowledge={canAcknowledge}
-              canManage={canManage}
+              canManage={canManage && exitStageOpen}
               conference={selected}
               engagementId={engagementId}
               onAcknowledge={() => {

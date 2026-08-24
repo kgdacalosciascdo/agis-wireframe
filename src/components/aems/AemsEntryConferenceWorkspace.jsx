@@ -98,6 +98,8 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
     caption: "",
   });
   const conference = workspace?.conference;
+  const references = workspace?.references ?? { users: [], offices: [] };
+  const ciasOfficeId = references.ciasOfficeId ?? "";
   const canManage = hasPermission(user, "aems.entry-conference.manage");
   const canAcknowledge = hasPermission(
     user,
@@ -106,6 +108,28 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
   const canWaive =
     hasPermission(user, "aems.entry-conference.waive") &&
     (!conference?.createdBy || conference.createdBy.id !== user?.id);
+
+  function participantOptions(participantType, selectedUserId = "") {
+    const options = references.users.filter((option) =>
+      option.participantTypes?.includes(participantType),
+    );
+    const selected = references.users.find(
+      (option) => String(option.id) === String(selectedUserId),
+    );
+    return selected && !options.some((option) => option.id === selected.id)
+      ? [selected, ...options]
+      : options;
+  }
+
+  function responsibleOfficeForUser(userId) {
+    const selected = references.users.find(
+      (option) => String(option.id) === String(userId),
+    );
+    if (selected?.participantTypes?.includes("AUDIT_TEAM") && ciasOfficeId) {
+      return ciasOfficeId;
+    }
+    return selected?.officeId ?? ciasOfficeId;
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -151,12 +175,27 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
     setSaving(true);
     setError("");
     try {
-      const saved = conference
+      let saved = conference
         ? await aemsEntryConferenceApi.update(engagementId, conference.id, {
             ...form,
             lockVersion: conference.lockVersion,
           })
         : await aemsEntryConferenceApi.create(engagementId, form);
+      if (!conference && form.scheduledStartAt) {
+        saved = await aemsEntryConferenceApi.transition(
+          engagementId,
+          saved.id,
+          "SCHEDULE",
+          {
+            scheduledStartAt: form.scheduledStartAt,
+            scheduledEndAt: form.scheduledEndAt || null,
+            venue: form.venue,
+            meetingLink: form.meetingLink,
+            onlineMeetingDetails: form.onlineMeetingDetails,
+            lockVersion: saved.lockVersion,
+          },
+        );
+      }
       setWorkspace((value) => ({ ...value, conference: saved }));
       setForm(toForm(saved));
       setEditing(false);
@@ -630,11 +669,25 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
               onClick={saveRecord}
               type="button"
             >
-              {saving ? "Saving…" : "Save record"}
+              {saving
+                ? "Saving…"
+                : !conference && form.scheduledStartAt
+                  ? "Save and schedule"
+                  : !conference
+                    ? "Save draft"
+                    : "Save record"}
             </button>
           </>
         }
       >
+        {!conference && (
+          <p className="md:col-span-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-800">
+            Schedule the Entry Conference first. If a start time is entered,
+            saving this form will create the draft and immediately mark it as
+            scheduled; the conference details and actual notes can be added or
+            updated afterward.
+          </p>
+        )}
         <div
           className="grid gap-4 md:grid-cols-2"
           data-testid="entry-conference-form"
@@ -784,83 +837,103 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
             </div>
             {form.participants.map((participant, index) => (
               <div
-                className="mt-2 grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-3"
+                className="mt-2 grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-3"
                 key={`${participant.participantType}-${index}`}
               >
-                <select
-                  className="rounded-lg border border-slate-300 p-2"
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      participants: value.participants.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, participantType: event.target.value }
-                          : item,
-                      ),
-                    }))
-                  }
-                  value={participant.participantType}
-                >
-                  <option value="AUDIT_TEAM">Audit team</option>
-                  <option value="AUDITEE">Auditee</option>
-                  <option value="EXTERNAL">External</option>
-                </select>
-                {participant.participantType === "EXTERNAL" ? (
-                  <input
-                    className="rounded-lg border border-slate-300 p-2"
-                    onChange={(event) =>
-                      setForm((value) => ({
-                        ...value,
-                        participants: value.participants.map(
-                          (item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, externalName: event.target.value }
-                              : item,
-                        ),
-                      }))
-                    }
-                    placeholder="External name"
-                    value={participant.externalName}
-                  />
-                ) : (
+                <label className="text-xs font-semibold text-slate-700">
+                  Participant type
                   <select
-                    className="rounded-lg border border-slate-300 p-2"
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
                     onChange={(event) =>
                       setForm((value) => ({
                         ...value,
-                        participants: value.participants.map(
-                          (item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, userId: event.target.value }
-                              : item,
+                        participants: value.participants.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                participantType: event.target.value,
+                                userId: "",
+                                officeId: "",
+                                externalName: "",
+                                externalEmail: "",
+                              }
+                            : item,
                         ),
                       }))
                     }
-                    value={participant.userId}
+                    value={participant.participantType}
                   >
-                    <option value="">Select participant</option>
-                    {workspace.references.users.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
+                    <option value="AUDIT_TEAM">Auditor</option>
+                    <option value="AUDITEE">Auditee</option>
+                    <option value="EXTERNAL">External</option>
                   </select>
+                </label>
+                {participant.participantType === "EXTERNAL" ? (
+                  <label className="text-xs font-semibold text-slate-700">
+                    External participant name
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                      onChange={(event) =>
+                        setForm((value) => ({
+                          ...value,
+                          participants: value.participants.map(
+                            (item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, externalName: event.target.value }
+                                : item,
+                          ),
+                        }))
+                      }
+                      value={participant.externalName}
+                    />
+                  </label>
+                ) : (
+                  <label className="text-xs font-semibold text-slate-700">
+                    {participant.participantType === "AUDITEE" ? "Auditee" : "Auditor"}
+                    <select
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                      onChange={(event) =>
+                        setForm((value) => ({
+                          ...value,
+                          participants: value.participants.map(
+                            (item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, userId: event.target.value }
+                                : item,
+                          ),
+                        }))
+                      }
+                      value={participant.userId}
+                    >
+                      <option value="">Select {participant.participantType === "AUDITEE" ? "auditee" : "auditor"}</option>
+                      {participantOptions(
+                        participant.participantType,
+                        participant.userId,
+                      ).map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
-                <input
-                  className="rounded-lg border border-slate-300 p-2"
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      participants: value.participants.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, participantRole: event.target.value }
-                          : item,
-                      ),
-                    }))
-                  }
-                  placeholder="Conference role"
-                  value={participant.participantRole}
-                />
+                <label className="text-xs font-semibold text-slate-700">
+                  Conference role
+                  <input
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                    onChange={(event) =>
+                      setForm((value) => ({
+                        ...value,
+                        participants: value.participants.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, participantRole: event.target.value }
+                            : item,
+                        ),
+                      }))
+                    }
+                    value={participant.participantRole}
+                  />
+                </label>
               </div>
             ))}
           </div>
@@ -880,6 +953,7 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                         isMaterial: false,
                         dispositionStatus: "OPEN",
                         disposition: "",
+                        responsibleOfficeId: ciasOfficeId,
                         dueDate: "",
                       },
                     ],
@@ -899,43 +973,47 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                   ["Description", "description"],
                   ["Disposition", "disposition"],
                 ].map(([label, field]) => (
-                  <input
-                    aria-label={`Matter ${label}`}
-                    className="rounded-lg border border-slate-300 p-2"
-                    key={field}
+                  <label className="text-xs font-semibold text-slate-700" key={field}>
+                    {label}
+                    <input
+                      aria-label={`Matter ${label}`}
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                      onChange={(event) =>
+                        setForm((value) => ({
+                          ...value,
+                          matters: value.matters.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, [field]: event.target.value }
+                              : item,
+                          ),
+                        }))
+                      }
+                      value={matter[field] ?? ""}
+                    />
+                  </label>
+                ))}
+                <label className="text-xs font-semibold text-slate-700">
+                  Matter status
+                  <select
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
                     onChange={(event) =>
                       setForm((value) => ({
                         ...value,
                         matters: value.matters.map((item, itemIndex) =>
                           itemIndex === index
-                            ? { ...item, [field]: event.target.value }
+                            ? { ...item, dispositionStatus: event.target.value }
                             : item,
                         ),
                       }))
                     }
-                    placeholder={label}
-                    value={matter[field] ?? ""}
-                  />
-                ))}
-                <select
-                  className="rounded-lg border border-slate-300 p-2"
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      matters: value.matters.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, dispositionStatus: event.target.value }
-                          : item,
-                      ),
-                    }))
-                  }
-                  value={matter.dispositionStatus}
-                >
-                  <option value="OPEN">Open</option>
-                  <option value="AGREED">Agreed</option>
-                  <option value="RESOLVED">Resolved</option>
-                  <option value="DEFERRED">Deferred</option>
-                </select>
+                    value={matter.dispositionStatus}
+                  >
+                    <option value="OPEN">Open</option>
+                    <option value="AGREED">Agreed</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="DEFERRED">Deferred</option>
+                  </select>
+                </label>
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                   <input
                     checked={Boolean(matter.isMaterial)}
@@ -953,57 +1031,56 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                   />
                   Material matter
                 </label>
-                <select
+                <label className="text-xs font-semibold text-slate-700">
+                  Responsible person
+                  <select
                   aria-label="Matter responsible person"
-                  className="rounded-lg border border-slate-300 p-2"
+                  className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
                   onChange={(event) =>
                     setForm((value) => ({
                       ...value,
                       matters: value.matters.map((item, itemIndex) =>
                         itemIndex === index
-                          ? { ...item, responsibleUserId: event.target.value }
+                          ? {
+                              ...item,
+                              responsibleUserId: event.target.value,
+                              responsibleOfficeId: responsibleOfficeForUser(event.target.value),
+                            }
                           : item,
                       ),
                     }))
                   }
                   value={matter.responsibleUserId ?? ""}
                 >
-                  <option value="">Responsible person</option>
-                  {workspace.references.users.map((option) => (
+                  <option value="">Select responsible person</option>
+                  {references.users.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.name}
                     </option>
                   ))}
-                </select>
-                <div className="grid grid-cols-2 gap-2">
+                  </select>
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Responsible office (automatic)
                   <select
                     aria-label="Matter responsible office"
-                    className="rounded-lg border border-slate-300 p-2"
-                    onChange={(event) =>
-                      setForm((value) => ({
-                        ...value,
-                        matters: value.matters.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? {
-                                ...item,
-                                responsibleOfficeId: event.target.value,
-                              }
-                            : item,
-                        ),
-                      }))
-                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-100 p-2 text-sm"
+                    disabled
                     value={matter.responsibleOfficeId ?? ""}
                   >
-                    <option value="">Responsible office</option>
-                    {workspace.references.offices.map((option) => (
+                    <option value="">Select responsible person first</option>
+                    {references.offices.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.name}
                       </option>
                     ))}
                   </select>
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Due date
                   <input
                     aria-label="Matter due date"
-                    className="rounded-lg border border-slate-300 p-2"
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
                     onChange={(event) =>
                       setForm((value) => ({
                         ...value,
@@ -1017,7 +1094,7 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                     type="date"
                     value={matter.dueDate ?? ""}
                   />
-                </div>
+                </label>
               </div>
             ))}
           </div>
@@ -1033,7 +1110,12 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                     ...value,
                     agreements: [
                       ...value.agreements,
-                      { agreement: "", status: "OPEN", dueDate: "" },
+                      {
+                        agreement: "",
+                        status: "OPEN",
+                        responsibleOfficeId: ciasOfficeId,
+                        dueDate: "",
+                      },
                     ],
                   }))
                 }
@@ -1047,39 +1129,46 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                 className="mt-2 grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-2"
                 key={`agreement-${index}`}
               >
-                <input
-                  aria-label="Agreement or commitment"
-                  className="rounded-lg border border-slate-300 p-2"
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      agreements: value.agreements.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, agreement: event.target.value }
-                          : item,
-                      ),
-                    }))
-                  }
-                  placeholder="Agreement or commitment"
-                  value={agreement.agreement}
-                />
-                <input
-                  className="rounded-lg border border-slate-300 p-2"
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      agreements: value.agreements.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, dueDate: event.target.value }
-                          : item,
-                      ),
-                    }))
-                  }
-                  type="date"
-                  value={agreement.dueDate ?? ""}
-                />
-                <select
-                  className="rounded-lg border border-slate-300 p-2"
+                <label className="text-xs font-semibold text-slate-700">
+                  Agreement or commitment
+                  <input
+                    aria-label="Agreement or commitment"
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                    onChange={(event) =>
+                      setForm((value) => ({
+                        ...value,
+                        agreements: value.agreements.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, agreement: event.target.value }
+                            : item,
+                        ),
+                      }))
+                    }
+                    value={agreement.agreement}
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Due date
+                  <input
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
+                    onChange={(event) =>
+                      setForm((value) => ({
+                        ...value,
+                        agreements: value.agreements.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, dueDate: event.target.value }
+                            : item,
+                        ),
+                      }))
+                    }
+                    type="date"
+                    value={agreement.dueDate ?? ""}
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Commitment status
+                  <select
+                  className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
                   onChange={(event) =>
                     setForm((value) => ({
                       ...value,
@@ -1096,32 +1185,13 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                   <option value="IN_PROGRESS">In progress</option>
                   <option value="COMPLETED">Completed</option>
                   <option value="CANCELLED">Cancelled</option>
-                </select>
-                <select
+                  </select>
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Responsible person
+                  <select
                   aria-label="Commitment responsible person"
-                  className="rounded-lg border border-slate-300 p-2"
-                  onChange={(event) =>
-                    setForm((value) => ({
-                      ...value,
-                      agreements: value.agreements.map((item, itemIndex) =>
-                        itemIndex === index
-                          ? { ...item, responsibleUserId: event.target.value }
-                          : item,
-                      ),
-                    }))
-                  }
-                  value={agreement.responsibleUserId ?? ""}
-                >
-                  <option value="">Responsible person</option>
-                  {workspace.references.users.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Commitment responsible office"
-                  className="rounded-lg border border-slate-300 p-2"
+                  className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm"
                   onChange={(event) =>
                     setForm((value) => ({
                       ...value,
@@ -1129,21 +1199,39 @@ export default function AemsEntryConferenceWorkspace({ engagementId }) {
                         itemIndex === index
                           ? {
                               ...item,
-                              responsibleOfficeId: event.target.value,
+                              responsibleUserId: event.target.value,
+                              responsibleOfficeId: responsibleOfficeForUser(event.target.value),
                             }
                           : item,
                       ),
                     }))
                   }
-                  value={agreement.responsibleOfficeId ?? ""}
+                  value={agreement.responsibleUserId ?? ""}
                 >
-                  <option value="">Responsible office</option>
-                  {workspace.references.offices.map((option) => (
+                  <option value="">Select responsible person</option>
+                  {references.users.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.name}
                     </option>
                   ))}
-                </select>
+                  </select>
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Responsible office (automatic)
+                  <select
+                  aria-label="Commitment responsible office"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-100 p-2 text-sm"
+                  disabled
+                  value={agreement.responsibleOfficeId ?? ""}
+                >
+                  <option value="">Select responsible person first</option>
+                  {references.offices.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                  </select>
+                </label>
               </div>
             ))}
           </div>

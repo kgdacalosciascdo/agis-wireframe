@@ -265,8 +265,8 @@ class NotificationReminderService
                     'title' => "Upcoming Exit Conference: {$conference->conference_code}",
                     'message' => "The Exit Conference for {$engagement->title} starts "
                         .$conference->scheduled_start_at?->diffForHumans().'.',
-                    'actionUrl' => "/audit-engagement-management/exit-conferences?engagementId={$engagement->id}",
-                    'actionLabel' => 'Open Exit Conference',
+                    'actionUrl' => "/audit-engagement-management/conferences?engagementId={$engagement->id}",
+                    'actionLabel' => 'Open Conference Management',
                     'subjectType' => ExitConference::class,
                     'subjectId' => $conference->id,
                     'subjectCode' => $conference->conference_code,

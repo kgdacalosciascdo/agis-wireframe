@@ -104,18 +104,19 @@ offices plus the AGIS system office, an office head and employee account per cit
 office, realistic audit areas/focuses, and shared workflow reference lists.
 
 AEMS now includes a protected module dashboard at
-`/audit-engagement-management/dashboard` and Engagement Registry at
+`/audit-engagement-management/dashboard` and the Audit Engagement Workspace at
 `/audit-engagement-management`. The dashboard is an access-scoped Engagement
 Tracker with portfolio cards, overdue indicators, 14 workflow-stage progress
-measures, and derived pre-closure gates. It imports approved IAP engagements without
-duplication, preserves immutable planning/risk snapshots, supports separately
-authorized special engagements, applies engagement-level visibility, and
-provides searchable, sortable, paginated detail, archive, and restore flows.
-Audit Team assignment adds person-days, dates, resource/competency warnings,
-and immutable reassignment history. The AEO workspace implements independent
-review, return/resubmission, approval, issuance, formal revisions, immutable
-versions, and approved-version PDF generation. AEP and Audit Program establish
-the fieldwork baseline. The Working Papers and Evidence workspace now provides
+measures, and derived pre-closure gates. Approved IAP engagements are imported
+without duplication and special/unplanned engagements start as `DRAFT` with a
+separate Engagement Scope transaction. Scope, team, AEO, planning, and detail
+workspaces are unlocked by their backend phase gates; locked workspaces explain
+the current phase and the action required to continue. Audit Team assignment
+adds person-days, dates, ARMIS competency/capacity warnings, and immutable
+reassignment history. The AEO workspace implements review,
+return/resubmission, approval, issuance, formal revisions, immutable versions,
+and approved-version PDF generation. AEP and Audit Program establish the
+fieldwork baseline. The Working Papers and Evidence workspace now provides
 procedure-linked immutable content versions, independent return/approval,
 revision history, protected checksum-verified evidence versions, exact evidence
 locking, confidentiality, and authorized downloads.
@@ -163,13 +164,13 @@ AEMS cross-module dependencies now resolve through explicit integration
 boundaries. Approved IAP engagements are consumed read-only with immutable
 source snapshots; issued recommendations enter CMS through an idempotent
 create-once adapter; and capacity, availability, competencies, workload, and
-person-days use a replaceable resource contract. The active resource provider
-is the interim IAP fallback until ARMIS becomes authoritative. Assignments,
-review transitions, returned Working Papers, communicated Findings, Exit
-Conferences, report approval/issuance, and scheduled deadline reminders use
-the deduplicated Core Notification service. Core remains the authority for
-identities, access, reference data, documents, logs, runtime configuration,
-and document numbering.
+person-days are supplied operationally by ARMIS. `ARMIS_AUTHORITATIVE` is the
+only active provider mode; historical IAP/fallback values are lineage-only and
+cannot be selected or used for approval. Assignments, review transitions,
+returned Working Papers, communicated Findings, Exit Conferences, report
+approval/issuance, and scheduled deadline reminders use the deduplicated Core
+Notification service. Core remains the authority for identities, access,
+reference data, documents, logs, runtime configuration, and document numbering.
 
 ## Documentation
 

@@ -141,6 +141,10 @@ class AemsG4AuthorityTest extends TestCase
         Sanctum::actingAs($management);
         $engagementId = $this->postJson('/api/aems/engagements/import', ['iapPlanEngagementId' => $source->id])
             ->assertCreated()->json('data.engagement.id');
+        $this->postJson(
+            "/api/aems/engagements/{$engagementId}/transitions/PREPARE_AUTHORIZATION",
+            ['lockVersion' => 1],
+        )->assertOk();
         $engagement = AuditEngagement::query()->findOrFail($engagementId);
         $users = User::query()->whereHas('role', fn ($query) => $query->where('code', 'agis_user'))->take(4)->get()->values();
         $auditorRole = Role::query()->where('code', 'agis_user')->firstOrFail();

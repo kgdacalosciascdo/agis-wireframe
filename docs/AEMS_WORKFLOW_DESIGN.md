@@ -68,6 +68,13 @@ The sidebar exposes AEMS as a collapsible module, consistent with IAP:
 - `/audit-engagement-management/exit-conferences` — schedule, attendance, finding discussions, minutes, files, and acknowledgement;
 - `/audit-engagement-management/{engagement}` — complete engagement details.
 
+Current display labels use **Audit Engagement Workspace**, **Planning
+Workspace**, **Audit Procedure Details**, and **Conference Management**. The
+canonical scope transaction is `/audit-engagement-management/scope`, and the
+canonical procedure-detail route is
+`/audit-engagement-management/audit-procedure-details`; Entry and Exit
+Conference routes remain compatibility children below Conference Management.
+
 Legacy placeholder navigation used module code `AEM`. Functional engagement
 features use the granular `aems.*` permission namespace and `AEMS`
 activity/audit metadata. Legacy `aem.view` remains compatibility-only and must
@@ -154,12 +161,19 @@ progress of its controlled child workflows.
 retains the current workflow status. Restoring an archived record does not
 resume, reopen, or change its workflow.
 
-The SCR-212 Define Engagement Scope workspace is contextual at
-`/audit-engagement-management/{engagementId}?tab=scope`. It enforces one
-Engagement Office, structured Area/Focus boundaries, limitations, and approved
-source-variance decisions. Imported IAP risk lineage exposes whether the source
-is from `iap_universe_risk_assessments` or the legacy `iap_risk_assessments`
-system; neither source table is mutated.
+The SCR-212 Define Engagement Scope workspace is a dedicated transaction at
+`/audit-engagement-management/scope?engagementId={engagementId}`. It enforces
+one Engagement Office, filters Audit Areas by the selected office, filters Audit
+Focuses by the selected Area, and records structured boundaries, limitations,
+and approved source-variance decisions. Imported IAP risk lineage exposes
+whether the source is from `iap_universe_risk_assessments` or the legacy
+`iap_risk_assessments` system; neither source table is mutated.
+
+New engagements begin as `DRAFT` without scope details. The Lifecycle workspace
+must first move the engagement to `AUTHORIZATION_PREPARATION`; Audit Team
+assignment is locked in `DRAFT` and unlocks only in that phase. AEO, planning,
+and later workspaces remain phase-gated, and the engagement detail shows the
+Lifecycle workspace while operational details are locked.
 
 ### 4.2 State diagram
 
@@ -216,7 +230,7 @@ to the recorded valid state; the client cannot choose an arbitrary destination.
 
 | Action                  | Required guard                                                                                                |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `PREPARE_AUTHORIZATION` | Valid source, auditee office, audit area, dates, type, and preliminary team                                   |
+| `PREPARE_AUTHORIZATION` | Valid source, one-office scope, at least one audit area, dates, type, and required source metadata; Audit Team assignment is not required before this transition |
 | `ISSUE_AEO`             | Current AEO version is approved and issued                                                                    |
 | `START_PLANNING`        | Issued AEO exists and engagement is not suspended/cancelled                                                   |
 | `START_FIELDWORK`       | Approved AEP and approved Audit Program exist; required team roles are filled                                 |
@@ -864,9 +878,9 @@ isolation, administrator non-approval, originator separation, auditee office
 and communication boundaries, report-recipient authorization, and exit
 conference office coverage.
 
-## 28. Engagement Registry implementation
+## 28. Audit Engagement Workspace implementation
 
-The functional Engagement Registry is available at
+The functional Audit Engagement Workspace is available at
 `/audit-engagement-management`, with detail records at
 `/audit-engagement-management/{id}`.
 
@@ -916,8 +930,8 @@ Assignments are recoverable soft-deleted records. `engagement_team_history`
 preserves assignment, update, reassignment-from, reassignment-to, and ending
 events with actor, reason, and old/new snapshots.
 
-With the default IAP-backed provider, the workspace uses the interim resource
-data to warn about:
+With ARMIS as the sole operational provider, the workspace uses current ARMIS
+resource data to warn about:
 
 - missing required team roles;
 - assigned versus required person-day differences;
@@ -1811,10 +1825,11 @@ intake envelope contains the AEMS source lineage and source-snapshot hash, and
 the transfer key/source identity make retries idempotent.
 
 `GET /api/aems/integrations/status` is protected by the existing AEMS view
-permission and scope policy. It reports provider ownership, referential-health
-checks, fallback state, and security flags; scoped users do not receive global
-IAP/CMS counts. AIS remains outside AEMS workflow ownership; its provider,
-snapshots, routes, and read-only contract are maintained by AIS phases.
+permission and scope policy. It reports ARMIS provider ownership,
+referential-health checks, historical compatibility indicators, and security
+flags; scoped users do not receive global IAP/CMS counts. AIS remains outside
+AEMS workflow ownership; its provider, snapshots, routes, and read-only
+contract are maintained by AIS phases.
 
 ## AEMS-G1 professional-control hardening
 

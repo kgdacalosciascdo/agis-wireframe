@@ -27,6 +27,8 @@ import { useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import Modal from "../../components/ui/Modal";
 import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
@@ -240,6 +242,7 @@ function normalizeVersion(version) {
       sequence: objective.sequence ?? index,
     })),
     processFlows: (version?.processFlows ?? []).map((flow, index) => ({
+      id: flow.id ?? "",
       code: flow.code ?? `FLOW-${index + 1}`,
       title: flow.title ?? "",
       description: flow.description ?? "",
@@ -476,6 +479,8 @@ export default function AemsPlanningPackagePage() {
   );
   const packageRecord = workspace?.package;
   const currentVersion = packageRecord?.latestVersion;
+  const planningGate = getAemsWorkspaceGate("planning", workspace?.engagement);
+  const planningUnlocked = planningGate.unlocked;
   const editable = Boolean(
     packageRecord?.status && workspace?.capabilities?.canEdit && canUpdate,
   );
@@ -593,7 +598,13 @@ export default function AemsPlanningPackagePage() {
     setForm((current) => ({
       ...current,
       riskItems: current.riskItems.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [key]: value } : item,
+        itemIndex === index
+          ? {
+              ...item,
+              [key]: value,
+              ...(key === "auditAreaId" ? { auditFocusId: "" } : {}),
+            }
+          : item,
       ),
     }));
   }
@@ -605,7 +616,13 @@ export default function AemsPlanningPackagePage() {
         ? current.riskMatrices
         : [current.riskMatrix]
       ).map((matrix, matrixIndex) =>
-        matrixIndex === index ? { ...matrix, [key]: value } : matrix,
+        matrixIndex === index
+          ? {
+              ...matrix,
+              [key]: value,
+              ...(key === "auditAreaId" ? { auditFocusId: "" } : {}),
+            }
+          : matrix,
       ),
     }));
   }
@@ -699,6 +716,10 @@ export default function AemsPlanningPackagePage() {
   }
 
   async function savePackage() {
+    if (!planningUnlocked) {
+      toast.error("Planning Workspace is locked until the engagement reaches Engagement Planning after AEO issuance and auditee acknowledgement.");
+      return;
+    }
     setSaving(true);
     setErrors({});
     setStaleLock(false);
@@ -764,7 +785,7 @@ export default function AemsPlanningPackagePage() {
   }
 
   const actionOptions = useMemo(() => {
-    if (!packageRecord) return [];
+    if (!packageRecord || !planningUnlocked) return [];
     const available = [];
     if (packageRecord.status === "DRAFT" && canUpdate)
       available.push(["SUBMIT", "Submit for review", Send, "primary"]);
@@ -796,7 +817,7 @@ export default function AemsPlanningPackagePage() {
     if (packageRecord.status === "APPROVED" && canRevise)
       available.push(["REVISE", "Start formal revision", RotateCcw, "warning"]);
     return available;
-  }, [canApprove, canRevise, canReview, canUpdate, packageRecord]);
+  }, [canApprove, canRevise, canReview, canUpdate, packageRecord, planningUnlocked]);
 
   function openAction(nextAction) {
     setErrors({});
@@ -928,9 +949,24 @@ export default function AemsPlanningPackagePage() {
     label: `${engagement.engagementCode} — ${engagement.title}`,
     keywords: engagement.offices?.map((office) => office.name).join(" "),
   }));
-  const officeOptions = (selectedEngagement?.offices ?? []).map((office) => ({
+  const scopedEngagement =
+    workspace && String(workspace.engagement?.id) === String(selectedId)
+      ? workspace.engagement
+      : selectedEngagement;
+  const officeOptions = (scopedEngagement?.offices ?? []).map((office) => ({
     value: office.id,
     label: office.name,
+  }));
+  const areaOptions = (scopedEngagement?.auditAreas ?? []).map((area) => ({
+    value: area.id,
+    label: area.code ? `${area.code} — ${area.name}` : area.name,
+    keywords: area.name,
+  }));
+  const focusOptions = (scopedEngagement?.auditFocuses ?? []).map((focus) => ({
+    value: focus.id,
+    label: focus.code ? `${focus.code} — ${focus.name}` : focus.name,
+    keywords: focus.name,
+    areaId: focus.auditAreaId ?? focus.audit_area_id ?? null,
   }));
   const procedureOptions = (workspace?.procedures ?? []).map((procedure) => ({
     value: procedure.id,
@@ -955,8 +991,8 @@ export default function AemsPlanningPackagePage() {
     <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
       <RegistryHeader
         icon={ClipboardCheck}
-        title="Planning Package"
-        description="Prepare, review, approve, return, revise, and inspect the complete engagement planning baseline from one controlled workspace."
+        title="Planning Workspace"
+        description="Coordinate the Preliminary Survey, Process Flows, AEP and KPIs, Risk Matrix, Audit Programs, and planning readiness from one controlled workspace."
         readOnly={currentIsReadOnly && !canUpdate}
         actions={
           <>
@@ -975,7 +1011,7 @@ export default function AemsPlanningPackagePage() {
                 {saving ? "Saving…" : "Save new version"}
               </SmallButton>
             )}
-            {!packageRecord && canCreate && selectedId && (
+            {!packageRecord && canCreate && planningUnlocked && selectedId && (
               <SmallButton
                 icon={Plus}
                 tone="primary"
@@ -1023,11 +1059,17 @@ export default function AemsPlanningPackagePage() {
           </SmallButton>
         </div>
       )}
+      {workspace && !planningUnlocked && (
+        <AemsWorkspaceLockNotice engagementId={selectedId} gate={planningGate} />
+      )}
       <ErrorSummary errors={errors} />
 
       {workspace && (
         <>
-          <AemsEngagementWorkspaceNav engagementId={selectedId} />
+          <AemsEngagementWorkspaceNav
+            engagement={workspace.engagement}
+            engagementId={selectedId}
+          />
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div
               className="flex min-w-max gap-1 overflow-x-auto"
@@ -1169,6 +1211,8 @@ export default function AemsPlanningPackagePage() {
               form={form}
               editable={editable}
               officeOptions={officeOptions}
+              areaOptions={areaOptions}
+              focusOptions={focusOptions}
               onAdd={startNewFlow}
               onEdit={editFlow}
               onRemove={(index) =>
@@ -1186,6 +1230,8 @@ export default function AemsPlanningPackagePage() {
               form={form}
               editable={editable}
               officeOptions={officeOptions}
+              areaOptions={areaOptions}
+              focusOptions={focusOptions}
               objectiveOptions={objectiveOptions}
               procedureOptions={procedureOptions}
               onChange={updateNested}
@@ -1328,6 +1374,8 @@ export default function AemsPlanningPackagePage() {
             flow={flowDraft}
             setFlow={setFlowDraft}
             officeOptions={officeOptions}
+            areaOptions={areaOptions}
+            focusOptions={focusOptions}
             editable={editable}
           />
         )}
@@ -1361,6 +1409,12 @@ export default function AemsPlanningPackagePage() {
             objectiveOptions={objectiveOptions}
             procedureOptions={procedureOptions}
             officeOptions={officeOptions}
+            areaOptions={areaOptions}
+            focusOptions={focusOptions}
+            processFlowOptions={(form.processFlows ?? []).filter((flow) => flow.id).map((flow) => ({
+              value: flow.id,
+              label: `${flow.code} — ${flow.title || "Untitled process flow"}`,
+            }))}
             editable={editable}
           />
         )}
@@ -1853,7 +1907,7 @@ function ProcessFlowsSection({
   );
 }
 
-function FlowEditor({ flow, setFlow, officeOptions, editable = true }) {
+function FlowEditor({ flow, setFlow, officeOptions, areaOptions, focusOptions, editable = true }) {
   const update = (key, value) =>
     setFlow((current) => ({ ...current, [key]: value }));
   return (
@@ -1881,20 +1935,31 @@ function FlowEditor({ flow, setFlow, officeOptions, editable = true }) {
           placeholder="Select linked office"
         />
       </Field>
-      <Field label="Audit area ID">
-        <TextInput
+      <Field label="Audit area">
+        <SearchableSelect
           disabled={!editable}
-          inputMode="numeric"
+          options={areaOptions}
           value={flow.auditAreaId}
-          onChange={(event) => update("auditAreaId", event.target.value)}
+          onChange={(value) => {
+            update("auditAreaId", value);
+            if (flow.auditFocusId && !focusOptions.some((focus) => String(focus.value) === String(flow.auditFocusId) && String(focus.areaId ?? "") === String(value))) {
+              update("auditFocusId", "");
+            }
+          }}
+          placeholder="Select scoped audit area"
+          searchPlaceholder="Search scoped audit areas..."
+          emptyMessage="No audit areas are included in this engagement scope."
         />
       </Field>
-      <Field label="Audit focus ID">
-        <TextInput
-          disabled={!editable}
-          inputMode="numeric"
+      <Field label="Audit focus">
+        <SearchableSelect
+          disabled={!editable || !flow.auditAreaId}
+          options={focusOptions.filter((focus) => !focus.areaId || String(focus.areaId) === String(flow.auditAreaId))}
           value={flow.auditFocusId}
-          onChange={(event) => update("auditFocusId", event.target.value)}
+          onChange={(value) => update("auditFocusId", value)}
+          placeholder={flow.auditAreaId ? "Select scoped audit focus" : "Select an audit area first"}
+          searchPlaceholder="Search scoped audit focuses..."
+          emptyMessage="No audit focuses are linked to this audit area."
         />
       </Field>
       <Field label="Core Document Version ID" hint="Optional exact document">
@@ -2163,6 +2228,8 @@ function RiskMatrixSection({
   onAdd,
   onEdit,
   onRemove,
+  areaOptions,
+  focusOptions,
 }) {
   return (
     <div className="space-y-5">
@@ -2216,24 +2283,24 @@ function RiskMatrixSection({
                   }
                 />
               </Field>
-              <Field label="Audit area ID">
-                <TextInput
+              <Field label="Audit area">
+                <SearchableSelect
                   disabled={!editable}
-                  inputMode="numeric"
+                  options={areaOptions}
                   value={matrix.auditAreaId ?? ""}
-                  onChange={(event) =>
-                    onChangeMatrix(index, "auditAreaId", event.target.value)
-                  }
+                  onChange={(value) => onChangeMatrix(index, "auditAreaId", value)}
+                  placeholder="Select scoped audit area"
+                  searchPlaceholder="Search scoped audit areas..."
                 />
               </Field>
-              <Field label="Audit focus ID">
-                <TextInput
-                  disabled={!editable}
-                  inputMode="numeric"
+              <Field label="Audit focus">
+                <SearchableSelect
+                  disabled={!editable || !matrix.auditAreaId}
+                  options={focusOptions.filter((focus) => !focus.areaId || String(focus.areaId) === String(matrix.auditAreaId))}
                   value={matrix.auditFocusId ?? ""}
-                  onChange={(event) =>
-                    onChangeMatrix(index, "auditFocusId", event.target.value)
-                  }
+                  onChange={(value) => onChangeMatrix(index, "auditFocusId", value)}
+                  placeholder={matrix.auditAreaId ? "Select scoped audit focus" : "Select an audit area first"}
+                  searchPlaceholder="Search scoped audit focuses..."
                 />
               </Field>
               <Field label="Methodology" wide>
@@ -2370,6 +2437,9 @@ function RiskItemEditor({
   objectiveOptions,
   procedureOptions,
   officeOptions,
+  areaOptions,
+  focusOptions,
+  processFlowOptions,
   editable = true,
 }) {
   const update = (key, value) =>
@@ -2405,28 +2475,34 @@ function RiskItemEditor({
             onChange={(event) => update("riskStatement", event.target.value)}
           />
         </Field>
-        <Field label="Audit area ID">
-          <TextInput
+        <Field label="Audit area">
+          <SearchableSelect
             disabled={!editable}
-            inputMode="numeric"
+            options={areaOptions}
             value={item.auditAreaId}
-            onChange={(event) => update("auditAreaId", event.target.value)}
+            onChange={(value) => update("auditAreaId", value)}
+            placeholder="Select scoped audit area"
+            searchPlaceholder="Search scoped audit areas..."
           />
         </Field>
-        <Field label="Audit focus ID">
-          <TextInput
-            disabled={!editable}
-            inputMode="numeric"
+        <Field label="Audit focus">
+          <SearchableSelect
+            disabled={!editable || !item.auditAreaId}
+            options={focusOptions.filter((focus) => !focus.areaId || String(focus.areaId) === String(item.auditAreaId))}
             value={item.auditFocusId}
-            onChange={(event) => update("auditFocusId", event.target.value)}
+            onChange={(value) => update("auditFocusId", value)}
+            placeholder={item.auditAreaId ? "Select scoped audit focus" : "Select an audit area first"}
+            searchPlaceholder="Search scoped audit focuses..."
           />
         </Field>
-        <Field label="Process flow ID">
-          <TextInput
+        <Field label="Process flow">
+          <SearchableSelect
             disabled={!editable}
-            inputMode="numeric"
+            options={processFlowOptions}
             value={item.processFlowId}
-            onChange={(event) => update("processFlowId", event.target.value)}
+            onChange={(value) => update("processFlowId", value)}
+            placeholder="Select a planning process flow"
+            searchPlaceholder="Search process flows..."
           />
         </Field>
         <Field label="Process name">

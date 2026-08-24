@@ -83,10 +83,35 @@ class AemsFoundationG2Test extends TestCase
         $this->assertSame('Approved Area boundary.', $updated['scopeBoundaries']);
         $this->assertSame(1, $updated['officeRule']['actualCount']);
         $this->assertSame('Area-specific boundary.', $updated['auditAreas'][0]['coverageMetadata']['boundary']);
+        $this->assertSame(
+            $focusIds,
+            collect($updated['auditFocuses'])->pluck('id')->sort()->values()->all(),
+        );
         $this->assertDatabaseHas('engagement_events', [
             'audit_engagement_id' => $engagementId,
             'action' => 'UPDATE_SCOPE',
         ]);
+    }
+
+    public function test_scope_can_be_saved_without_selecting_a_focus(): void
+    {
+        $management = $this->user('departmenthead');
+        $source = $this->approvedSource($management);
+        $area = $source->auditAreas->firstOrFail();
+
+        Sanctum::actingAs($management);
+        $engagementId = $this->postJson('/api/aems/engagements/import', [
+            'iapPlanEngagementId' => $source->id,
+        ])->assertCreated()->json('data.engagement.id');
+
+        $this->putJson("/api/aems/engagements/{$engagementId}/scope", [
+            'officeId' => $source->offices->firstOrFail()->id,
+            'areaCoverage' => [[
+                'auditAreaId' => $area->id,
+                'focusIds' => [],
+            ]],
+            'lockVersion' => 1,
+        ])->assertOk();
     }
 
     public function test_import_records_iap_risk_source_discriminator(): void
@@ -170,6 +195,36 @@ class AemsFoundationG2Test extends TestCase
             ]],
             'lockVersion' => 1,
         ])->assertUnprocessable()->assertJsonValidationErrors('areaCoverage.0.focusIds.0');
+    }
+
+    public function test_scope_rejects_area_not_linked_to_the_selected_office(): void
+    {
+        $management = $this->user('departmenthead');
+        $source = $this->approvedSource($management);
+        $office = $source->offices->firstOrFail();
+        $unlinkedArea = \App\Models\AuditArea::query()
+            ->where('is_active', true)
+            ->whereDoesntHave('offices', fn ($query) => $query->whereKey($office->id))
+            ->first();
+
+        $this->assertNotNull(
+            $unlinkedArea,
+            'The seeded catalog must contain an audit area outside the selected office.',
+        );
+
+        Sanctum::actingAs($management);
+        $engagementId = $this->postJson('/api/aems/engagements/import', [
+            'iapPlanEngagementId' => $source->id,
+        ])->assertCreated()->json('data.engagement.id');
+
+        $this->putJson("/api/aems/engagements/{$engagementId}/scope", [
+            'officeId' => $office->id,
+            'areaCoverage' => [[
+                'auditAreaId' => $unlinkedArea->id,
+                'focusIds' => [],
+            ]],
+            'lockVersion' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('areaCoverage');
     }
 
     private function user(string $username): \App\Models\User

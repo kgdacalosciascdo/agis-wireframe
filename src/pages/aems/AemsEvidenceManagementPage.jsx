@@ -24,6 +24,8 @@ import {
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import Modal from "../../components/ui/Modal";
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
@@ -314,6 +316,10 @@ export default function AemsEvidenceManagementPage() {
 
   const assessmentOptions = allEvidence.filter((item) => ["VERIFIED", "LOCKED"].includes(item.status)).map((item) => ({ value: item.id, label: `${item.evidenceCode} v${item.versionNumber} — ${item.title}`, description: `Core Document Version ${item.documentVersionId}` }));
   const engagementOptions = engagements.map((item) => ({ value: item.id, label: `${item.engagementCode} — ${item.title}` }));
+  const selectedEngagement = engagements.find(
+    (item) => String(item.id) === String(engagementId),
+  );
+  const executionGate = getAemsWorkspaceGate("execution", selectedEngagement);
   const summary = {
     requests: workspace?.requests?.length ?? 0,
     received: (workspace?.requests ?? []).filter((item) => ["PARTIALLY_RECEIVED", "RECEIVED", "FOR_REVIEW", "ASSESSED", "CLOSED"].includes(item.status)).length,
@@ -412,14 +418,28 @@ export default function AemsEvidenceManagementPage() {
 
   return (
     <main className="min-w-0 p-4 sm:p-5" data-testid="aems-evidence-workspace">
-      {engagementId && <AemsEngagementWorkspaceNav engagementId={engagementId} />}
-      <RegistryHeader icon={FileCheck2} title="Evidence Management" description="Track Evidence Requests, custody, assessment quality, restrictions, and reporting eligibility from one engagement workspace." readOnly={!canCreate && !canReceive && !canAssess} actions={<><button className={buttonSecondary} onClick={refresh} type="button"><RefreshCw size={16} /> Refresh</button>{canCreate && <button className={buttonPrimary} disabled={!engagementId} onClick={() => { setRequestForm(emptyRequest); setRequestOpen(true); }} type="button"><Plus size={16} /> New Evidence Request</button>}</>} />
+      {engagementId && (
+        <AemsEngagementWorkspaceNav
+          engagement={selectedEngagement}
+          engagementId={engagementId}
+        />
+      )}
+      <RegistryHeader icon={FileCheck2} title="Evidence Management" description="Track Evidence Requests, custody, assessment quality, restrictions, and reporting eligibility from one engagement workspace." readOnly={!canCreate && !canReceive && !canAssess} actions={<><button className={buttonSecondary} onClick={refresh} type="button"><RefreshCw size={16} /> Refresh</button>{executionGate.unlocked && canCreate && <button className={buttonPrimary} disabled={!engagementId} onClick={() => { setRequestForm(emptyRequest); setRequestOpen(true); }} type="button"><Plus size={16} /> New Evidence Request</button>}</>} />
+
+      {selectedEngagement && !executionGate.unlocked && (
+        <AemsWorkspaceLockNotice
+          engagementId={engagementId}
+          gate={executionGate}
+        />
+      )}
 
       <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(15rem,24rem)]">
         <SearchableSelect options={engagementOptions} placeholder="Select engagement" value={engagementId} onChange={(value) => { setEngagementId(String(value)); setSelectedRequestId(""); setSelectedEvidenceId(""); }} />
         <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-400 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100"><Files size={17} /><input className="min-w-0 flex-1 text-sm text-slate-800 outline-none" onChange={(event) => setQuery(event.target.value)} placeholder="Search requests, evidence, files, or status" value={query} /></label>
       </div>
 
+      {executionGate.unlocked && (
+        <>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryCard icon={ClipboardCheck} label="Evidence Requests" tone="sky" value={summary.requests} />
         <SummaryCard icon={Upload} label="Received / Partial" tone="amber" value={summary.received} />
@@ -441,6 +461,9 @@ export default function AemsEvidenceManagementPage() {
       {error && <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertTriangle className="mt-0.5 shrink-0" size={17} />{error}</div>}
       {tab === "evidence" && selectedEvidence && <EvidenceG5Traceability evidence={selectedEvidence} />}
       {!engagementId && !loading ? <section className="grid min-h-72 place-items-center rounded-xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center shadow-sm"><div className="max-w-md"><FileCheck2 className="mx-auto text-sky-600" size={38} /><h3 className="mt-4 text-base font-bold text-slate-800">Select an engagement to begin</h3><p className="mt-2 text-sm leading-6 text-slate-500">Evidence Requests, exact document versions, assessments, custody, and reporting eligibility will load in one workspace.</p></div></section> : loading ? <div className="grid min-h-64 place-items-center rounded-xl border border-slate-200 bg-white text-sm text-slate-500">Loading Evidence Management workspace…</div> : tab === "requests" ? <RequestWorkspace requests={filteredRequests} selectedRequest={selectedRequest} selectedRequestId={selectedRequestId} setSelectedRequestId={setSelectedRequestId} requestAction={requestAction} canReceive={canReceive} canAssess={canAssess} openReceive={() => setReceiveOpen(true)} openAssessment={openAssessment} saving={saving} /> : tab === "evidence" ? <EvidenceWorkspace evidence={filteredEvidence} selectedEvidence={selectedEvidence} selectedEvidenceId={selectedEvidenceId} setSelectedEvidenceId={setSelectedEvidenceId} linkedEvidenceIds={linkedEvidenceIds} openAssessment={openAssessment} canAssess={canAssess} canApproveException={canApproveException} openException={() => { setExceptionForm({ lockVersion: selectedEvidence?.assessment?.lockVersion ?? "", comment: "" }); setExceptionOpen(true); }} evidenceMetadata={evidenceMetadata} engagementId={engagementId} /> : <AssessmentWorkspace assessments={currentAssessments} evidence={allEvidence} query={query} setSelectedEvidenceId={setSelectedEvidenceId} setTab={setTab} />}
+
+      </>
+      )}
 
       <Modal open={requestOpen} onClose={() => setRequestOpen(false)} title="New Evidence Request" size="lg"><form className="space-y-4" onSubmit={submitRequest}><div className="grid gap-4 sm:grid-cols-2"><Field error={errors.title} label="Request title" wide><input className={inputClass} required value={requestForm.title} onChange={(event) => setRequestForm((current) => ({ ...current, title: event.target.value }))} /></Field><Field error={errors.dueDate} label="Due date"><input className={inputClass} type="date" value={requestForm.dueDate} onChange={(event) => setRequestForm((current) => ({ ...current, dueDate: event.target.value }))} /></Field><Field error={errors.purpose} label="Purpose" wide><textarea className={textAreaClass} required value={requestForm.purpose} onChange={(event) => setRequestForm((current) => ({ ...current, purpose: event.target.value }))} /></Field><Field error={errors.requestedItems} label="Requested items" hint="one per line" wide><textarea className={textAreaClass} required value={requestForm.requestedItems} onChange={(event) => setRequestForm((current) => ({ ...current, requestedItems: event.target.value }))} /></Field></div><ModalActions onCancel={() => setRequestOpen(false)} saving={saving} submitLabel="Create draft" /></form></Modal>
       <Modal open={receiveOpen} onClose={() => setReceiveOpen(false)} title="Record Evidence Receipt" size="lg"><form className="space-y-4" onSubmit={receiveEvidence}><p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-800">Select the exact current Evidence/Core Document Version received for <strong>{selectedRequest?.requestCode}</strong>. The server validates custody and version integrity.</p><Field error={errors.evidenceId} label="Evidence"><SearchableSelect options={assessmentOptions} placeholder="Select verified or locked evidence" value={receiveForm.evidenceId} onChange={(value) => setReceiveForm((current) => ({ ...current, evidenceId: value }))} /></Field><Field error={errors.receiptNotes} label="Receipt notes"><textarea className={textAreaClass} value={receiveForm.receiptNotes} onChange={(event) => setReceiveForm((current) => ({ ...current, receiptNotes: event.target.value }))} /></Field><ModalActions onCancel={() => setReceiveOpen(false)} saving={saving} submitLabel="Record receipt" /></form></Modal>

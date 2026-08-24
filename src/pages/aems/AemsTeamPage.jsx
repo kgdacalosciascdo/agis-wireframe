@@ -9,7 +9,7 @@ import {
   UserMinus,
   UsersRound,
 } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import DataTable from "../../components/ui/DataTable";
@@ -79,8 +79,12 @@ export default function AemsTeamPage() {
   const [endTarget, setEndTarget] = useState(null);
   const [endReason, setEndReason] = useState("");
 
-  const canAssign = hasPermission(user, "aems.team.assign");
-  const canReassign = hasPermission(user, "aems.team.reassign");
+  const canAssignPermission = hasPermission(user, "aems.team.assign");
+  const canReassignPermission = hasPermission(user, "aems.team.reassign");
+  const scopeReady = overview?.engagement?.scopeReady ?? false;
+  const phaseReady = overview?.engagement?.status !== "DRAFT";
+  const canAssign = canAssignPermission && scopeReady && phaseReady;
+  const canReassign = canReassignPermission && scopeReady && phaseReady;
 
   const loadEngagements = useCallback(async () => {
     setLoading(true);
@@ -429,6 +433,28 @@ export default function AemsTeamPage() {
 
       {overview && (
         <>
+          {!scopeReady && (
+            <section className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <strong>Engagement Scope is not ready.</strong> Select one office
+              and at least one audit area in the Engagement Scope workspace
+              before assigning or amending the Audit Team.
+            </section>
+          )}
+          {!phaseReady && (
+            <section className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <strong>Audit Team assignment is locked during Draft.</strong>{" "}
+              Move the engagement to Authorization Preparation from the Lifecycle
+              workspace before assigning or amending team members.
+              {selectedId && (
+                <Link
+                  className="ml-2 inline-flex rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                  to={`/audit-engagement-management/${selectedId}?tab=lifecycle`}
+                >
+                  Open Lifecycle
+                </Link>
+              )}
+            </section>
+          )}
           <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               icon={UsersRound}

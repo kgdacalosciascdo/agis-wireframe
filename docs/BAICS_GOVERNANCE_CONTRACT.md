@@ -283,10 +283,10 @@ must not modify BAICS, the Audit Universe or IAP risk records. CMS receives no
 direct BAICS ownership. AIS may later report BAICS metrics through its read-only
 source boundary after the records and confidentiality contract is approved.
 
-ARMIS may provide assessment-team competency, availability and capacity data
-through its configured provider boundary. Missing or stale resource data must
-block assignment approval or require an explicit fallback decision; it must
-not create a second resource ledger inside BAICS.
+ARMIS provides assessment-team competency, availability and capacity data
+through the configured provider boundary. Missing or stale resource data must
+block assignment approval; BAICS has no fallback provider and must not create a
+second resource ledger.
 
 ## 11. Permissions and notifications
 

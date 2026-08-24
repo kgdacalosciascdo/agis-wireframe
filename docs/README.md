@@ -6,6 +6,8 @@ and Audit Resource Management (ARMIS). The source code and automated tests remai
 the implementation authority; these documents explain the behavior, controls,
 interfaces, operations, and acceptance procedures.
 
+**Last synchronized with source and tests:** 24 August 2026.
+
 ## Document map
 
 | Document | Audience | Contents |

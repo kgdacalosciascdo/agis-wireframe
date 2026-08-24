@@ -21,6 +21,9 @@ import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
+import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import { hasPermission } from "../../config/navigation";
 import { aemsReportApi, ApiError } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
@@ -242,6 +245,27 @@ export default function AemsReportsPage() {
     versions.find((version) => version.id === report?.currentVersionId) ??
     versions.at(-1) ??
     null;
+  const reportEngagement =
+    workspace?.engagement ??
+    engagements.find((item) => String(item.id) === String(engagementId));
+  const reportsGate = getAemsWorkspaceGate("reports", reportEngagement);
+
+  if (workspace?.engagement && !reportsGate.unlocked) {
+    return (
+      <main className="min-w-0 p-4 sm:p-5">
+        <RegistryHeader
+          icon={FileText}
+          title="Audit Reporting Workspace"
+          description="Report assembly is available only after findings communication and the Reporting lifecycle phase."
+        />
+        <AemsEngagementWorkspaceNav
+          engagement={reportEngagement}
+          engagementId={engagementId}
+        />
+        <AemsWorkspaceLockNotice engagementId={engagementId} gate={reportsGate} />
+      </main>
+    );
+  }
 
   function showError(requestError) {
     if (requestError instanceof ApiError) {

@@ -121,7 +121,7 @@ class AemsEngagementRegistryTest extends TestCase
             ->assertJsonCount(1, 'data.engagements')
             ->assertJsonPath('data.summary.special', 1);
 
-        $this->putJson("/api/aems/engagements/{$created['id']}", [
+        $updated = $this->putJson("/api/aems/engagements/{$created['id']}", [
             ...$payload,
             'engagementCode' => $created['engagementCode'],
             'title' => 'Updated Special Cash Accountability Audit',
@@ -130,7 +130,22 @@ class AemsEngagementRegistryTest extends TestCase
             ->assertJsonPath(
                 'data.engagement.title',
                 'Updated Special Cash Accountability Audit',
-            );
+            )->json('data.engagement');
+
+        // Registry edits no longer carry SCR-212 values. They must not clear
+        // the separately maintained scope or coverage.
+        $this->putJson("/api/aems/engagements/{$created['id']}", [
+            'engagementCode' => $updated['engagementCode'],
+            'title' => 'Updated Registry Metadata Only',
+            'plannedStartDate' => '2026-08-03',
+            'plannedEndDate' => '2026-08-21',
+            'plannedPersonDays' => 15,
+            'lockVersion' => $updated['lockVersion'],
+        ])->assertOk()->assertJsonPath('data.engagement.title', 'Updated Registry Metadata Only');
+        $this->assertDatabaseHas('audit_engagement_offices', [
+            'audit_engagement_id' => $created['id'],
+            'office_id' => $office->id,
+        ]);
 
         $this->deleteJson("/api/aems/engagements/{$created['id']}")
             ->assertOk();
@@ -155,6 +170,33 @@ class AemsEngagementRegistryTest extends TestCase
             'auditable_type' => AuditEngagement::class,
             'auditable_id' => $created['id'],
             'action' => 'aems.engagement.restored',
+        ]);
+    }
+
+    public function test_special_engagement_draft_can_be_created_before_scope_is_completed(): void
+    {
+        $management = $this->user('departmenthead');
+        $mayor = $this->user('mayor');
+        Sanctum::actingAs($management);
+
+        $created = $this->postJson('/api/aems/engagements', [
+            'title' => 'Unplanned BPLD Scope Draft',
+            'specialAuthorityReference' => 'OCM-MEMO-2026-015',
+            'specialAuthorityTypeCode' => 'MAYOR_DIRECTIVE',
+            'specialAuthorityDate' => '2026-08-20',
+            'specialAuthorityApprovedBy' => $mayor->id,
+            'plannedStartDate' => '2026-09-01',
+            'plannedEndDate' => '2026-09-30',
+            'plannedPersonDays' => 10,
+        ])->assertCreated()
+            ->assertJsonPath('data.engagement.status', 'DRAFT')
+            ->json('data.engagement');
+
+        $this->assertDatabaseHas('audit_engagements', [
+            'id' => $created['id'],
+            'objectives' => '',
+            'scope' => '',
+            'status' => 'DRAFT',
         ]);
     }
 

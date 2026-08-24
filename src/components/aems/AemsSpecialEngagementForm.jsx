@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import FormField from "../ui/FormField";
 import SearchableSelect from "../ui/SearchableSelect";
 
@@ -20,9 +20,6 @@ function items(masterLists, code) {
  */
 export default function AemsSpecialEngagementForm({
   formId,
-  offices,
-  auditAreas,
-  auditFocuses,
   users,
   masterLists,
   errors = {},
@@ -60,17 +57,6 @@ export default function AemsSpecialEngagementForm({
     auditAreaIds: initialValues?.auditAreaIds ?? [],
     auditFocusIds: initialValues?.auditFocusIds ?? [],
   }));
-  const selectedAreas = useMemo(
-    () => new Set(form.auditAreaIds.map(String)),
-    [form.auditAreaIds],
-  );
-  const focusOptions = auditFocuses
-    .filter((focus) => selectedAreas.has(String(focus.auditAreaId)))
-    .map((focus) => ({
-      value: focus.id,
-      label: `${focus.code} — ${focus.name}`,
-      keywords: focus.auditArea?.name,
-    }));
   const set = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -245,66 +231,6 @@ export default function AemsSpecialEngagementForm({
         </FormField>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormField
-          error={errors.officeIds?.[0]}
-          hint="Exactly one office is required by the foundation rule."
-          label="Engagement Office"
-          required
-        >
-          <SearchableSelect
-            onChange={(value) => set("officeIds", value ? [value] : [])}
-            options={offices.map((office) => ({
-              value: office.id,
-              label: `${office.code} — ${office.name}`,
-            }))}
-            placeholder="Select one Engagement Office"
-            value={form.officeIds[0] ?? ""}
-          />
-        </FormField>
-        <FormField
-          error={errors.auditAreaIds?.[0]}
-          label="Audit areas"
-          required
-        >
-          <SearchableSelect
-            multiple
-            onChange={(value) => {
-              setForm((current) => ({
-                ...current,
-                auditAreaIds: value,
-                auditFocusIds: current.auditFocusIds.filter((focusId) => {
-                  const focus = auditFocuses.find(
-                    (candidate) => String(candidate.id) === String(focusId),
-                  );
-                  return value.map(String).includes(String(focus?.auditAreaId));
-                }),
-              }));
-            }}
-            options={auditAreas.map((area) => ({
-              value: area.id,
-              label: `${area.code} — ${area.name}`,
-            }))}
-            placeholder="Select one or more audit areas"
-            value={form.auditAreaIds}
-          />
-        </FormField>
-      </div>
-      <FormField
-        error={errors.auditFocusIds?.[0]}
-        label="Audit focuses"
-        hint="Focus options are limited to the selected audit areas."
-      >
-        <SearchableSelect
-          disabled={form.auditAreaIds.length === 0}
-          multiple
-          onChange={(value) => set("auditFocusIds", value)}
-          options={focusOptions}
-          placeholder="Select relevant audit focuses"
-          value={form.auditFocusIds}
-        />
-      </FormField>
-
       <div className="grid gap-4 md:grid-cols-3">
         <FormField
           error={errors.plannedStartDate?.[0]}
@@ -365,12 +291,7 @@ export default function AemsSpecialEngagementForm({
         />
       </FormField>
 
-      {[
-        ["background", "Background", false],
-        ["objectives", "Objectives", true],
-        ["scope", "Scope", true],
-        ["exclusions", "Exclusions", false],
-      ].map(([key, label, required]) => (
+      {[["background", "Background", false]].map(([key, label, required]) => (
         <FormField
           error={errors[key]?.[0]}
           htmlFor={`aems-${key}`}

@@ -19,6 +19,11 @@ class AemsEngagementRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $emptyCollections = collect(['officeIds', 'auditAreaIds', 'auditFocusIds'])
+            ->filter(fn (string $key): bool => $this->has($key) && empty($this->input($key)))
+            ->mapWithKeys(fn (string $key): array => [$key => null])
+            ->all();
+
         $this->merge([
             'engagementCode' => $this->filled('engagementCode')
                 ? strtoupper(trim((string) $this->input('engagementCode')))
@@ -27,6 +32,7 @@ class AemsEngagementRequest extends FormRequest
             'specialAuthorityReference' => $this->filled('specialAuthorityReference')
                 ? strtoupper(trim((string) $this->input('specialAuthorityReference')))
                 : null,
+            ...$emptyCollections,
         ]);
     }
 
@@ -64,8 +70,11 @@ class AemsEngagementRequest extends FormRequest
             'auditTypeId' => ['nullable', 'integer', 'exists:master_list_items,id'],
             'engagementApproachId' => ['nullable', 'integer', 'exists:master_list_items,id'],
             'background' => ['nullable', 'string', 'max:10000'],
-            'objectives' => ['required', 'string', 'max:10000'],
-            'scope' => ['required', 'string', 'max:10000'],
+            // SCR-212 scope and coverage are maintained in the dedicated
+            // Engagement Scope workspace. Registry edits must not require the
+            // scope payload (and must not overwrite it with empty arrays).
+            'objectives' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'scope' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'scopeBoundaries' => ['nullable', 'string', 'max:10000'],
             'scopeLimitations' => ['nullable', 'string', 'max:10000'],
             'scopeSourceVariance' => ['nullable', 'array'],
@@ -75,7 +84,8 @@ class AemsEngagementRequest extends FormRequest
             'expectedReportDate' => ['nullable', 'date', 'after_or_equal:plannedEndDate'],
             'plannedPersonDays' => ['required', 'numeric', 'gt:0', 'max:999999.99'],
             'officeIds' => [
-                'required',
+                'sometimes',
+                'nullable',
                 'array',
                 'size:1',
             ],
@@ -84,13 +94,13 @@ class AemsEngagementRequest extends FormRequest
                 'distinct',
                 Rule::exists('offices', 'id')->whereNull('deleted_at'),
             ],
-            'auditAreaIds' => ['required', 'array', 'min:1'],
+            'auditAreaIds' => ['sometimes', 'nullable', 'array', 'min:1'],
             'auditAreaIds.*' => [
                 'integer',
                 'distinct',
                 Rule::exists('audit_areas', 'id')->whereNull('deleted_at'),
             ],
-            'auditFocusIds' => ['sometimes', 'array'],
+            'auditFocusIds' => ['sometimes', 'nullable', 'array'],
             'auditFocusIds.*' => [
                 'integer',
                 'distinct',

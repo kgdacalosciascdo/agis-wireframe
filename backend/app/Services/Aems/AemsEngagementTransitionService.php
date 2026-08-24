@@ -518,7 +518,19 @@ class AemsEngagementTransitionService
             ->whereNull('ended_at')
             ->pluck('assignment_role_code');
         $requiredRoles = collect(['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER']);
+        $approvedAeo = in_array($engagement->engagementOrder?->status, ['APPROVED', 'ISSUED'], true);
         $issuedAeo = $engagement->engagementOrder?->status === 'ISSUED';
+        $auditeeOfficeIds = $engagement->offices->pluck('id')->map(fn ($id): int => (int) $id);
+        $acknowledgedAeo = $issuedAeo
+            && $auditeeOfficeIds->isNotEmpty()
+            && $engagement->engagementOrder?->distributions()
+                ->where('status', 'ACKNOWLEDGED')
+                ->where(function ($query) use ($auditeeOfficeIds): void {
+                    $query
+                        ->whereIn('recipient_office_id', $auditeeOfficeIds->all())
+                        ->orWhereHas('recipient', fn ($recipient) => $recipient->whereIn('office_id', $auditeeOfficeIds->all()));
+                })
+                ->exists();
         $approvedAep = $engagement->engagementPlan?->status === 'APPROVED';
         $currentProgram = $engagement->programs
             ->where('is_current_revision', true)
@@ -541,15 +553,9 @@ class AemsEngagementTransitionService
                 $this->gate('source', 'Valid IAP or special-authority source', $this->validSource($engagement)),
                 $this->gate('office', 'At least one auditee office is linked', $engagement->offices->isNotEmpty()),
                 $this->gate('area', 'At least one audit area is linked', $engagement->auditAreas->isNotEmpty()),
-                $this->gate(
-                    'preliminaryTeam',
-                    'Preliminary team exists or special authority is complete',
-                    $engagement->teamMembers->where('is_active', true)->isNotEmpty()
-                        || $engagement->source_type === 'SPECIAL',
-                ),
             ],
             'ISSUE_AUTHORIZATION' => [
-                $this->gate('issuedAeo', 'Current AEO is approved and issued', $issuedAeo, 'aeo'),
+                $this->gate('approvedAeo', 'Current AEO is approved', $approvedAeo, 'aeo'),
                 $this->gate(
                     'teamRoles',
                     'Supervisor, Team Leader, Auditor, and Reviewer are active',
@@ -566,6 +572,7 @@ class AemsEngagementTransitionService
             ],
             'START_PLANNING' => [
                 $this->gate('issuedAeo', 'Issued AEO exists', $issuedAeo, 'aeo'),
+                $this->gate('acknowledgedAeo', 'Auditee office has acknowledged the issued AEO', $acknowledgedAeo, 'aeo'),
                 $this->gate('active', 'Engagement is active and available', $engagement->is_active && ! $engagement->trashed()),
             ],
             'START_ENTRY_CONFERENCE' => [
@@ -809,7 +816,7 @@ class AemsEngagementTransitionService
                 $engagement->exitConferences->contains(
                     fn ($conference) => in_array($conference->status, ['COMPLETED', 'WAIVED'], true),
                 ),
-                'exit-conferences',
+                'conferences',
             ),
             $this->gate('personDays', 'Actual person-days are recorded', (float) $engagement->actual_person_days > 0),
         ];
@@ -821,7 +828,7 @@ class AemsEngagementTransitionService
             'offices:id,code,name',
             'auditAreas:id,code,name',
             'teamMembers.user:id,name',
-            'engagementOrder',
+            'engagementOrder.distributions',
             'engagementPlan',
             'planningPackage.latestVersion',
             'programs.procedures',
@@ -927,7 +934,7 @@ class AemsEngagementTransitionService
         $order = $engagement->engagementOrder;
 
         if (! $order
-            || $order->status !== 'ISSUED'
+            || ! in_array($order->status, ['APPROVED', 'ISSUED'], true)
             || ! $order->prepared_by
             || ! $order->approved_by
             || ! $order->issued_by) {
@@ -978,11 +985,11 @@ class AemsEngagementTransitionService
             ['label' => 'Audit Team', 'path' => "/audit-engagement-management/team?engagementId={$id}"],
             ['label' => 'AEO', 'path' => "/audit-engagement-management/aeo?engagementId={$id}"],
             ['label' => 'AEP', 'path' => "/audit-engagement-management/aep?engagementId={$id}"],
-            ['label' => 'Planning Package', 'path' => "/audit-engagement-management/planning-package?engagementId={$id}"],
+            ['label' => 'Planning Workspace', 'path' => "/audit-engagement-management/planning-package?engagementId={$id}"],
             ['label' => 'Audit Program', 'path' => "/audit-engagement-management/audit-program?engagementId={$id}"],
             ['label' => 'Working Papers', 'path' => "/audit-engagement-management/working-papers?engagementId={$id}"],
             ['label' => 'Findings', 'path' => "/audit-engagement-management/findings?engagementId={$id}"],
-            ['label' => 'Exit Conference', 'path' => "/audit-engagement-management/exit-conferences?engagementId={$id}"],
+            ['label' => 'Conference Management', 'path' => "/audit-engagement-management/conferences?engagementId={$id}"],
             ['label' => 'Reports', 'path' => "/audit-engagement-management/reports?engagementId={$id}"],
             ['label' => 'Completion & Closure', 'path' => "/audit-engagement-management/{$id}?tab=closure"],
         ];

@@ -39,10 +39,10 @@ administrative closure.
 | Surface | Route | SCR/permission contract | Function |
 | --- | --- | --- | --- |
 | AEMS Dashboard | `/audit-engagement-management/dashboard` | `aems.engagement.view` | Scope-aware progress cards, phase counts, overdue work, evidence gaps, findings, responses, conferences, reports, transfer exceptions, closure readiness, queue indicators, and protected exports |
-| Engagement Registry | `/audit-engagement-management` | SCR-210 / `aems.engagement.view` | IAP import or special engagement creation, office scope, search/filter, archive/restore, and engagement details |
+| Audit Engagement Workspace | `/audit-engagement-management` | SCR-210 / `aems.engagement.view` | IAP import or special engagement creation, editable foundation metadata, office scope, search/filter, archive/restore, and engagement details |
 | Audit Team | `/audit-engagement-management/team` | SCR-213 / `aems.team.view` | Team assignment, competency/availability/capacity, independence and conflict safeguards, ARMIS status, planned/actual person-days, amendments, and approval |
 | Engagement Orders | `/audit-engagement-management/aeo` | SCR-214 / `aems.aeo.view` | AEO draft, independent review, signatures, approval, issue, distribution, acknowledgement, amendment, cancellation, void, and supersession |
-| Planning Package | `/audit-engagement-management/planning-package` | SCR-221 / `aems.planning-package.view` | Preliminary survey, process flow, risk matrices/items, traceability, KPI/sampling/planned-WP readiness, review, approval, return, revision, and immutable baseline |
+| Planning Workspace | `/audit-engagement-management/planning-package` | SCR-221 / `aems.planning-package.view` | Preliminary survey, process flow, AEP + KPIs, risk matrices/items, audit programs/procedures, traceability, readiness, review, approval, return, revision, and immutable baseline |
 | Engagement Plan | `/audit-engagement-management/aep` | SCR-222 / `aems.aep.view` | Objectives, scope, criteria, period, resources, procedures, communication/effectivity, controlled review and issue |
 | Audit Program | `/audit-engagement-management/audit-program` | SCR-223 / `aems.program.view` | Program/procedure register, area/focus/risk/method/criteria/planned-day fields, execution state, reviewer notes, and links |
 | Execution Workspace | `/audit-engagement-management/execution` | SCR-226 / `aems.fieldwork.view` | Fieldwork records, procedure execution, timeline, tasks, due dates, reviewer notes, WP/evidence links, blockers, and issue creation |
@@ -493,7 +493,7 @@ traceability but do not create separate modules or routes.
 | Conferences and reports | `/conferences`, `/exit-conferences`, `/reports` | `aems.conference.*`, `aems.report.*` | AEMS; Core documents and notifications |
 | Queues, calendar and closure | `/work-queues`, `/calendar`, `/records-closure` | `aems.task.*`, `aems.calendar.*`, closure/records permissions | AEMS; Core retention/activity/audit |
 | CMS transfer | Report/completion contextual workspaces | `aems.recommendation.transfer` | AEMS owns provenance; CMS owns monitoring/closure |
-| Resource provider | Team and assignment panels | ARMIS provider permissions | ARMIS authoritative or explicit fallback |
+| Resource provider | Team and assignment panels | ARMIS provider permissions | ARMIS authoritative only; historical IAP/fallback values are lineage-only |
 
 ## 11. Verification snapshot
 
@@ -967,9 +967,11 @@ reset, clean, or push files.
    authoritative fieldwork gate.
 4. Core Document Versions remain the source of file checksum, MIME type, size,
    version, custody, confidentiality, and protected download data.
-5. IAP remains a read-only source for approved engagement lineage. ARMIS is
-   authoritative only when its provider decision and reconciliation contract
-   are satisfied; explicit fallback remains visible. AIS is outside AEMS scope.
+5. IAP remains a read-only source for approved engagement lineage. ARMIS is the
+   sole operational resource provider and must satisfy current provider-health
+   and reconciliation checks; historical fallback/shadow values remain visible
+   only as lineage evidence. AIS is outside AEMS workflow ownership but may
+   consume AEMS through its read-only integration contract.
 6. Historical checkpoint statements in
    `AEMS_IMPLEMENTATION_BASELINE.md` describe the state at their checkpoint.
    Later G4-G8 sections supersede earlier “not started” statements; they are
@@ -1314,8 +1316,9 @@ manual testing.
 ## Explicit boundaries
 
 - IAP supplies approved lineage and remains read-only from AEMS.
-- ARMIS remains the configurable resource provider with explicit fallback and
-  reconciliation modes.
+- ARMIS is the sole operational resource provider in `ARMIS_AUTHORITATIVE`
+  mode. Historical fallback/shadow and reconciliation records are retained for
+  lineage only; no provider switch or fallback read is available.
 - CMS receives only finalized/issued recommendation snapshots.
 - Core Document Versions remain authoritative for checksums, MIME type, size,
   custody, confidentiality, immutable versions, and protected downloads.

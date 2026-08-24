@@ -17,6 +17,8 @@ import AemsRetentionWorkspace from "../../components/aems/AemsRetentionWorkspace
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 
 const statusLabels = {
   COMPLETED: "Completed",
@@ -129,6 +131,7 @@ export default function AemsRecordsClosurePage() {
   const retention = summary?.retention || recordSummary?.retention;
   const blockers =
     summary?.readiness?.blockers || recordSummary?.blockers || [];
+  const completionGate = getAemsWorkspaceGate("completion", selected);
 
   return (
     <div className="min-w-0" data-testid="aems-records-closure-page">
@@ -187,7 +190,13 @@ export default function AemsRecordsClosurePage() {
           </div>
         )}
       </section>
-      {selectedId && (
+      {selectedId && !completionGate.unlocked && (
+        <AemsWorkspaceLockNotice
+          engagementId={selectedId}
+          gate={completionGate}
+        />
+      )}
+      {selectedId && completionGate.unlocked && (
         <>
           <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard

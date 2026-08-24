@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\AuditEngagement;
+use App\Models\AemsAeoDistribution;
 use App\Models\AuditEngagementPlanVersion;
 use App\Models\AemsTeamSafeguardDeclaration;
 use App\Models\AemsFieldworkRecord;
@@ -279,6 +280,10 @@ class AemsAepProgramTest extends TestCase
         $id = $this->postJson('/api/aems/engagements/import', [
             'iapPlanEngagementId' => $source->id,
         ])->assertCreated()->json('data.engagement.id');
+        $this->postJson(
+            "/api/aems/engagements/{$id}/transitions/PREPARE_AUTHORIZATION",
+            ['lockVersion' => 1],
+        )->assertOk();
         $engagement = AuditEngagement::query()->findOrFail($id);
         $users = $this->auditors(4);
         $team = [];
@@ -386,6 +391,35 @@ class AemsAepProgramTest extends TestCase
         $this->postJson(
             "/api/aems/engagements/{$engagement->id}/aeo/{$order['id']}/transition",
             ['action' => 'ISSUE', 'lockVersion' => $order['lockVersion'], 'comment' => 'Issued by the separate issuing authority.'],
+        )->assertOk();
+
+        // The aggregate planning workspace is available only after the
+        // issued AEO has been acknowledged by the auditee office.
+        $order = $this->getJson("/api/aems/engagements/{$engagement->id}/aeo")
+            ->assertOk()->json('data.order');
+        $office = $engagement->offices()->firstOrFail();
+        AemsAeoDistribution::query()->create([
+            'audit_engagement_order_id' => $order['id'],
+            'version_number' => $order['currentVersionNumber'],
+            'recipient_type' => 'OFFICE',
+            'recipient_office_id' => $office->id,
+            'recipient_name' => $office->name,
+            'transmittal_method' => 'SECURE_PORTAL',
+            'transmittal_reference' => 'AEP-ACK-'.$engagement->engagement_code,
+            'status' => 'ACKNOWLEDGED',
+            'sent_at' => now(),
+            'acknowledged_at' => now(),
+            'acknowledged_by' => $management->id,
+            'acknowledgement_note' => 'Fixture auditee-office acknowledgement.',
+            'created_by' => $management->id,
+        ]);
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/ISSUE_AUTHORIZATION",
+            ['lockVersion' => 2],
+        )->assertOk();
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/START_PLANNING",
+            ['lockVersion' => 3],
         )->assertOk();
     }
 

@@ -6,11 +6,15 @@ import {
   FileBarChart,
   Files,
   ListChecks,
+  LockKeyhole,
   ShieldAlert,
 } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import { hasPermission } from "../../config/navigation";
+import {
+  getAemsWorkspaceGate,
+} from "./aemsPhaseGates";
 
 const tabs = [
   {
@@ -21,7 +25,7 @@ const tabs = [
   },
   {
     key: "planning",
-    label: "Planning",
+    label: "Planning Workspace",
     icon: ListChecks,
     permission: [
       "aems.planning-package.view",
@@ -34,6 +38,7 @@ const tabs = [
       "/audit-engagement-management/planning-package",
       "/audit-engagement-management/aep",
       "/audit-engagement-management/audit-program",
+      "/audit-engagement-management/audit-procedure-details",
     ],
   },
   {
@@ -130,7 +135,15 @@ function isCurrentTab(tab, pathname, searchParams, engagementId) {
     );
   }
 
-  if (tab.queryTabs?.includes(searchParams.get("tab"))) return true;
+  // Query-tab names belong to the engagement detail route.  Do not let a
+  // stale `tab` query string on a standalone workspace (for example Planning
+  // Workspace) light up Completion & Transfer at the same time.
+  if (
+    tab.queryTabs?.includes(searchParams.get("tab")) &&
+    pathname === `/audit-engagement-management/${engagementId}`
+  ) {
+    return true;
+  }
   if (
     tab.paths?.some((path) => pathname === path || pathname.startsWith(path))
   ) {
@@ -141,7 +154,11 @@ function isCurrentTab(tab, pathname, searchParams, engagementId) {
   return false;
 }
 
-export default function AemsEngagementWorkspaceNav({ engagementId }) {
+export default function AemsEngagementWorkspaceNav({
+  engagementId,
+  engagement,
+  engagementStatus,
+}) {
   const { user } = useAuth();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -164,20 +181,38 @@ export default function AemsEngagementWorkspaceNav({ engagementId }) {
             searchParams,
             engagementId,
           );
+          const gate = getAemsWorkspaceGate(
+            tab.key,
+            engagement ?? engagementStatus,
+          );
+          const locked = !gate.unlocked;
           return (
-            <Link
-              aria-current={active ? "page" : undefined}
-              className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 transition sm:flex-none sm:px-4 sm:text-sm ${
-                active
-                  ? "bg-sky-700 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-sky-800"
-              }`}
-              key={tab.key}
-              to={tab.href({ id: engagementId })}
-            >
-              <Icon size={15} />
-              {tab.label}
-            </Link>
+            locked ? (
+              <span
+                aria-disabled="true"
+                className="inline-flex min-h-10 min-w-0 flex-1 cursor-not-allowed items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 text-slate-400 sm:flex-none sm:px-4 sm:text-sm"
+                key={tab.key}
+                title={`${gate.title}: ${gate.reason}`}
+              >
+                <LockKeyhole size={14} />
+                <Icon size={15} />
+                {tab.label}
+              </span>
+            ) : (
+              <Link
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 transition sm:flex-none sm:px-4 sm:text-sm ${
+                  active
+                    ? "bg-sky-700 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-sky-800"
+                }`}
+                key={tab.key}
+                to={tab.href({ id: engagementId })}
+              >
+                <Icon size={15} />
+                {tab.label}
+              </Link>
+            )
           );
         })}
       </div>

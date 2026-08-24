@@ -18,6 +18,7 @@ use App\Models\AemsProcessFlowDocument;
 use App\Models\AemsRiskMatrix;
 use App\Models\AemsRiskMatrixItem;
 use App\Models\AemsRiskWorkingPaperLink;
+use App\Models\AemsAeoDistribution;
 use App\Models\AemsTeamSafeguardDeclaration;
 use App\Models\ArmisCapacitySubmission;
 use App\Models\ArmisResourceProfile;
@@ -103,6 +104,40 @@ class AemsEngagementLifecycleTest extends TestCase
             "/api/aems/engagements/{$engagement->id}/transitions/START_PLANNING",
             ['lockVersion' => 3],
         )->assertOk()->assertJsonPath('data.engagement.status', 'ENGAGEMENT_PLANNING');
+    }
+
+    public function test_planning_is_blocked_until_the_auditee_office_acknowledges_the_issued_aeo(): void
+    {
+        [$management, $auditor, , $engagement] = $this->engagement('DRAFT');
+        Sanctum::actingAs($management);
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/PREPARE_AUTHORIZATION",
+            ['lockVersion' => 1],
+        )->assertOk();
+
+        $this->installRequiredTeamAndAeo($engagement, $management, $auditor);
+        AemsAeoDistribution::query()
+            ->whereHas('order', fn ($query) => $query->where('audit_engagement_id', $engagement->id))
+            ->delete();
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/ISSUE_AUTHORIZATION",
+            ['lockVersion' => 2],
+        )->assertOk();
+
+        $workspace = $this->getJson("/api/aems/engagements/{$engagement->id}/lifecycle")
+            ->assertOk()
+            ->json('data');
+        $startPlanning = collect($workspace['actions'])->firstWhere('action', 'START_PLANNING');
+        $this->assertNotNull($startPlanning);
+        $this->assertFalse($startPlanning['canExecute']);
+        $this->assertContains('Auditee office has acknowledged the issued AEO', $startPlanning['blockers']);
+
+        $this->postJson(
+            "/api/aems/engagements/{$engagement->id}/transitions/START_PLANNING",
+            ['lockVersion' => 3],
+        )->assertUnprocessable()->assertJsonValidationErrors('requirements');
     }
 
     public function test_authoritative_lifecycle_enforces_child_gates_locking_and_records_all_logs(): void
@@ -555,7 +590,7 @@ class AemsEngagementLifecycleTest extends TestCase
             }
         }
         $issuer = $users['REVIEWER'];
-        AuditEngagementOrder::query()->create([
+        $order = AuditEngagementOrder::query()->create([
             'audit_engagement_id' => $engagement->id,
             'order_code' => 'AEO-'.$engagement->engagement_code,
             'status' => 'ISSUED',
@@ -565,6 +600,26 @@ class AemsEngagementLifecycleTest extends TestCase
             'issued_by' => $issuer->id,
             'issued_at' => now(),
             'is_active' => true,
+        ]);
+        $office = $engagement->offices()->firstOrFail();
+        $acknowledger = User::query()
+            ->where('office_id', $office->id)
+            ->whereKeyNot($management->id)
+            ->first() ?? $management;
+        AemsAeoDistribution::query()->create([
+            'audit_engagement_order_id' => $order->id,
+            'version_number' => 1,
+            'recipient_type' => 'OFFICE',
+            'recipient_office_id' => $office->id,
+            'recipient_name' => $office->name,
+            'transmittal_method' => 'SECURE_PORTAL',
+            'transmittal_reference' => 'LIFECYCLE-ACK-'.$engagement->engagement_code,
+            'status' => 'ACKNOWLEDGED',
+            'sent_at' => now(),
+            'acknowledged_at' => now(),
+            'acknowledged_by' => $acknowledger->id,
+            'acknowledgement_note' => 'Lifecycle fixture acknowledgement.',
+            'created_by' => $management->id,
         ]);
     }
 

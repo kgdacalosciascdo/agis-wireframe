@@ -46,6 +46,8 @@ class AemsTeamService
             'teamAmendments.teamMember.user',
             'teamAccessHistory.actor',
             'teamAccessHistory.user',
+            'offices:id,code,name',
+            'auditAreas:id,code,name',
         ]);
 
         $team = $engagement->teamMembers->values();
@@ -59,6 +61,7 @@ class AemsTeamService
                 'plannedStartDate' => $engagement->planned_start_date?->toDateString(),
                 'plannedEndDate' => $engagement->planned_end_date?->toDateString(),
                 'plannedPersonDays' => (float) $engagement->planned_person_days,
+                'scopeReady' => $engagement->offices->count() === 1 && $engagement->auditAreas->isNotEmpty(),
             ],
             'roles' => collect(self::ROLES)->map(fn (string $code): array => [
                 'code' => $code,
@@ -477,6 +480,18 @@ class AemsTeamService
     {
         if ($engagement->trashed() || in_array($engagement->status, ['CLOSED', 'CANCELLED'], true)) {
             throw ValidationException::withMessages(['engagement' => ['The team cannot be changed for this engagement.']]);
+        }
+        if ($engagement->status === 'DRAFT') {
+            throw ValidationException::withMessages([
+                'engagement' => [
+                    'Move the engagement from Draft to Authorization Preparation before assigning or amending the Audit Team.',
+                ],
+            ]);
+        }
+        if ($engagement->offices()->count() !== 1 || ! $engagement->auditAreas()->exists()) {
+            throw ValidationException::withMessages([
+                'engagement' => ['Complete and save the Engagement Scope (one office and at least one audit area) before assigning the Audit Team.'],
+            ]);
         }
     }
 

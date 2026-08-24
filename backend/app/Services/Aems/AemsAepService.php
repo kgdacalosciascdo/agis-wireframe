@@ -88,6 +88,7 @@ class AemsAepService
 
         return DB::transaction(function () use ($request, $engagement, $attributes): AuditEngagementPlan {
             $lockedEngagement = AuditEngagement::query()->lockForUpdate()->findOrFail($engagement->id);
+            $this->ensurePlanningPhase($lockedEngagement);
             $this->ensureIssuedAeo($lockedEngagement);
             if ($lockedEngagement->engagementPlan()->exists()) {
                 throw ValidationException::withMessages([
@@ -149,6 +150,7 @@ class AemsAepService
         );
 
         return DB::transaction(function () use ($request, $engagement, $plan, $attributes): AuditEngagementPlan {
+            $this->ensurePlanningPhase($engagement);
             $locked = $this->lockPlan($engagement, $plan, (int) $attributes['lockVersion']);
             if (! in_array($locked->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true)) {
                 throw ValidationException::withMessages([
@@ -229,6 +231,7 @@ class AemsAepService
             $lockVersion,
             $comment,
         ): AuditEngagementPlan {
+            $this->ensurePlanningPhase($engagement);
             $locked = $this->lockPlan($engagement, $plan, $lockVersion);
             $version = $locked->latestVersion()->firstOrFail();
             $from = $locked->status;
@@ -338,6 +341,7 @@ class AemsAepService
             $lockVersion,
             $reason,
         ): AuditEngagementPlan {
+            $this->ensurePlanningPhase($engagement);
             $locked = $this->lockPlan($engagement, $plan, $lockVersion);
             if ($locked->status !== 'APPROVED') {
                 throw ValidationException::withMessages([
@@ -464,6 +468,15 @@ class AemsAepService
         if (! $engagement->engagementOrder()->where('status', 'ISSUED')->exists()) {
             throw ValidationException::withMessages([
                 'engagement' => ['The Audit Engagement Order must be issued before preparing or submitting the AEP.'],
+            ]);
+        }
+    }
+
+    private function ensurePlanningPhase(AuditEngagement $engagement): void
+    {
+        if ($engagement->status !== 'ENGAGEMENT_PLANNING') {
+            throw ValidationException::withMessages([
+                'engagement' => ['Planning Workspace is locked until the engagement reaches ENGAGEMENT_PLANNING after the issued AEO is acknowledged by the auditee office.'],
             ]);
         }
     }

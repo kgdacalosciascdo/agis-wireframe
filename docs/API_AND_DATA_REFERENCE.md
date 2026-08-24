@@ -1381,8 +1381,9 @@ contracts at `/audit-resource-management/planning`. It provides
 Overview/Utilization, Availability Calendar, Capacity, and Workload tabs with
 responsive tables, search and status filters, fiscal-year selection,
 permission-aware create/edit, submit, independent review, lock, and correction
-revision actions. It displays the IAP interim-provider boundary and does not
-expose actual person-days or public document URLs.
+revision actions. It displays historical IAP resource lineage for comparison;
+ARMIS is the sole operational provider and the page does not expose actual
+person-days or public document URLs.
 
 ### 8.23 ARMIS-4A assignments and actual person-days
 
@@ -1416,9 +1417,10 @@ limits, approved availability conflicts, current verified competency claims,
 assignment/actual date bounds, and optimistic-lock checks. The submitter and
 resource owner cannot independently review the same record. Every mutation
 records an ARMIS workflow event, Activity Log, Audit Trail, and review/outcome
-notification. The paragraph above describes the pre-cutover checkpoint. ARMIS
-actuals are now authoritative for AEMS; any IAP fallback is an explicit,
-audited rollback compatibility decision rather than an operating default.
+notification. The preceding paragraph describes the historical pre-cutover
+checkpoint. ARMIS actuals are now authoritative for AEMS; provider activation
+and rollback compatibility endpoints return `409` and cannot change the
+operational read path.
 
 ### 8.23.1 ARMIS-4B assignment and actuals workspace
 
@@ -2285,9 +2287,9 @@ The additive tables are:
 Manifest snapshots preserve the exact report `document_version_id` and
 `checksum_sha256`. Recommendation transfer delegates to the existing CMS
 gateway, which reuses the existing transfer key on retry. Effort snapshots
-record provider mode and source status; fallback is explicit, while ARMIS
-shadow/authoritative modes require a reconciled provider actual before the
-closure checklist passes. The Closure Checklist derives the blocking
+record `ARMIS_AUTHORITATIVE` provider mode and source status; missing or stale
+ARMIS actuals block the closure checklist. Historical provider comparisons are
+lineage evidence only. The Closure Checklist derives the blocking
 `CMS_TRANSFER_MANIFEST`, `CMS_TRANSFER_EXCEPTIONS`, and
 `EFFORT_RECONCILIATION` items from these records.
 

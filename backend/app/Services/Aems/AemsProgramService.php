@@ -110,6 +110,7 @@ class AemsProgramService
 
         return DB::transaction(function () use ($request, $engagement, $attributes): AuditProgram {
             $lockedEngagement = AuditEngagement::query()->lockForUpdate()->findOrFail($engagement->id);
+            $this->ensurePlanningPhase($lockedEngagement);
             $this->validateEngagementSelections($lockedEngagement, $attributes);
             $aep = $this->approvedAep($lockedEngagement);
             $program = AuditProgram::query()->create([
@@ -162,6 +163,7 @@ class AemsProgramService
         );
 
         return DB::transaction(function () use ($request, $engagement, $program, $attributes): AuditProgram {
+            $this->ensurePlanningPhase($engagement);
             $locked = $this->lockProgram($engagement, $program, (int) $attributes['lockVersion']);
             $this->ensureDefinitionEditable($locked);
             $this->validateEngagementSelections($engagement, $attributes);
@@ -209,6 +211,7 @@ class AemsProgramService
         );
 
         return DB::transaction(function () use ($request, $engagement, $program, $attributes): AuditProgramProcedure {
+            $this->ensurePlanningPhase($engagement);
             $locked = $this->lockProgram($engagement, $program, (int) $attributes['programLockVersion']);
             $this->ensureDefinitionEditable($locked);
             $this->ensureAssignee($engagement, (int) $attributes['assignedTo']);
@@ -282,6 +285,7 @@ class AemsProgramService
             $procedure,
             $attributes,
         ): AuditProgramProcedure {
+            $this->ensurePlanningPhase($engagement);
             $lockedProgram = $this->lockProgram(
                 $engagement,
                 $program,
@@ -359,6 +363,7 @@ class AemsProgramService
             $programLockVersion,
             $lockVersion,
         ): void {
+            $this->ensurePlanningPhase($engagement);
             $lockedProgram = $this->lockProgram($engagement, $program, $programLockVersion);
             $this->ensureDefinitionEditable($lockedProgram);
             $locked = $this->lockProcedure($lockedProgram, $procedure, $lockVersion);
@@ -422,6 +427,9 @@ class AemsProgramService
             $lockVersion,
             $comment,
         ): AuditProgram {
+            if (! in_array($action, ['START', 'COMPLETE'], true)) {
+                $this->ensurePlanningPhase($engagement);
+            }
             $locked = $this->lockProgram($engagement, $program, $lockVersion);
             $from = $locked->status;
             $to = $this->nextStatus($locked, $action);
@@ -724,6 +732,7 @@ class AemsProgramService
             $lockVersion,
             $reason,
         ): AuditProgram {
+            $this->ensurePlanningPhase($engagement);
             $locked = $this->lockProgram($engagement, $program, $lockVersion);
             if (! in_array($locked->status, ['APPROVED', 'ACTIVE'], true)) {
                 throw ValidationException::withMessages([
@@ -940,6 +949,15 @@ class AemsProgramService
             || ! in_array($program->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true)) {
             throw ValidationException::withMessages([
                 'status' => ['Approved program baselines are immutable. Create a documented revision to change definitions.'],
+            ]);
+        }
+    }
+
+    private function ensurePlanningPhase(AuditEngagement $engagement): void
+    {
+        if ($engagement->status !== 'ENGAGEMENT_PLANNING') {
+            throw ValidationException::withMessages([
+                'engagement' => ['Planning Workspace is locked until the engagement reaches ENGAGEMENT_PLANNING after the issued AEO is acknowledged by the auditee office.'],
             ]);
         }
     }

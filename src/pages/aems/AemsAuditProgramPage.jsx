@@ -15,13 +15,15 @@ import {
   Undo2,
   UserCheck,
 } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import Modal from "../../components/ui/Modal";
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import { hasPermission } from "../../config/navigation";
 import {
   aemsEngagementApi,
@@ -125,6 +127,7 @@ function Field({ label: fieldLabel, error, children, wide = false }) {
 export default function AemsAuditProgramPage() {
   const { user } = useAuth();
   const toast = useToast();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const [engagements, setEngagements] = useState([]);
   const [selectedId, setSelectedId] = useState(
@@ -221,6 +224,8 @@ export default function AemsAuditProgramPage() {
   const program = workspace?.programs.find(
     (item) => String(item.id) === String(selectedProgramId),
   );
+  const planningGate = getAemsWorkspaceGate("planning", workspace?.engagement);
+  const planningUnlocked = planningGate.unlocked;
   const currentPrograms =
     workspace?.programs.filter(
       (item) => item.isCurrentRevision && !item.isArchived,
@@ -284,10 +289,11 @@ export default function AemsAuditProgramPage() {
   const actions = useMemo(() => {
     if (!program || !program.isCurrentRevision) return [];
     const available = [];
-    if (program.status === "DRAFT" && canManage) {
+    if (planningUnlocked && program.status === "DRAFT" && canManage) {
       available.push(["SUBMIT", "Submit for review", Send, "primary"]);
     }
     if (
+      planningUnlocked &&
       ["PENDING_REVIEW", "RESUBMITTED"].includes(program.status) &&
       canReview
     ) {
@@ -295,17 +301,20 @@ export default function AemsAuditProgramPage() {
       available.push(["RETURN", "Return for revision", Undo2, "warning"]);
     }
     if (
+      planningUnlocked &&
       ["PENDING_REVIEW", "RESUBMITTED"].includes(program.status) &&
       canApprove
     ) {
       available.push(["APPROVE", "Approve baseline", BadgeCheck, "success"]);
     }
-    if (program.status === "RETURNED_FOR_REVISION" && canManage) {
+    if (planningUnlocked && program.status === "RETURNED_FOR_REVISION" && canManage) {
       available.push(["RESUBMIT", "Resubmit program", Send, "primary"]);
     }
     if (program.status === "APPROVED" && canApprove) {
       available.push(["START", "Start fieldwork", Play, "success"]);
-      available.push(["REVISE", "Create revision", RotateCcw, "warning"]);
+      if (planningUnlocked) {
+        available.push(["REVISE", "Create revision", RotateCcw, "warning"]);
+      }
     }
     if (program.status === "ACTIVE") {
       if (canManage) {
@@ -316,14 +325,15 @@ export default function AemsAuditProgramPage() {
           "success",
         ]);
       }
-      if (canApprove) {
+      if (planningUnlocked && canApprove) {
         available.push(["REVISE", "Create revision", RotateCcw, "warning"]);
       }
     }
     return available;
-  }, [canApprove, canManage, canReview, program]);
+  }, [canApprove, canManage, canReview, planningUnlocked, program]);
 
   function openProgramForm() {
+    if (!planningUnlocked) return;
     setErrors({});
     const engagementAreas = workspace?.engagement?.auditAreas ?? [];
     setProgramForm(
@@ -545,18 +555,26 @@ export default function AemsAuditProgramPage() {
   const textAreaClass =
     "min-h-24 w-full rounded-lg border border-slate-300 bg-white p-3 font-normal outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
   const editable =
+    planningUnlocked &&
     program?.isCurrentRevision &&
     ["DRAFT", "RETURNED_FOR_REVISION"].includes(program.status);
+  const procedureDetailsView = location.pathname.endsWith(
+    "/audit-procedure-details",
+  );
 
   return (
     <main className="min-w-0 p-3 sm:p-5 lg:p-6">
       <RegistryHeader
         icon={ListChecks}
-        title="Audit Program"
-        description="Translate the approved AEP into assigned procedures, approve the fieldwork baseline, track completion, and preserve documented revisions."
-        readOnly={!canManage && !canReview && !canApprove}
+        title={procedureDetailsView ? "Audit Procedure Details" : "Audit Program"}
+        description={
+          procedureDetailsView
+            ? "Add and assign procedures, preserve risk and process lineage, link expected evidence and working papers, and record review results."
+            : "Translate the approved AEP into assigned procedures, approve the fieldwork baseline, track completion, and preserve documented revisions."
+        }
+        readOnly={!planningUnlocked || (!canManage && !canReview && !canApprove)}
         actions={
-          canManage && selectedId ? (
+          canManage && planningUnlocked && selectedId ? (
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800 disabled:opacity-50"
               disabled={!workspace?.approvedAep}
@@ -605,6 +623,9 @@ export default function AemsAuditProgramPage() {
         <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           {error}
         </div>
+      )}
+      {workspace && !planningUnlocked && (
+        <AemsWorkspaceLockNotice engagementId={selectedId} gate={planningGate} />
       )}
       {workspace && !workspace.approvedAep && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
@@ -688,7 +709,7 @@ export default function AemsAuditProgramPage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {editable && canManage && (
+                {planningUnlocked && editable && canManage && (
                   <button
                     className="inline-flex h-10 items-center gap-2 rounded-lg border border-sky-300 px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
                     onClick={openProgramForm}
@@ -697,7 +718,7 @@ export default function AemsAuditProgramPage() {
                     <FilePenLine size={15} /> Edit program
                   </button>
                 )}
-                {editable && canManage && (
+                {planningUnlocked && editable && canManage && (
                   <button
                     className="inline-flex h-10 items-center gap-2 rounded-lg bg-sky-700 px-3 text-xs font-bold text-white hover:bg-sky-800"
                     onClick={() => openProcedure()}
@@ -1208,6 +1229,7 @@ export default function AemsAuditProgramPage() {
                 setProcedureForm((current) => ({
                   ...current,
                   auditAreaId: value,
+                  auditFocusId: "",
                 }))
               }
             />

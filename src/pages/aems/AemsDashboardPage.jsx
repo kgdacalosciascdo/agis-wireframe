@@ -879,7 +879,7 @@ export default function AemsDashboardPage() {
               to="/audit-engagement-management"
             >
               <BriefcaseBusiness size={17} />
-              Open Engagement Registry
+              Open Audit Engagement Workspace
             </Link>
           </>
         }

@@ -393,6 +393,8 @@ class AemsEngagementController extends Controller
             'offices:id,code,name',
             'auditAreas:id,code,name',
             'auditFocuses:id,code,name',
+            'engagementOrder.approver:id,name',
+            'engagementOrder.issuer:id,name',
             'scopeBackfillReview',
         ];
     }

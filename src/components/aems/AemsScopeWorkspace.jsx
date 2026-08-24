@@ -43,15 +43,7 @@ function coverageFrom(engagement) {
     const metadataFocusIds = Array.isArray(metadata.focusIds)
       ? metadata.focusIds
           .map((focusId) => Number(focusId))
-          .filter(
-            (focusId) =>
-              focusId > 0 &&
-              focuses.some(
-                (focus) =>
-                  Number(focus.id) === focusId &&
-                  String(focus.auditAreaId) === String(area.id),
-              ),
-          )
+          .filter((focusId) => focusId > 0)
       : [];
     return {
       auditAreaId: area.id,
@@ -63,7 +55,8 @@ function coverageFrom(engagement) {
         ? metadataFocusIds
         : focuses
             .filter((focus) => String(focus.auditAreaId) === String(area.id))
-            .map((focus) => focus.id),
+            .map((focus) => Number(focus.id))
+            .filter((focusId) => focusId > 0),
     };
   });
 }
@@ -146,7 +139,32 @@ export default function AemsScopeWorkspace({
     value: office.id,
     label: `${office.code} — ${office.name}`,
   }));
-  const areaOptions = areas.map((area) => ({
+  const linkedAreas = useMemo(() => {
+    if (!form.officeId) return [];
+
+    return areas.filter((area) => {
+      const linkedOfficeIds = Array.isArray(area.offices)
+        ? area.offices.map((office) => String(office.id))
+        : Array.isArray(area.officeIds)
+          ? area.officeIds.map((officeId) => String(officeId))
+          : Array.isArray(area.office_ids)
+            ? area.office_ids.map((officeId) => String(officeId))
+            : [];
+
+      // Core also exposes the responsible office as a first-class linkage.
+      // Treat it as coverage linkage when an older response omits the
+      // many-to-many `offices` relation.
+      const responsibleOfficeId =
+        area.responsibleOfficeId ?? area.responsible_office_id;
+
+      return (
+        area.isActive !== false &&
+        (linkedOfficeIds.includes(String(form.officeId)) ||
+          String(responsibleOfficeId ?? "") === String(form.officeId))
+      );
+    });
+  }, [areas, form.officeId]);
+  const areaOptions = linkedAreas.map((area) => ({
     value: area.id,
     label: `${area.code} — ${area.name}`,
   }));
@@ -181,21 +199,45 @@ export default function AemsScopeWorkspace({
   }
 
   function updateCoverage(areaId, key, value) {
+    const normalizedValue =
+      key === "focusIds"
+        ? (Array.isArray(value) ? value : [])
+            .map((focusId) => Number(focusId))
+            .filter((focusId) => focusId > 0)
+        : value;
     setForm((current) => ({
       ...current,
       areaCoverage: current.areaCoverage.map((item) =>
         String(item.auditAreaId) === String(areaId)
-          ? { ...item, [key]: value }
+          ? { ...item, [key]: normalizedValue }
           : item,
       ),
     }));
   }
 
   async function save() {
+    if (!form.officeId) {
+      setError("Select one Engagement Office before saving the scope.");
+      return;
+    }
+    if (!form.areaCoverage.length) {
+      setError("Select at least one audit area linked to the selected office.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      const updated = await aemsEngagementApi.updateScope(engagementId, form);
+      const payload = {
+        ...form,
+        areaCoverage: form.areaCoverage.map((item) => ({
+          ...item,
+          auditAreaId: Number(item.auditAreaId),
+          focusIds: (Array.isArray(item.focusIds) ? item.focusIds : [])
+            .map((focusId) => Number(focusId))
+            .filter((focusId) => focusId > 0),
+        })),
+      };
+      const updated = await aemsEngagementApi.updateScope(engagementId, payload);
       setEngagement(updated);
       setForm(toForm(updated));
       toast.success("Engagement scope saved with one-office coverage.");
@@ -271,7 +313,17 @@ export default function AemsScopeWorkspace({
               <SearchableSelect
                 disabled={!editable}
                 onChange={(value) =>
-                  setForm((current) => ({ ...current, officeId: value }))
+                  setForm((current) => ({
+                    ...current,
+                    officeId: value,
+                    // Area and focus coverage is office-dependent. Clear the
+                    // previous selection when the office changes so stale
+                    // links cannot be submitted against the new office.
+                    areaCoverage:
+                      String(current.officeId) === String(value)
+                        ? current.areaCoverage
+                        : [],
+                  }))
                 }
                 options={officeOptions}
                 placeholder="Select one Engagement Office"
@@ -393,14 +445,39 @@ export default function AemsScopeWorkspace({
             <div className="mt-4">
               <FormField label="In-scope Audit Areas" required>
                 <SearchableSelect
-                  disabled={!editable}
+                  disabled={!editable || !form.officeId}
+                  emptyMessage="No audit areas are linked to the selected office."
                   multiple
                   onChange={updateAreas}
                   options={areaOptions}
-                  placeholder="Select audit areas"
+                  placeholder={
+                    form.officeId
+                      ? "Select audit areas linked to this office"
+                      : "Select an office first"
+                  }
                   value={selectedAreaIds}
                 />
               </FormField>
+              {!form.officeId && (
+                <p className="mt-2 text-xs font-medium text-amber-700">
+                  Select the Engagement Office first. Only audit areas linked
+                  to that office will be available.
+                </p>
+              )}
+              {form.officeId && linkedAreas.length === 0 && (
+                <p className="mt-2 text-xs font-medium text-amber-700">
+                  No active audit areas are linked to the selected office.
+                  Configure the office relationship in the Core Audit Area
+                  Registry before continuing.
+                </p>
+              )}
+              {form.officeId && linkedAreas.length > 0 && !form.areaCoverage.length && (
+                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium leading-5 text-amber-800">
+                  Draft scopes are editable. Select at least one linked audit
+                  area here before saving; audit focuses are optional and may
+                  be added later.
+                </p>
+              )}
             </div>
             <div className="mt-5 space-y-4">
               {form.areaCoverage.map((item) => {

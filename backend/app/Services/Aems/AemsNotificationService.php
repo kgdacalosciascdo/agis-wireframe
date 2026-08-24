@@ -496,8 +496,8 @@ class AemsNotificationService
                 .($rescheduled ? 'rescheduled' : 'scheduled'),
             'message' => "The Exit Conference for {$engagement->title} is scheduled for "
                 .$conference->scheduled_start_at?->format('M j, Y g:i A').'.',
-            'actionUrl' => "/audit-engagement-management/exit-conferences?engagementId={$engagement->id}",
-            'actionLabel' => 'Open Exit Conference',
+            'actionUrl' => "/audit-engagement-management/conferences?engagementId={$engagement->id}",
+            'actionLabel' => 'Open Conference Management',
             'subjectType' => ExitConference::class,
             'subjectId' => $conference->id,
             'subjectCode' => $conference->conference_code,
@@ -667,8 +667,8 @@ class AemsNotificationService
                 .str($action)->replace('_', ' ')->lower(),
             'message' => "The Entry Conference for {$engagement->title} was "
                 .str($action)->replace('_', ' ')->lower().'.',
-            'actionUrl' => "/audit-engagement-management/entry-conference/{$engagement->id}",
-            'actionLabel' => 'Open Entry Conference',
+            'actionUrl' => "/audit-engagement-management/conferences?engagementId={$engagement->id}",
+            'actionLabel' => 'Open Conference Management',
             'subjectType' => EntryConference::class,
             'subjectId' => $conference->id,
             'subjectCode' => $conference->conference_code,

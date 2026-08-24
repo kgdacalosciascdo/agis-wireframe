@@ -9,7 +9,7 @@ differs from a design document, the implementation sources listed in section 3
 win. A feature marked **Not implemented** is deliberately not implied by a
 placeholder route or a navigation card.
 
-**Last reviewed:** 14 August 2026.
+**Last reviewed:** 24 August 2026.
 
 For a user-oriented explanation of every page and action, read the [AGIS
 As-Built System Manual](AGIS_AS_BUILT_SYSTEM_MANUAL.md). For executable
@@ -202,21 +202,23 @@ role/scope/SoD, schema, ownership, and navigation conformance contract.
 | Screen | Route | SCR / permission | Main functions |
 | --- | --- | --- | --- |
 | AEMS Dashboard | `/audit-engagement-management/dashboard` | Portfolio / `aems.engagement.view` | Scope-aware phase cards, overdue procedures, WP review, evidence gaps, findings, responses, conferences, reports, transfer exceptions, closure readiness, queues, and export actions |
-| Engagement Registry | `/audit-engagement-management` | SCR-210 / `aems.engagement.view` | IAP import or special engagement creation (both start as Draft), editable foundation metadata before authorization/planning, one-office scope, filters, status, archive/restore, detail launch |
+| Audit Engagement Workspace | `/audit-engagement-management` | SCR-210 / `aems.engagement.view` | IAP import or special engagement creation (both start as Draft), editable foundation metadata before authorization/planning, dedicated Engagement Scope transaction, one-office scope, filters, status, archive/restore, detail launch |
+| Audit Scope | `/audit-engagement-management/scope` | Foundation / `aems.foundation.view` | Select an engagement, then maintain its SCR-212 office, Area/Focus coverage, boundaries, limitations, and source variance before team assignment |
 | Audit Team | `/audit-engagement-management/team` | SCR-213 / `aems.team.view` | Assign members, roles, competencies, availability, workload, objectivity/independence, conflicts, ARMIS provider status, person-days and approval |
 | Engagement Orders | `/audit-engagement-management/aeo` | SCR-214 / `aems.aeo.view` | AEO preparation, signatures, review, approval, issue, distribution, transmittal, acknowledgement, amendment, supersession, cancel/void |
-| Planning Package | `/audit-engagement-management/planning-package` | SCR-221 / `aems.planning-package.view` | Preliminary survey, process flow, risk matrices/items, objective/risk/procedure/WP traceability, KPI and sampling/planned-WP readiness, review, approval, return and immutable baseline |
+| Planning Workspace | `/audit-engagement-management/planning-package` | SCR-221 / `aems.planning-package.view` | Preliminary survey, process-flow documentation, AEP + KPIs, risk matrices/items, audit programs/procedures, objective/risk/procedure/WP traceability, readiness, review, approval, return and immutable baseline; locked until ENGAGEMENT_PLANNING |
 | Engagement Plan | `/audit-engagement-management/aep` | SCR-222 / `aems.aep.view` | Scope/objectives, criteria, period, resources, procedures, communication/effectivity, draft/review/return/approve/issue/revise |
 | Audit Program | `/audit-engagement-management/audit-program` | SCR-223 / `aems.program.view` | Program/procedure register, areas/focuses, risks, methods, criteria, planned days, procedure execution state, reviewer notes and traceability |
+| Audit Procedure Details | `/audit-engagement-management/audit-procedure-details` | SCR-224 / `aems.program.view` | Dedicated procedure-detail surface for process/risk lineage, responsible person, planned days, expected evidence, working-paper reference, due date, results, conclusion, review, and issue creation |
 | Execution Workspace | `/audit-engagement-management/execution` | SCR-226 / `aems.fieldwork.view` | Fieldwork records, procedure execution, timeline, tasks/due dates, reviewer notes, WP/evidence links, blockers and create-issue action |
-| Entry Conferences | `/audit-engagement-management/entry-conferences` | SCR-225 child / `aems.entry-conference.view` | Schedule, venue/online details, participants, attendance, agenda, acknowledgements, attachments, minutes and linked engagement |
-| Conference Management | `/audit-engagement-management/conferences` | SCR-225 / `aems.conference.view` | Entry/exit timelines, agreements/disagreements, findings discussed, revised dates, attendance and dialogue history |
+| Conference Management | `/audit-engagement-management/conferences` | SCR-225 / `aems.conference.view` | Single workspace for Entry and Exit timelines, schedules, venue/mode, agenda, participants, attendance, briefing paper, agreements/disagreements, findings discussed, waivers, revised dates, minutes, acknowledgements and dialogue history |
+| Entry Conferences | `/audit-engagement-management/entry-conferences` | compatibility child / `aems.entry-conference.view` | Entry conference scheduling and records; surfaced below Conference Management and retained alongside the combined workspace |
+| Exit Conferences | `/audit-engagement-management/exit-conferences` | compatibility child / `aems.conference.view` | Exit conference scheduling and records; surfaced below Conference Management and retained alongside the combined workspace |
 | Working Papers & Evidence | `/audit-engagement-management/working-papers` | SCR-228 / `aems.working-paper.view` | WP index, objective/procedure/population/sample/results/conclusion, preparer/reviewer, cross-references, revisions, locked approvals and linked evidence |
 | Evidence Management | `/audit-engagement-management/evidence` | SCR-229 / `aems.evidence-request.view` | Evidence requests, submission/receipt/assessment, custody/checksum/confidentiality, restrictions/gaps, versions and links to WP/fieldwork/issues/findings/reports |
 | Audit Issues | `/audit-engagement-management/issues` | SCR-230 / `aems.issue.view` | Issue register, validation, dismissal, conversion, merge, referral, observation, resolution, withdrawal and terminal dispositions |
 | Findings & Recommendations | `/audit-engagement-management/findings` | SCR-240 / `aems.finding.view` | Criteria, condition, cause, conclusion, effect, risk, evidence, responsible office, management response, rejoinder, recommendation, corrections, amendments, withdrawal, supersession and immutable finalization |
 | Auditee Responses | `/audit-engagement-management/auditee-responses` | SCR-241 / `aems.management-response.view` | Formally communicated findings only; agree/partial/disagree, comments, corrective actions, owners, target dates, attachments, clarifications, extensions and response history |
-| Exit Conferences | `/audit-engagement-management/exit-conferences` | SCR-225 child / `aems.conference.view` | Exit schedule, participants/attendance, findings, agreements/disagreements, revised targets, minutes, attachments and acknowledgement |
 | Audit Reporting Workspace | `/audit-engagement-management/reports` | SCR-250 / `aems.report.view` or `aems.report.view_issued` | Interim/draft/final assembly, section ordering, executive summary, quality review, finalized-finding selection, approval, issue, distribution, acknowledgements, amendment, withdrawal, supersession and protected PDF |
 | Operational Work Queues | `/audit-engagement-management/work-queues` | operational / `aems.task.view` | Tasks, assignments, due/overdue state, review notes, due process, escalation candidates, notifications and controlled transitions |
 | Audit Calendar | `/audit-engagement-management/calendar` | operational / `aems.calendar.view` | Milestones, owners, due/overdue indicators, completion and closure-related dates |
@@ -240,6 +242,12 @@ IAP approved source / special authorization
 - Fieldwork is blocked until an approved, genuinely complete planning baseline
   exists. Required process-flow, risk, KPI, sampling, and planned-WP gates are
   evaluated by the backend rather than a frontend flag.
+- Engagement creation starts as Draft without SCR-212 details. The dedicated
+  Engagement Scope transaction must have exactly one office and at least one
+  audit area before Audit Team assignment. Team mutation is locked in `DRAFT`
+  and unlocks in `AUTHORIZATION_PREPARATION`; AEO and aggregate authorization
+  gates then enforce team completeness before the engagement becomes
+  `AUTHORIZED`.
 - Evidence has a request lifecycle (Draft, Submitted, Sent, Acknowledged,
   For Review, Partially Received, Received, Assessed, Overdue, Extension,
   Escalated, Cancelled, or Closed Without Submission) and a separate technical
@@ -271,19 +279,28 @@ IAP approved source / special authorization
 - Issued reports are immutable and reproducible from exact approved sources;
   corrections create new versions. `COMPLETED` is substantive completion;
   `CLOSED` is formal administrative closure and cannot bypass records blockers.
-- AEMS consumes ARMIS through a provider boundary, supports explicit interim
-  fallback, and blocks approval when mandatory resource data is missing or
-  stale. AEMS owns the recommendation and transfer provenance; CMS owns
-  post-transfer compliance monitoring.
+- AEMS consumes ARMIS through a provider boundary. `ARMIS_AUTHORITATIVE` is the
+  only operational provider mode; historical IAP/fallback values are lineage
+  or reconciliation evidence only and cannot satisfy live approval gates when
+  ARMIS data is missing or stale. AEMS owns the recommendation and transfer
+  provenance; CMS owns post-transfer compliance monitoring.
+- Engagement details remain locked until the AEO is approved. Lifecycle remains
+  available while detail workspaces are locked, and each locked workspace
+  displays the phase and action that unlocks it.
 
 ### 6.3 AEMS contextual SCR inventory
 
 The current registry contains 32 canonical SCR identifiers, including reserved
-`SCR-243`. Process Flow and Risk Matrix are artifacts inside SCR-221, not
-duplicate sidebar pages. SCR-220 engagement tabs are Overview, Planning,
-Execution, Audit Issues, AFRs, Conferences, Audit Reports, Completion &
-Transfer, and Activity. See the registry in `src/config/navigation.js` and the
-semantic acceptance test `AemsG10EAcceptanceTest`.
+`SCR-243`. SCR-212 is available as the dedicated
+`/audit-engagement-management/scope?engagementId=...` transaction and as the
+Foundation Audit Scope selector. Process Flow and Risk Matrix are artifacts
+inside SCR-221, not duplicate sidebar pages. SCR-224 is also available as the
+Planning Audit Procedure Details surface. SCR-220 engagement tabs are
+Overview, Planning, Execution, Audit Issues, AFRs, Conferences, Audit Reports,
+Completion & Transfer, and Activity. Entry and Exit Conferences are surfaced
+below Conference Management while remaining linked to the combined workspace.
+See the registry in `src/config/navigation.js` and the semantic acceptance test
+`AemsG10EAcceptanceTest`.
 
 ### 6.4 AEMS verification evidence
 

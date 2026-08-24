@@ -11,13 +11,13 @@ import {
   FileClock,
   Files,
   Link2,
+  LockKeyhole,
   ShieldCheck,
   Target,
   UsersRound,
 } from "lucide-react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
-import AemsEntryConferenceWorkspace from "../../components/aems/AemsEntryConferenceWorkspace";
 import AemsLifecycleWorkspace from "../../components/aems/AemsLifecycleWorkspace";
 import AemsCompletionAssessmentWorkspace from "../../components/aems/AemsCompletionAssessmentWorkspace";
 import AemsCompletionTransferWorkspace from "../../components/aems/AemsCompletionTransferWorkspace";
@@ -28,6 +28,11 @@ import AemsRetentionWorkspace from "../../components/aems/AemsRetentionWorkspace
 import AemsCalendarWorkspace from "../../components/aems/AemsCalendarWorkspace";
 import AemsRecordsWorkspace from "../../components/aems/AemsRecordsWorkspace";
 import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import {
+  getAemsWorkspaceGate,
+  statusLabel,
+  workspaceActionPath,
+} from "../../components/aems/aemsPhaseGates";
 import AemsScopeWorkspace from "../../components/aems/AemsScopeWorkspace";
 import AemsSpecialEngagementForm from "../../components/aems/AemsSpecialEngagementForm";
 import Modal from "../../components/ui/Modal";
@@ -158,6 +163,38 @@ function Panel({ icon: Icon, title, children, className = "" }) {
   );
 }
 
+function WorkspaceLockNotice({ gate, engagementId }) {
+  const actionPath = workspaceActionPath(gate.action, engagementId);
+
+  return (
+    <section className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 shadow-sm">
+      <div className="flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-800">
+          <LockKeyhole size={18} />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-bold">{gate.title}</h2>
+          <p className="mt-1 leading-6">{gate.reason}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-800">
+            <span className="rounded-full bg-white/70 px-2.5 py-1 ring-1 ring-amber-200">
+              Current phase: {statusLabel(gate.currentStatusLabel)}
+            </span>
+            <span className="rounded-full bg-white/70 px-2.5 py-1 ring-1 ring-amber-200">
+              Unlocks at: {statusLabel(gate.minimumStatus)}
+            </span>
+          </div>
+          <Link
+            className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-sky-700 px-3 py-2 text-xs font-bold text-white hover:bg-sky-800"
+            to={actionPath}
+          >
+            {gate.actionLabel}
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /**
  * Shows the complete engagement aggregate and the immutable planning snapshot
  * captured at import time.
@@ -281,15 +318,26 @@ export default function AemsEngagementDetailPage() {
   const risk = snapshot.riskAssessment;
   const universe = snapshot.auditUniverse;
   const activeTab = searchParams.get("tab") ?? "overview";
+  const detailUnlocked = ["APPROVED", "ISSUED", "SUPERSEDED"].includes(
+    engagement.engagementOrder?.status,
+  );
+  const secondaryGateByTab = {
+    "completion-assessment": "completion",
+    "completion-transfer": "completion",
+    closure: "completion",
+    "document-index": "completion",
+    retention: "completion",
+    records: "completion",
+    calendar: "completion",
+    "lessons-learned": "completion",
+  };
+  const activeGateKey = secondaryGateByTab[activeTab];
+  const activeWorkspaceGate = activeGateKey
+    ? getAemsWorkspaceGate(activeGateKey, engagement)
+    : null;
   const tabs = [
     ["overview", "Overview"],
-    ...(hasPermission(user, "aems.foundation.view")
-      ? [["scope", "Scope"]]
-      : []),
     ["lifecycle", "Lifecycle"],
-    ...(hasPermission(user, "aems.entry-conference.view")
-      ? [["entry-conference", "Entry Conference"]]
-      : []),
     ...(hasPermission(user, "aems.completion-assessment.view")
       ? [["completion-assessment", "Completion Assessment"]]
       : []),
@@ -324,7 +372,7 @@ export default function AemsEngagementDetailPage() {
         type="button"
       >
         <ArrowLeft size={17} />
-        Engagement Registry
+        Audit Engagement Workspace
       </button>
 
       <RegistryHeader
@@ -352,6 +400,14 @@ export default function AemsEngagementDetailPage() {
                   <Edit3 size={16} /> Edit engagement
                 </button>
               )}
+            {hasPermission(user, "aems.foundation.view") && (
+              <Link
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-sky-300 bg-white px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
+                to={`/audit-engagement-management/scope?engagementId=${engagement.id}`}
+              >
+                <Building2 size={16} /> Engagement Scope
+              </Link>
+            )}
             {hasPermission(user, "aems.team.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-sky-300 bg-white px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
@@ -368,7 +424,7 @@ export default function AemsEngagementDetailPage() {
                 <ClipboardList size={16} /> Engagement Order
               </Link>
             )}
-            {hasPermission(user, "aems.working-paper.view") && (
+            {detailUnlocked && hasPermission(user, "aems.working-paper.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
                 to={`/audit-engagement-management/working-papers?engagementId=${engagement.id}`}
@@ -376,7 +432,7 @@ export default function AemsEngagementDetailPage() {
                 <Files size={16} /> Working Papers
               </Link>
             )}
-            {hasPermission(user, "aems.issue.view") && (
+            {detailUnlocked && hasPermission(user, "aems.issue.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-700 hover:bg-amber-50"
                 to={`/audit-engagement-management/issues?engagementId=${engagement.id}`}
@@ -384,7 +440,7 @@ export default function AemsEngagementDetailPage() {
                 Audit Issues
               </Link>
             )}
-            {hasPermission(user, "aems.finding.view") && (
+            {detailUnlocked && hasPermission(user, "aems.finding.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-700 hover:bg-amber-50"
                 to={`/audit-engagement-management/findings?engagementId=${engagement.id}`}
@@ -392,7 +448,7 @@ export default function AemsEngagementDetailPage() {
                 Findings & Recommendations
               </Link>
             )}
-            {hasPermission(user, "aems.management-response.view") && (
+            {detailUnlocked && hasPermission(user, "aems.management-response.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-sky-300 bg-white px-3 text-xs font-bold text-sky-700 hover:bg-sky-50"
                 to={`/audit-engagement-management/auditee-responses?engagementId=${engagement.id}`}
@@ -400,15 +456,15 @@ export default function AemsEngagementDetailPage() {
                 Auditee Responses
               </Link>
             )}
-            {hasPermission(user, "aems.conference.view") && (
+            {detailUnlocked && hasPermission(user, "aems.conference.view") && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
-                to={`/audit-engagement-management/exit-conferences?engagementId=${engagement.id}`}
+                to={`/audit-engagement-management/conferences?engagementId=${engagement.id}`}
               >
-                <CalendarCheck2 size={16} /> Exit Conferences
+                <CalendarCheck2 size={16} /> Conference Management
               </Link>
             )}
-            {(hasPermission(user, "aems.report.view") ||
+            {detailUnlocked && (hasPermission(user, "aems.report.view") ||
               hasPermission(user, "aems.report.view_issued")) && (
               <Link
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-violet-300 bg-white px-3 text-xs font-bold text-violet-700 hover:bg-violet-50"
@@ -421,38 +477,60 @@ export default function AemsEngagementDetailPage() {
         }
       />
 
-      <AemsEngagementWorkspaceNav engagementId={engagement.id} />
+      <AemsEngagementWorkspaceNav
+        engagement={engagement}
+        engagementId={engagement.id}
+      />
 
       <nav
         aria-label="Engagement workspace sections"
         className="mb-5 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
       >
-        {tabs.map(([value, label]) => (
-          <button
-            aria-current={activeTab === value ? "page" : undefined}
-            className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center px-3 py-2.5 text-center text-sm font-bold leading-4 transition sm:flex-none sm:px-4 ${
-              activeTab === value
-                ? "bg-sky-700 text-white"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-            key={value}
-            onClick={() =>
-              setSearchParams(value === "overview" ? {} : { tab: value })
-            }
-            type="button"
-          >
-            {label}
-          </button>
-        ))}
+        {tabs.map(([value, label]) => {
+          const gateKey = secondaryGateByTab[value];
+          const gate = gateKey
+            ? getAemsWorkspaceGate(gateKey, engagement)
+            : null;
+          const locked = Boolean(gate && !gate.unlocked);
+          return locked ? (
+            <span
+              aria-disabled="true"
+              className="inline-flex min-h-10 min-w-0 flex-1 cursor-not-allowed items-center justify-center gap-2 px-3 py-2.5 text-center text-sm font-bold leading-4 text-slate-400 sm:flex-none sm:px-4"
+              key={value}
+              title={`${gate.title}: ${gate.reason}`}
+            >
+              <LockKeyhole size={14} />
+              {label}
+            </span>
+          ) : (
+            <button
+              aria-current={activeTab === value ? "page" : undefined}
+              className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center px-3 py-2.5 text-center text-sm font-bold leading-4 transition sm:flex-none sm:px-4 ${
+                activeTab === value
+                  ? "bg-sky-700 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+              key={value}
+              onClick={() =>
+                setSearchParams(value === "overview" ? {} : { tab: value })
+              }
+              type="button"
+            >
+              {label}
+            </button>
+          );
+        })}
       </nav>
 
-      {activeTab === "scope" && hasPermission(user, "aems.foundation.view") ? (
+      {activeWorkspaceGate && !activeWorkspaceGate.unlocked ? (
+        <WorkspaceLockNotice
+          engagementId={engagement.id}
+          gate={activeWorkspaceGate}
+        />
+      ) : activeTab === "scope" && hasPermission(user, "aems.foundation.view") ? (
         <AemsScopeWorkspace engagementId={engagement.id} initialEngagement={engagement} />
       ) : activeTab === "lifecycle" ? (
         <AemsLifecycleWorkspace engagementId={engagement.id} />
-      ) : activeTab === "entry-conference" &&
-        hasPermission(user, "aems.entry-conference.view") ? (
-        <AemsEntryConferenceWorkspace engagementId={engagement.id} />
       ) : activeTab === "completion-assessment" &&
         hasPermission(user, "aems.completion-assessment.view") ? (
         <AemsCompletionAssessmentWorkspace engagementId={engagement.id} />
@@ -477,6 +555,16 @@ export default function AemsEngagementDetailPage() {
       ) : activeTab === "lessons-learned" &&
         hasPermission(user, "aems.closure.view") ? (
         <AemsLessonsWorkspace engagementId={engagement.id} />
+      ) : !detailUnlocked ? (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 shadow-sm">
+          <h2 className="text-base font-bold">Engagement details are locked</h2>
+          <p className="mt-2 leading-6">Complete the Engagement Scope, Audit Team, and Engagement Order workflow first. The full engagement details become available after the AEO is approved; the Lifecycle tab remains available so you can continue the next authorized phase.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="rounded-lg bg-sky-700 px-3 py-2 text-xs font-bold text-white" to={`/audit-engagement-management/scope?engagementId=${engagement.id}`}>Open Engagement Scope</Link>
+            <Link className="rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-700" to={`/audit-engagement-management/team?engagementId=${engagement.id}`}>Open Audit Team</Link>
+            <Link className="rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-700" to={`/audit-engagement-management/aeo?engagementId=${engagement.id}`}>Open Engagement Order</Link>
+          </div>
+        </section>
       ) : (
         <>
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -692,6 +780,31 @@ export default function AemsEngagementDetailPage() {
               </div>
             </Panel>
           )}
+
+          <Panel icon={UsersRound} title="Assigned audit team">
+            {engagement.teamMembers.length ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {engagement.teamMembers.map((member) => (
+                  <div
+                    className="rounded-lg border border-slate-200 px-3 py-2"
+                    key={member.id}
+                  >
+                    <strong className="block text-sm text-slate-800">
+                      {member.user?.name}
+                    </strong>
+                    <span className="text-xs text-slate-500">
+                      {member.assignmentRoleCode} Â·{" "}
+                      {member.plannedPersonDays} days
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                The audit team has not been assigned yet.
+              </p>
+            )}
+          </Panel>
         </div>
 
         <aside className="min-w-0 space-y-5">
@@ -719,7 +832,7 @@ export default function AemsEngagementDetailPage() {
             </div>
           </Panel>
 
-          <Panel icon={UsersRound} title="Assigned audit team">
+          <Panel className="hidden" icon={UsersRound} title="Assigned audit team">
             {engagement.teamMembers.length ? (
               <div className="space-y-2">
                 {engagement.teamMembers.map((member) => (
@@ -746,7 +859,8 @@ export default function AemsEngagementDetailPage() {
 
           <Panel icon={CalendarDays} title="Registry history">
             {engagement.events.length ? (
-              <ol className="space-y-4">
+              <div className="max-h-[28rem] overflow-y-auto pr-2">
+                <ol className="space-y-4">
                 {engagement.events
                   .slice()
                   .reverse()
@@ -768,7 +882,8 @@ export default function AemsEngagementDetailPage() {
                       )}
                     </li>
                   ))}
-              </ol>
+                </ol>
+              </div>
             ) : (
               <p className="text-sm text-slate-500">
                 No registry events recorded.

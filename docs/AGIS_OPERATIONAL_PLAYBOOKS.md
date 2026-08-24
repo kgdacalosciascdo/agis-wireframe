@@ -114,7 +114,7 @@ Prerequisites: current audit universe and risk source.
 Prerequisites: IAP plan is Approved or Active, source is in scope, and the user
 has the AEMS create/import permission.
 
-1. Open Engagement Registry > Import approved IAP plan.
+1. Open Audit Engagement Workspace > Import approved IAP plan.
 2. Search by source plan, year, office, area/focus, and engagement option.
 3. Open the preview and confirm the source ID/version, risk source, office,
    schedule, and snapshot hash.
@@ -124,19 +124,26 @@ has the AEMS create/import permission.
 
 ### 4.2 Prepare and issue an AEO
 
-1. Open Engagement Orders for the engagement and create a Draft version.
-2. Complete objective, authority, scope/office, period, team/roles, signatory
+1. Confirm the engagement is in `DRAFT`, open Engagement Scope, select exactly
+   one office, then select only office-linked Audit Areas and Area-linked Audit
+   Focuses. Save the scope and verify the selected Focuses persist after reload.
+2. Open Lifecycle and select **Prepare Authorization**. Confirm Audit Team is
+   locked in `DRAFT` and becomes available in `AUTHORIZATION_PREPARATION`.
+3. Assign the team and complete the required ARMIS competency, capacity,
+   workload, objectivity, conflict-of-interest, and independence safeguards.
+4. Open Engagement Orders for the engagement and create a Draft version.
+5. Complete objective, authority, scope/office, period, team/roles, signatory
    matrix, recipients, transmittal method, and attachments.
-3. Save and run readiness. Fix missing signature/distribution fields.
-4. Select Submit. The assigned reviewer records review or selects Return with a
+6. Save and run readiness. Fix missing signature/distribution fields.
+7. Select Submit. The assigned reviewer records review or selects Return with a
    reason. If the preparer is the active CIAS Head, she may record the AEO
    review herself under the documented exception. When no alternate CIAS
    Management authority is available, she may also approve and issue it.
-5. Otherwise, an active CIAS Management account approves the reviewed AEO. A
+8. Otherwise, an active CIAS Management account approves the reviewed AEO. A
    different active CIAS Management account then records the issuing signature,
    issue date, recipients,
    transmittal, and acknowledgement requirements, then selects Issue.
-6. Verify status ISSUED, immutable version/checksum, and notifications.
+9. Verify status ISSUED, immutable version/checksum, and notifications.
    Auditee recipients do not open the internal AEMS workspace. They use the
    CMS **AEO Acknowledgements** page (or its notification link) to acknowledge
    the issued transmittal addressed to their user or office. The page shows
@@ -145,13 +152,13 @@ has the AEMS create/import permission.
    approved AEO** action. The transmittal recipient is selected from the
    engagement-scoped office or active auditee-representative user list; IDs
    must not be typed manually.
-7. Open the engagement **Lifecycle** tab and select **Issue Authorization**.
+10. Open the engagement **Lifecycle** tab and select **Issue Authorization**.
    This is the aggregate gate that follows child AEO issuance and changes the
    engagement status to **AUTHORIZED**. If the active CIAS Head is the sole
    CIAS Management authority, she may execute this gate for an engagement she
    created; the exception is restricted to this authorization action and is
    logged. Then select **Start Planning** to move to **ENGAGEMENT_PLANNING**.
-8. To correct an issued AEO, select Amend/Supersede and create a new version.
+11. To correct an issued AEO, select Amend/Supersede and create a new version.
    Cancel/Void is reserved for the authorized invalidation decision and requires
    a reason; it does not delete the prior version.
 

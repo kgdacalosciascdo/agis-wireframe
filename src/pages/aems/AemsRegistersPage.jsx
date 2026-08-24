@@ -250,7 +250,7 @@ export default function AemsRegistersPage() {
                   className="rounded-lg border border-slate-200 px-3 py-3 text-sm font-bold text-slate-700 hover:border-sky-300 hover:bg-sky-50"
                   href={`/audit-engagement-management?engagementId=${selectedId}`}
                 >
-                  Engagement Registry{" "}
+                  Audit Engagement Workspace{" "}
                   <span className="block text-xs font-normal text-slate-500">
                     Scope-aware engagement register
                   </span>

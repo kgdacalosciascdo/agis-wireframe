@@ -21,6 +21,8 @@ import {
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/auth-context";
 import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import Modal from "../../components/ui/Modal";
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
@@ -82,7 +84,6 @@ function label(value) {
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
-
 function date(value, withTime = false) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("en-PH", {
@@ -545,6 +546,7 @@ export default function AemsExecutionWorkspacePage() {
 
   const editable = editingRecord && ["DRAFT", "RETURNED_FOR_REVISION"].includes(editingRecord.status);
   const selectedEngagement = workspace?.engagement;
+  const executionGate = getAemsWorkspaceGate("execution", selectedEngagement);
 
   return (
     <main className="min-w-0 p-3 sm:p-5 lg:p-6" data-testid="aems-execution-workspace">
@@ -558,7 +560,7 @@ export default function AemsExecutionWorkspacePage() {
             <ActionButton onClick={loadWorkspace} disabled={loading}>
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
             </ActionButton>
-            {canCreateRecord && engagementId && (
+            {executionGate.unlocked && canCreateRecord && engagementId && (
               <ActionButton tone="blue" onClick={openCreateRecord}>
                 <Plus size={16} /> New Fieldwork Record
               </ActionButton>
@@ -591,11 +593,23 @@ export default function AemsExecutionWorkspacePage() {
         )}
       </section>
 
-      {engagementId && <AemsEngagementWorkspaceNav engagementId={engagementId} />}
+      {engagementId && (
+        <AemsEngagementWorkspaceNav
+          engagement={selectedEngagement}
+          engagementId={engagementId}
+        />
+      )}
 
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
-      {workspace && (
+      {selectedEngagement && !executionGate.unlocked && (
+        <AemsWorkspaceLockNotice
+          engagementId={engagementId}
+          gate={executionGate}
+        />
+      )}
+
+      {executionGate.unlocked && workspace && (
         <>
           <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <SummaryCard icon={ClipboardList} label="Active procedures" value={procedures.length} tone="sky" />
@@ -661,7 +675,7 @@ export default function AemsExecutionWorkspacePage() {
               ) : <section className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Select an Audit Program procedure to inspect its execution.</section>}
 
               <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <header className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div><h2 className="font-bold text-slate-800">Fieldwork Records</h2><p className="mt-1 text-xs text-slate-500">Immutable execution versions linked to the selected procedure.</p></div><div className="flex items-center gap-2"><select className={`${inputClass} h-10 min-w-40`} value={recordType} onChange={(event) => setRecordType(event.target.value)}><option value="">All types</option>{(workspace.recordTypes ?? []).map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>{canCreateRecord && <ActionButton tone="blue" onClick={openCreateRecord}><Plus size={15} /> New record</ActionButton>}</div></header>
+                <header className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div><h2 className="font-bold text-slate-800">Fieldwork Records</h2><p className="mt-1 text-xs text-slate-500">Immutable execution versions linked to the selected procedure.</p></div><div className="flex items-center gap-2"><select className={`${inputClass} h-10 min-w-40`} value={recordType} onChange={(event) => setRecordType(event.target.value)}><option value="">All types</option>{(workspace.recordTypes ?? []).map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>{executionGate.unlocked && canCreateRecord && <ActionButton tone="blue" onClick={openCreateRecord}><Plus size={15} /> New record</ActionButton>}</div></header>
                 <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.45fr)]">
                   <div className="space-y-2" data-testid="fieldwork-record-list">{selectedRecords.map((record) => <button className={`w-full rounded-xl border p-3 text-left transition ${String(record.id) === String(recordId) ? "border-sky-300 bg-sky-50 ring-1 ring-sky-200" : "border-slate-200 hover:border-sky-200 hover:bg-slate-50"}`} key={record.id} onClick={() => setRecordId(String(record.id))} type="button"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-sky-800">{record.recordCode}</strong><StatusBadge tone={statusTones[record.status] ?? "info"}>{label(record.status)}</StatusBadge></div><p className="mt-1 text-xs font-semibold text-slate-700">{label(record.recordType)}</p><p className="mt-1 text-[11px] text-slate-500">Version {record.currentVersionNumber}; {record.latestVersion ? date(record.latestVersion.performedOn) : "not performed"}</p></button>)}{!selectedRecords.length && <p className="rounded-lg bg-slate-50 p-5 text-center text-sm text-slate-500">No Fieldwork Records for this procedure.</p>}</div>
                   {selectedRecord && latestVersion ? <RecordDetail record={selectedRecord} version={latestVersion} actions={recordActions} onAction={openAction} onEdit={() => openEditRecord(selectedRecord)} onIssue={canIssueCreate && canIssueView ? openIssue : null} engagementId={engagementId} /> : <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">Select a Fieldwork Record to inspect its narrative, traceability, reviewer notes, and timeline.</div>}

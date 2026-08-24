@@ -13,6 +13,8 @@ developer. It is an operational companion to the detailed design and API
 documents, not a replacement for source code. When a statement conflicts with
 the application, the following order is authoritative:
 
+**Last synchronized with source and tests:** 24 August 2026.
+
 1. Laravel services, Form Requests, policies, models, migrations, and routes.
 2. React routes, navigation registry, and API client.
 3. Automated Feature and Playwright tests.
@@ -187,7 +189,7 @@ The common plan lifecycle is:
 
 1. Ensure the Annual Audit Plan is approved/active and the intended engagement
    option has a stable source ID.
-2. In AEMS Engagement Registry choose Import approved IAP plan and select only
+2. In the Audit Engagement Workspace choose Import approved IAP plan and select only
    an eligible source in the user's scope.
 3. Review the preview: source plan/version, office, audit area/focus,
    risk-source discriminator, schedule, and snapshot hash.
@@ -221,14 +223,16 @@ Planning Package, not separate sidebar modules.
 | Workspace/route | SCR or contract | Purpose |
 | --- | --- | --- |
 | AEMS Dashboard | Portfolio | Engagement progress, work queues, overdue items, conferences, reports, closure readiness |
-| Engagement Registry (/audit-engagement-management) | SCR-210/211 | Create, import, activate, search, filter, and open engagements |
+| Audit Engagement Workspace (/audit-engagement-management) | SCR-210/211 | Create/import engagements, edit foundation metadata, search/filter, archive/restore, and open engagement context |
+| Engagement Scope (/audit-engagement-management/scope) | SCR-212 | Select exactly one office, office-linked Audit Areas, and Area-linked Audit Focuses; record boundaries, limitations, and source variance |
 | Audit Team (/team) | SCR-213 | Assign people, competencies, independence, workload, and amendments |
 | Engagement Orders (/aeo) | SCR-214 | Prepare, review, approve, issue, supersede, cancel/void AEO versions |
-| Planning Package (/planning-package) | SCR-221 | Preliminary survey, Process Flow, Risk Matrix, readiness, review/versioning |
+| Planning Workspace (/planning-package) | SCR-221 | Preliminary survey, Process Flow, Risk Matrix, AEP + KPIs, readiness, review/versioning |
 | Engagement Plan (/aep) | SCR-222 | Objective, scope, criteria, approach, communication and approval |
 | Audit Program (/audit-program) | SCR-223/224 | Procedures, risks, criteria, sampling, planned WP, person-days, execution links |
+| Audit Procedure Details (/audit-procedure-details) | SCR-224 | Procedure process/method/risk lineage, responsible person, planned days, WP/evidence links, results, conclusion, review, and issue creation |
 | Execution Workspace (/execution) | SCR-226/227 | Fieldwork records, procedure execution, tasks, reviewer notes, blockers |
-| Entry Conferences (/entry-conferences) and Conference Management | SCR-225 | Schedule, participants, attendance, agenda, minutes, agreements |
+| Conference Management (/conferences) | SCR-225 | Manage Entry and Exit Conference schedules, participants, attendance, agenda, minutes, agreements, waivers, and acknowledgements |
 | Working Papers & Evidence (/working-papers) | SCR-228 | WP lifecycle, immutable approved versions, evidence/WP traceability |
 | Evidence Management (/evidence) | SCR-229 | Requests, receipt, assessment, gaps, restriction, custody, protected files |
 | Audit Issues (/issues) | SCR-230/231/232 | Issue register, dispositions, merge/referral/resolution/withdrawal |
@@ -242,21 +246,25 @@ Planning Package, not separate sidebar modules.
 | Records & Administrative Closure (/records-closure) | SCR-260–263 | Retention, archive/disposition, legal hold, completion, CMS transfer, closure/reopen |
 
 The engagement workspace tabs are Overview, Planning, Execution, Audit Issues,
-AFRs, Conferences, Audit Reports, Completion & Transfer, and Activity. The
-sidebar opens a workspace; the tab/action opens the engagement context.
+AFRs, Conferences, Audit Reporting Workspace, Completion & Transfer, and
+Activity. The sidebar opens a workspace; the tab/action opens the engagement
+context. Entry and Exit Conference compatibility routes remain available below
+Conference Management, but Conference Management is the primary combined
+workspace.
 
 ### 5.2 Engagement authorization procedure
 
-1. Create an engagement or import an approved IAP source. Enter exactly one
-   canonical office, area/focus coverage, objectives, period, scope,
-   exclusions, limitations, source variance, and planned milestones. New
-   special/unplanned records are saved as `DRAFT`; the recorded external
-   authority does not bypass the internal authorization transitions. Before
-   authorization or planning begins, use **Edit engagement** from the detail
-   workspace to correct the registry metadata.
-2. Assign a team only after checking ARMIS/IAP provider status, competency,
-   availability, leave/training conflicts, workload, objectivity, and
-   independence declarations.
+1. Create an engagement or import an approved IAP source. New special/unplanned
+   records are saved as `DRAFT`; external authority details do not bypass the
+   internal authorization workflow. Open **Engagement Scope**, select exactly
+   one office first, then choose only Audit Areas linked to that office and
+   Audit Focuses linked to those areas. Save the scope with boundaries,
+   limitations, source variance, and applicable objectives.
+2. From `DRAFT`, use the Lifecycle workspace to select **Prepare Authorization**.
+   Audit Team assignment is intentionally locked during `DRAFT` and unlocks in
+   **Authorization Preparation**. Assign the team only after checking current
+   ARMIS competency, availability, leave/training conflicts, workload,
+   objectivity, and independence declarations.
 3. Prepare the AEO and its authority/signatory/distribution metadata. Submit;
    the assigned reviewer records review or returns it with reasons. The active
    CIAS Head may record review of an AEO she prepared as a controlled exception.
@@ -447,6 +455,7 @@ does not edit AEMS findings or decide whether an audit finding was valid.
 | Page | Function |
 | --- | --- |
 | CMS Dashboard | Scope-aware case counts, overdue work, response/validation/closure queues |
+| AEO Acknowledgements (`/compliance-management/aeo-acknowledgements`) | Recipient-scoped issued AEO copies, protected approved-PDF download, and auditee office/user acknowledgement |
 | Recommendation Registry/Detail | Search immutable intake, assignment, provenance, status, and actions |
 | Action Plans | Draft/submit/review/accept plans, actions, personnel, target dates |
 | Progress Updates | Periodic evidence, claimed completion, comments, attachments, review |
@@ -507,8 +516,10 @@ scope-aware, confidentiality-aware, rate-limited, and checksum-preserved.
 
 ## 7. Audit Resource Management (ARMIS)
 
-ARMIS is authoritative when explicitly activated; IAP is the default interim
-fallback for AEMS until the provider authority gate is accepted.
+ARMIS is the sole operational resource provider. The only active provider mode
+is `ARMIS_AUTHORITATIVE`; IAP resource values and historical fallback/shadow
+records are retained only for planning lineage or historical reconciliation and
+cannot be selected as a live provider.
 
 ### 7.1 ARMIS pages
 

@@ -4,6 +4,8 @@ import { useSearchParams } from "react-router";
 import { aemsClosureApi, aemsEngagementApi } from "../../services/api";
 import RegistryHeader from "../../components/ui/RegistryHeader";
 import AemsCalendarWorkspace from "../../components/aems/AemsCalendarWorkspace";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 
 export default function AemsCalendarPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,6 +59,11 @@ export default function AemsCalendarPage() {
     };
   }, [selectedId]);
 
+  const selectedEngagement = engagements.find(
+    (item) => String(item.id) === String(selectedId),
+  );
+  const completionGate = getAemsWorkspaceGate("completion", selectedEngagement);
+
   return (
     <div className="min-w-0" data-testid="aems-calendar-page">
       <RegistryHeader
@@ -103,7 +110,9 @@ export default function AemsCalendarPage() {
           </select>
         </label>
       </section>
-      {selectedId ? (
+      {selectedId && !completionGate.unlocked ? (
+        <AemsWorkspaceLockNotice engagementId={selectedId} gate={completionGate} />
+      ) : selectedId ? (
         <>
           <div className="mb-5 grid gap-3 sm:grid-cols-3">
             {[

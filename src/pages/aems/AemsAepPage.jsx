@@ -20,6 +20,8 @@ import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import { hasPermission } from "../../config/navigation";
 import { aemsAepApi, aemsEngagementApi, ApiError } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
@@ -195,6 +197,8 @@ export default function AemsAepPage() {
 
   const plan = workspace?.plan;
   const version = plan?.latestVersion;
+  const planningGate = getAemsWorkspaceGate("planning", workspace?.engagement);
+  const planningUnlocked = planningGate.unlocked;
   const risk = version?.linkedRiskSnapshot?.riskAssessment;
   const engagementOptions = engagements.map((engagement) => ({
     value: engagement.id,
@@ -203,7 +207,9 @@ export default function AemsAepPage() {
   }));
 
   const actions = useMemo(() => {
-    if (!plan) return [];
+    // The complete Planning Workspace, including AEP review actions, stays
+    // locked until the aggregate engagement reaches ENGAGEMENT_PLANNING.
+    if (!plan || !planningUnlocked) return [];
     const available = [];
     if (plan.status === "DRAFT" && canCreate) {
       available.push(["SUBMIT", "Submit for review", Send, "primary"]);
@@ -227,7 +233,7 @@ export default function AemsAepPage() {
       ]);
     }
     return available;
-  }, [canApprove, canCreate, canReview, canRevise, plan]);
+  }, [canApprove, canCreate, canReview, canRevise, plan, planningUnlocked]);
 
   function updateNested(group, key, value) {
     setForm((current) => ({
@@ -342,9 +348,9 @@ export default function AemsAepPage() {
         icon={ClipboardCheck}
         title="Audit Engagement Plan"
         description="Define the objectives, scope, methodology, criteria, resources, source risks, schedule, and management coordination for an authorized engagement."
-        readOnly={!canCreate && !canReview && !canApprove}
+        readOnly={!planningUnlocked || (!canCreate && !canReview && !canApprove)}
         actions={
-          !plan && canCreate && selectedId ? (
+          !plan && canCreate && planningUnlocked && selectedId ? (
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white hover:bg-sky-800 disabled:opacity-50"
               disabled={!workspace?.issuedAeo}
@@ -378,7 +384,11 @@ export default function AemsAepPage() {
         </div>
       )}
 
-      {workspace && !workspace.issuedAeo && !plan && (
+      {workspace && !planningUnlocked && (
+        <AemsWorkspaceLockNotice engagementId={selectedId} gate={planningGate} />
+      )}
+
+      {workspace && planningUnlocked && !workspace.issuedAeo && !plan && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <strong>Authorization prerequisite:</strong> issue the Audit
           Engagement Order before preparing the AEP.
@@ -396,7 +406,7 @@ export default function AemsAepPage() {
               The AEP converts the issued authority and preserved IAP risk
               context into the engagement’s controlled execution plan.
             </p>
-            {canCreate && workspace.issuedAeo && (
+            {canCreate && planningUnlocked && workspace.issuedAeo && (
               <button
                 className="mt-5 inline-flex items-center gap-2 rounded-lg bg-sky-700 px-5 py-3 text-sm font-bold text-white"
                 onClick={openForm}

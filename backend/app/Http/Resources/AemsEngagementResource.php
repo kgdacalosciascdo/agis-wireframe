@@ -59,6 +59,15 @@ class AemsEngagementResource extends JsonResource
                 'engagementApproach',
                 fn () => $this->item($this->engagementApproach),
             ),
+            'engagementOrder' => $this->whenLoaded('engagementOrder', fn () => $this->engagementOrder ? [
+                'id' => $this->engagementOrder->id,
+                'status' => $this->engagementOrder->status,
+                'currentVersionNumber' => $this->engagementOrder->current_version_number,
+                'approvedAt' => $this->engagementOrder->approved_at?->toISOString(),
+                'issuedAt' => $this->engagementOrder->issued_at?->toISOString(),
+                'approver' => $this->engagementOrder->relationLoaded('approver') && $this->engagementOrder->approver ? ['id' => $this->engagementOrder->approver->id, 'name' => $this->engagementOrder->approver->name] : null,
+                'issuer' => $this->engagementOrder->relationLoaded('issuer') && $this->engagementOrder->issuer ? ['id' => $this->engagementOrder->issuer->id, 'name' => $this->engagementOrder->issuer->name] : null,
+            ] : null),
             'specialAuthorityApprover' => $this->whenLoaded(
                 'specialAuthorityApprover',
                 fn () => $this->user($this->specialAuthorityApprover),

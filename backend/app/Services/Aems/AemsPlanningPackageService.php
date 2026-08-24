@@ -47,7 +47,9 @@ class AemsPlanningPackageService
             'planningPackage.versions.reviews.reviewer',
             'planningPackage.reviews.reviewer',
             'planningPackage.reviews.version',
-            'auditAreas:id',
+            'auditAreas:id,code,name',
+            'auditFocuses:id,audit_area_id,code,name',
+            'offices:id,code,name',
         ]);
         $package = $engagement->planningPackage;
         $versions = $package?->versions ?? collect();
@@ -56,14 +58,36 @@ class AemsPlanningPackageService
         $procedures = $program?->procedures()->with('program')->get() ?? collect();
 
         return [
-            'engagement' => ['id' => $engagement->id, 'engagementCode' => $engagement->engagement_code, 'title' => $engagement->title, 'status' => $engagement->status, 'sourceType' => $engagement->source_type],
+            'engagement' => [
+                'id' => $engagement->id,
+                'engagementCode' => $engagement->engagement_code,
+                'title' => $engagement->title,
+                'status' => $engagement->status,
+                'sourceType' => $engagement->source_type,
+                'offices' => $engagement->offices->map(fn ($office): array => [
+                    'id' => $office->id,
+                    'code' => $office->code,
+                    'name' => $office->name,
+                ])->values(),
+                'auditAreas' => $engagement->auditAreas->map(fn ($area): array => [
+                    'id' => $area->id,
+                    'code' => $area->code,
+                    'name' => $area->name,
+                ])->values(),
+                'auditFocuses' => $engagement->auditFocuses->map(fn ($focus): array => [
+                    'id' => $focus->id,
+                    'auditAreaId' => $focus->audit_area_id,
+                    'code' => $focus->code,
+                    'name' => $focus->name,
+                ])->values(),
+            ],
             'lineage' => $this->lineage($engagement),
             'approvedAep' => $engagement->engagementPlan?->status === 'APPROVED',
             'approvedProgram' => (bool) ($program && in_array($program->status, ['APPROVED', 'ACTIVE', 'COMPLETED'], true)),
             'package' => $package ? $this->packageSnapshot($package, $version, $versions) : null,
             'readiness' => $version ? $this->readiness($engagement, $package, $version, $procedures) : $this->emptyReadiness(),
             'procedures' => $procedures->map(fn (AuditProgramProcedure $procedure): array => ['id' => $procedure->id, 'code' => $procedure->procedure_code, 'objective' => $procedure->objective, 'auditAreaId' => $procedure->audit_area_id, 'auditFocusId' => $procedure->audit_focus_id, 'processName' => $procedure->process_name, 'auditMethod' => $procedure->audit_method, 'auditCriteria' => $procedure->audit_criteria, 'plannedPersonDays' => $procedure->planned_person_days, 'samplingRequirement' => $procedure->sampling_requirement ?? [], 'plannedWorkingPaperRequirement' => $procedure->planned_working_paper_requirement ?? []])->values(),
-            'capabilities' => ['canCreate' => ! $package, 'canEdit' => (bool) $package && in_array($package->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true), 'canReview' => (bool) $package && in_array($package->status, ['PENDING_REVIEW', 'RESUBMITTED'], true), 'canApprove' => (bool) $package && in_array($package->status, ['PENDING_REVIEW', 'RESUBMITTED'], true), 'canRevise' => $package?->status === 'APPROVED'],
+            'capabilities' => ['canCreate' => ! $package && $engagement->status === 'ENGAGEMENT_PLANNING', 'canEdit' => $engagement->status === 'ENGAGEMENT_PLANNING' && (bool) $package && in_array($package->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true), 'canReview' => (bool) $package && in_array($package->status, ['PENDING_REVIEW', 'RESUBMITTED'], true), 'canApprove' => (bool) $package && in_array($package->status, ['PENDING_REVIEW', 'RESUBMITTED'], true), 'canRevise' => $engagement->status === 'ENGAGEMENT_PLANNING' && $package?->status === 'APPROVED'],
         ];
     }
 
@@ -73,6 +97,11 @@ class AemsPlanningPackageService
         $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.planning-package.create');
         return DB::transaction(function () use ($request, $engagement, $attributes): AemsPlanningPackage {
             $locked = AuditEngagement::query()->lockForUpdate()->findOrFail($engagement->id);
+            if ($locked->status !== 'ENGAGEMENT_PLANNING') {
+                throw ValidationException::withMessages([
+                    'engagement' => ['Planning Workspace is locked until the engagement reaches ENGAGEMENT_PLANNING after an issued AEO is acknowledged by the auditee office.'],
+                ]);
+            }
             if ($locked->planningPackage()->exists()) {
                 throw ValidationException::withMessages(['package' => ['This engagement already has a planning package.']]);
             }
@@ -101,6 +130,11 @@ class AemsPlanningPackageService
         $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.planning-package.update');
         return DB::transaction(function () use ($request, $engagement, $package, $attributes): AemsPlanningPackage {
             $locked = $this->lockPackage($engagement, $package, (int) $attributes['lockVersion']);
+            if ($engagement->status !== 'ENGAGEMENT_PLANNING') {
+                throw ValidationException::withMessages([
+                    'engagement' => ['Planning Workspace is locked until the engagement reaches ENGAGEMENT_PLANNING.'],
+                ]);
+            }
             if (! in_array($locked->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true)) {
                 throw ValidationException::withMessages(['status' => ['Only a draft or returned planning package can be edited.']]);
             }
@@ -120,6 +154,11 @@ class AemsPlanningPackageService
         if (! isset($permissions[$action])) throw ValidationException::withMessages(['action' => ['Unsupported planning package workflow action.']]);
         $this->access->authorizeEngagementAction($request->user(), $engagement, $permissions[$action], in_array($action, ['REVIEW', 'RETURN', 'APPROVE'], true) ? $package->prepared_by : null);
         return DB::transaction(function () use ($request, $engagement, $package, $action, $lockVersion, $comment): AemsPlanningPackage {
+            if ($engagement->status !== 'ENGAGEMENT_PLANNING') {
+                throw ValidationException::withMessages([
+                    'engagement' => ['Planning Workspace workflow is unavailable until the engagement reaches ENGAGEMENT_PLANNING.'],
+                ]);
+            }
             $locked = $this->lockPackage($engagement, $package, $lockVersion);
             $version = $locked->latestVersion()->firstOrFail();
             $from = $locked->status;

@@ -25,6 +25,9 @@ import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
+import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import { hasPermission } from "../../config/navigation";
 import { aemsFindingApi, ApiError } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
@@ -268,6 +271,10 @@ export default function AemsFindingsPage({ section = "findings" }) {
   );
   const selectedFinding = workspace?.findings.find(
     (item) => String(item.id) === String(selectedFindingId),
+  );
+  const phaseGate = getAemsWorkspaceGate(
+    section === "issues" ? "issues" : "afrs",
+    workspace?.engagement ?? engagements.find((item) => String(item.id) === String(engagementId)),
   );
   const filteredIssues = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -743,6 +750,23 @@ export default function AemsFindingsPage({ section = "findings" }) {
   const currentResponse = selectedFinding?.managementResponses.find(
     (item) => item.isCurrentRevision,
   );
+
+  if (workspace && !phaseGate.unlocked) {
+    return (
+      <main className="min-w-0 p-4 sm:p-5">
+        <RegistryHeader
+          icon={ShieldCheck}
+          title={section === "issues" ? "Audit Issues" : "Findings & Recommendations"}
+          description="This workspace is available only after the engagement reaches its authorized lifecycle phase."
+        />
+        <AemsEngagementWorkspaceNav
+          engagement={workspace.engagement}
+          engagementId={engagementId}
+        />
+        <AemsWorkspaceLockNotice engagementId={engagementId} gate={phaseGate} />
+      </main>
+    );
+  }
 
   return (
     <main className="min-w-0 p-4 sm:p-5">

@@ -148,7 +148,7 @@ class AemsClosureChecklistService
             in_array($engagement->entryConference?->status, ['COMPLETED', 'WAIVED'], true),
             'Entry Conference status: '.($engagement->entryConference?->status ?? 'MISSING'),
             'ENTRY_CONFERENCE', $engagement->entryConference?->id,
-            $this->link($engagement, 'entry-conference'));
+            "/audit-engagement-management/conferences?engagementId={$engagement->id}");
 
         $add('PROGRAM_COMPLETED', 'FIELDWORK', 'Audit Program is completed',
             $program?->status === 'COMPLETED',
@@ -204,7 +204,7 @@ class AemsClosureChecklistService
             ),
             'Terminal Exit Conference status is required.',
             'EXIT_CONFERENCE', $engagement->exitConferences->first()?->id,
-            '/audit-engagement-management/exit-conferences?engagementId='.$engagement->id);
+            '/audit-engagement-management/conferences?engagementId='.$engagement->id);
         $limitations = filled($assessment?->limitations_summary);
         $add('LIMITATIONS_DISCLOSED', 'FINDINGS', 'Material scope limitations have approved report disclosure',
             ! $limitations,

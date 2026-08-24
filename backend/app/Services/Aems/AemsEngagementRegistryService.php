@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\Aems\IapEngagementGateway;
 use App\Models\AuditEngagement;
+use App\Models\AuditArea;
 use App\Models\AuditFocus;
 use App\Models\IapPlanEngagement;
 use App\Models\User;
@@ -130,7 +131,12 @@ class AemsEngagementRegistryService
                     ],
                 ]);
             }
-            $this->validateCoverage($validated);
+            if (! empty($validated['officeIds']) || ! empty($validated['auditAreaIds'])) {
+                if (empty($validated['officeIds']) || empty($validated['auditAreaIds'])) {
+                    throw ValidationException::withMessages(['scope' => ['Engagement scope must be completed in the separate Scope workspace with one office and at least one audit area.']]);
+                }
+                $this->validateCoverage($validated);
+            }
             // Special/unplanned authority is recorded at creation, but the
             // aggregate still starts as a Draft so the engagement package can
             // be reviewed and completed before authorization is issued.
@@ -160,13 +166,15 @@ class AemsEngagementRegistryService
                 ],
                 'status' => 'DRAFT',
                 ...$projection,
-                'engagement_office_id' => (int) $validated['officeIds'][0],
+                'engagement_office_id' => ! empty($validated['officeIds']) ? (int) $validated['officeIds'][0] : null,
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
                 'lock_version' => 1,
                 'is_active' => true,
             ]);
-            $this->syncCoverage($engagement, $validated);
+            if (! empty($validated['officeIds']) && ! empty($validated['auditAreaIds'])) {
+                $this->syncCoverage($engagement, $validated);
+            }
 
             $newValues = $this->auditSnapshot($engagement);
             $this->support->event(
@@ -216,9 +224,25 @@ class AemsEngagementRegistryService
                 $locked,
                 'aems.foundation.manage_scope',
             );
-            $this->validateCoverage($validated);
+            $hasOfficeCoverage = array_key_exists('officeIds', $validated)
+                && ! empty($validated['officeIds']);
+            $hasAreaCoverage = array_key_exists('auditAreaIds', $validated)
+                && ! empty($validated['auditAreaIds']);
+            if ($hasOfficeCoverage !== $hasAreaCoverage) {
+                throw ValidationException::withMessages([
+                    'scope' => ['Engagement scope must be updated in the dedicated Scope workspace with one office and at least one audit area.'],
+                ]);
+            }
+            if ($hasOfficeCoverage && $hasAreaCoverage) {
+                $this->validateCoverage($validated);
+            }
             $oldValues = $this->auditSnapshot($locked);
             $attributes = $this->mutableAttributes($validated);
+            // Scope is an SCR-212 transaction. Registry metadata edits must
+            // never clear or silently replace its controlled values.
+            foreach (['objectives', 'scope', 'scope_boundaries', 'scope_limitations', 'scope_source_variance', 'exclusions'] as $scopeAttribute) {
+                unset($attributes[$scopeAttribute]);
+            }
             if ($locked->source_type === 'SPECIAL') {
                 $attributes = [
                     ...$attributes,
@@ -240,7 +264,9 @@ class AemsEngagementRegistryService
                 'updated_by' => $request->user()->id,
                 'lock_version' => $locked->lock_version + 1,
             ])->save();
-            $this->syncCoverage($locked, $validated);
+            if ($hasOfficeCoverage && $hasAreaCoverage) {
+                $this->syncCoverage($locked, $validated);
+            }
 
             $newValues = $this->auditSnapshot($locked);
             $this->support->event(
@@ -297,8 +323,11 @@ class AemsEngagementRegistryService
             }
             $this->access->authorizeEngagementAction($request->user(), $locked, 'aems.foundation.manage_scope');
 
-            $areaCoverage = $this->validateStructuredCoverage($validated['areaCoverage']);
             $officeId = (int) $validated['officeId'];
+            $areaCoverage = $this->validateStructuredCoverage(
+                $validated['areaCoverage'],
+                $officeId,
+            );
             $oldValues = $this->auditSnapshot($locked);
             $locked->forceFill([
                 'engagement_office_id' => $officeId,
@@ -351,8 +380,12 @@ class AemsEngagementRegistryService
             'audit_type_id' => $validated['auditTypeId'] ?? null,
             'engagement_approach_id' => $validated['engagementApproachId'] ?? null,
             'background' => $validated['background'] ?? null,
-            'objectives' => $validated['objectives'],
-            'scope' => $validated['scope'],
+            // The registry draft intentionally leaves SCR-212 scope content
+            // for the dedicated Engagement Scope workspace.  The legacy
+            // foundation columns are non-null, so persist empty placeholders
+            // until that workspace supplies the approved scope narrative.
+            'objectives' => $validated['objectives'] ?? '',
+            'scope' => $validated['scope'] ?? '',
             'scope_boundaries' => $validated['scopeBoundaries'] ?? null,
             'scope_limitations' => $validated['scopeLimitations'] ?? null,
             'scope_source_variance' => $validated['scopeSourceVariance'] ?? null,
@@ -360,7 +393,7 @@ class AemsEngagementRegistryService
             'planned_start_date' => $validated['plannedStartDate'] ?? null,
             'planned_end_date' => $validated['plannedEndDate'] ?? null,
             'expected_report_date' => $validated['expectedReportDate'] ?? null,
-            'planned_person_days' => $validated['plannedPersonDays'],
+            'planned_person_days' => $validated['plannedPersonDays'] ?? null,
         ];
     }
 
@@ -407,7 +440,7 @@ class AemsEngagementRegistryService
     }
 
     /** @param list<array<string, mixed>> $coverage */
-    private function validateStructuredCoverage(array $coverage): array
+    private function validateStructuredCoverage(array $coverage, ?int $officeId = null): array
     {
         $normalized = collect($coverage)->map(function (array $item): array {
             return [
@@ -416,10 +449,43 @@ class AemsEngagementRegistryService
                 'limitations' => $item['limitations'] ?? null,
                 'sourceVariance' => $item['sourceVariance'] ?? null,
                 'objective' => $item['objective'] ?? null,
-                'focusIds' => collect($item['focusIds'] ?? [])->map(fn ($id): int => (int) $id)->unique()->values()->all(),
+                // Keep malformed empty values out of the pivot payload even
+                // when an older client submits an empty select placeholder.
+                // The request rule still reports non-positive IDs as a
+                // validation error; this guard prevents a legacy request from
+                // ever reaching the foreign-key write.
+                'focusIds' => collect($item['focusIds'] ?? [])
+                    ->map(fn ($id): int => (int) $id)
+                    ->filter(fn (int $id): bool => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all(),
             ];
         })->values()->all();
         $areaIds = collect($normalized)->pluck('auditAreaId')->unique()->values();
+        if ($officeId !== null) {
+            $linkedAreaIds = AuditArea::query()
+                ->whereIn('id', $areaIds)
+                ->where(function ($query) use ($officeId): void {
+                    $query
+                        ->where('responsible_office_id', $officeId)
+                        ->orWhereHas(
+                            'offices',
+                            fn ($offices) => $offices->whereKey($officeId),
+                        );
+                })
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->unique();
+
+            if ($areaIds->diff($linkedAreaIds)->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'areaCoverage' => [
+                        'Every selected audit area must be linked to the selected Engagement Office.',
+                    ],
+                ]);
+            }
+        }
         $focusIds = collect($normalized)->flatMap(fn (array $item) => $item['focusIds'])->unique()->values();
         $invalidFocusIds = $focusIds->diff(
             AuditFocus::query()->whereIn('id', $focusIds)->pluck('id')->map(fn ($id): int => (int) $id),
@@ -443,7 +509,13 @@ class AemsEngagementRegistryService
     private function syncStructuredCoverage(AuditEngagement $engagement, int $officeId, array $coverage): void
     {
         $areaIds = collect($coverage)->pluck('auditAreaId')->all();
-        $focusIds = collect($coverage)->flatMap(fn (array $item) => $item['focusIds'])->unique()->values()->all();
+        $focusIds = collect($coverage)
+            ->flatMap(fn (array $item) => $item['focusIds'])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
         $engagement->offices()->sync([$officeId => ['is_primary' => true]]);
         $areaPayload = collect($coverage)->mapWithKeys(fn (array $item): array => [
             $item['auditAreaId'] => [
@@ -456,20 +528,35 @@ class AemsEngagementRegistryService
                 ]),
             ],
         ])->all();
-        $focusPayload = collect($coverage)->flatMap(function (array $item): array {
-            return collect($item['focusIds'])->mapWithKeys(fn (int $focusId): array => [
-                $focusId => [
-                    'coverage_metadata' => json_encode([
-                        'auditAreaId' => $item['auditAreaId'],
-                        'boundary' => $item['boundary'],
-                        'limitations' => $item['limitations'],
-                        'sourceVariance' => $item['sourceVariance'],
-                    ]),
-                ],
-            ])->all();
-        })->all();
+        // Build this associative payload with reduce instead of flatMap.
+        // Collection flattening reindexes integer keys (0, 1, 2), which can
+        // silently turn real Focus IDs into invalid/wrong pivot IDs.
+        $focusPayload = collect($coverage)->reduce(
+            function (array $payload, array $item): array {
+                foreach (collect($item['focusIds'] ?? [])
+                    ->map(fn ($focusId): int => (int) $focusId)
+                    ->filter(fn (int $focusId): bool => $focusId > 0)
+                    ->unique() as $focusId) {
+                    $payload[$focusId] = [
+                        'coverage_metadata' => json_encode([
+                            'auditAreaId' => $item['auditAreaId'],
+                            'boundary' => $item['boundary'],
+                            'limitations' => $item['limitations'],
+                            'sourceVariance' => $item['sourceVariance'],
+                        ]),
+                    ];
+                }
+
+                return $payload;
+            },
+            [],
+        );
         $engagement->auditAreas()->sync($areaPayload);
-        $engagement->auditFocuses()->sync($focusPayload ?: $focusIds);
+        if ($focusPayload === []) {
+            $engagement->auditFocuses()->detach();
+        } else {
+            $engagement->auditFocuses()->sync($focusPayload);
+        }
     }
 
     /** @return array<string, mixed> */

@@ -313,6 +313,10 @@ class AemsTeamSafeguardTest extends TestCase
         Sanctum::actingAs($management);
         $id = $this->postJson('/api/aems/engagements/import', ['iapPlanEngagementId' => $source->id])
             ->assertCreated()->json('data.engagement.id');
+        $this->postJson(
+            "/api/aems/engagements/{$id}/transitions/PREPARE_AUTHORIZATION",
+            ['lockVersion' => 1],
+        )->assertOk();
         $engagement = AuditEngagement::query()->findOrFail($id);
         $users = User::query()->whereHas('role', fn ($role) => $role->where('code', 'agis_user'))->take(4)->get();
         $role = Role::query()->where('code', 'agis_user')->firstOrFail();

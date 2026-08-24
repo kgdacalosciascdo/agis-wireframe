@@ -487,13 +487,24 @@ Create the engagement:
 2. Try importing the same IAP engagement again and confirm duplicate prevention.
 3. Use **Create Special Engagement** only with the required authority details
    and approval evidence.
-4. Open the engagement detail and verify its source and historical snapshot.
+4. Confirm both imported and special engagements start in `DRAFT` and that
+   SCR-212 details are completed through the separate Engagement Scope page.
+5. Select the office first, confirm only office-linked Audit Areas are offered,
+   then confirm only Area-linked Audit Focuses are offered and remain selected
+   after saving and reopening the scope.
+6. Open the engagement detail and verify its source and historical snapshot.
+7. Confirm Audit Team actions are unavailable in `DRAFT`. Use Lifecycle →
+   Prepare Authorization, then confirm team assignment becomes available.
+8. Confirm AEP, planning, execution, reporting, completion, records, and
+   closure workspaces show a lock notice until their phase prerequisites are
+   met. Lifecycle remains available so the next authorized transition can be
+   performed.
 
 Aggregate lifecycle:
 
 | Current status | Main action | Next status | Primary gate |
 |---|---|---|---|
-| `DRAFT` | Prepare Authorization | `AUTHORIZATION_PREPARATION` | Valid IAP or special-authority source and required team setup. |
+| `DRAFT` | Prepare Authorization | `AUTHORIZATION_PREPARATION` | Valid IAP or special-authority source, valid one-office scope, and required source metadata. Team assignment is intentionally locked until this phase. |
 | `AUTHORIZATION_PREPARATION` | Issue Authorization | `AUTHORIZED` | Current AEO is approved and issued. |
 | `AUTHORIZED` | Start Planning | `ENGAGEMENT_PLANNING` | Issued AEO and active engagement. |
 | `ENGAGEMENT_PLANNING` | Start Entry Conference | `ENTRY_CONFERENCE` | Approved AEP and approved/current Audit Program. |

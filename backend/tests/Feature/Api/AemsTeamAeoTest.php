@@ -28,6 +28,30 @@ class AemsTeamAeoTest extends TestCase
         $this->seed(DatabaseSeeder::class);
     }
 
+    public function test_draft_engagement_cannot_be_assigned_audit_team(): void
+    {
+        [$management, $engagement] = $this->engagement();
+        $engagement->update(['status' => 'DRAFT']);
+        $candidate = $this->auditors(1)[0];
+        Sanctum::actingAs($management);
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/team", [
+            'userId' => $candidate->id,
+            'assignmentRoleCode' => 'AUDITOR',
+            'plannedPersonDays' => 2,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['engagement'])
+            ->assertJsonPath(
+                'errors.engagement.0',
+                'Move the engagement from Draft to Authorization Preparation before assigning or amending the Audit Team.',
+            );
+
+        $this->assertDatabaseMissing('engagement_teams', [
+            'audit_engagement_id' => $engagement->id,
+            'user_id' => $candidate->id,
+        ]);
+    }
+
     public function test_team_assignment_reassignment_warnings_and_history_are_controlled(): void
     {
         [$management, $engagement] = $this->engagement();
@@ -55,6 +79,11 @@ class AemsTeamAeoTest extends TestCase
             'recipient_id' => $auditors[0]->id,
             'type' => 'AEMS_TEAM_ASSIGNED',
             'module_code' => 'AEMS',
+        ]);
+        $this->assertDatabaseHas('engagement_events', [
+            'audit_engagement_id' => $engagement->id,
+            'subject_type' => 'TEAM',
+            'action' => 'ASSIGNED',
         ]);
 
         $replacement = $this->newAuditor('CIAS-AUD-REPLACEMENT');
@@ -308,6 +337,13 @@ class AemsTeamAeoTest extends TestCase
         $id = $this->postJson('/api/aems/engagements/import', [
             'iapPlanEngagementId' => $source->id,
         ])->assertCreated()->json('data.engagement.id');
+
+        // Team assignment opens only after the aggregate lifecycle leaves
+        // Draft and enters Authorization Preparation.
+        $this->postJson(
+            "/api/aems/engagements/{$id}/transitions/PREPARE_AUTHORIZATION",
+            ['lockVersion' => 1],
+        )->assertOk();
 
         return [$management, AuditEngagement::query()->findOrFail($id)];
     }

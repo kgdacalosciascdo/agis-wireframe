@@ -426,7 +426,7 @@ class AemsDashboardService
             'status' => $conference->status,
             'scheduledAt' => $conference->scheduled_start_at?->toISOString(),
             'engagement' => $this->engagementRef($conference->engagement),
-            'route' => '/audit-engagement-management/'.($conference instanceof EntryConference ? 'entry-conferences' : 'exit-conferences').'?engagementId='.$conference->audit_engagement_id,
+            'route' => '/audit-engagement-management/conferences?engagementId='.$conference->audit_engagement_id,
         ])->values()->all();
 
         $exitCount = (clone $upcoming)->count();
@@ -439,12 +439,12 @@ class AemsDashboardService
             'evidenceGaps' => $queue($gapQueue, 'evidenceGaps', 'Evidence gaps', '/audit-engagement-management/evidence', fn ($item): array => ['id' => $item->id, 'code' => $item->evidence?->evidence_code, 'title' => $item->evidence?->title, 'gaps' => $item->evidence_gaps, 'restricted' => (bool) $item->is_restricted, 'engagement' => $this->engagementRef($item->engagement)]),
             'findingsAwaitingReview' => $queue($reviewFindingQueue, 'findingsAwaitingReview', 'Findings awaiting review', '/audit-engagement-management/findings', fn ($item): array => ['id' => $item->id, 'code' => $item->finding_code, 'title' => $item->title, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
             'findingsAwaitingManagementResponse' => $queue($responseQueue, 'findingsAwaitingManagementResponse', 'Findings awaiting management response', '/audit-engagement-management/auditee-responses', fn ($item): array => ['id' => $item->id, 'code' => $item->finding_code, 'title' => $item->title, 'status' => $item->status, 'dueAt' => $item->management_response_due_date?->toDateString(), 'engagement' => $this->engagementRef($item->engagement)]),
-            'upcomingConferences' => ['key' => 'upcomingConferences', 'label' => 'Upcoming conferences', 'route' => '/audit-engagement-management/exit-conferences', 'count' => $exitCount + $entryCount, 'exitCount' => $exitCount, 'items' => $conferenceItems],
+            'upcomingConferences' => ['key' => 'upcomingConferences', 'label' => 'Upcoming conferences', 'route' => '/audit-engagement-management/conferences', 'count' => $exitCount + $entryCount, 'exitCount' => $exitCount, 'items' => $conferenceItems],
             'reportsPendingApproval' => $queue($reportQueue, 'reportsPendingApproval', 'Reports pending approval', '/audit-engagement-management/reports', fn ($item): array => ['id' => $item->id, 'code' => $item->report_code, 'title' => $item->title, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
             'cmsTransferExceptions' => $queue($exceptionQueue, 'cmsTransferExceptions', 'CMS transfer exceptions', '/audit-engagement-management/completion', fn ($item): array => ['id' => $item->id, 'code' => $item->exception_code, 'title' => $item->message, 'status' => $item->status, 'engagement' => $this->engagementRef($item->manifest?->engagement)]),
-            'reviewNotesAwaitingReview' => $queue($noteQueue, 'reviewNotesAwaitingReview', 'Review Notes', '/audit-engagement-management/work-queue', fn ($item): array => ['id' => $item->id, 'code' => $item->note_code, 'title' => $item->content, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
-            'tasks' => $queue($taskQueue, 'tasks', 'Tasks', '/audit-engagement-management/work-queue', fn ($item): array => ['id' => $item->id, 'code' => $item->task_code, 'title' => $item->title, 'status' => $item->status, 'dueState' => $item->due_state, 'dueAt' => $item->due_at?->toISOString(), 'engagement' => $this->engagementRef($item->engagement)]),
-            'escalationCandidates' => $queue($candidateQueue, 'escalationCandidates', 'Escalation candidates', '/audit-engagement-management/work-queue', fn ($item): array => ['id' => $item->id, 'code' => $item->candidate_code, 'title' => $item->reason, 'status' => $item->status, 'dueAt' => $item->due_at?->toISOString(), 'engagement' => $this->engagementRef($item->engagement)]),
+            'reviewNotesAwaitingReview' => $queue($noteQueue, 'reviewNotesAwaitingReview', 'Review Notes', '/audit-engagement-management/work-queues', fn ($item): array => ['id' => $item->id, 'code' => $item->note_code, 'title' => $item->content, 'status' => $item->status, 'engagement' => $this->engagementRef($item->engagement)]),
+            'tasks' => $queue($taskQueue, 'tasks', 'Tasks', '/audit-engagement-management/work-queues', fn ($item): array => ['id' => $item->id, 'code' => $item->task_code, 'title' => $item->title, 'status' => $item->status, 'dueState' => $item->due_state, 'dueAt' => $item->due_at?->toISOString(), 'engagement' => $this->engagementRef($item->engagement)]),
+            'escalationCandidates' => $queue($candidateQueue, 'escalationCandidates', 'Escalation candidates', '/audit-engagement-management/work-queues', fn ($item): array => ['id' => $item->id, 'code' => $item->candidate_code, 'title' => $item->reason, 'status' => $item->status, 'dueAt' => $item->due_at?->toISOString(), 'engagement' => $this->engagementRef($item->engagement)]),
         ];
     }
 
@@ -986,7 +986,7 @@ class AemsDashboardService
                 'NOT_STARTED',
                 0,
                 'Not scheduled',
-                '/audit-engagement-management/exit-conferences',
+                '/audit-engagement-management/conferences',
             );
         }
         if (in_array($conference->status, ['COMPLETED', 'WAIVED'], true)) {
@@ -996,7 +996,7 @@ class AemsDashboardService
                 'COMPLETE',
                 100,
                 $this->statusLabel($conference->status),
-                '/audit-engagement-management/exit-conferences',
+                '/audit-engagement-management/conferences',
             );
         }
         $overdue = $conference->scheduled_start_at?->isBefore($today->startOfDay())
@@ -1008,7 +1008,7 @@ class AemsDashboardService
             $overdue ? 'OVERDUE' : 'SCHEDULED',
             50,
             ($overdue ? 'Overdue · ' : '').$conference->scheduled_start_at?->format('M j, Y g:i A'),
-            '/audit-engagement-management/exit-conferences',
+            '/audit-engagement-management/conferences',
             1,
             0,
             $overdue ? 1 : 0,
@@ -1018,7 +1018,7 @@ class AemsDashboardService
     private function entryConferenceStage(AuditEngagement $engagement): array
     {
         $conference = $engagement->entryConference;
-        $route = "/audit-engagement-management/{$engagement->id}?tab=entry-conference";
+        $route = "/audit-engagement-management/conferences?engagementId={$engagement->id}";
         if ($conference === null) {
             return $this->stage(
                 'entryConference',

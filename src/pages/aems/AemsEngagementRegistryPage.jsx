@@ -208,7 +208,7 @@ export default function AemsEngagementRegistryPage() {
       setLoadError(
         error instanceof Error
           ? error.message
-          : "Unable to load the Engagement Registry.",
+          : "Unable to load the Audit Engagement Workspace.",
       );
     } finally {
       setLoading(false);
@@ -384,6 +384,19 @@ export default function AemsEngagementRegistryPage() {
       sortable: false,
       render: (engagement) => (
         <div className="flex justify-end gap-1.5">
+          {!engagement.isArchived && engagement.status === "DRAFT" && (
+            <button
+              aria-label={`Define scope for ${engagement.engagementCode}`}
+              className="rounded-lg border border-sky-200 px-2.5 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-50"
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/audit-engagement-management/scope?engagementId=${engagement.id}`);
+              }}
+              type="button"
+            >
+              Scope
+            </button>
+          )}
           {engagement.isArchived && canRestore ? (
             <button
               aria-label={`Restore ${engagement.engagementCode}`}
@@ -441,7 +454,7 @@ export default function AemsEngagementRegistryPage() {
       toast.success(`${created.engagementCode} was created.`);
       setCreateOpen(false);
       await load();
-      navigate(`/audit-engagement-management/${created.id}`);
+      navigate(`/audit-engagement-management/scope?engagementId=${created.id}`);
     } catch (error) {
       if (error instanceof ApiError) setErrors(error.errors);
       toast.error(
@@ -522,10 +535,10 @@ export default function AemsEngagementRegistryPage() {
             )}
           </>
         }
-        description="Create Draft engagements from approved IAP items or separately authorized special audits while preserving complete source lineage."
+        description="Create and prepare Draft engagements from approved IAP items or separately authorized special audits. Complete the engagement scope in its dedicated workspace before team assignment."
         icon={BriefcaseBusiness}
         readOnly={!canCreate}
-        title="Engagement Registry"
+        title="Audit Engagement Workspace"
       />
 
       <section className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -682,7 +695,7 @@ export default function AemsEngagementRegistryPage() {
         onClose={() => !saving && setCreateOpen(false)}
         open={createOpen}
         size="xl"
-        title="Create Audit Engagement"
+        title="Create Engagement Draft"
       >
         <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
           <button

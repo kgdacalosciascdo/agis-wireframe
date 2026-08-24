@@ -24,6 +24,9 @@ import RegistryHeader from "../../components/ui/RegistryHeader";
 import SearchableSelect from "../../components/ui/SearchableSelect";
 import StatusBadge from "../../components/ui/StatusBadge";
 import SummaryCard from "../../components/ui/SummaryCard";
+import AemsEngagementWorkspaceNav from "../../components/aems/AemsEngagementWorkspaceNav";
+import AemsWorkspaceLockNotice from "../../components/aems/AemsWorkspaceLockNotice";
+import { getAemsWorkspaceGate } from "../../components/aems/aemsPhaseGates";
 import { hasPermission } from "../../config/navigation";
 import {
   aemsEngagementApi,
@@ -521,6 +524,10 @@ export default function AemsWorkingPapersPage() {
         .length ?? 0,
     evidence: currentEvidence.length,
   };
+  const selectedEngagement =
+    workspace?.engagement ??
+    engagements.find((item) => String(item.id) === String(engagementId));
+  const executionGate = getAemsWorkspaceGate("execution", selectedEngagement);
 
   return (
     <main className="min-w-0 p-4 sm:p-5">
@@ -531,7 +538,7 @@ export default function AemsWorkingPapersPage() {
         readOnly={!canPrepare && !canReview && !canUploadEvidence}
         actions={
           <>
-            {tab === "papers" && canPrepare && (
+            {executionGate.unlocked && tab === "papers" && canPrepare && (
               <button
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white disabled:opacity-50"
                 disabled={!workspace?.fieldworkAvailable}
@@ -542,7 +549,7 @@ export default function AemsWorkingPapersPage() {
                 New Working Paper
               </button>
             )}
-            {tab === "evidence" && canUploadEvidence && (
+            {executionGate.unlocked && tab === "evidence" && canUploadEvidence && (
               <button
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white disabled:opacity-50"
                 disabled={!workspace?.fieldworkAvailable}
@@ -557,6 +564,21 @@ export default function AemsWorkingPapersPage() {
         }
       />
 
+      {engagementId && (
+        <AemsEngagementWorkspaceNav
+          engagement={selectedEngagement}
+          engagementId={engagementId}
+        />
+      )}
+      {!executionGate.unlocked && (
+        <AemsWorkspaceLockNotice
+          engagementId={engagementId}
+          gate={executionGate}
+        />
+      )}
+
+      {executionGate.unlocked && (
+        <>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           icon={FileClock}
@@ -1154,6 +1176,9 @@ export default function AemsWorkingPapersPage() {
             )}
           </div>
         </div>
+      )}
+
+      </>
       )}
 
       <Modal

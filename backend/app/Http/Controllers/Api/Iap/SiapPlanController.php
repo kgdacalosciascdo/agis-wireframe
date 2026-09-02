@@ -49,7 +49,7 @@ class SiapPlanController extends Controller
             'sortDirection' => ['nullable', 'in:asc,desc'],
         ]);
         $search = trim((string) ($validated['search'] ?? ''));
-        $maySeeArchived = $request->user()->hasRole(['platform_admin', 'cias_management']);
+        $maySeeArchived = $request->user()->hasPermission('iap.manage_universe');
 
         $query = StrategicInternalAuditPlan::query()
             ->when(
@@ -154,7 +154,7 @@ class SiapPlanController extends Controller
     public function show(Request $request, int $strategicPlan): JsonResponse
     {
         $query = StrategicInternalAuditPlan::query();
-        if ($request->user()->hasRole(['platform_admin', 'cias_management'])) {
+        if ($request->user()->hasPermission('iap.manage_universe')) {
             $query->withTrashed();
         }
         $record = $query->findOrFail($strategicPlan);
@@ -447,10 +447,7 @@ class SiapPlanController extends Controller
         $user = User::query()
             ->whereKey($id)
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role->whereIn(
-                'code',
-                ['platform_admin', 'cias_management', 'agis_user'],
-            ))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
             ->first();
         if (! $user) {
             throw ValidationException::withMessages([

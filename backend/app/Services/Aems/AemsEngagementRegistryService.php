@@ -238,9 +238,19 @@ class AemsEngagementRegistryService
             }
             $oldValues = $this->auditSnapshot($locked);
             $attributes = $this->mutableAttributes($validated);
-            // Scope is an SCR-212 transaction. Registry metadata edits must
-            // never clear or silently replace its controlled values.
-            foreach (['objectives', 'scope', 'scope_boundaries', 'scope_limitations', 'scope_source_variance', 'exclusions'] as $scopeAttribute) {
+            // Structured SCR-212 scope remains controlled by the dedicated
+            // Scope workspace. The engagement-definition narratives are
+            // ordinary registry fields and may be updated while editable.
+            foreach ([
+                'objectives' => 'objectives',
+                'scope' => 'scope',
+                'exclusions' => 'exclusions',
+            ] as $inputKey => $attribute) {
+                if (! array_key_exists($inputKey, $validated)) {
+                    unset($attributes[$attribute]);
+                }
+            }
+            foreach (['scope_boundaries', 'scope_limitations', 'scope_source_variance'] as $scopeAttribute) {
                 unset($attributes[$scopeAttribute]);
             }
             if ($locked->source_type === 'SPECIAL') {

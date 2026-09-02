@@ -27,8 +27,7 @@ class CmsRecommendationAssignmentController extends Controller
             'assignments.assigner',
             'assignments.ender',
         ]);
-        $canAssign = $request->user()->hasPermission('cms.recommendation.assign')
-            && $request->user()->hasRole('cias_management');
+        $canAssign = $request->user()->hasPermission('cms.recommendation.assign');
         $options = $canAssign
             ? $this->assignments->eligibleMonitors($request->user(), $case)
                 ->map(fn ($user): array => [

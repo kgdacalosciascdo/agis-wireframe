@@ -135,7 +135,7 @@ class CmsEscalationService
             $version->setAttribute('available_actions', array_values(array_unique($actions)));
         }
         if ($escalation->operational_status_code !== CmsEscalation::STATUS_RESOLVED
-            && $actor->hasRole('cias_management') && $actor->hasPermission('cms.escalation.resolve')
+            && $actor->hasGlobalEngagementAccess() && $actor->hasPermission('cms.escalation.resolve')
             && (int) $actor->office_id !== (int) $case?->lead_responsible_office_id && $usable) {
             $actions[] = 'resolve';
         }
@@ -153,7 +153,7 @@ class CmsEscalationService
             $permissions = array_pop($args);
         }
         $monitor = $case?->currentAssignment?->user_id === $actor->id && $actor->hasAnyPermission($permissions);
-        $management = $actor->hasRole('cias_management') && $actor->hasPermission('cms.escalation.review');
+        $management = $actor->hasGlobalEngagementAccess() && $actor->hasPermission('cms.escalation.review');
         if (! $case || (! $management && ! $monitor)) {
             return false;
         }
@@ -420,7 +420,7 @@ class CmsEscalationService
             $escalation = $this->show($actor, $id);
             $case = $escalation->case;
             $this->assertActorPermission($actor, 'cms.escalation.resolve');
-            throw_unless($actor->hasRole('cias_management') && (int) $actor->office_id !== (int) $case->lead_responsible_office_id, new HttpException(403, 'Only independent CIAS Management may resolve an escalation.'));
+            throw_unless($actor->hasPermission('cms.escalation.resolve') && (int) $actor->office_id !== (int) $case->lead_responsible_office_id, new HttpException(403, 'You do not have permission to resolve this escalation independently.'));
             $this->assertLock($escalation, $lock);
             throw_unless($escalation->operational_status_code !== CmsEscalation::STATUS_RESOLVED, new HttpException(409, 'This escalation is already resolved.'));
             throw_unless($escalation->response?->acceptedVersion || $escalation->issuedNotice, new HttpException(422, 'An issued escalation with an eligible documented basis is required.'));
@@ -730,7 +730,7 @@ class CmsEscalationService
         $this->assertUsable($actor);
         $case->loadMissing('currentAssignment');
         $monitorAuthority = $case->currentAssignment?->user_id === $actor->id && $actor->hasAnyPermission(['cms.escalation.response-review', 'cms.escalation.response-accept']);
-        $managementAuthority = $actor->hasRole('cias_management') && $actor->hasPermission('cms.escalation.review');
+        $managementAuthority = $actor->hasGlobalEngagementAccess() && $actor->hasPermission('cms.escalation.review');
         throw_unless($managementAuthority || $monitorAuthority, new HttpException(403, 'Independent CIAS review authority is required.'));
         throw_unless(! in_array($actor->id, array_filter($excluded), true), new HttpException(403, 'Separation of duties prevents self-review.'));
         throw_unless((int) $actor->office_id !== (int) $case->lead_responsible_office_id, new HttpException(403, 'Responsible-office users cannot perform independent review.'));
@@ -872,7 +872,7 @@ class CmsEscalationService
             $recipients[] = ['recipient_type' => 'PRIMARY', 'office_id' => $office->id, 'user_id' => $head->id, 'recipient_name_snapshot' => $head->name, 'office_name_snapshot' => $office->name, 'position_or_role_snapshot' => $head->position, 'selected_by' => $actor->id, 'selected_at' => now()];
         } elseif ($office) {
             $recipients[] = ['recipient_type' => 'PRIMARY', 'office_id' => $office->id, 'user_id' => null, 'recipient_name_snapshot' => $office->name, 'office_name_snapshot' => $office->name, 'position_or_role_snapshot' => 'Responsible office', 'selected_by' => $actor->id, 'selected_at' => now()];
-        } $management = User::query()->where('is_active', true)->whereHas('roles', fn ($q) => $q->where('code', 'cias_management'))->limit(25)->get();
+        } $management = User::query()->where('is_active', true)->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.escalation.review'))->limit(25)->get();
         foreach ($management as $user) {
             if (! $head || $user->id !== $head->id) {
                 $recipients[] = ['recipient_type' => 'INTERNAL_CIAS', 'office_id' => $user->office_id, 'user_id' => $user->id, 'recipient_name_snapshot' => $user->name, 'office_name_snapshot' => $user->office?->name, 'position_or_role_snapshot' => $user->position, 'selected_by' => $actor->id, 'selected_at' => now()];
@@ -913,7 +913,7 @@ class CmsEscalationService
         $ids = collect([$case->currentAssignment?->user_id])->filter();
         if ($case->lead_responsible_office_id) {
             $ids = $ids->merge(User::query()->where('office_id', $case->lead_responsible_office_id)->where('is_active', true)->pluck('id'));
-        } $ids = $ids->merge(User::query()->whereHas('roles', fn ($q) => $q->where('code', 'cias_management'))->where('is_active', true)->pluck('id'));
+        } $ids = $ids->merge(User::query()->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.escalation.review'))->where('is_active', true)->pluck('id'));
         $this->notifications->send($ids->unique(), ['actorId' => $actor->id, 'type' => 'CMS_ESCALATION', 'category' => 'SYSTEM', 'priority' => 'HIGH', 'moduleCode' => 'CMS', 'title' => $title, 'message' => $message, 'actionUrl' => "/compliance-management/recommendations/{$case->id}", 'actionLabel' => 'Open escalation', 'subjectType' => CmsEscalation::class, 'subjectId' => $case->id, 'subjectCode' => sprintf('CMS-REC-%06d', $case->id), 'dedupeKey' => $dedupe]);
     }
 

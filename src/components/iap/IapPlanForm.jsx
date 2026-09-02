@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import FormField from "../ui/FormField";
 import SearchableSelect from "../ui/SearchableSelect";
+import { hasPermission } from "../../config/navigation";
 
 const inputClass =
   "min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
@@ -80,9 +81,7 @@ export default function IapPlanForm({
           (user) =>
             user.isActive &&
             !user.isArchived &&
-            ["platform_admin", "cias_management", "agis_user"].includes(
-              user.roleCode,
-            ),
+            hasPermission(user, "iap.manage_engagements"),
         )
         .map((user) => ({
           value: user.id,

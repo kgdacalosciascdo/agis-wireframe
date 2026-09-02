@@ -37,8 +37,7 @@ class EntryConferencePolicy
 
     public function waive(User $user, EntryConference $conference): bool
     {
-        return $user->hasRole('cias_management')
-            && $user->hasPermission('aems.entry-conference.waive')
+        return $user->hasPermission('aems.entry-conference.waive')
             && (int) $conference->created_by !== (int) $user->id
             && $this->view($user, $conference);
     }

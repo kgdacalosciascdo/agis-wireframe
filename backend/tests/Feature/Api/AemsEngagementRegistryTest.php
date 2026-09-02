@@ -98,6 +98,7 @@ class AemsEngagementRegistryTest extends TestCase
             'background' => 'A separately authorized unplanned audit.',
             'objectives' => 'Assess cash accountability controls.',
             'scope' => 'Cash collections and deposits for the selected period.',
+            'exclusions' => 'Payroll disbursements are outside this engagement.',
             'plannedStartDate' => '2026-08-03',
             'plannedEndDate' => '2026-08-21',
             'expectedReportDate' => '2026-09-04',
@@ -113,6 +114,18 @@ class AemsEngagementRegistryTest extends TestCase
             ->assertJsonPath(
                 'data.engagement.specialAuthorityReference',
                 'OCM-MEMO-2026-014',
+            )
+            ->assertJsonPath(
+                'data.engagement.objectives',
+                'Assess cash accountability controls.',
+            )
+            ->assertJsonPath(
+                'data.engagement.scope',
+                'Cash collections and deposits for the selected period.',
+            )
+            ->assertJsonPath(
+                'data.engagement.exclusions',
+                'Payroll disbursements are outside this engagement.',
             )
             ->json('data.engagement');
 
@@ -142,6 +155,12 @@ class AemsEngagementRegistryTest extends TestCase
             'plannedPersonDays' => 15,
             'lockVersion' => $updated['lockVersion'],
         ])->assertOk()->assertJsonPath('data.engagement.title', 'Updated Registry Metadata Only');
+        $this->assertDatabaseHas('audit_engagements', [
+            'id' => $created['id'],
+            'objectives' => 'Assess cash accountability controls.',
+            'scope' => 'Cash collections and deposits for the selected period.',
+            'exclusions' => 'Payroll disbursements are outside this engagement.',
+        ]);
         $this->assertDatabaseHas('audit_engagement_offices', [
             'audit_engagement_id' => $created['id'],
             'office_id' => $office->id,

@@ -220,9 +220,7 @@ export default function IapPlanWorkspacePage() {
   const [comment, setComment] = useState("");
   const [completionConfirmed, setCompletionConfirmed] = useState(false);
 
-  const isManagement = ["platform_admin", "cias_management"].includes(
-    user.roleCode,
-  );
+  const isManagement = hasPermission(user, "iap.manage_universe");
   const canAssessRisk = hasPermission(user, "iap.assess_risk");
   const canEdit =
     plan &&
@@ -276,15 +274,13 @@ export default function IapPlanWorkspacePage() {
             },
             record.preparer && {
               ...record.preparer,
-              roleCode: "agis_user",
-              role: "AGIS User",
+              permissions: ["iap.assign_team"],
               isActive: true,
               isArchived: false,
             },
             record.coordinator && {
               ...record.coordinator,
-              roleCode: "cias_management",
-              role: "CIAS Management",
+              permissions: ["iap.assign_team"],
               isActive: true,
               isArchived: false,
             },

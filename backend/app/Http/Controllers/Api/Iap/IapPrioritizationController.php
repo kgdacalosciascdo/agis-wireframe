@@ -609,7 +609,7 @@ class IapPrioritizationController extends Controller
 
     private function isManagement(User $user): bool
     {
-        return $user->hasRole(['platform_admin', 'cias_management']);
+        return $user->hasPermission('iap.manage_universe');
     }
 
     private function event(

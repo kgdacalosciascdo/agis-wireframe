@@ -465,7 +465,7 @@ class AemsFieldworkService
 
     private function ensureActorMayExecute(Request $request, AuditEngagement $engagement, AuditProgramProcedure $procedure): void
     {
-        if ($request->user()->hasRole('cias_management')) return;
+        if ($request->user()->hasPermission('aems.fieldwork.manage')) return;
         $role = $engagement->teamMembers()->where('user_id', $request->user()->id)->where('is_active', true)->whereNull('ended_at')->value('assignment_role_code');
         if ($role === 'AUDITOR' && (int) $procedure->assigned_to !== (int) $request->user()->id) {
             throw ValidationException::withMessages(['procedureId' => ['An Auditor may record fieldwork only for their assigned procedure.']]);

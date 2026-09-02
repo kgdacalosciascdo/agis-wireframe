@@ -118,7 +118,7 @@ function Field({ label, required = false, children }) {
 
 /**
  * Configures reusable workflow definitions and operates workflow instances
- * through guarded, auditable transitions and role-based approval steps.
+ * through guarded, auditable transitions and permission-based approval steps.
  */
 export default function WorkflowManagementPage() {
   const [searchParams] = useSearchParams();
@@ -318,7 +318,9 @@ export default function WorkflowManagementPage() {
         })),
         transitions: definitionForm.transitions.map((item) => ({
           ...item,
-          actorRoleId: item.actorRoleId ? Number(item.actorRoleId) : null,
+          // Transition authority comes from the required permission, not a
+          // legacy actor-role label.
+          actorRoleId: null,
           requiredPermissionId: item.requiredPermissionId
             ? Number(item.requiredPermissionId)
             : null,
@@ -471,7 +473,7 @@ export default function WorkflowManagementPage() {
             )}
           </>
         }
-        description="Configure versioned approval routes, role and permission gates, deadlines, separation of duties, and immutable execution history."
+        description="Configure versioned approval routes, permission authorities, deadlines, separation of duties, and immutable execution history."
         icon={Workflow}
         readOnly={!canCreate && !canUpdate}
         title="Workflow Management"
@@ -957,21 +959,18 @@ export default function WorkflowManagementPage() {
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 <SearchableSelect
                   onChange={(value) =>
-                    updateTransition(index, "actorRoleId", value)
-                  }
-                  options={roleOptions}
-                  placeholder="Any actor role"
-                  value={item.actorRoleId}
-                />
-                <SearchableSelect
-                  onChange={(value) =>
                     updateTransition(index, "requiredPermissionId", value)
                   }
                   options={permissionOptions}
-                  placeholder="No additional permission"
+                  placeholder="Select reviewer/approver permission"
                   value={item.requiredPermissionId}
                 />
               </div>
+              <p className="mt-2 text-xs text-slate-500">
+                The selected permission determines who may perform this
+                transition. Role names are not used to authorize workflow
+                actions.
+              </p>
               <div className="mt-3 flex flex-wrap gap-5 text-sm font-semibold text-slate-600">
                 <label className="flex items-center gap-2">
                   <input
@@ -1159,8 +1158,14 @@ export default function WorkflowManagementPage() {
                     {item.fromStepCode} → {item.toStepCode}
                   </p>
                   <p className="mt-2 text-xs text-slate-500">
-                    Role: {item.actorRole?.name ?? "Any"} · Permission:{" "}
+                    {item.authorization?.type ?? "AUTHORIZED ACTOR"} · Permission:{" "}
                     {item.requiredPermission?.code ?? "None"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Authorized users ({item.authorization?.userCount ?? 0}):{" "}
+                    {item.authorization?.users?.length
+                      ? item.authorization.users.map((user) => user.name).join(", ")
+                      : item.authorization?.message ?? "No eligible users"}
                   </p>
                   {(item.requiresComment || item.enforceSeparationOfDuties) && (
                     <p className="mt-1 text-xs font-semibold text-amber-700">
@@ -1388,6 +1393,36 @@ export default function WorkflowManagementPage() {
                 {selectedInstance.currentStep.instructions}
               </p>
             )}
+            {selectedInstance.transitionAuthorities?.length > 0 && (
+              <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <h3 className="font-bold text-emerald-900">
+                  Permission-based reviewers and approvers
+                </h3>
+                <div className="mt-3 space-y-3">
+                  {selectedInstance.transitionAuthorities.map((item) => (
+                    <div key={item.code}>
+                      <p className="text-sm font-bold text-slate-800">
+                        {item.name} · {item.authorization?.type ?? "AUTHORIZED ACTOR"}
+                        {!item.canAct && (
+                          <span className="ml-2 text-xs font-normal text-slate-500">
+                            (view only)
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        Required permission: {item.authorization?.permission?.code ?? "Not configured"}
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        Eligible users ({item.authorization?.userCount ?? 0}):{" "}
+                        {item.authorization?.users?.length
+                          ? item.authorization.users.map((user) => user.name).join(", ")
+                          : item.authorization?.message ?? "No eligible users"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <h3 className="mt-5 flex items-center gap-2 font-bold text-slate-800">
               <History size={17} /> Immutable history
             </h3>
@@ -1454,6 +1489,19 @@ export default function WorkflowManagementPage() {
         title={transition?.name ?? "Workflow action"}
         description="This action, actor, date, comment, and old/new workflow values will be permanently recorded."
       >
+        {transition?.authorization && (
+          <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
+            <p className="font-bold">
+              {transition.authorization.type} authority ·{" "}
+              {transition.authorization.permission?.code ?? "Permission not configured"}
+            </p>
+            <p className="mt-1 text-xs">
+              Eligible users: {transition.authorization.users?.length
+                ? transition.authorization.users.map((user) => user.name).join(", ")
+                : transition.authorization.message}
+            </p>
+          </div>
+        )}
         <Field
           label={transition?.requiresComment ? "Required comment" : "Comment"}
           required={transition?.requiresComment}

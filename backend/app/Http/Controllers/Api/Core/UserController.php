@@ -332,7 +332,7 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, User $user): JsonResponse
     {
-        if (! $request->user()->hasRole('platform_admin')) {
+        if (! $request->user()->hasPermission('access.manage_system_roles')) {
             abort(403, 'Only a Platform Administrator can reset user passwords.');
         }
 
@@ -466,7 +466,8 @@ class UserController extends Controller
     /** @param Collection<int, Role> $roles */
     private function ensureAssignable(Request $request, Collection $roles): void
     {
-        if ($roles->contains('code', 'platform_admin') && ! $request->user()->hasRole('platform_admin')) {
+        if ($roles->contains(fn (Role $role): bool => $role->permissions->contains('code', 'access.manage_system_roles'))
+            && ! $request->user()->hasPermission('access.manage_system_roles')) {
             abort(403, 'Only a Platform Administrator can assign that role.');
         }
     }
@@ -490,7 +491,8 @@ class UserController extends Controller
             ]);
         }
 
-        if ($user->hasRole('platform_admin') && ! $roles->contains('code', 'platform_admin')) {
+        if ($user->hasPermission('access.manage_system_roles')
+            && ! $roles->contains(fn (Role $role): bool => $role->permissions->contains('code', 'access.manage_system_roles'))) {
             throw ValidationException::withMessages([
                 'roleIds' => ['You cannot remove your own Platform Administrator role.'],
             ]);
@@ -551,7 +553,8 @@ class UserController extends Controller
     {
         $this->ensureUserScope($request, $user);
         $user->loadMissing(['role.permissions', 'roles.permissions']);
-        if ($user->hasRole('platform_admin') && ! $request->user()->hasRole('platform_admin')) {
+        if ($user->hasPermission('access.manage_system_roles')
+            && ! $request->user()->hasPermission('access.manage_system_roles')) {
             abort(403, 'Only a Platform Administrator can manage that account.');
         }
     }

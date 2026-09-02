@@ -23,6 +23,7 @@ import ConfirmDialog from "../ui/ConfirmDialog";
 import Modal from "../ui/Modal";
 import SearchableSelect from "../ui/SearchableSelect";
 import StatusBadge from "../ui/StatusBadge";
+import { hasPermission } from "../../config/navigation";
 
 const typeTones = {
   RISK_SUPPORT: "warning",
@@ -110,9 +111,7 @@ export default function IapSupportingRecordsPanel({ planId }) {
   const [commentEngagementId, setCommentEngagementId] = useState("");
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [restoreTarget, setRestoreTarget] = useState(null);
-  const isManagement = ["platform_admin", "cias_management"].includes(
-    user.roleCode,
-  );
+  const isManagement = hasPermission(user, "iap.manage_universe");
 
   const load = useCallback(async () => {
     setLoading(true);

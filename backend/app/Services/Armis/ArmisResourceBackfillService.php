@@ -114,7 +114,7 @@ class ArmisResourceBackfillService
                     ['user_id' => $user->id, 'office_id' => $user->office_id, 'status' => 'ACTIVE'],
                     [
                         'resource_code' => 'ARMIS-IAP-USER-'.str_pad((string) $user->id, 5, '0', STR_PAD_LEFT),
-                        'category' => $user->hasRole('cias_management') ? 'REVIEWER' : 'AUDIT_RESOURCE',
+                        'category' => $user->hasPermission('iap.review') ? 'REVIEWER' : 'AUDIT_RESOURCE',
                         'effective_from' => now()->startOfYear()->toDateString(),
                         'notes' => 'Created while backfilling the historical IAP resource ledger.',
                         'created_by' => $actor->id,

@@ -37,9 +37,20 @@ class IapRiskPeriodSeeder extends Seeder
         if (! $renderSafe) {
             IapSchedulingSeeder::clearDemoPlan();
         }
-        $management = User::query()->whereHas('role', fn ($role) => $role->where('code', 'cias_management'))->first();
-        $auditor = User::query()->whereHas('role', fn ($role) => $role->where('code', 'agis_user'))->first();
-        $validator = User::query()->whereHas('role', fn ($role) => $role->where('code', 'platform_admin'))->first();
+        $management = User::query()
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.manage_universe'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.review.own_submission'))
+            ->first();
+        $auditor = User::query()
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.aeo.prepare'))
+            ->when($management, fn ($query) => $query->where('id', '<>', $management->id))
+            ->first();
+        $validator = User::query()
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'users.view'))
+            ->when($management, fn ($query) => $query->where('id', '<>', $management->id))
+            ->when($auditor, fn ($query) => $query->where('id', '<>', $auditor->id))
+            ->first();
         if (! $management || ! $auditor || ! $validator) {
             return;
         }

@@ -37,7 +37,7 @@ class AemsExitConferenceService
     public function engagements(Request $request): array
     {
         $user = $request->user();
-        $query = $user->hasRole('auditee_representative')
+        $query = $user->hasPermission('access.auditee_scope')
             ? AuditEngagement::query()
                 ->whereHas('offices', fn ($offices) => $offices->whereKey($user->office_id))
                 ->whereHas('exitConferences')
@@ -60,7 +60,7 @@ class AemsExitConferenceService
     public function workspace(Request $request, AuditEngagement $engagement): array
     {
         $user = $request->user();
-        if ($user->hasRole('auditee_representative')) {
+        if ($user->hasPermission('access.auditee_scope')) {
             $covered = $user->office_id
                 && $engagement->offices()->whereKey($user->office_id)->exists();
             throw_unless($covered, new \Symfony\Component\HttpKernel\Exception\HttpException(
@@ -80,7 +80,7 @@ class AemsExitConferenceService
             ->with($this->relations())
             ->orderByDesc('scheduled_start_at');
 
-        if ($user->hasRole('auditee_representative')) {
+        if ($user->hasPermission('access.auditee_scope')) {
             $conferenceQuery->where(function ($visible) use ($user): void {
                 $visible
                     ->whereHas('participants', fn ($participants) => $participants
@@ -101,7 +101,7 @@ class AemsExitConferenceService
                 'FINALIZED',
             ])
             ->when(
-                $user->hasRole('auditee_representative'),
+                $user->hasPermission('access.auditee_scope'),
                 fn ($query) => $query->where('responsible_office_id', $user->office_id),
             )
             ->with(['responsibleOffice', 'riskRating'])
@@ -431,7 +431,7 @@ class AemsExitConferenceService
         int $lockVersion,
     ): ExitConferenceAcknowledgement {
         throw_unless(
-            $request->user()->hasRole('auditee_representative')
+            $request->user()->hasPermission('access.auditee_scope')
                 && $request->user()->hasPermission('aems.conference.acknowledge'),
             new \Symfony\Component\HttpKernel\Exception\HttpException(
                 403,
@@ -761,7 +761,7 @@ class AemsExitConferenceService
                     ->where('is_active', true)
                     ->whereNull('ended_at')
                     ->exists()
-                    || $member?->hasRole('cias_management'));
+                    || $member?->hasPermission('aems.conference.manage'));
             if ($officeId
                 && ! $engagement->offices()->whereKey($officeId)->exists()
                 && ! $isAuditParticipant) {

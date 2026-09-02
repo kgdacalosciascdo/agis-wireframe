@@ -307,6 +307,57 @@ export default function AemsSpecialEngagementForm({
           />
         </FormField>
       ))}
+      <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-4">
+        <h3 className="text-sm font-bold text-slate-800">
+          Engagement definition
+        </h3>
+        <p className="mt-1 text-xs leading-5 text-slate-600">
+          {editing
+            ? "Update the engagement purpose, coverage, and exclusions. Structured office, audit-area, and audit-focus coverage remains in the Engagement Scope workspace."
+            : "Describe the purpose, coverage, and exclusions of this engagement. Structured office, audit-area, and audit-focus coverage is completed in the Engagement Scope workspace after the draft is created."}
+        </p>
+        <div className="mt-4 space-y-4">
+          <FormField
+            error={errors.objectives?.[0]}
+            htmlFor="aems-objectives"
+            label="Objectives"
+          >
+            <textarea
+              className={textareaClass}
+              id="aems-objectives"
+              onChange={(event) => set("objectives", event.target.value)}
+              placeholder="What should this engagement accomplish?"
+              value={form.objectives}
+            />
+          </FormField>
+          <FormField
+            error={errors.scope?.[0]}
+            htmlFor="aems-scope"
+            label="Scope"
+          >
+            <textarea
+              className={textareaClass}
+              id="aems-scope"
+              onChange={(event) => set("scope", event.target.value)}
+              placeholder="What activities, records, systems, or period are covered?"
+              value={form.scope}
+            />
+          </FormField>
+          <FormField
+            error={errors.exclusions?.[0]}
+            htmlFor="aems-exclusions"
+            label="Exclusions"
+          >
+            <textarea
+              className={textareaClass}
+              id="aems-exclusions"
+              onChange={(event) => set("exclusions", event.target.value)}
+              placeholder="What is specifically outside the engagement scope?"
+              value={form.exclusions}
+            />
+          </FormField>
+        </div>
+      </section>
     </form>
   );
 }

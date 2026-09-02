@@ -77,7 +77,7 @@ class WorkflowDefinitionRequest extends FormRequest
                 Rule::exists('roles', 'id')->whereNull('deleted_at'),
             ],
             'transitions.*.requiredPermissionId' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists('permissions', 'id'),
             ],

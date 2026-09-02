@@ -28,8 +28,7 @@ class AuditEngagementPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole('cias_management')
-            && $user->hasPermission('aems.engagement.create');
+        return $user->hasPermission('aems.engagement.create');
     }
 
     public function update(User $user, AuditEngagement $engagement): bool

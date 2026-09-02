@@ -236,5 +236,15 @@ class IapBaicsControlUniverseService
     private function assertOfficeScope(User $user, int $officeId): void { abort_unless($user->hasGlobalOfficeAccess() || (int) $user->office_id === $officeId, 403, 'The control owner office is outside your scope.'); }
     private function assertLock(int $current, int $provided): void { if ($current !== $provided) throw ValidationException::withMessages(['lockVersion' => ['This BAICS record changed. Refresh before continuing.']]); }
     private function controlValues(IapBaicsControl $control): array { return $control->only(['id', 'assessment_id', 'scope_item_id', 'component_id', 'control_code', 'process_step', 'responsible_unit', 'control_owner_office_id', 'control_owner_user_id', 'objective', 'related_risk', 'control_description', 'expected_result', 'control_type', 'execution_mode', 'frequency', 'evidence_produced', 'approval_required', 'segregation_of_duties_required', 'design_assessment', 'operating_assessment', 'control_status', 'deficiency_classification', 'limitation_details', 'gap_details', 'breakdown_details', 'contradiction_details', 'recommendation_action', 'status', 'prepared_by', 'reviewer_id', 'approved_by', 'version_number', 'lock_version']); }
-    private function notify(IapBaicsAssessment $assessment, User $actor, string $type, string $title, string $message): void { $recipients = User::query()->where('is_active', true)->where(function ($query) use ($assessment): void { $query->where('office_id', $assessment->responsible_office_id)->orWhereHas('roles', fn ($role) => $role->whereIn('code', ['cias_management', 'platform_admin'])); })->pluck('id'); $this->notifications->send($recipients, ['actorId' => $actor->id, 'type' => $type, 'category' => 'WORKFLOW', 'moduleCode' => 'IAP', 'title' => $title, 'message' => $message, 'actionUrl' => '/internal-audit-planning/baics', 'actionLabel' => 'Open BAICS', 'subjectType' => IapBaicsAssessment::class, 'subjectId' => $assessment->id, 'subjectCode' => $assessment->assessment_code, 'dedupeKey' => 'baics:'.Str::slug($type).':'.$assessment->id.':'.now()->timestamp]); }
+    private function notify(IapBaicsAssessment $assessment, User $actor, string $type, string $title, string $message): void
+    {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($assessment): void {
+                $query->where('office_id', $assessment->responsible_office_id)
+                    ->orWhereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.baics.review'));
+            })
+            ->pluck('id');
+        $this->notifications->send($recipients, ['actorId' => $actor->id, 'type' => $type, 'category' => 'WORKFLOW', 'moduleCode' => 'IAP', 'title' => $title, 'message' => $message, 'actionUrl' => '/internal-audit-planning/baics', 'actionLabel' => 'Open BAICS', 'subjectType' => IapBaicsAssessment::class, 'subjectId' => $assessment->id, 'subjectCode' => $assessment->assessment_code, 'dedupeKey' => 'baics:'.Str::slug($type).':'.$assessment->id.':'.now()->timestamp]);
+    }
 }

@@ -43,7 +43,7 @@ class AemsWorkQueueService
         $tasks = AemsEngagementTask::query()
             ->where('audit_engagement_id', $engagement->id)
             ->with(['assignee:id,name,employee_id', 'assignedOffice:id,code,name', 'finding:id,finding_code,title', 'entryConference:id,conference_code', 'exitConference:id,conference_code'])
-            ->when($user->hasRole('auditee_representative'), fn ($query) => $query->where(function ($scope) use ($user): void {
+            ->when($user->hasPermission('access.auditee_scope'), fn ($query) => $query->where(function ($scope) use ($user): void {
                 $scope->where('assigned_to', $user->id)->orWhere('assigned_office_id', $user->office_id);
             }))
             ->orderByRaw("CASE WHEN status IN ('COMPLETED','CANCELLED') THEN 1 ELSE 0 END")
@@ -53,17 +53,17 @@ class AemsWorkQueueService
             ->where('audit_engagement_id', $engagement->id)
             ->where('is_current_revision', true)
             ->with(['creator:id,name,employee_id', 'finalizer:id,name,employee_id', 'finding:id,finding_code,title', 'entryConference:id,conference_code', 'exitConference:id,conference_code', 'task:id,task_code,title', 'attachments.documentVersion', 'attachments.uploader:id,name,employee_id'])
-            ->when($user->hasRole('auditee_representative'), fn ($query) => $query->whereHas('finding', fn ($finding) => $finding->visibleTo($user)))
+            ->when($user->hasPermission('access.auditee_scope'), fn ($query) => $query->whereHas('finding', fn ($finding) => $finding->visibleTo($user)))
             ->latest('updated_at')->get();
         $dueProcess = AemsDialogueDueProcess::query()
             ->where('audit_engagement_id', $engagement->id)
             ->with(['finding:id,finding_code,title', 'response:id,response_code', 'actor:id,name,employee_id', 'attachments.documentVersion', 'attachments.uploader:id,name,employee_id'])
-            ->when($user->hasRole('auditee_representative'), fn ($query) => $query->whereHas('finding', fn ($finding) => $finding->visibleTo($user)))
+            ->when($user->hasPermission('access.auditee_scope'), fn ($query) => $query->whereHas('finding', fn ($finding) => $finding->visibleTo($user)))
             ->latest('recorded_at')->get();
         $candidates = AemsEscalationCandidate::query()
             ->where('audit_engagement_id', $engagement->id)
             ->with(['finding:id,finding_code,title', 'task:id,task_code,title', 'entryConference:id,conference_code', 'exitConference:id,conference_code', 'reviewer:id,name,employee_id'])
-            ->when($user->hasRole('auditee_representative'), fn ($query) => $query->whereRaw('1 = 0'))
+            ->when($user->hasPermission('access.auditee_scope'), fn ($query) => $query->whereRaw('1 = 0'))
             ->latest('detected_at')->get();
 
         return [
@@ -289,7 +289,7 @@ class AemsWorkQueueService
     {
         if (! $internal) $this->authorize($request, $engagement, 'aems.due-process.create');
         $finding = AuditFinding::query()->where('audit_engagement_id', $engagement->id)->whereKey($attributes['findingId'])->firstOrFail();
-        if (! $request->user()->hasRole('auditee_representative')) $this->access->authorizeFindingView($request->user(), $finding);
+        if (! $request->user()->hasPermission('access.auditee_scope')) $this->access->authorizeFindingView($request->user(), $finding);
         $type = strtoupper($attributes['eventType']);
         if (! in_array($type, AemsDialogueDueProcess::TYPES, true)) throw ValidationException::withMessages(['eventType' => ['Unsupported due-process event type.']]);
         if ($type === 'FINAL_NON_RESPONSE' && mb_strlen(trim($attributes['content'])) < 5) throw ValidationException::withMessages(['content' => ['A final non-response explanation is required.']]);
@@ -365,7 +365,7 @@ class AemsWorkQueueService
     public function createCandidateForSystem(AuditEngagement $engagement, string $type, ?AemsEngagementTask $task, ?AuditFinding $finding, ?ExitConference $conference, string $reason, array $snapshot): AemsEscalationCandidate
     {
         $systemRequest = Request::create('/system/aems-work-queue', 'POST');
-        $actor = User::query()->whereHas('roles', fn ($roles) => $roles->where('code', 'cias_management'))->where('is_active', true)->first() ?? User::query()->where('is_active', true)->firstOrFail();
+        $actor = User::query()->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.escalation-candidate.create'))->where('is_active', true)->first() ?? User::query()->where('is_active', true)->firstOrFail();
         $systemRequest->setUserResolver(fn (): User => $actor);
         return $this->createCandidate($systemRequest, $engagement, $type, $task, $finding, $conference, $reason, $snapshot);
     }
@@ -396,7 +396,7 @@ class AemsWorkQueueService
 
     private function authorizeView(Request $request, AuditEngagement $engagement): void
     {
-        if ($request->user()->hasRole('auditee_representative')) $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.finding.view');
+        if ($request->user()->hasPermission('access.auditee_scope')) $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.finding.view');
         else $this->access->authorizeEngagementAction($request->user(), $engagement, 'aems.task.view');
     }
 

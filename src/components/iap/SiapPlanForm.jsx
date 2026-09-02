@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import FormField from "../ui/FormField";
 import SearchableSelect from "../ui/SearchableSelect";
+import { hasPermission } from "../../config/navigation";
 
 const nextYear = new Date().getFullYear() + 1;
 
@@ -98,11 +99,7 @@ export default function SiapPlanForm({
   const userOptions = useMemo(
     () =>
       users
-        .filter((candidate) =>
-          ["platform_admin", "cias_management", "agis_user"].includes(
-            candidate.role?.code,
-          ),
-        )
+        .filter((candidate) => hasPermission(candidate, "iap.assign_team"))
         .map((candidate) => ({
           value: candidate.id,
           label: `${candidate.employeeId} — ${candidate.name}`,

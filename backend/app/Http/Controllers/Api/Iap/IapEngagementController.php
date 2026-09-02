@@ -172,7 +172,7 @@ class IapEngagementController extends Controller
         $eligibleCount = User::query()
             ->whereIn('id', collect($members)->pluck('userId'))
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role->whereIn('code', ['cias_management', 'agis_user']))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
             ->count();
         if ($eligibleCount !== count($members)) {
             throw ValidationException::withMessages([

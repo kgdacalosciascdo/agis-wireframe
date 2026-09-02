@@ -104,9 +104,7 @@ export default function IapSchedulingPage() {
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
   const canSchedule = hasPermission(user, "iap.assign_team");
-  const isManagement = ["platform_admin", "cias_management"].includes(
-    user.roleCode,
-  );
+  const isManagement = hasPermission(user, "iap.manage_universe");
   const canModify = (schedule) =>
     canSchedule &&
     ["DRAFT", "RETURNED_FOR_REVISION"].includes(schedule.plan.status) &&

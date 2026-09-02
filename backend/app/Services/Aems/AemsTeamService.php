@@ -266,8 +266,7 @@ class AemsTeamService
         $users = User::query()
             ->where('is_active', true)
             ->where(function ($query): void {
-                $query->whereHas('roles', fn ($roles) => $roles->whereIn('code', ['agis_user', 'cias_management']))
-                    ->orWhereHas('role', fn ($role) => $role->whereIn('code', ['agis_user', 'cias_management']));
+                $query->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.team.view'));
             })
             ->with('office:id,code,name')
             ->orderBy('name')
@@ -447,7 +446,7 @@ class AemsTeamService
         if (! $user
             || ! $user->is_active
             || $user->trashed()
-            || ! $user->hasRole(['agis_user', 'cias_management'])) {
+            || ! $user->hasPermission('aems.team.view')) {
             throw ValidationException::withMessages(['userId' => ['Select an active CIAS team member.']]);
         }
         $duplicate = EngagementTeam::query()

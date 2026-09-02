@@ -357,8 +357,7 @@ class IapResourceCapacityController extends Controller
     {
         return User::query()
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role
-                ->whereIn('code', ['cias_management', 'agis_user']))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
             ->with('role:id,code,name')
             ->orderBy('name')
             ->get([
@@ -460,7 +459,7 @@ class IapResourceCapacityController extends Controller
     private function assertAuditor(Request $request, User $user): void
     {
         $this->guard->assertManagement($request->user());
-        if (! $user->is_active || ! $user->hasRole(['cias_management', 'agis_user'])) {
+        if (! $user->is_active || ! $user->hasPermission('iap.assign_team')) {
             throw ValidationException::withMessages([
                 'user' => ['Resource records can only be maintained for an active CIAS auditor.'],
             ]);

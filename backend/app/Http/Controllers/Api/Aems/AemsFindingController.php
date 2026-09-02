@@ -39,7 +39,7 @@ class AemsFindingController extends Controller
 
     public function index(Request $request, AuditEngagement $engagement): JsonResponse
     {
-        if ($request->user()->hasRole('auditee_representative')) {
+        if ($request->user()->hasPermission('access.auditee_scope')) {
             abort_unless(
                 AuditFinding::query()
                     ->visibleTo($request->user())

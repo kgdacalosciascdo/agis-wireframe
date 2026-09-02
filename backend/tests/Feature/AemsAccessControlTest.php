@@ -10,6 +10,7 @@ use App\Models\EngagementTeam;
 use App\Models\ExitConference;
 use App\Models\Office;
 use App\Models\ReportRecipient;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -208,6 +209,41 @@ class AemsAccessControlTest extends TestCase
         $this->assertTrue(Gate::forUser($auditee)->allows('view', $coveredConference));
         $this->assertTrue(Gate::forUser($auditee)->allows('acknowledge', $coveredConference));
         $this->assertFalse(Gate::forUser($auditee)->allows('view', $otherConference));
+    }
+
+    public function test_auditee_scope_behavior_is_driven_by_permission_not_role_code(): void
+    {
+        $management = $this->user('departmenthead');
+        $auditor = $this->user('auditor');
+        $auditee = $this->user('auditee');
+        $covered = $this->engagement($auditor, $management, $auditee->office);
+        $conference = $this->conference($covered, $management);
+
+        $sourceRole = Role::query()->where('code', 'auditee_representative')->firstOrFail();
+        $customRole = Role::query()->create([
+            'code' => 'custom_auditee_scope',
+            'name' => 'Custom Auditee Scope Role',
+            'description' => 'Regression role with duplicated auditee permissions.',
+            'is_system' => false,
+            'is_active' => true,
+            'office_access_scope' => 'OWN_OFFICE',
+            'engagement_access_scope' => 'ASSIGNED',
+        ]);
+        $customRole->permissions()->sync($sourceRole->permissions()->pluck('permissions.id'));
+        $auditee->forceFill(['role_id' => $customRole->id])->save();
+        $auditee->roles()->sync([
+            $customRole->id => [
+                'is_primary' => true,
+                'assigned_by' => $management->id,
+                'assigned_at' => now(),
+            ],
+        ]);
+        $auditee->refresh()->load(['role.permissions', 'roles.permissions', 'office']);
+
+        $this->assertFalse($auditee->hasRole('auditee_representative'));
+        $this->assertTrue($auditee->hasPermission('access.auditee_scope'));
+        $this->assertTrue(Gate::forUser($auditee)->allows('view', $conference));
+        $this->assertTrue(Gate::forUser($auditee)->allows('acknowledge', $conference));
     }
 
     private function user(string $username): User

@@ -289,7 +289,7 @@ class CmsClosureService
 
     private function assertInitiator(User $u, CmsRecommendationCase $c): void
     {
-        throw_unless($u->hasPermission('cms.closure.request') && ($u->office_id === $c->lead_responsible_office_id || $c->currentAssignment?->user_id === $u->id || $u->hasRole('cias_management')), new HttpException(403, 'You cannot initiate this closure request.'));
+        throw_unless($u->hasPermission('cms.closure.request') && ($u->office_id === $c->lead_responsible_office_id || $c->currentAssignment?->user_id === $u->id || $u->hasGlobalEngagementAccess()), new HttpException(403, 'You cannot initiate this closure request.'));
     }
 
     private function independent(User $u, CmsRecommendationCase $c, CmsClosureRequestVersion $v): void

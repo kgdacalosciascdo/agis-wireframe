@@ -49,7 +49,7 @@ class AemsFindingService
     /** @return list<array<string, mixed>> */
     public function engagements(Request $request): array
     {
-        $query = $request->user()->hasRole('auditee_representative')
+        $query = $request->user()->hasPermission('access.auditee_scope')
             ? AuditEngagement::query()->whereHas(
                 'findings',
                 fn ($findings) => $findings
@@ -74,7 +74,7 @@ class AemsFindingService
     {
         $engagement->loadMissing('offices:id,code,name');
         $canViewIssues = $request->user()->hasPermission('aems.issue.view')
-            && ! $request->user()->hasRole('auditee_representative');
+            && ! $request->user()->hasPermission('access.auditee_scope');
         $issues = $canViewIssues
             ? AuditIssue::query()
                 ->visibleTo($request->user())
@@ -1061,7 +1061,7 @@ class AemsFindingService
             || (int) $recipient->transmittal_id !== (int) $transmittal->id) {
             throw ValidationException::withMessages(['recipient' => ['This recipient is outside the engagement Finding.']]);
         }
-        if ($action === 'ACKNOWLEDGE' && $request->user()->hasRole('auditee_representative')) {
+        if ($action === 'ACKNOWLEDGE' && $request->user()->hasPermission('access.auditee_scope')) {
             $isResponsibleOffice = (int) $request->user()->office_id === (int) $finding->responsible_office_id;
             $isNamedRecipient = $recipient->recipient_user_id !== null
                 && (int) $recipient->recipient_user_id === (int) $request->user()->id;

@@ -950,7 +950,6 @@ class CmsValidationService
             }
         }
         if ($review->active_slot === 'ACTIVE'
-            && $actor->hasRole('cias_management')
             && $actor->hasPermission('cms.validation.assign')) {
             $actions[] = 'replace-validator';
         }
@@ -1232,7 +1231,6 @@ class CmsValidationService
     private function canCreate(User $actor, CmsRecommendationCase $case): bool
     {
         if (! $this->scope->isUsableAccount($actor)
-            || ! $actor->hasRole('cias_management')
             || ! $actor->hasPermission('cms.validation.create')
             || ! $actor->hasPermission('cms.validation.assign')
             || ! in_array($case->status_code, [
@@ -1304,7 +1302,6 @@ class CmsValidationService
         string $permission,
     ): bool {
         if (! $this->scope->isUsableAccount($actor)
-            || ! $actor->hasRole('cias_management')
             || ! $actor->hasPermission($permission)
             || (int) $actor->office_id === (int) $case->lead_responsible_office_id
             || in_array($actor->id, array_filter([
@@ -1331,7 +1328,6 @@ class CmsValidationService
     ): void {
         if (! $target
             || ! $this->scope->isUsableAccount($target)
-            || ! $target->hasRole('agis_user')
             || ! $target->hasPermission('cms.validation.view')
             || ! $target->hasPermission('cms.validation.update')
             || ! $target->hasPermission('cms.validation.submit')
@@ -2033,7 +2029,7 @@ class CmsValidationService
      */
     private function filterReadOnlyVersions(User $actor, Collection $reviews): Collection
     {
-        if (! $actor->hasRole(['read_only', 'auditee_representative'])) {
+        if (! $actor->hasAnyPermission(['access.read_only_scope', 'access.auditee_scope'])) {
             return $reviews;
         }
         foreach ($reviews as $review) {
@@ -2233,8 +2229,7 @@ class CmsValidationService
             ->where('is_active', true)
             ->with(['role.permissions', 'roles.permissions'])
             ->get()
-            ->filter(fn (User $user): bool => $user->hasRole('cias_management')
-                && $user->hasPermission('cms.validation.review')
+            ->filter(fn (User $user): bool => $user->hasPermission('cms.validation.review')
                 && $this->scope->canViewClassification(
                     $user,
                     $case->recommendation?->confidentiality_code_snapshot,
@@ -2250,8 +2245,8 @@ class CmsValidationService
             ->where('is_active', true)
             ->where(function ($query): void {
                 $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                    ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                    ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
             })->pluck('id');
     }
 }

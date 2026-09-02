@@ -12,6 +12,7 @@ use App\Models\ArmisResourceProfile;
 use App\Models\AuditEngagement;
 use App\Models\EngagementTeam;
 use App\Models\IapPlanEngagement;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\SystemConfiguration;
 use App\Models\User;
@@ -179,6 +180,28 @@ class AemsTeamSafeguardTest extends TestCase
         $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations/{$declaration['id']}/review", [
             'decision' => 'ACCEPT',
             'reviewNotes' => 'CIAS Head exception applied and recorded in the audit trail.',
+        ])->assertOk()->assertJsonPath('data.declaration.status', 'ACCEPTED');
+    }
+
+    public function test_self_review_is_controlled_by_permission_not_a_cias_role(): void
+    {
+        [, $engagement, $team] = $this->engagementWithTeam();
+        $member = $team[0];
+        $role = Role::query()->where('code', 'agis_user')->firstOrFail();
+        $permission = Permission::query()->where('code', 'aems.review.own_submission')->firstOrFail();
+        $role->permissions()->syncWithoutDetaching([$permission->id]);
+        $member->user->unsetRelation('roles');
+
+        Sanctum::actingAs($member->user);
+        $declaration = $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations", [
+            'declarationType' => 'OBJECTIVITY',
+            'outcome' => 'CLEAR',
+            'statement' => 'This non-CIAS reviewer has an explicit self-review permission.',
+        ])->assertCreated()->json('data.declaration');
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/team/{$member->id}/safeguards/declarations/{$declaration['id']}/review", [
+            'decision' => 'ACCEPT',
+            'reviewNotes' => 'Accepted under the explicitly granted self-review permission.',
         ])->assertOk()->assertJsonPath('data.declaration.status', 'ACCEPTED');
     }
 

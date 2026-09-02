@@ -45,7 +45,7 @@ class AemsEntryConferenceService
     public function engagements(Request $request): array
     {
         $user = $request->user();
-        $query = $user->hasRole('auditee_representative')
+        $query = $user->hasPermission('access.auditee_scope')
             ? AuditEngagement::query()
                 ->whereHas('offices', fn ($offices) => $offices->whereKey($user->office_id))
                 ->whereHas('entryConference')

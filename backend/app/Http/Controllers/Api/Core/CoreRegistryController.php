@@ -399,7 +399,8 @@ class CoreRegistryController extends Controller
 
     public function cloneRole(Request $request, Role $role): JsonResponse
     {
-        if ($role->code === 'platform_admin' && ! $request->user()->hasRole('platform_admin')) {
+        if ($role->permissions()->where('code', 'access.manage_system_roles')->exists()
+            && ! $request->user()->hasPermission('access.manage_system_roles')) {
             abort(403, 'Only a Platform Administrator can clone that role.');
         }
 
@@ -445,7 +446,8 @@ class CoreRegistryController extends Controller
 
     public function updateRole(Request $request, Role $role): JsonResponse
     {
-        if ($role->code === 'platform_admin' && ! $request->user()->hasRole('platform_admin')) {
+        if ($role->permissions()->where('code', 'access.manage_system_roles')->exists()
+            && ! $request->user()->hasPermission('access.manage_system_roles')) {
             abort(403, 'Only a Platform Administrator can manage that role.');
         }
 
@@ -486,7 +488,7 @@ class CoreRegistryController extends Controller
 
     public function destroyRole(Request $request, Role $role): JsonResponse
     {
-        if ($role->code === 'platform_admin') {
+        if ($role->permissions()->where('code', 'access.manage_system_roles')->exists()) {
             throw ValidationException::withMessages([
                 'role' => ['The Platform Administrator role cannot be archived.'],
             ]);

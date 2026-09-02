@@ -50,7 +50,6 @@ class AemsReportService
     {
         $user = $request->user();
         $query = $user->hasPermission('aems.report.view')
-            && ($user->hasRole('cias_management') || $user->hasRole('agis_user'))
             ? AuditEngagement::query()->visibleTo($user)
             : AuditEngagement::query()->whereHas(
                 'reports',
@@ -72,8 +71,7 @@ class AemsReportService
     public function workspace(Request $request, AuditEngagement $engagement): array
     {
         $user = $request->user();
-        $canViewInternal = $user->hasPermission('aems.report.view')
-            && ($user->hasRole('cias_management') || $user->hasRole('agis_user'));
+        $canViewInternal = $user->hasPermission('aems.report.view');
         if ($canViewInternal) {
             $this->access->authorizeEngagementAction(
                 $user,
@@ -286,7 +284,7 @@ class AemsReportService
                 ]);
             }
             if ((int) $report->prepared_by !== (int) $request->user()->id
-                && ! $request->user()->hasRole('cias_management')) {
+                && ! $request->user()->hasPermission('aems.report.manage')) {
                 throw ValidationException::withMessages([
                     'report' => ['Only the report preparer can generate its revision.'],
                 ]);
@@ -635,8 +633,7 @@ class AemsReportService
                 'version' => ['The report version does not belong to this report.'],
             ]);
         }
-        $isInternal = $request->user()->hasPermission('aems.report.view')
-            && ($request->user()->hasRole('cias_management') || $request->user()->hasRole('agis_user'));
+        $isInternal = $request->user()->hasPermission('aems.report.view');
         if (! $isInternal && (int) $version->id !== (int) $report->current_version_id) {
             abort(403, 'Recipients can download only the issued report version.');
         }
@@ -882,7 +879,7 @@ class AemsReportService
     /** @return array<string, mixed> */
     private function versionData(AuditReportVersion $version, ?User $viewer = null): array
     {
-        $internal = $viewer === null || ($viewer->hasPermission('aems.report.view') && ($viewer->hasRole('cias_management') || $viewer->hasRole('agis_user')));
+        $internal = $viewer === null || $viewer->hasPermission('aems.report.view');
         return [
             'id' => $version->id,
             'versionNumber' => $version->version_number,

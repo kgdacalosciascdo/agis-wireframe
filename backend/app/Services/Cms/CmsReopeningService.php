@@ -609,13 +609,13 @@ class CmsReopeningService
 
     private function assertInitiator(User $actor, CmsRecommendationCase $case): void
     {
-        $allowed = $actor->hasPermission('cms.reopening.request') && ($actor->hasRole('cias_management') || $actor->office_id === $case->lead_responsible_office_id || $case->currentAssignment?->user_id === $actor->id);
+        $allowed = $actor->hasPermission('cms.reopening.request') && ($actor->hasGlobalEngagementAccess() || $actor->office_id === $case->lead_responsible_office_id || $case->currentAssignment?->user_id === $actor->id);
         throw_unless($allowed, new HttpException(403, 'You cannot initiate this reopening request.'));
     }
 
     private function canInitiate(User $actor, CmsRecommendationCase $case): bool
     {
-        return $actor->is_active && $actor->hasPermission('cms.reopening.request') && ($actor->hasRole('cias_management') || $actor->office_id === $case->lead_responsible_office_id || $case->currentAssignment?->user_id === $actor->id);
+        return $actor->is_active && $actor->hasPermission('cms.reopening.request') && ($actor->hasGlobalEngagementAccess() || $actor->office_id === $case->lead_responsible_office_id || $case->currentAssignment?->user_id === $actor->id);
     }
 
     private function authorizeReviewer(User $actor, CmsRecommendationCase $case, CmsReopeningRequestVersion $version, string $permission): void
@@ -626,7 +626,7 @@ class CmsReopeningService
 
     private function authorizeDecision(User $actor, CmsRecommendationCase $case, CmsReopeningRequestVersion $version, string $permission): void
     {
-        throw_unless($actor->is_active && $actor->hasPermission($permission) && $actor->hasRole('cias_management'), new HttpException(403, 'Only independent CIAS Management may decide this reopening request.'));
+        throw_unless($actor->is_active && $actor->hasPermission($permission), new HttpException(403, 'You do not have permission to decide this reopening request.'));
         throw_if($version->prepared_by === $actor->id || $version->submitted_by === $actor->id || $version->review_started_by === $actor->id || $case->lead_responsible_office_id === $actor->office_id, new HttpException(403, 'Separation of duties prevents this final reopening decision.'));
     }
 
@@ -688,7 +688,7 @@ class CmsReopeningService
         $case->loadMissing('currentAssignment.user', 'actionPlan.acceptedVersion');
         $recipients = collect([$case->currentAssignment?->user_id, $version->prepared_by, $version->submitted_by])->filter()->unique();
         if (in_array($event, ['reviewed', 'approved', 'rejected'], true)) {
-            $recipients = $recipients->merge(User::query()->whereHas('roles', fn ($roles) => $roles->where('code', 'cias_management'))->pluck('id'));
+            $recipients = $recipients->merge(User::query()->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.reopening.review'))->pluck('id'));
         }
         $recipients = $recipients->filter(fn ($id) => (int) $id !== (int) $http->user()->id);
         if ($recipients->isEmpty()) {

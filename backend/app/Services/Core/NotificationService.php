@@ -81,15 +81,15 @@ class NotificationService
     }
 
     /** @param array<string, mixed> $payload */
-    public function sendToRole(string $roleCode, array $payload, ?int $officeId = null): Collection
+    public function sendToPermission(string $permissionCode, array $payload, ?int $officeId = null): Collection
     {
         $recipients = User::query()
             ->where('is_active', true)
             ->when($officeId, fn ($query) => $query->where('office_id', $officeId))
-            ->where(function ($query) use ($roleCode): void {
+            ->where(function ($query) use ($permissionCode): void {
                 $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', $roleCode))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', $roleCode));
+                    ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', $permissionCode))
+                    ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', $permissionCode));
             })
             ->pluck('id');
 
@@ -103,18 +103,22 @@ class NotificationService
     ): Collection {
         $instance->loadMissing([
             'definition:id,name',
-            'currentStep.responsibleRole:id,code,name',
+            'currentStep.outgoingTransitions:id,from_step_id,required_permission_id',
         ]);
         $recipients = collect([$instance->started_by]);
-        if ($instance->currentStep->responsibleRole) {
+        $permissionIds = $instance->currentStep->outgoingTransitions
+            ->pluck('required_permission_id')
+            ->filter()
+            ->unique()
+            ->values();
+        if ($permissionIds->isNotEmpty()) {
             $roleUsers = User::query()
                 ->where('is_active', true)
                 ->when($instance->office_id, fn ($query) => $query->where('office_id', $instance->office_id))
-                ->where(function ($query) use ($instance): void {
-                    $code = $instance->currentStep->responsibleRole->code;
+                ->where(function ($query) use ($permissionIds): void {
                     $query
-                        ->whereHas('roles', fn ($role) => $role->where('code', $code))
-                        ->orWhereHas('role', fn ($role) => $role->where('code', $code));
+                        ->whereHas('roles.permissions', fn ($permission) => $permission->whereIn('permissions.id', $permissionIds))
+                        ->orWhereHas('role.permissions', fn ($permission) => $permission->whereIn('permissions.id', $permissionIds));
                 })
                 ->pluck('id');
             $recipients = $recipients->merge($roleUsers);

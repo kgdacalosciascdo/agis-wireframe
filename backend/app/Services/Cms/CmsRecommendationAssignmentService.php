@@ -248,7 +248,7 @@ class CmsRecommendationAssignmentService
     {
         if (! $this->scope->isUsableAccount($target)
             || ! $target->hasPermission('cms.recommendation.monitor')
-            || ! $target->hasRole(['agis_user', 'cias_management'])) {
+            || ! $target->hasPermission('cms.recommendation.monitor')) {
             return false;
         }
 
@@ -260,7 +260,7 @@ class CmsRecommendationAssignmentService
             return false;
         }
 
-        return ! ($target->hasRole('auditee_representative')
+        return ! ($target->hasPermission('access.auditee_scope')
             && $target->office_id
             && in_array((int) $target->office_id, [
                 (int) $case->lead_responsible_office_id,

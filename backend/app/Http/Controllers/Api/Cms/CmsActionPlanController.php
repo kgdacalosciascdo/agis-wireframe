@@ -187,7 +187,7 @@ class CmsActionPlanController extends Controller
             'case.leadResponsibleOffice',
             'case.currentAssignment.user',
         ]);
-        if ($request->user()->hasRole('read_only')) {
+        if ($request->user()->hasPermission('access.read_only_scope')) {
             $visibleStatuses = ['SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED'];
             $plan->setRelation(
                 'versions',

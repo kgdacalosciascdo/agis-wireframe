@@ -426,8 +426,8 @@ class AemsAeoService
                     ->where('is_active', true)
                     ->where(function ($query): void {
                         $query
-                            ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                            ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                            ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
                     })
                     ->first();
                 if (! $recipient) {
@@ -807,8 +807,8 @@ class AemsAeoService
             ->where('is_active', true)
             ->where(function ($query): void {
                 $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                    ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                    ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
             })
             ->with('office:id,code,name')
             ->orderBy('name')
@@ -1056,7 +1056,7 @@ class AemsAeoService
 
         $managementCandidates = User::query()
             ->where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->where('code', 'cias_management'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.aeo.approve'))
             ->with('roles')
             ->orderBy('name')
             ->get()

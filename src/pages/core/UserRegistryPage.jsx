@@ -123,12 +123,16 @@ export default function UserRegistryPage() {
   const canUnlock = hasPermission(currentUser, "users.unlock");
   const canResetPassword = hasPermission(currentUser, "users.reset_password");
   const canManage = canCreate || canUpdate;
-  const isPlatformAdministrator = (currentUser.roles ?? []).some(
-    (role) => role.code === "platform_admin",
+  const isPlatformAdministrator = hasPermission(
+    currentUser,
+    "access.manage_system_roles",
   );
   const assignableRoles = isPlatformAdministrator
     ? roles
-    : roles.filter((role) => role.code !== "platform_admin");
+    : roles.filter(
+        (role) =>
+          !(role.permissions ?? []).includes("access.manage_system_roles"),
+      );
 
   useEffect(() => {
     let active = true;
@@ -303,19 +307,8 @@ export default function UserRegistryPage() {
         : {
             ...emptyForm,
             officeId: offices[0]?.id ?? "",
-            roleIds: [
-              assignableRoles.find(
-                (role) => role.code === "auditee_representative",
-              )?.id ??
-                assignableRoles[0]?.id ??
-                "",
-            ].filter(Boolean),
-            primaryRoleId:
-              assignableRoles.find(
-                (role) => role.code === "auditee_representative",
-              )?.id ??
-              assignableRoles[0]?.id ??
-              "",
+            roleIds: [assignableRoles[0]?.id ?? ""].filter(Boolean),
+            primaryRoleId: assignableRoles[0]?.id ?? "",
           },
     );
     setOpen(true);

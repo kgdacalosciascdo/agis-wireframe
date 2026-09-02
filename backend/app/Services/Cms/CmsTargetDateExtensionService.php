@@ -861,7 +861,7 @@ class CmsTargetDateExtensionService
             && $actor->hasPermission($permission)
             && $case->lead_responsible_office_id
             && (int) $actor->office_id === (int) $case->lead_responsible_office_id
-            && ! $actor->hasRole(['platform_admin', 'agis_admin']);
+            && ! $actor->hasPermission('cms.administration.monitor');
     }
 
     private function authorizeReviewer(User $actor, CmsRecommendationCase $case, CmsTargetDateExtensionVersion $version, string $permission): void
@@ -883,9 +883,9 @@ class CmsTargetDateExtensionService
             ->where('assignment_role_code', 'COMPLIANCE_MONITOR')
             ->where('is_current', true)
             ->exists();
-        $isIndependentReviewer = $actor->hasRole('agis_user') && $actor->hasPermission('cms.extension.review');
+        $isIndependentReviewer = $actor->hasPermission('cms.extension.review');
 
-        return $isMonitor || $isIndependentReviewer || $actor->hasRole('cias_management');
+        return $isMonitor || $isIndependentReviewer || $actor->hasGlobalEngagementAccess();
     }
 
     private function authorizeDecision(User $actor, CmsRecommendationCase $case, CmsTargetDateExtensionVersion $version, string $permission): void
@@ -896,7 +896,6 @@ class CmsTargetDateExtensionService
     private function canDecision(User $actor, CmsRecommendationCase $case, CmsTargetDateExtensionVersion $version, string $permission): bool
     {
         return $this->scope->isUsableAccount($actor)
-            && $actor->hasRole('cias_management')
             && $actor->hasPermission($permission)
             && (int) $actor->office_id !== (int) $case->lead_responsible_office_id
             && ! in_array($actor->id, array_filter([$version->prepared_by, $version->submitted_by, $version->assessment?->assessor_user_id]), true)
@@ -1070,12 +1069,12 @@ class CmsTargetDateExtensionService
         ])->filter()->unique()->values();
         if (in_array($event, ['assessed'], true)) {
             $recipients = $recipients->merge(
-                User::query()->whereHas('roles', fn ($roles) => $roles->where('code', 'cias_management'))->pluck('id'),
+                User::query()->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.extension.review'))->pluck('id'),
             );
         }
         if (in_array($event, ['approved', 'rejected'], true)) {
             $recipients = $recipients->merge(
-                User::query()->whereHas('roles', fn ($roles) => $roles->where('code', 'cias_management'))->pluck('id'),
+                User::query()->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.extension.approve'))->pluck('id'),
             );
         }
         $recipients = $recipients->filter(fn ($id): bool => (int) $id !== (int) $request->user()->id)->values();

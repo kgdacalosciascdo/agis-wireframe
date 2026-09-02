@@ -258,7 +258,8 @@ class AemsTeamSafeguardService
     ): AemsTeamSafeguardDeclaration {
         $this->ensureMember($engagement, $member);
         $actor = $request->user();
-        if ((int) $actor->id !== (int) $member->user_id && ! $actor->hasRole('cias_management')) {
+        if ((int) $actor->id !== (int) $member->user_id
+            && ! $actor->hasPermission('aems.team.safeguard_submit_on_behalf')) {
             throw ValidationException::withMessages(['declaration' => ['Only the assigned resource may submit this declaration.']]);
         }
         if (! empty($attributes['evidenceDocumentVersionId'])) {
@@ -331,12 +332,10 @@ class AemsTeamSafeguardService
         );
         abort_unless($declaration->status === 'SUBMITTED', 409, 'Only submitted declarations can be reviewed.');
         $actor = $request->user();
-        // CIAS Management may prepare a declaration on behalf of an assigned
-        // member and complete the review from the same controlled workspace.
-        // The CIAS Head is the explicit exception for her own declaration;
-        // every other actor remains subject to independent review and retains
-        // view-only access to their own submitted version.
-        if (! $actor->hasRole('cias_management')
+        // Users may review their own submission only when the explicit
+        // self-review permission has been granted. Everyone else remains
+        // subject to separation of duties.
+        if (! $actor->hasPermission('aems.review.own_submission')
             && ((int) $actor->id === (int) $declaration->user_id
                 || (int) $actor->id === (int) $declaration->submitted_by)) {
             throw ValidationException::withMessages(['reviewer' => ['The declaration must be reviewed independently.']]);

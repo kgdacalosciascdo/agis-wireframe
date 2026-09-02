@@ -20,6 +20,9 @@ class RolePermissionSeeder extends Seeder
      */
     private array $permissionCatalogue = [
         'dashboard' => ['view'],
+        // Scope capabilities are permission-driven so custom roles can reuse
+        // the same behavior without relying on a system role code.
+        'access' => ['auditee_scope', 'read_only_scope', 'manage_system_roles'],
         'offices' => ['view', 'create', 'update', 'delete', 'restore'],
         'audit_areas' => ['view', 'create', 'update', 'delete', 'restore'],
         'audit_focus' => ['view', 'create', 'update', 'delete', 'restore'],
@@ -71,11 +74,16 @@ class RolePermissionSeeder extends Seeder
             'view', 'create', 'update', 'transition', 'authorize', 'suspend', 'cancel',
             'archive', 'restore', 'close', 'export', 'reopen_request', 'reopen_approve',
         ],
+        // Explicitly grants the controlled self-review/self-acceptance capability.
+        // Assignment and workflow gates still apply; this permission only allows
+        // the same user to perform an otherwise independent review action.
+        'aems.review' => ['own_submission'],
         'aems.foundation' => ['view', 'manage_scope', 'reconcile'],
         'aems.team' => [
             'view', 'assign', 'reassign',
             'amend', 'history',
             'safeguard_view', 'safeguard_declare', 'safeguard_review', 'safeguard_approve',
+            'safeguard_submit_on_behalf',
         ],
         'aems.aeo' => [
             'view', 'prepare', 'review', 'approve', 'issue', 'revise', 'amend', 'sign',
@@ -83,9 +91,9 @@ class RolePermissionSeeder extends Seeder
         ],
         'aems.aep' => ['view', 'create', 'review', 'approve', 'revise'],
         'aems.program' => ['view', 'manage', 'review', 'approve'],
-        'aems.fieldwork' => ['view', 'create', 'review', 'finalize'],
+        'aems.fieldwork' => ['view', 'create', 'manage', 'review', 'finalize'],
         'aems.planning-package' => ['view', 'create', 'update', 'review', 'approve', 'revise'],
-        'aems.working-paper' => ['view', 'create', 'review', 'approve'],
+        'aems.working-paper' => ['view', 'create', 'manage', 'review', 'approve'],
         'aems.evidence' => ['view', 'upload', 'verify', 'void', 'assess', 'outcome', 'link_report', 'exception_approve'],
         'aems.evidence-request' => ['view', 'create', 'update', 'submit', 'send', 'acknowledge', 'receive', 'assess', 'extend', 'extension_approve', 'overdue', 'escalate', 'cancel', 'close'],
         'aems.issue' => ['view', 'create', 'validate', 'dismiss', 'convert', 'merge', 'resolve', 'observe', 'refer', 'close_without_finding', 'withdraw'],
@@ -100,7 +108,7 @@ class RolePermissionSeeder extends Seeder
         'aems.conference' => ['view', 'manage', 'acknowledge'],
         'aems.entry-conference' => ['view', 'manage', 'acknowledge', 'waive'],
         'aems.report' => [
-            'view', 'create', 'review', 'approve', 'issue', 'view_issued',
+            'view', 'create', 'manage', 'review', 'approve', 'issue', 'view_issued',
             'distribute', 'acknowledge', 'amend', 'withdraw', 'supersede',
             'authority', 'signatory', 'transmit', 'export', 'close_admin',
         ],
@@ -163,7 +171,7 @@ class RolePermissionSeeder extends Seeder
         'ais' => ['view', 'export'],
         'documents' => [
             'view', 'view_confidential', 'view_restricted',
-            'upload', 'update', 'download', 'delete', 'restore',
+            'upload', 'update', 'review', 'approve', 'download', 'delete', 'restore',
         ],
         'notifications' => ['view', 'manage'],
         'workflows' => [
@@ -212,7 +220,7 @@ class RolePermissionSeeder extends Seeder
                 'is_system' => true,
                 'office_access_scope' => 'ALL',
                 'engagement_access_scope' => 'ALL',
-                'permissions' => collect(array_keys($permissionIds))
+                    'permissions' => collect(array_keys($permissionIds))
                     ->reject(fn (string $code): bool => str_starts_with($code, 'aems.')
                          || str_starts_with($code, 'aem.')
                          || str_starts_with($code, 'cms.action-plan.')
@@ -227,6 +235,7 @@ class RolePermissionSeeder extends Seeder
                          || str_starts_with($code, 'cms.automation.')
                          || str_starts_with($code, 'cms.report.')
                          || str_starts_with($code, 'armis.provider.')
+                         || in_array($code, ['access.auditee_scope', 'access.read_only_scope'], true)
                         || in_array($code, [
                             'cms.dashboard.view',
                             'cms.recommendation.view',
@@ -291,7 +300,7 @@ class RolePermissionSeeder extends Seeder
                     'aems.completion-transfer.view',
                     'aems.document-index.view', 'aems.retention.view',
                     'aems.records.view', 'aems.calendar.view',
-                    'documents.view', 'documents.upload', 'documents.update',
+                    'documents.view', 'documents.upload', 'documents.update', 'documents.review', 'documents.approve',
                     'documents.view_confidential', 'documents.view_restricted',
                     'documents.download', 'documents.delete', 'documents.restore',
                     'notifications.view', 'notifications.manage',
@@ -323,6 +332,7 @@ class RolePermissionSeeder extends Seeder
                     ...collect(array_keys($permissionIds))
                         ->filter(fn (string $code): bool => str_starts_with($code, 'aems.'))
                         ->all(),
+                    'aems.review.own_submission',
                     'afr.view', 'afr.create', 'afr.update', 'afr.review', 'afr.approve',
                     'cms.view', 'cms.update', 'cms.validate', 'cms.approve_extension', 'cms.close',
                     'cms.dashboard.view', 'cms.recommendation.view',
@@ -353,7 +363,7 @@ class RolePermissionSeeder extends Seeder
                     ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'cms.report.'))->all(),
                     ...collect(array_keys($permissionIds))->filter(fn (string $code): bool => str_starts_with($code, 'armis.'))->all(),
                     'arms.view', 'arms.manage', 'ais.view', 'ais.export',
-                    'documents.view', 'documents.upload', 'documents.update',
+                    'documents.view', 'documents.upload', 'documents.update', 'documents.review', 'documents.approve',
                     'documents.view_confidential', 'documents.view_restricted',
                     'documents.download', 'documents.delete', 'documents.restore',
                     'notifications.view', 'notifications.manage',
@@ -483,6 +493,7 @@ class RolePermissionSeeder extends Seeder
                 'office_access_scope' => 'OWN_OFFICE',
                 'engagement_access_scope' => 'ASSIGNED',
                 'permissions' => [
+                    'access.auditee_scope',
                     'dashboard.view',
                     'aems.finding.view',
                     'aems.afr.view', 'aems.afr.acknowledge',
@@ -535,6 +546,7 @@ class RolePermissionSeeder extends Seeder
                 'office_access_scope' => 'ALL',
                 'engagement_access_scope' => 'ALL',
                 'permissions' => [
+                    'access.read_only_scope',
                     'dashboard.view', 'offices.view', 'audit_areas.view', 'audit_focus.view',
                     'master_lists.view', 'iap.view', 'iap.baics.view', 'aem.view', 'afr.view', 'cms.view',
                     'cms.dashboard.view', 'cms.recommendation.view',

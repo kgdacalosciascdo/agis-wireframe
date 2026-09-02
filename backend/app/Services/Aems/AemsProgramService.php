@@ -1045,15 +1045,15 @@ class AemsProgramService
             ->where('is_active', true)
             ->whereNull('ended_at')
             ->value('assignment_role_code');
-        if ($status === 'WAIVED' && $role !== 'SUPERVISOR' && ! $request->user()->hasRole('cias_management')) {
+        if ($status === 'WAIVED' && $role !== 'SUPERVISOR' && ! $request->user()->hasPermission('aems.program.approve')) {
             throw ValidationException::withMessages([
-                'status' => ['Only the Supervisor or CIAS Management may waive a procedure.'],
+                'status' => ['Only the Supervisor or a user with program approval permission may waive a procedure.'],
             ]);
         }
         if ($status !== 'WAIVED'
             && (int) $procedure->assigned_to !== (int) $request->user()->id
             && ! in_array($role, ['SUPERVISOR', 'TEAM_LEADER'], true)
-            && ! $request->user()->hasRole('cias_management')) {
+            && ! $request->user()->hasPermission('aems.program.manage')) {
             throw ValidationException::withMessages([
                 'status' => ['Only the responsible auditor, Team Leader, or Supervisor may update progress.'],
             ]);

@@ -209,10 +209,7 @@ class User extends Authenticatable
 
     public function isReadOnlyOnly(): bool
     {
-        $roles = $this->effectiveRoles();
-
-        return $roles->isNotEmpty()
-            && $roles->every(fn (Role $role): bool => $role->code === 'read_only');
+        return $this->hasPermission('access.read_only_scope');
     }
 
     /**

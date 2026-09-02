@@ -747,7 +747,7 @@ class CmsActionPlanService
             ]), true)) {
             return false;
         }
-        if ($actor->hasRole('cias_management')) {
+        if ($actor->hasGlobalEngagementAccess()) {
             return true;
         }
 
@@ -1174,8 +1174,8 @@ class CmsActionPlanService
                 ->where('is_active', true)
                 ->where(function ($query): void {
                     $query
-                        ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                        ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                        ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                        ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
                 })->pluck('id');
             $recipients = $recipients->merge($officeRecipients);
         }
@@ -1220,8 +1220,7 @@ class CmsActionPlanService
             ->where('is_active', true)
             ->with(['role.permissions', 'roles.permissions'])
             ->get()
-            ->filter(fn (User $user): bool => $user->hasRole('cias_management')
-                && $user->hasPermission('cms.action-plan.review')
+            ->filter(fn (User $user): bool => $user->hasPermission('cms.action-plan.review')
                 && $this->scope->canViewClassification(
                     $user,
                     $case->recommendation?->confidentiality_code_snapshot,

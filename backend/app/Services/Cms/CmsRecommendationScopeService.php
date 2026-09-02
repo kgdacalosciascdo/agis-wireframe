@@ -15,8 +15,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class CmsRecommendationScopeService
 {
     /** @var list<string> */
-    private const ADMINISTRATIVE_ROLES = ['platform_admin', 'agis_admin'];
-
     public function visibleCases(
         Builder $query,
         User $user,
@@ -28,14 +26,13 @@ class CmsRecommendationScopeService
         }
 
         $query->where(function (Builder $authority) use ($user): void {
-            if ($user->hasRole('cias_management')) {
+            if ($user->hasPermission('cms.recommendation.assign')) {
                 $authority->whereRaw('1 = 1');
 
                 return;
             }
 
-            if ($user->hasRole(self::ADMINISTRATIVE_ROLES)
-                && $user->hasPermission('cms.administration.monitor')
+            if ($user->hasPermission('cms.administration.monitor')
                 && $user->hasPermission('cms.recommendation.view')) {
                 // Administrative monitoring never implies this branch; the
                 // operational inquiry permission must be granted separately.
@@ -75,8 +72,7 @@ class CmsRecommendationScopeService
                     }),
             );
 
-            if (($user->hasRole('auditee_representative')
-                    || $user->hasRole('read_only'))
+            if ($user->hasAnyPermission(['access.auditee_scope', 'access.read_only_scope'])
                 && $user->office_id) {
                 $authority->orWhere(function (Builder $office) use ($user): void {
                     $office
@@ -125,7 +121,7 @@ class CmsRecommendationScopeService
         throw_unless(
             $this->isUsableAccount($user)
                 && $user->hasPermission('cms.recommendation.assign')
-                && $user->hasRole('cias_management'),
+                && $user->hasPermission('cms.recommendation.assign'),
             new HttpException(403, 'You cannot manage Compliance Monitor assignments.'),
         );
     }
@@ -135,7 +131,7 @@ class CmsRecommendationScopeService
         throw_unless(
             $this->isUsableAccount($user)
                 && $user->hasPermission('cms.validation.assign')
-                && $user->hasRole('cias_management'),
+                && $user->hasPermission('cms.recommendation.assign'),
             new HttpException(403, 'You cannot manage independent-validator assignments.'),
         );
     }
@@ -154,11 +150,11 @@ class CmsRecommendationScopeService
     public function summary(User $user): array
     {
         return [
-            'portfolioWide' => $user->hasRole('cias_management'),
-            'officeId' => $user->hasRole(['auditee_representative', 'read_only'])
+            'portfolioWide' => $user->hasPermission('cms.recommendation.assign'),
+            'officeId' => $user->hasAnyPermission(['access.auditee_scope', 'access.read_only_scope'])
                 ? $user->office_id
                 : null,
-            'assignmentScoped' => ! $user->hasRole('cias_management'),
+            'assignmentScoped' => ! $user->hasPermission('cms.recommendation.assign'),
             'confidentiality' => [
                 'confidential' => $user->hasPermission('documents.view_confidential')
                     || $user->hasPermission('documents.view_restricted'),

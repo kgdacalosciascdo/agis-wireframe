@@ -880,10 +880,10 @@ export default function AemsAeoPage() {
                 ))}
               </div>
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                AEO approval and issuance belong to active CIAS Management
-                accounts. When the CIAS Head is the sole available management
-                authority, the same account may review, approve, and issue the
-                AEO she prepared. Auditee office heads and the City Mayor
+                AEO approval and issuance require the corresponding active
+                permissions. A user with the explicit self-review permission
+                may review, approve, and issue an AEO they prepared when the
+                workflow permits it. Auditee office heads and the City Mayor
                 receive issued copies and acknowledge them through the CMS
                 recipient portal.
               </p>

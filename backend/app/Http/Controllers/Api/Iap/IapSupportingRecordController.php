@@ -35,7 +35,7 @@ class IapSupportingRecordController extends Controller
     {
         $user = $request->user()->loadMissing('role.permissions');
         $this->guard->assertCanView($user, $plan);
-        $isManagement = $user->hasRole(['platform_admin', 'cias_management']);
+        $isManagement = $user->hasPermission('iap.manage_universe');
         $includeArchived = $request->boolean('includeArchived') && $isManagement;
 
         $attachments = IapAttachment::query()
@@ -135,7 +135,7 @@ class IapSupportingRecordController extends Controller
             'riskAssessmentId' => ['nullable', 'integer'],
         ]);
 
-        if (! $request->user()->hasRole(['platform_admin', 'cias_management'])) {
+        if (! $request->user()->hasPermission('iap.manage_universe')) {
             $validated['visibility'] = 'INTERNAL';
         }
         if (! empty($validated['planEngagementId']) && ! empty($validated['riskAssessmentId'])) {
@@ -256,7 +256,7 @@ class IapSupportingRecordController extends Controller
             ->findOrFail($attachment);
         abort_if(
             $record->visibility === 'MANAGEMENT'
-            && ! $request->user()->hasRole(['platform_admin', 'cias_management']),
+            && ! $request->user()->hasPermission('iap.manage_universe'),
             403,
         );
 
@@ -407,7 +407,7 @@ class IapSupportingRecordController extends Controller
 
         if (
             in_array($plan->status, ['PENDING_REVIEW', 'RESUBMITTED'], true)
-            && $user->hasRole(['platform_admin', 'cias_management'])
+            && $user->hasPermission('iap.manage_universe')
         ) {
             return;
         }
@@ -421,12 +421,12 @@ class IapSupportingRecordController extends Controller
     {
         if (in_array($plan->status, ['DRAFT', 'RETURNED_FOR_REVISION'], true)) {
             return $user->hasPermission('iap.update')
-                && ($user->hasRole(['platform_admin', 'cias_management']) || $plan->prepared_by === $user->id);
+                && ($user->hasPermission('iap.manage_universe') || $plan->prepared_by === $user->id);
         }
 
         return in_array($plan->status, ['PENDING_REVIEW', 'RESUBMITTED'], true)
             && $user->hasPermission('iap.update')
-            && $user->hasRole(['platform_admin', 'cias_management']);
+            && $user->hasPermission('iap.manage_universe');
     }
 
     private function engagement(InternalAuditPlan $plan, mixed $id): ?IapPlanEngagement

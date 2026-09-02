@@ -198,7 +198,7 @@ class CmsAutomationService
     {
         $this->authorize($actor, 'cms.automation.view');
         $query = CmsAutomationRun::query()->with('rule')->latest('started_at');
-        if (! $actor->hasRole(['cias_management', 'agis_admin'])) {
+        if (! $actor->hasGlobalEngagementAccess()) {
             $ids = $this->visibleCaseIds($actor);
             $query->whereHas('actions', fn (Builder $actions) => $actions->whereIn('cms_recommendation_case_id', $ids));
         }
@@ -352,12 +352,12 @@ class CmsAutomationService
 
     private function notifyCase(CmsRecommendationCase $case, string $type, string $title, string $message, string $dedupe): void
     {
-        $this->notifications->send($this->caseRecipients($case)->merge(User::query()->where('is_active', true)->whereHas('roles', fn ($q) => $q->where('code', 'cias_management'))->pluck('id'))->unique(), ['type' => $type, 'category' => 'CMS_AUTOMATION', 'priority' => 'HIGH', 'moduleCode' => 'CMS', 'title' => $title, 'message' => $message, 'actionUrl' => "/compliance-management/recommendations/{$case->id}", 'actionLabel' => 'Review CMS candidate', 'subjectType' => CmsRecommendationCase::class, 'subjectId' => $case->id, 'subjectCode' => $this->caseCode($case), 'dedupeKey' => $dedupe]);
+        $this->notifications->send($this->caseRecipients($case)->merge(User::query()->where('is_active', true)->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.automation.manage'))->pluck('id'))->unique(), ['type' => $type, 'category' => 'CMS_AUTOMATION', 'priority' => 'HIGH', 'moduleCode' => 'CMS', 'title' => $title, 'message' => $message, 'actionUrl' => "/compliance-management/recommendations/{$case->id}", 'actionLabel' => 'Review CMS candidate', 'subjectType' => CmsRecommendationCase::class, 'subjectId' => $case->id, 'subjectCode' => $this->caseCode($case), 'dedupeKey' => $dedupe]);
     }
 
     private function caseRecipients(CmsRecommendationCase $case): \Illuminate\Support\Collection
     {
-        return collect([$case->currentAssignment?->user_id])->filter()->merge(User::query()->where('office_id', $case->lead_responsible_office_id)->where('is_active', true)->whereHas('roles', fn ($q) => $q->where('code', 'auditee_representative'))->pluck('id'))->unique();
+        return collect([$case->currentAssignment?->user_id])->filter()->merge(User::query()->where('office_id', $case->lead_responsible_office_id)->where('is_active', true)->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))->pluck('id'))->unique();
     }
 
     private function visibleCaseIds(User $actor): \Illuminate\Support\Collection

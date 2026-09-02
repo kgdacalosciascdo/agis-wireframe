@@ -393,8 +393,8 @@ class IapSchedulingController extends Controller
         $eligible = User::query()
             ->whereIn('id', $members->pluck('userId'))
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role
-                ->whereIn('code', ['cias_management', 'agis_user']))
+            ->whereHas('roles.permissions', fn ($permission) => $permission
+                ->where('code', 'iap.assign_team'))
             ->count();
         if ($eligible !== $members->count()) {
             throw ValidationException::withMessages([
@@ -518,8 +518,8 @@ class IapSchedulingController extends Controller
     {
         return User::query()
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role
-                ->whereIn('code', ['cias_management', 'agis_user']))
+            ->whereHas('roles.permissions', fn ($permission) => $permission
+                ->where('code', 'iap.assign_team'))
             ->with('role:id,code,name')
             ->orderBy('name')
             ->get(['id', 'employee_id', 'name', 'initials', 'role_id']);

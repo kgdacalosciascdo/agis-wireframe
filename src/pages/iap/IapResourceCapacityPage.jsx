@@ -71,9 +71,7 @@ export default function IapResourceCapacityPage() {
   const [requirementTarget, setRequirementTarget] = useState(null);
   const [requirementRows, setRequirementRows] = useState([]);
   const [archiveTarget, setArchiveTarget] = useState(null);
-  const canManage =
-    hasPermission(user, "iap.assign_team") &&
-    ["platform_admin", "cias_management"].includes(user.roleCode);
+  const canManage = hasPermission(user, "iap.manage_universe");
 
   const load = useCallback(async (selectedYear = "") => {
     setLoading(true);

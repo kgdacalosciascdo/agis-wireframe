@@ -116,16 +116,18 @@ export default function AemsTeamSafeguardsPanel({
   const canDeclare = hasPermission(user, "aems.team.safeguard_declare");
   const canReview = hasPermission(user, "aems.team.safeguard_review");
   const canApprove = hasPermission(user, "aems.team.safeguard_approve");
-  const isCiasManagement =
-    user?.roleCode === "cias_management" ||
-    (user?.roles ?? []).some((role) => role.code === "cias_management");
+  const canSubmitOnBehalf = hasPermission(
+    user,
+    "aems.team.safeguard_submit_on_behalf",
+  );
+  const canReviewOwn = hasPermission(user, "aems.review.own_submission");
   const canDeclareForMember = (member) =>
     canDeclare &&
-    (isCiasManagement || Number(member?.user?.id) === Number(user?.id));
+    (canSubmitOnBehalf || Number(member?.user?.id) === Number(user?.id));
   const canReviewDeclaration = (declaration) =>
     canReview &&
     declaration?.status === "SUBMITTED" &&
-    (isCiasManagement ||
+    (canReviewOwn ||
       (Number(declaration?.userId) !== Number(user?.id) &&
         Number(declaration?.submittedBy) !== Number(user?.id)));
   const declarations = useMemo(
@@ -538,7 +540,7 @@ export default function AemsTeamSafeguardsPanel({
                           type="button"
                         >
                           <UserCheck size={13} />
-                          {isCiasManagement &&
+                          {canSubmitOnBehalf &&
                           Number(member?.user?.id) !== Number(user?.id)
                             ? "Submit for member"
                             : "Submit your declaration"}
@@ -924,8 +926,8 @@ export default function AemsTeamSafeguardsPanel({
         size="md"
         title="Review safeguard declaration"
         description={
-          isCiasManagement
-            ? "CIAS Head authority permits this controlled review, including the head's own declaration. Every decision remains versioned and audited."
+          canReviewOwn
+            ? "Your assigned self-review permission allows this controlled review, including your own submission. Every decision remains versioned and audited."
             : "Review independently. Returning a declaration requires a clear explanation for the assigned resource."
         }
       >

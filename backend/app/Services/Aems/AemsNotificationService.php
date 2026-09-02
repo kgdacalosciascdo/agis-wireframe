@@ -525,8 +525,8 @@ class AemsNotificationService
                 ->where('is_active', true)
                 ->where(function ($query): void {
                     $query
-                        ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                        ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                        ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                        ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
                 })
                 ->pluck('id');
             $userIds = $userIds->merge($officeRecipients);
@@ -894,8 +894,7 @@ class AemsNotificationService
             ->where(function ($query) use ($assignedIds): void {
                 $query
                     ->whereIn('id', $assignedIds)
-                    ->orWhereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
+                    ->orWhereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.team.safeguard_review'));
             })
             ->with(['role.permissions', 'roles.permissions'])
             ->get()
@@ -915,8 +914,8 @@ class AemsNotificationService
             ->where('is_active', true)
             ->where(function ($query): void {
                 $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                    ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                    ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
             })
             ->pluck('id');
     }

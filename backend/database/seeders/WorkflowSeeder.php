@@ -34,11 +34,11 @@ class WorkflowSeeder extends Seeder
             ],
             'transitions' => [
                 ['code' => 'SUBMIT', 'name' => 'Submit for review', 'from' => 'DRAFT', 'to' => 'PENDING_REVIEW', 'role' => null, 'permission' => 'iap.submit', 'comment' => false, 'separate' => false],
-                ['code' => 'RETURN', 'name' => 'Return for revision', 'from' => 'PENDING_REVIEW', 'to' => 'RETURNED', 'role' => 'cias_management', 'permission' => 'iap.review', 'comment' => true, 'separate' => false],
-                ['code' => 'APPROVE', 'name' => 'Approve plan', 'from' => 'PENDING_REVIEW', 'to' => 'APPROVED', 'role' => 'cias_management', 'permission' => 'iap.approve', 'comment' => false, 'separate' => true],
+                ['code' => 'RETURN', 'name' => 'Return for revision', 'from' => 'PENDING_REVIEW', 'to' => 'RETURNED', 'role' => null, 'permission' => 'iap.review', 'comment' => true, 'separate' => false],
+                ['code' => 'APPROVE', 'name' => 'Approve plan', 'from' => 'PENDING_REVIEW', 'to' => 'APPROVED', 'role' => null, 'permission' => 'iap.approve', 'comment' => false, 'separate' => true],
                 ['code' => 'RESUBMIT', 'name' => 'Resubmit plan', 'from' => 'RETURNED', 'to' => 'PENDING_REVIEW', 'role' => null, 'permission' => 'iap.submit', 'comment' => false, 'separate' => false],
-                ['code' => 'ACTIVATE', 'name' => 'Activate plan', 'from' => 'APPROVED', 'to' => 'ACTIVE', 'role' => 'cias_management', 'permission' => 'iap.activate', 'comment' => false, 'separate' => false],
-                ['code' => 'COMPLETE', 'name' => 'Complete plan', 'from' => 'ACTIVE', 'to' => 'COMPLETED', 'role' => 'cias_management', 'permission' => 'iap.complete', 'comment' => true, 'separate' => false],
+                ['code' => 'ACTIVATE', 'name' => 'Activate plan', 'from' => 'APPROVED', 'to' => 'ACTIVE', 'role' => null, 'permission' => 'iap.activate', 'comment' => false, 'separate' => false],
+                ['code' => 'COMPLETE', 'name' => 'Complete plan', 'from' => 'ACTIVE', 'to' => 'COMPLETED', 'role' => null, 'permission' => 'iap.complete', 'comment' => true, 'separate' => false],
             ],
         ], $roles, $permissions);
 
@@ -54,9 +54,9 @@ class WorkflowSeeder extends Seeder
                 ['code' => 'PUBLISHED', 'name' => 'Published', 'type' => 'END', 'role' => null, 'sla' => null],
             ],
             'transitions' => [
-                ['code' => 'SUBMIT', 'name' => 'Submit document', 'from' => 'PREPARATION', 'to' => 'REVIEW', 'role' => 'agis_admin', 'permission' => 'documents.update', 'comment' => false, 'separate' => false],
-                ['code' => 'RETURN', 'name' => 'Return document', 'from' => 'REVIEW', 'to' => 'PREPARATION', 'role' => 'agis_admin', 'permission' => 'documents.update', 'comment' => true, 'separate' => false],
-                ['code' => 'PUBLISH', 'name' => 'Publish document', 'from' => 'REVIEW', 'to' => 'PUBLISHED', 'role' => null, 'permission' => 'documents.update', 'comment' => false, 'separate' => true],
+                ['code' => 'SUBMIT', 'name' => 'Submit document', 'from' => 'PREPARATION', 'to' => 'REVIEW', 'role' => null, 'permission' => 'documents.update', 'comment' => false, 'separate' => false],
+                ['code' => 'RETURN', 'name' => 'Return document', 'from' => 'REVIEW', 'to' => 'PREPARATION', 'role' => null, 'permission' => 'documents.review', 'comment' => true, 'separate' => false],
+                ['code' => 'PUBLISH', 'name' => 'Publish document', 'from' => 'REVIEW', 'to' => 'PUBLISHED', 'role' => null, 'permission' => 'documents.approve', 'comment' => false, 'separate' => true],
             ],
         ], $roles, $permissions);
     }
@@ -77,6 +77,19 @@ class WorkflowSeeder extends Seeder
                 ],
             );
             if ($definition->steps()->exists()) {
+                // Existing installations may have role metadata from an older
+                // seed. It is descriptive only; transition authorization is
+                // now driven exclusively by required permissions.
+                foreach ($data['transitions'] as $transition) {
+                    $definition->transitions()
+                        ->where('code', $transition['code'])
+                        ->update([
+                            'actor_role_id' => null,
+                            'required_permission_id' => $transition['permission']
+                                ? $permissions[$transition['permission']]
+                                : null,
+                        ]);
+                }
                 return;
             }
 

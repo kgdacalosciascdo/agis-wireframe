@@ -57,10 +57,10 @@ class AemsTeamSafeguardController extends Controller
             $request->user(),
             $engagement,
             'aems.team.safeguard_review',
-            // CIAS Management is explicitly authorized to prepare and review
-            // a declaration on behalf of a team member. The service still
-            // blocks all other originators through separation-of-duties.
-            $request->user()->hasRole('cias_management') ? null : $declaration->submitted_by,
+            // A reviewer with the explicit self-review permission may review
+            // the same submission; all other reviewers remain independent.
+            $request->user()->hasPermission('aems.review.own_submission')
+                ? null : $declaration->submitted_by,
         );
         $validated = $request->validate([
             'decision' => ['required', Rule::in(['ACCEPT', 'RETURN'])],

@@ -107,7 +107,7 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
                 }
                 $current = $plan->currentVersion;
                 $accepted = $plan->acceptedVersion;
-                if ($request->user()->hasRole('read_only')
+                if ($request->user()->hasPermission('access.read_only_scope')
                     && $current
                     && ! in_array($current->status_code, [
                         'SUBMITTED',
@@ -134,7 +134,7 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
             'progressUpdateSummary' => $this->whenLoaded(
                 'progressUpdates',
                 function () use ($request): array {
-                    $visibleStatuses = $request->user()->hasRole('read_only')
+                    $visibleStatuses = $request->user()->hasPermission('access.read_only_scope')
                         ? ['SUBMITTED', 'UNDER_REVIEW', 'RECORDED']
                         : ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'RETURNED', 'RECORDED'];
                     $updates = $this->progressUpdates->filter(
@@ -188,9 +188,9 @@ class CmsRecommendationDetailResource extends CmsRecommendationResource
             'validationSummary' => $this->whenLoaded(
                 'validationReviews',
                 function () use ($request): array {
-                    $restrictedRead = $request->user()->hasRole([
-                        'read_only',
-                        'auditee_representative',
+                    $restrictedRead = $request->user()->hasAnyPermission([
+                        'access.read_only_scope',
+                        'access.auditee_scope',
                     ]);
                     $reviews = $restrictedRead
                         ? $this->validationReviews->filter(

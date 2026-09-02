@@ -17,6 +17,7 @@ use App\Models\WorkflowInstanceEvent;
 use App\Models\WorkflowTransition;
 use App\Services\WorkflowDefinitionService;
 use App\Services\WorkflowEngine;
+use App\Services\WorkflowAuthorityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class WorkflowController extends Controller
     public function __construct(
         private readonly WorkflowDefinitionService $definitions,
         private readonly WorkflowEngine $engine,
+        private readonly WorkflowAuthorityService $authority,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -267,7 +269,7 @@ class WorkflowController extends Controller
             'transitions.fromStep:id,code,name',
             'transitions.toStep:id,code,name,step_type',
             'transitions.actorRole:id,code,name',
-            'transitions.requiredPermission:id,code,name',
+            'transitions.requiredPermission:id,code,name,module,action,description',
             'creator:id,employee_id,name',
             'publisher:id,employee_id,name',
         ];
@@ -347,6 +349,7 @@ class WorkflowController extends Controller
                     'code' => $transition->requiredPermission->code,
                     'name' => $transition->requiredPermission->name,
                 ] : null,
+                'authorization' => $this->authority->forTransition($transition),
                 'requiresComment' => $transition->requires_comment,
                 'enforceSeparationOfDuties' => $transition->enforce_separation_of_duties,
                 'isActive' => $transition->is_active,
@@ -358,6 +361,13 @@ class WorkflowController extends Controller
     private function instanceData(WorkflowInstance $instance, Request $request): array
     {
         $available = collect($this->engine->availableTransitions($request->user(), $instance));
+        $currentTransitions = WorkflowTransition::query()
+            ->where('workflow_definition_id', $instance->workflow_definition_id)
+            ->where('from_step_id', $instance->current_step_id)
+            ->where('is_active', true)
+            ->with(['toStep', 'requiredPermission'])
+            ->orderBy('sequence')
+            ->get();
 
         return [
             'id' => $instance->id,
@@ -403,6 +413,14 @@ class WorkflowController extends Controller
                 'name' => $transition->name,
                 'toStep' => $transition->toStep->name,
                 'requiresComment' => $transition->requires_comment,
+                'authorization' => $this->authority->forTransition($transition, $instance),
+            ])->values(),
+            'transitionAuthorities' => $currentTransitions->map(fn (WorkflowTransition $transition): array => [
+                'code' => $transition->code,
+                'name' => $transition->name,
+                'toStep' => $transition->toStep->name,
+                'canAct' => $available->contains('id', $transition->id),
+                'authorization' => $this->authority->forTransition($transition, $instance),
             ])->values(),
             'events' => $instance->events->map(fn (WorkflowInstanceEvent $event): array => [
                 'id' => $event->id,

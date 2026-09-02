@@ -859,7 +859,7 @@ class CmsProgressUpdateService
             ]), true)) {
             return false;
         }
-        if ($actor->hasRole('cias_management')) {
+        if ($actor->hasGlobalEngagementAccess()) {
             return true;
         }
 
@@ -1350,7 +1350,7 @@ class CmsProgressUpdateService
      */
     private function filterReadOnlyVersions(User $actor, Collection $updates): Collection
     {
-        if (! $actor->hasRole('read_only')) {
+        if (! $actor->hasPermission('access.read_only_scope')) {
             return $updates;
         }
         $visible = [
@@ -1574,8 +1574,7 @@ class CmsProgressUpdateService
             ->where('is_active', true)
             ->with(['role.permissions', 'roles.permissions'])
             ->get()
-            ->filter(fn (User $user): bool => $user->hasRole('cias_management')
-                && $user->hasPermission('cms.progress.review')
+            ->filter(fn (User $user): bool => $user->hasPermission('cms.progress.review')
                 && $this->scope->canViewClassification(
                     $user,
                     $case->recommendation?->confidentiality_code_snapshot,
@@ -1594,12 +1593,12 @@ class CmsProgressUpdateService
             ->where(function ($query): void {
                 $query
                     ->whereHas(
-                        'roles',
-                        fn ($role) => $role->where('code', 'auditee_representative'),
+                        'roles.permissions',
+                        fn ($permission) => $permission->where('code', 'access.auditee_scope'),
                     )
                     ->orWhereHas(
-                        'role',
-                        fn ($role) => $role->where('code', 'auditee_representative'),
+                        'role.permissions',
+                        fn ($permission) => $permission->where('code', 'access.auditee_scope'),
                     );
             })->pluck('id');
     }

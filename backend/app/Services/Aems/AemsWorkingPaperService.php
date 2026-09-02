@@ -548,7 +548,7 @@ class AemsWorkingPaperService
                 'procedureId' => ['Choose a procedure from the current active Audit Program.'],
             ]);
         }
-        if (! $request->user()->hasRole('cias_management')) {
+        if (! $request->user()->hasPermission('aems.working-paper.manage')) {
             $assignmentRole = $engagement->teamMembers()
                 ->where('user_id', $request->user()->id)
                 ->where('is_active', true)

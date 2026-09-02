@@ -54,10 +54,13 @@ class IapSchedulingSeeder extends Seeder
             self::clearDemoPlan();
         }
         $management = User::query()
-            ->whereHas('role', fn ($role) => $role->where('code', 'cias_management'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.manage_universe'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.review.own_submission'))
             ->first();
         $auditor = User::query()
-            ->whereHas('role', fn ($role) => $role->where('code', 'agis_user'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.aeo.prepare'))
+            ->when($management, fn ($query) => $query->where('id', '<>', $management->id))
             ->first();
         $run = IapPrioritizationRun::query()
             ->where('run_code', 'PRIO-2025')

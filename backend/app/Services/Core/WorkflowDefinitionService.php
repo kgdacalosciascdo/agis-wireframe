@@ -180,7 +180,10 @@ class WorkflowDefinitionService
                 'code' => $transition['code'],
                 'name' => $transition['name'],
                 'sequence' => $index + 1,
-                'actor_role_id' => $transition['actorRoleId'] ?? null,
+                // Transition authority is permission-based. Keep the legacy
+                // actor-role column nullable for backwards compatibility, but
+                // never persist a role as an authorization requirement.
+                'actor_role_id' => null,
                 'required_permission_id' => $transition['requiredPermissionId'] ?? null,
                 'requires_comment' => $transition['requiresComment'],
                 'enforce_separation_of_duties' => $transition['enforceSeparationOfDuties'],

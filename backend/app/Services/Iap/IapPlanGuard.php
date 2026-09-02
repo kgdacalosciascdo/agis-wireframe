@@ -66,7 +66,7 @@ class IapPlanGuard
 
     public function assertManagement(User $user): void
     {
-        if (! $user->hasRole(['platform_admin', 'cias_management'])) {
+        if (! $user->hasPermission('iap.manage_universe')) {
             throw new AuthorizationException;
         }
     }

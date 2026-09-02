@@ -72,9 +72,12 @@ export default function AccessControlRegistryPage({ mode }) {
   const canUpdate = isRoles && hasPermission(user, "roles.update");
   const canDelete = isRoles && hasPermission(user, "roles.delete");
   const canRestore = isRoles && hasPermission(user, "roles.restore");
-  const isPlatformAdministrator = (user.roles ?? []).some(
-    (role) => role.code === "platform_admin",
+  const isPlatformAdministrator = hasPermission(
+    user,
+    "access.manage_system_roles",
   );
+  const isProtectedRole = (role) =>
+    (role.permissions ?? []).includes("access.manage_system_roles");
   const canManage =
     canCreate || canClone || canUpdate || canDelete || canRestore;
 
@@ -346,8 +349,7 @@ export default function AccessControlRegistryPage({ mode }) {
                   <div className="flex justify-end gap-1">
                     {canClone &&
                       !role.isArchived &&
-                      (role.code !== "platform_admin" ||
-                        isPlatformAdministrator) && (
+                      (!isProtectedRole(role) || isPlatformAdministrator) && (
                         <button
                           className="grid h-9 w-9 place-items-center rounded-lg text-violet-700 transition hover:bg-violet-100"
                           onClick={(event) => {
@@ -362,8 +364,7 @@ export default function AccessControlRegistryPage({ mode }) {
                       )}
                     {canUpdate &&
                       !role.isArchived &&
-                      (role.code !== "platform_admin" ||
-                        isPlatformAdministrator) && (
+                      (!isProtectedRole(role) || isPlatformAdministrator) && (
                         <button
                           className="grid h-9 w-9 place-items-center rounded-lg text-blue-700 transition hover:bg-blue-100"
                           onClick={(event) => {
@@ -378,7 +379,7 @@ export default function AccessControlRegistryPage({ mode }) {
                       )}
                     {canDelete &&
                       !role.isArchived &&
-                      role.code !== "platform_admin" && (
+                      !isProtectedRole(role) && (
                         <button
                           className="grid h-9 w-9 place-items-center rounded-lg text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-35"
                           disabled={role.usersCount > 0}

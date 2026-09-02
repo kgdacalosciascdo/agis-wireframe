@@ -267,7 +267,7 @@ class WorkflowEngine
         ?string $comment,
     ): void {
         if (! $this->canAct($user, $instance, $transition)) {
-            abort(403, 'Your role or permission does not allow this workflow action.');
+            abort(403, 'Your permissions do not allow this workflow action.');
         }
         if ($transition->requires_comment && blank($comment)) {
             throw ValidationException::withMessages([
@@ -286,7 +286,7 @@ class WorkflowEngine
         WorkflowInstance $instance,
         WorkflowTransition $transition,
     ): bool {
-        if ($transition->actorRole && ! $user->hasRole($transition->actorRole->code)) {
+        if (! $transition->requiredPermission) {
             return false;
         }
         if ($transition->requiredPermission

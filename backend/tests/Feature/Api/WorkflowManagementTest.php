@@ -154,6 +154,44 @@ class WorkflowManagementTest extends TestCase
             ->assertJsonPath('data.summary.published', 2);
     }
 
+    public function test_workflow_reports_reviewer_and_approver_users_from_permissions(): void
+    {
+        $admin = $this->user('admin');
+        $management = $this->user('departmenthead');
+        Sanctum::actingAs($admin);
+
+        $workflow = $this->getJson('/api/workflows')
+            ->assertOk()
+            ->json('data.definitions');
+        $core = collect($workflow)->firstWhere('code', 'CORE_DOCUMENT_REVIEW');
+        $publish = collect($core['transitions'])->firstWhere('code', 'PUBLISH');
+
+        $this->assertSame('documents.approve', $publish['authorization']['permission']['code']);
+        $this->assertSame('APPROVER', $publish['authorization']['type']);
+
+        $instanceId = $this->postJson('/api/workflow-instances', [
+            'workflowDefinitionId' => $core['id'],
+            'subjectCode' => 'DOC-AUTHORITY-001',
+            'subjectLabel' => 'Permission authority test document',
+        ])
+            ->assertCreated()
+            ->json('data.instance.id');
+
+        $this->postJson("/api/workflow-instances/{$instanceId}/transitions/SUBMIT", [
+            'lockVersion' => 0,
+        ])->assertOk();
+
+        Sanctum::actingAs($management);
+        $instance = $this->getJson("/api/workflow-instances/{$instanceId}")
+            ->assertOk()
+            ->json('data.instance');
+        $availablePublish = collect($instance['availableTransitions'])->firstWhere('code', 'PUBLISH');
+
+        $this->assertSame('documents.approve', $availablePublish['authorization']['permission']['code']);
+        $this->assertContains($management->id, collect($availablePublish['authorization']['users'])->pluck('id')->all());
+        $this->assertNotContains($admin->id, collect($availablePublish['authorization']['users'])->pluck('id')->all());
+    }
+
     /** @return array<string, mixed> */
     private function definitionPayload(): array
     {

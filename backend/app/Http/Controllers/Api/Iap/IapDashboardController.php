@@ -243,8 +243,7 @@ class IapDashboardController extends Controller
     {
         $auditors = User::query()
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role
-                ->whereIn('code', ['cias_management', 'agis_user']))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
             ->get(['id']);
         $available = (float) $auditors
             ->sum(fn ($user) => $this->conflicts->capacityFor($fiscalYear, $user->id));

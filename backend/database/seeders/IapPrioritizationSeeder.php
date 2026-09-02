@@ -18,10 +18,12 @@ class IapPrioritizationSeeder extends Seeder
     {
         $renderSafe = (bool) config('demo.full_render_seeders');
         $management = User::query()
-            ->whereHas('role', fn ($role) => $role->where('code', 'cias_management'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.manage_universe'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'aems.review.own_submission'))
             ->first();
         $finalizer = User::query()
-            ->whereHas('role', fn ($role) => $role->where('code', 'platform_admin'))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'users.view'))
+            ->when($management, fn ($query) => $query->where('id', '<>', $management->id))
             ->first();
         $period = IapRiskPeriod::query()
             ->where('period_code', 'RISK-2025')

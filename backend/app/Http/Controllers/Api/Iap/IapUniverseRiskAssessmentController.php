@@ -260,7 +260,7 @@ class IapUniverseRiskAssessmentController extends Controller
     {
         abort_unless(
             $assessment->assessed_by === $request->user()->id
-            || $request->user()->hasRole(['platform_admin', 'cias_management']),
+            || $request->user()->hasPermission('iap.manage_universe'),
             403,
         );
     }

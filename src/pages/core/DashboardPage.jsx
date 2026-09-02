@@ -10,12 +10,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useAuth } from "../../auth/auth-context";
-import { modules, visibleFor } from "../../config/navigation";
+import { hasPermission, modules, visibleFor } from "../../config/navigation";
 import { coreDashboardApi } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 
-const roleContent = {
-  platform_admin: {
+const permissionContent = {
+  "access.manage_system_roles": {
     greeting: "Keep AGIS secure, available, and ready for every audit team.",
     tasks: [
       ["Review new user access request", "CORE-2025-004", "Today"],
@@ -24,7 +24,7 @@ const roleContent = {
       ["Archive superseded workflow", "CORE-2025-007", "Jul 26"],
     ],
   },
-  cias_management: {
+  "iap.manage_engagements": {
     greeting: "Here’s what’s happening with your audit activities today.",
     tasks: [
       ["Prepare Annual Internal Audit Plan", "IAP-2025", "May 20"],
@@ -33,7 +33,7 @@ const roleContent = {
       ["Respond to Management Comment", "FND-2025-038", "May 23"],
     ],
   },
-  agis_user: {
+  "aems.fieldwork.create": {
     greeting: "Your assignments, working papers, and deadlines are ready.",
     tasks: [
       ["Complete cash receipt testing", "AEMS-2025-004", "Today"],
@@ -42,7 +42,7 @@ const roleContent = {
       ["Submit weekly time record", "ARMIS-2025-007", "Jul 26"],
     ],
   },
-  agis_admin: {
+  "roles.update": {
     greeting:
       "Core registries, access controls, and platform monitoring are ready.",
     tasks: [
@@ -52,7 +52,7 @@ const roleContent = {
       ["Verify configuration baseline", "CORE-2026-007", "Jul 26"],
     ],
   },
-  auditee_representative: {
+  "access.auditee_scope": {
     greeting:
       "Your office’s audit requests, responses, and deadlines are ready.",
     tasks: [
@@ -62,7 +62,7 @@ const roleContent = {
       ["Confirm office representative details", "CORE-2026-019", "Jul 26"],
     ],
   },
-  read_only: {
+  "access.read_only_scope": {
     greeting:
       "City audit status and authorized reports are available for review.",
     tasks: [
@@ -248,8 +248,8 @@ function DonutPanel({ title, total, segments }) {
 }
 
 /**
- * Renders the role-aware AGIS landing dashboard and its operational summaries.
- * Module cards route only to features exposed by the authenticated user's role.
+ * Renders the permission-aware AGIS landing dashboard and its operational summaries.
+ * Module cards route only to features exposed by the authenticated user's permissions.
  */
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -258,7 +258,10 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [live, setLive] = useState(null);
   const [dashboardError, setDashboardError] = useState("");
-  const content = roleContent[user.roleCode] ?? roleContent.agis_user;
+  const content =
+    Object.entries(permissionContent).find(([permission]) =>
+      hasPermission(user, permission),
+    )?.[1] ?? permissionContent["aems.fieldwork.create"];
   useEffect(() => {
     let active = true;
     coreDashboardApi

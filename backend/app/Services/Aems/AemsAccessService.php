@@ -19,57 +19,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class AemsAccessService
 {
     /** @var list<string> */
-    private const CIAS_ONLY_PERMISSIONS = [
-        'aems.engagement.create',
-        'aems.engagement.authorize',
-        'aems.engagement.suspend',
-        'aems.engagement.cancel',
-        'aems.engagement.archive',
-        'aems.engagement.restore',
-        'aems.engagement.close',
-        'aems.entry-conference.waive',
-        'aems.team.assign',
-        'aems.team.reassign',
-        'aems.team.amend',
-        'aems.team.safeguard_approve',
-        'aems.aeo.approve',
-        'aems.aeo.issue',
-        'aems.aeo.revise',
-        'aems.aeo.amend',
-        'aems.aeo.cancel',
-        'aems.aeo.void',
-        'aems.aeo.supersede',
-        'aems.aeo.distribute',
-        'aems.aep.approve',
-        'aems.aep.revise',
-        'aems.program.approve',
-        'aems.planning-package.approve',
-        'aems.planning-package.revise',
-        'aems.evidence.void',
-        'aems.evidence.exception_approve',
-        'aems.evidence-request.close',
-        'aems.finding.communicate',
-        'aems.finding.finalize',
-        'aems.rejoinder.finalize',
-        'aems.report.approve',
-        'aems.report.issue',
-        'aems.report.withdraw',
-        'aems.report.close_admin',
-        'aems.completion-assessment.approve',
-        'aems.completion-transfer.approve',
-        'aems.closure.approve',
-        'aems.closure.close',
-        'aems.document-index.finalize',
-        'aems.retention.approve',
-        'aems.retention.archive',
-        'aems.retention.legal_hold_release',
-        'aems.retention.destruction_review',
-        'aems.retention.disposition_execute',
-        'aems.engagement.reopen_approve',
-        'aems.foundation.reconcile',
-    ];
-
-    /** @var list<string> */
     private const INDEPENDENT_ACTIONS = [
         'aems.aeo.review',
         'aems.aeo.approve',
@@ -344,17 +293,13 @@ class AemsAccessService
             ]);
         }
 
-        if (in_array($permission, self::CIAS_ONLY_PERMISSIONS, true)) {
-            throw_unless(
-                $user->hasRole('cias_management'),
-                new HttpException(403, 'This AEMS action requires CIAS Management authority.'),
-            );
-        } elseif ($user->hasGlobalEngagementAccess()
+        if ($user->hasGlobalEngagementAccess()
             && str_ends_with($permission, '.view')) {
             // Global administrators may monitor AEMS records but still receive
             // no operational or approval authority from this read-only branch.
-        } elseif (! $user->hasRole('cias_management')) {
-            $allowedRoles = self::ASSIGNMENT_ROLES[$permission] ?? [];
+        } elseif (array_key_exists($permission, self::ASSIGNMENT_ROLES)
+            && ! $user->hasGlobalEngagementAccess()) {
+            $allowedRoles = self::ASSIGNMENT_ROLES[$permission];
             throw_unless(
                 $this->hasAssignmentRole($user, $engagement, $allowedRoles),
                 new HttpException(403, 'Your engagement assignment does not allow this action.'),
@@ -365,40 +310,23 @@ class AemsAccessService
     }
 
     /**
-     * The active CIAS Head is the controlled single-authority exception for
-     * an AEO she prepared. In a deployment with no alternate CIAS Management
-     * authority, the same account may review, approve, and issue that AEO.
-     * This exception is limited to AEO authority actions and is never a
-     * general bypass for other AEMS workflows.
+     * A user with the explicit self-review permission may complete the AEO
+     * review/approval/issue sequence for a submission they prepared.
      */
     public function mayUseCiasHeadAeoReviewException(User $user, string $permission): bool
     {
-        if (! in_array($permission, [
-            'aems.aeo.review',
-            'aems.aeo.approve',
-            'aems.aeo.issue',
-        ], true) || ! $user->hasRole('cias_management') || ! (bool) $user->is_office_head) {
-            return false;
-        }
-
-        return ! User::query()
-            ->where('is_active', true)
-            ->where('id', '<>', $user->id)
-            ->where(function ($query): void {
-                $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
-            })
-            ->exists();
+        return $user->hasPermission('aems.review.own_submission')
+            && in_array($permission, [
+                'aems.aeo.review',
+                'aems.aeo.approve',
+                'aems.aeo.issue',
+            ], true);
     }
 
     /**
-     * The aggregate engagement authorization is the final controlled gate
-     * after the AEO itself has been approved and issued. In a deployment with
-     * one active CIAS Management authority, the CIAS Head may perform that
-     * aggregate authorization even when she prepared the engagement. This is
-     * deliberately limited to the authorization transition and does not grant
-     * any other self-approval capability.
+     * The aggregate engagement authorization may be performed by the
+     * originating user only when the explicit self-review permission is
+     * granted and the complete AEO authority sequence belongs to that user.
      */
     public function mayUseSingleCiasEngagementAuthorization(
         User $user,
@@ -407,8 +335,7 @@ class AemsAccessService
     ): bool
     {
         if ($permission !== 'aems.engagement.authorize'
-            || ! $user->hasRole('cias_management')
-            || ! (bool) $user->is_office_head
+            || ! $user->hasPermission('aems.review.own_submission')
             || ! $engagement) {
             return false;
         }
@@ -422,50 +349,32 @@ class AemsAccessService
             return false;
         }
 
-        return ! User::query()
-            ->where('is_active', true)
-            ->where('id', '<>', $user->id)
-            ->where(function ($query): void {
-                $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
-            })
-            ->exists();
+        return true;
     }
 
     /**
-     * In a deployment with one active CIAS Management authority, the CIAS
-     * Head may review or approve her own AEMS submission when no alternate
-     * professional authority exists. This is a controlled deployment
-     * exception, not a general role bypass: the caller must still supply the
-     * originating record to authorizeEngagementAction, and every action is
-     * recorded with its actual actor and immutable version.
+     * Returns whether the user has been explicitly granted the controlled
+     * self-review exception for an independent AEMS action.
      */
     public function mayUseSingleCiasHeadReviewException(User $user, string $permission): bool
     {
-        if ($permission === 'aems.engagement.authorize'
-            || ! in_array($permission, self::INDEPENDENT_ACTIONS, true)
-            || ! $user->hasRole('cias_management')
-            || ! (bool) $user->is_office_head) {
-            return false;
-        }
-
-        return ! User::query()
-            ->where('is_active', true)
-            ->where('id', '<>', $user->id)
-            ->where(function ($query): void {
-                $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'cias_management'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'cias_management'));
-            })
-            ->exists();
+        return in_array($permission, [
+                'aems.aeo.review',
+                'aems.aeo.approve',
+                'aems.aeo.issue',
+                'aems.aep.review',
+                'aems.aep.approve',
+                'aems.planning-package.review',
+                'aems.planning-package.approve',
+            ], true)
+            && $user->hasPermission('aems.review.own_submission');
     }
 
     public function authorizeEvidenceRequestAcknowledgement(User $user, AemsEvidenceRequest $record): void
     {
         throw_unless($user->hasPermission('aems.evidence-request.acknowledge'), new HttpException(403, 'You do not have acknowledgement permission.'));
-        $allowed = $user->hasRole('cias_management')
-            || ($user->hasRole('auditee_representative')
+        $allowed = $user->hasGlobalEngagementAccess()
+            || ($user->hasPermission('access.auditee_scope')
                 && (($record->requested_from_user_id && (int) $record->requested_from_user_id === (int) $user->id)
                     || ($record->requested_from_office_id && (int) $record->requested_from_office_id === (int) $user->office_id)))
             || $this->isAssigned($user, $record->engagement);
@@ -477,21 +386,19 @@ class AemsAccessService
         if (! $user->hasPermission('aems.finding.view')) {
             return $query->whereRaw('1 = 0');
         }
-        if ($user->hasRole('cias_management')) {
+        if ($user->hasGlobalEngagementAccess()) {
             return $query;
         }
 
         return $query->where(function (Builder $visible) use ($user): void {
-            if ($user->hasRole('agis_user')) {
-                $visible->whereHas(
-                    'engagement.teamMembers',
-                    fn (Builder $team): Builder => $team
-                        ->where('user_id', $user->id)
-                        ->where('is_active', true)
-                        ->whereNull('ended_at'),
-                );
-            }
-            if ($user->hasRole('auditee_representative') && $user->office_id) {
+            $visible->whereHas(
+                'engagement.teamMembers',
+                fn (Builder $team): Builder => $team
+                    ->where('user_id', $user->id)
+                    ->where('is_active', true)
+                    ->whereNull('ended_at'),
+            );
+            if ($user->hasPermission('access.auditee_scope') && $user->office_id) {
                 $visible->orWhere(function (Builder $auditee) use ($user): void {
                     $auditee
                         ->where('responsible_office_id', $user->office_id)
@@ -520,7 +427,7 @@ class AemsAccessService
     {
         throw_unless(
             $user->hasPermission('aems.management-response.submit')
-                && $user->hasRole('auditee_representative')
+                && $user->hasPermission('access.auditee_scope')
                 && (int) $user->office_id === (int) $finding->responsible_office_id
                 && in_array($finding->status, [
                     'COMMUNICATED',
@@ -537,12 +444,12 @@ class AemsAccessService
             $user->hasPermission('aems.conference.view'),
             new HttpException(403, 'You cannot view AEMS conferences.'),
         );
-        if ($user->hasRole('cias_management')
+        if ($user->hasGlobalEngagementAccess()
             || $this->isAssigned($user, $conference->engagement)) {
             return;
         }
 
-        $covered = $user->hasRole('auditee_representative')
+        $covered = $user->hasPermission('access.auditee_scope')
             && $user->office_id
             && $conference->engagement->offices()->whereKey($user->office_id)->exists();
 
@@ -558,11 +465,11 @@ class AemsAccessService
             new HttpException(403, 'You cannot view Entry Conferences.'),
         );
         $engagement = $record instanceof EntryConference ? $record->engagement : $record;
-        if ($user->hasRole('cias_management') || $this->isAssigned($user, $engagement)) {
+        if ($user->hasGlobalEngagementAccess() || $this->isAssigned($user, $engagement)) {
             return;
         }
 
-        $covered = $user->hasRole('auditee_representative')
+        $covered = $user->hasPermission('access.auditee_scope')
             && $user->office_id
             && $engagement->offices()->whereKey($user->office_id)->exists();
 
@@ -576,12 +483,12 @@ class AemsAccessService
         if (! $canViewInternal && ! $canViewIssued) {
             return $query->whereRaw('1 = 0');
         }
-        if ($canViewInternal && $user->hasRole('cias_management')) {
+        if ($canViewInternal && $user->hasGlobalEngagementAccess()) {
             return $query;
         }
 
         return $query->where(function (Builder $visible) use ($user, $canViewInternal, $canViewIssued): void {
-            if ($canViewInternal && $user->hasRole('agis_user')) {
+            if ($canViewInternal && ! $user->hasGlobalEngagementAccess()) {
                 $visible->whereHas(
                     'engagement.teamMembers',
                     fn (Builder $team): Builder => $team
@@ -606,7 +513,7 @@ class AemsAccessService
                                     )
                                     ->whereHas('recipients', function (Builder $recipient) use ($user): void {
                                         $recipient->where('user_id', $user->id);
-                                        if ($user->hasRole('auditee_representative') && $user->office_id) {
+                                        if ($user->hasPermission('access.auditee_scope') && $user->office_id) {
                                             $recipient->orWhere('office_id', $user->office_id);
                                         }
                                     });

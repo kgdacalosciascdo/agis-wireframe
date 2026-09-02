@@ -43,7 +43,7 @@ class IapPlanController extends Controller
         $query = InternalAuditPlan::query()
             ->when(
                 (bool) ($validated['includeArchived'] ?? false)
-                    && $request->user()->hasRole(['platform_admin', 'cias_management']),
+                    && $request->user()->hasPermission('iap.manage_universe'),
                 fn ($query) => $query->withTrashed(),
             )
             ->with(['planningPeriodType', 'preparer:id,employee_id,name,initials'])
@@ -317,7 +317,7 @@ class IapPlanController extends Controller
         $user = User::query()
             ->whereKey($id)
             ->where('is_active', true)
-            ->whereHas('role', fn ($role) => $role->whereIn('code', ['platform_admin', 'cias_management', 'agis_user']))
+            ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'iap.assign_team'))
             ->first();
 
         if (! $user) {

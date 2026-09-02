@@ -42,7 +42,7 @@ class RenderDemoSeederTest extends TestCase
         $this->seed(RenderDemoSeeder::class);
 
         $firstCounts = $this->demoCounts();
-        $this->assertSame(6, User::query()->whereIn('username', collect($accounts)->pluck('username'))->count());
+        $this->assertSame(count($accounts), User::query()->whereIn('username', collect($accounts)->pluck('username'))->count());
         $this->assertTrue(Hash::check('test-password', User::query()->where('username', 'admin')->firstOrFail()->password));
         $this->assertGreaterThan(0, IapRiskPeriod::query()->count());
         $this->assertNotNull(IapPrioritizationRun::query()->where('run_code', 'PRIO-2025')->first());

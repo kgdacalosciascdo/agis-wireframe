@@ -31,12 +31,16 @@ class NotificationReminderService
             ->where('status', 'ACTIVE')
             ->whereNotNull('due_at')
             ->where('due_at', '<=', now()->addHours(48))
-            ->with(['definition:id,name', 'currentStep.responsibleRole'])
+            ->with(['definition:id,name', 'currentStep.outgoingTransitions:id,from_step_id,required_permission_id'])
             ->each(function (WorkflowInstance $instance) use (&$delivered): void {
                 $overdue = $instance->due_at->isPast();
                 $recipients = collect([$instance->started_by]);
-                if ($instance->currentStep->responsibleRole) {
-                    $code = $instance->currentStep->responsibleRole->code;
+                $permissionIds = $instance->currentStep->outgoingTransitions
+                    ->pluck('required_permission_id')
+                    ->filter()
+                    ->unique()
+                    ->values();
+                if ($permissionIds->isNotEmpty()) {
                     $recipients = $recipients->merge(
                         User::query()
                             ->where('is_active', true)
@@ -44,10 +48,10 @@ class NotificationReminderService
                                 $instance->office_id,
                                 fn ($query) => $query->where('office_id', $instance->office_id),
                             )
-                            ->where(function ($query) use ($code): void {
+                            ->where(function ($query) use ($permissionIds): void {
                                 $query
-                                    ->whereHas('roles', fn ($role) => $role->where('code', $code))
-                                    ->orWhereHas('role', fn ($role) => $role->where('code', $code));
+                                    ->whereHas('roles.permissions', fn ($permission) => $permission->whereIn('permissions.id', $permissionIds))
+                                    ->orWhereHas('role.permissions', fn ($permission) => $permission->whereIn('permissions.id', $permissionIds));
                             })
                             ->pluck('id'),
                     );
@@ -290,8 +294,8 @@ class NotificationReminderService
             ->where('is_active', true)
             ->where(function ($query): void {
                 $query
-                    ->whereHas('roles', fn ($role) => $role->where('code', 'auditee_representative'))
-                    ->orWhereHas('role', fn ($role) => $role->where('code', 'auditee_representative'));
+                    ->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'))
+                    ->orWhereHas('role.permissions', fn ($permission) => $permission->where('code', 'access.auditee_scope'));
             })
             ->pluck('id');
     }

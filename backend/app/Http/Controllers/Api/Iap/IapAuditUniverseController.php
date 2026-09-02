@@ -34,10 +34,7 @@ class IapAuditUniverseController extends Controller
             'sortDirection' => ['nullable', 'in:asc,desc'],
         ]);
         $search = trim((string) ($validated['search'] ?? ''));
-        $maySeeArchived = $request->user()->hasRole([
-            'platform_admin',
-            'cias_management',
-        ]);
+        $maySeeArchived = $request->user()->hasPermission('iap.manage_universe');
 
         $query = IapAuditUniverseItem::query()
             ->when(

@@ -289,7 +289,7 @@ class CmsDispositionService
 
     private function canInitiate(User $actor, CmsRecommendationCase $case): bool
     {
-        return $actor->is_active && $actor->hasPermission('cms.disposition.request') && ($actor->office_id === $case->lead_responsible_office_id || $case->currentAssignment?->user_id === $actor->id || $actor->hasRole('cias_management'));
+        return $actor->is_active && $actor->hasPermission('cms.disposition.request') && ($actor->office_id === $case->lead_responsible_office_id || $case->currentAssignment?->user_id === $actor->id || $actor->hasGlobalEngagementAccess());
     }
 
     private function authorizeReviewer(User $actor, CmsRecommendationCase $case, CmsDispositionRequestVersion $version, string $permission): void
@@ -300,7 +300,7 @@ class CmsDispositionService
 
     private function authorizeDecision(User $actor, CmsRecommendationCase $case, CmsDispositionRequestVersion $version, string $permission): void
     {
-        throw_unless($actor->is_active && $actor->hasRole('cias_management') && $actor->hasPermission($permission), new HttpException(403, 'Only independent CIAS Management may decide a disposition.'));
+        throw_unless($actor->is_active && $actor->hasPermission($permission), new HttpException(403, 'You do not have permission to decide this disposition.'));
         throw_if(in_array($actor->id, array_filter([$version->prepared_by, $version->submitted_by, $version->review_started_by, $version->assessment?->reviewer_user_id]), true), new HttpException(403, 'Separation of duties prevents this decision.'));
     }
 
@@ -345,7 +345,7 @@ class CmsDispositionService
     }
 
     private function canReview(User $actor, CmsRecommendationCase $case, CmsDispositionRequestVersion $version): bool { return $actor->is_active && ! in_array($actor->id, array_filter([$version->prepared_by, $version->submitted_by, $version->review_started_by]), true) && $actor->office_id !== $case->lead_responsible_office_id; }
-    private function canDecision(User $actor, CmsRecommendationCase $case, CmsDispositionRequestVersion $version): bool { return $actor->is_active && $actor->hasRole('cias_management') && ! in_array($actor->id, array_filter([$version->prepared_by, $version->submitted_by, $version->review_started_by, $version->assessment?->reviewer_user_id]), true); }
+    private function canDecision(User $actor, CmsRecommendationCase $case, CmsDispositionRequestVersion $version): bool { return $actor->is_active && $actor->hasAnyPermission(['cms.disposition.approve', 'cms.disposition.reject']) && ! in_array($actor->id, array_filter([$version->prepared_by, $version->submitted_by, $version->review_started_by, $version->assessment?->reviewer_user_id]), true); }
     private function initiatorTypes(User $actor, CmsRecommendationCase $case): array { $types = []; if ($actor->office_id === $case->lead_responsible_office_id) $types[] = CmsDispositionRequest::INITIATOR_RESPONSIBLE_OFFICE; if ($case->currentAssignment?->user_id === $actor->id) $types[] = CmsDispositionRequest::INITIATOR_COMPLIANCE_MONITOR; return $types; }
     private function defaultInitiator(User $actor, CmsRecommendationCase $case): string { return $actor->office_id === $case->lead_responsible_office_id ? CmsDispositionRequest::INITIATOR_RESPONSIBLE_OFFICE : CmsDispositionRequest::INITIATOR_COMPLIANCE_MONITOR; }
 
@@ -361,7 +361,7 @@ class CmsDispositionService
     {
         $case->loadMissing('currentAssignment.user', 'actionPlan.acceptedVersion', 'recommendation');
         $recipients = collect([$case->currentAssignment?->user_id, $version->submitted_by, $case->actionPlan?->acceptedVersion?->focal_user_id])->filter()->unique();
-        if (in_array($event, ['reviewed', 'approved', 'rejected'], true)) $recipients = $recipients->merge(User::query()->whereHas('roles', fn ($roles) => $roles->where('code', 'cias_management'))->pluck('id'));
+        if (in_array($event, ['reviewed', 'approved', 'rejected'], true)) $recipients = $recipients->merge(User::query()->whereHas('roles.permissions', fn ($permission) => $permission->where('code', 'cms.disposition.review'))->pluck('id'));
         $recipients = $recipients->filter(fn ($id) => (int) $id !== (int) $http->user()->id);
         if ($recipients->isEmpty()) return;
         $labels = ['submitted' => ['CMS_DISPOSITION_SUBMITTED', 'Disposition submitted', 'A CMS disposition request was submitted for independent review.'], 'review_started' => ['CMS_DISPOSITION_REVIEW_STARTED', 'Disposition review started', 'A CMS disposition request entered independent review.'], 'returned' => ['CMS_DISPOSITION_RETURNED', 'Disposition returned', 'A CMS disposition request was returned for revision.'], 'reviewed' => ['CMS_DISPOSITION_REVIEWED', 'Disposition assessed', 'An independent disposition assessment is ready for decision.'], 'approved' => ['CMS_DISPOSITION_APPROVED', 'Disposition approved', "The {$request->disposition_code} disposition was approved."], 'rejected' => ['CMS_DISPOSITION_REJECTED', 'Disposition rejected', "The {$request->disposition_code} disposition was rejected; the prior case status remains authoritative."]];

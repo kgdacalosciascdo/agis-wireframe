@@ -86,6 +86,12 @@ class AemsPlanningPackageTest extends TestCase
         $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $payload)
             ->assertCreated();
         $package = $engagement->planningPackage()->firstOrFail();
+        $firstVersionFlowId = AemsPlanningPackageVersion::query()
+            ->where('planning_package_id', $package->id)
+            ->firstOrFail()
+            ->processFlows()
+            ->value('id');
+        $payload['processFlows'][0]['id'] = $firstVersionFlowId;
         $payload['riskItems'][0] = [
             ...$payload['riskItems'][0],
             'riskCategory' => 'Financial reporting',
@@ -99,6 +105,7 @@ class AemsPlanningPackageTest extends TestCase
             'residualScore' => 6,
             'residualRating' => 'MODERATE',
             'riskResponse' => 'Mitigate',
+            'processFlowId' => $firstVersionFlowId,
             'processName' => 'Permit assessment',
             'riskArea' => 'Assessment calculation',
             'plannedAuditApproach' => 'Recalculate a sample of assessments.',
@@ -129,6 +136,15 @@ class AemsPlanningPackageTest extends TestCase
         $this->assertSame('Applicable revenue ordinance and assessment policy.', $item->criteria);
         $this->assertSame('Residual risk requires additional substantive testing.', $item->response_rationale);
         $this->assertSame('BPLD-REV-2026-01', $item->source_reference);
+        $this->assertSame(
+            AemsPlanningPackageVersion::query()
+                ->where('planning_package_id', $package->id)
+                ->where('version_number', 2)
+                ->firstOrFail()
+                ->processFlows()
+                ->value('id'),
+            $item->process_flow_id,
+        );
     }
 
     public function test_readiness_review_approval_and_immutable_revision_workflow(): void

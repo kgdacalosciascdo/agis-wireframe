@@ -1027,6 +1027,11 @@ export default function AemsPlanningPackagePage() {
   }
 
   function editItem(item, index) {
+    const matchingFlow = (form.processFlows ?? []).find(
+      (flow) =>
+        String(flow.id) === String(item.processFlowId) ||
+        (item.processName && String(flow.title) === String(item.processName)),
+    );
     setItemDraft({
       ...makeItem(index),
       ...item,
@@ -1035,6 +1040,7 @@ export default function AemsPlanningPackagePage() {
         controlEffectivenessOptions,
       ),
       residualRating: masterListCode(item.residualRating, residualRatingOptions),
+      processFlowId: matchingFlow?.id ?? item.processFlowId,
       index,
       workingPaperText: (item.workingPapers ?? [])
         .map((paper) => paper.reference)

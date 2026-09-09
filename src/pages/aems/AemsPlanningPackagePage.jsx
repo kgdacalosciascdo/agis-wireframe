@@ -615,23 +615,6 @@ export default function AemsPlanningPackagePage() {
   }, []);
 
   useEffect(() => {
-    if (!controlEffectivenessOptions.length && !residualRatingOptions.length) return;
-    const normalizeItems = (items = []) => items.map((item) => ({
-      ...item,
-      controlEffectiveness: masterListCode(item.controlEffectiveness, controlEffectivenessOptions),
-      residualRating: masterListCode(item.residualRating, residualRatingOptions),
-    }));
-    setForm((current) => ({
-      ...current,
-      riskItems: normalizeItems(current.riskItems),
-      riskMatrices: (current.riskMatrices ?? []).map((matrix) => ({
-        ...matrix,
-        riskItems: normalizeItems(matrix.riskItems),
-      })),
-    }));
-  }, [controlEffectivenessOptions, residualRatingOptions]);
-
-  useEffect(() => {
     const timer = window.setTimeout(loadWorkspace, 0);
     return () => window.clearTimeout(timer);
   }, [loadWorkspace]);
@@ -853,11 +836,22 @@ export default function AemsPlanningPackagePage() {
         : [form.riskMatrix].filter(
             (matrix) => matrix?.code?.trim() || matrix?.title?.trim(),
           );
+      const normalizeItems = (items = []) => items.map((item) => ({
+        ...item,
+        controlEffectiveness: masterListCode(
+          item.controlEffectiveness,
+          controlEffectivenessOptions,
+        ),
+        residualRating: masterListCode(item.residualRating, residualRatingOptions),
+      }));
       const payload = {
         ...form,
+        riskItems: normalizeItems(form.riskItems),
         riskMatrices: configuredMatrices.map((matrix, index) => ({
           ...matrix,
-          riskItems: index === 0 ? form.riskItems : (matrix.riskItems ?? []),
+          riskItems: normalizeItems(
+            index === 0 ? form.riskItems : (matrix.riskItems ?? []),
+          ),
         })),
         preliminarySurveyDocumentVersionId:
           form.preliminarySurveyDocumentVersionId || undefined,
@@ -1036,6 +1030,11 @@ export default function AemsPlanningPackagePage() {
     setItemDraft({
       ...makeItem(index),
       ...item,
+      controlEffectiveness: masterListCode(
+        item.controlEffectiveness,
+        controlEffectivenessOptions,
+      ),
+      residualRating: masterListCode(item.residualRating, residualRatingOptions),
       index,
       workingPaperText: (item.workingPapers ?? [])
         .map((paper) => paper.reference)
@@ -1365,6 +1364,7 @@ export default function AemsPlanningPackagePage() {
               onRemoveMatrix={removeMatrix}
               onAdd={startNewItem}
               onEdit={editItem}
+              residualRatingOptions={residualRatingOptions}
               onRemove={(index) =>
                 updateForm(
                   "riskItems",
@@ -2358,6 +2358,7 @@ function RiskMatrixSection({
   onRemove,
   areaOptions,
   focusOptions,
+  residualRatingOptions,
   onChangeFocus,
   onRemoveMatrix,
 }) {

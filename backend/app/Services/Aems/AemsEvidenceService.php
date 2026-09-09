@@ -36,6 +36,7 @@ class AemsEvidenceService
     /** @return array<string, mixed> */
     public function workspace(Request $request, AuditEngagement $engagement): array
     {
+        $planningReferences = $this->planningReferences($engagement);
         $records = AuditEvidence::query()
             ->visibleTo($request->user())
             ->where('audit_engagement_id', $engagement->id)
@@ -62,7 +63,56 @@ class AemsEvidenceService
             'evidenceCategories' => $this->masterItems('AEMS_EVIDENCE_CATEGORY'),
             'evidenceSourceTypes' => $this->masterItems('AEMS_EVIDENCE_SOURCE_TYPE'),
             'confidentialityLevels' => $this->masterItems('DOCUMENT_CONFIDENTIALITY'),
+            'planningObjectives' => $planningReferences['objectives'],
+            'riskMatrixItems' => $planningReferences['riskMatrixItems'],
         ];
+    }
+
+    /** @return array{objectives: Collection<int, array<string, mixed>>, riskMatrixItems: Collection<int, array<string, mixed>>} */
+    private function planningReferences(AuditEngagement $engagement): array
+    {
+        $package = $engagement->planningPackage;
+        if (! $package) {
+            return ['objectives' => collect(), 'riskMatrixItems' => collect()];
+        }
+
+        $relations = [
+            'objectives',
+            'riskMatrices.items.auditArea',
+            'riskMatrices.items.auditFocus',
+        ];
+        $version = $package->latestVersion()->with($relations)->first();
+        if ($package->approved_version_number) {
+            $version = $package->versions()
+                ->where('version_number', $package->approved_version_number)
+                ->with($relations)
+                ->first() ?? $version;
+        }
+
+        if (! $version) {
+            return ['objectives' => collect(), 'riskMatrixItems' => collect()];
+        }
+
+        $objectives = $version->objectives->map(fn (AemsPlanningObjective $objective): array => [
+            'id' => $objective->id,
+            'code' => $objective->objective_code,
+            'statement' => $objective->objective_statement,
+            'sourceReference' => $objective->source_reference,
+        ])->values();
+        $riskMatrixItems = $version->riskMatrices->flatMap(
+            fn ($matrix) => $matrix->items->map(fn (AemsRiskMatrixItem $item): array => [
+                'id' => $item->id,
+                'riskCode' => $item->risk_code,
+                'riskStatement' => $item->risk_statement,
+                'riskCategory' => $item->risk_category,
+                'matrixCode' => $matrix->matrix_code,
+                'matrixTitle' => $matrix->title,
+                'auditArea' => $item->auditArea?->only(['id', 'code', 'name']),
+                'auditFocus' => $item->auditFocus?->only(['id', 'code', 'name']),
+            ]),
+        )->values();
+
+        return compact('objectives', 'riskMatrixItems');
     }
 
     /**

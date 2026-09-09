@@ -32,6 +32,7 @@ import {
   SquareCheckBig,
   Target,
   UserRound,
+  Upload,
   UsersRound,
   Workflow,
 } from "lucide-react";
@@ -542,6 +543,18 @@ export const cmsPages = [
     path: "/compliance-management/aeo-acknowledgements",
     permission: "aems.aeo.acknowledge",
     icon: FileCheck2,
+  },
+  {
+    label: "Entry Conference Acknowledgements",
+    path: "/compliance-management/entry-conference-acknowledgements",
+    permission: "aems.entry-conference.view",
+    icon: CalendarClock,
+  },
+  {
+    label: "Evidence Requests",
+    path: "/compliance-management/evidence-requests",
+    permission: "aems.evidence-request.view",
+    icon: Upload,
   },
   {
     label: "Automation & Candidates",

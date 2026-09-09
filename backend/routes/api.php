@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\Armis\ArmisReportController;
 use App\Http\Controllers\Api\Armis\ArmisProviderController;
 use App\Http\Controllers\Api\Armis\ArmisProviderMonitoringController;
 use App\Http\Controllers\Api\Cms\CmsActionPlanController;
+use App\Http\Controllers\Api\Cms\CmsAemsEvidenceRequestController;
 use App\Http\Controllers\Api\Cms\CmsAutomationController;
 use App\Http\Controllers\Api\Cms\CmsClosureController;
 use App\Http\Controllers\Api\Cms\CmsDashboardController;
@@ -177,6 +178,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('permission:cms.recommendation.assign');
     Route::post('/cms/recommendations/{recommendation}/assignments/{assignment}/end', [CmsRecommendationAssignmentController::class, 'end'])
         ->middleware('permission:cms.recommendation.assign');
+    Route::get('/cms/evidence-requests', [CmsAemsEvidenceRequestController::class, 'index'])
+        ->middleware('permission:aems.evidence-request.view');
+    Route::post('/cms/evidence-requests/{evidenceRequest}/acknowledge', [CmsAemsEvidenceRequestController::class, 'acknowledge'])
+        ->middleware('permission:aems.evidence-request.acknowledge');
+    Route::post('/cms/evidence-requests/{evidenceRequest}/responses', [CmsAemsEvidenceRequestController::class, 'respond'])
+        ->middleware('permission:aems.evidence-request.respond');
     Route::get('/cms/recommendations/{recommendation}/action-plan', [CmsActionPlanController::class, 'forRecommendation'])
         ->middleware('permission:cms.action-plan.view');
     Route::post('/cms/recommendations/{recommendation}/action-plans', [CmsActionPlanController::class, 'store'])

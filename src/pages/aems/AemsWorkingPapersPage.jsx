@@ -295,6 +295,29 @@ export default function AemsWorkingPapersPage() {
       label: `${record.evidenceCode} v${record.versionNumber} — ${record.title}`,
       description: `${label(record.status)} · ${record.fileName}`,
     }));
+  const planningObjectiveOptions = (workspace?.planningObjectives ?? []).map(
+    (objective) => ({
+      value: objective.id,
+      label: `${objective.code} — ${objective.statement}`,
+      description: objective.sourceReference || "Current planning package objective",
+    }),
+  );
+  const riskMatrixItemOptions = (workspace?.riskMatrixItems ?? []).map(
+    (item) => ({
+      value: item.id,
+      label: `${item.riskCode} — ${item.riskStatement}`,
+      description: [
+        item.matrixCode && item.matrixTitle
+          ? `${item.matrixCode} — ${item.matrixTitle}`
+          : null,
+        item.auditArea?.code && item.auditFocus?.code
+          ? `${item.auditArea.code} / ${item.auditFocus.code}`
+          : item.auditArea?.code,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    }),
+  );
   const paperOptions = (workspace?.workingPapers ?? []).map((paper) => ({
     value: paper.id,
     label: `${paper.workingPaperCode} — ${paper.title}`,
@@ -1521,33 +1544,35 @@ export default function AemsWorkingPapersPage() {
           </Field>
           <Field
             error={errors.planningObjectiveId}
-            label="Planning objective ID"
+            label="Planning objective"
           >
-            <input
-              className={inputClass}
-              inputMode="numeric"
+            <SearchableSelect
+              options={planningObjectiveOptions}
+              emptyMessage="No planning objectives are configured for this engagement."
+              placeholder="Optional objective link"
+              searchPlaceholder="Search planning objectives..."
               value={evidenceForm.planningObjectiveId}
-              onChange={(event) =>
+              onChange={(value) =>
                 setEvidenceForm((current) => ({
                   ...current,
-                  planningObjectiveId: event.target.value,
+                  planningObjectiveId: value,
                 }))
               }
-              placeholder="Optional objective link"
             />
           </Field>
-          <Field error={errors.riskMatrixItemId} label="Risk matrix item ID">
-            <input
-              className={inputClass}
-              inputMode="numeric"
+          <Field error={errors.riskMatrixItemId} label="Risk matrix item">
+            <SearchableSelect
+              options={riskMatrixItemOptions}
+              emptyMessage="No risk-matrix items are configured for this engagement."
+              placeholder="Optional risk link"
+              searchPlaceholder="Search risk-matrix items..."
               value={evidenceForm.riskMatrixItemId}
-              onChange={(event) =>
+              onChange={(value) =>
                 setEvidenceForm((current) => ({
                   ...current,
-                  riskMatrixItemId: event.target.value,
+                  riskMatrixItemId: value,
                 }))
               }
-              placeholder="Optional risk link"
             />
           </Field>
           <Field error={errors.controlReference} label="Control reference">

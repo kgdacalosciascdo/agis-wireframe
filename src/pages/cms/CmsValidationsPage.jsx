@@ -1666,17 +1666,18 @@ export default function CmsValidationsPage() {
     validationId,
   ]);
   // Data-loading effects intentionally synchronize the workspace with the API.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     (detailMode ? loadDetail() : loadList()).catch(() => {});
   }, [detailMode, loadDetail, loadList]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!validation) return;
     const selected =
       validation.versions?.find((item) => item.id === selectedVersionId) ||
       validation.currentVersion;
     if (selected) {
+      // Synchronize the editable form with the selected persisted version.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(formFromVersion(selected));
       setTab("overview");
     }

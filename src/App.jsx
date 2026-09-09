@@ -127,6 +127,12 @@ const CmsRecommendationRegistryPage = lazy(
 const CmsAeoAcknowledgementsPage = lazy(
   () => import("./pages/cms/CmsAeoAcknowledgementsPage"),
 );
+const CmsEntryConferenceAcknowledgementsPage = lazy(
+  () => import("./pages/cms/CmsEntryConferenceAcknowledgementsPage"),
+);
+const CmsEvidenceRequestsPage = lazy(
+  () => import("./pages/cms/CmsEvidenceRequestsPage"),
+);
 const CmsRecommendationDetailPage = lazy(
   () => import("./pages/cms/CmsRecommendationDetailPage"),
 );
@@ -222,6 +228,7 @@ const implementedCorePaths = new Set([
   "/compliance-management/dashboard",
   "/compliance-management/recommendations",
   "/compliance-management/aeo-acknowledgements",
+  "/compliance-management/entry-conference-acknowledgements",
   "/compliance-management/automation",
   "/compliance-management/reports",
   "/audit-resource-management",
@@ -840,6 +847,26 @@ export default function App() {
               <ProtectedPage permission="aems.aeo.acknowledge">
                 <Suspense fallback={<RouteLoading />}>
                   <CmsAeoAcknowledgementsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/entry-conference-acknowledgements"
+            element={
+              <ProtectedPage permission="aems.entry-conference.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsEntryConferenceAcknowledgementsPage />
+                </Suspense>
+              </ProtectedPage>
+            }
+          />
+          <Route
+            path="compliance-management/evidence-requests"
+            element={
+              <ProtectedPage permission="aems.evidence-request.view">
+                <Suspense fallback={<RouteLoading />}>
+                  <CmsEvidenceRequestsPage />
                 </Suspense>
               </ProtectedPage>
             }

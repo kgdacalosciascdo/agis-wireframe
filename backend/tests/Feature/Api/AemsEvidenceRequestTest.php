@@ -16,6 +16,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -130,6 +131,54 @@ class AemsEvidenceRequestTest extends TestCase
 
         $this->expectException(\LogicException::class);
         $version->update(['title' => 'Tampered request']);
+    }
+
+    public function test_auditee_can_view_sent_request_and_submit_evidence_response_from_cms(): void
+    {
+        [$management, $auditor, , $engagement] = $this->fixture();
+        $auditeeRole = Role::query()->where('code', 'auditee_representative')->firstOrFail();
+        $auditee = User::factory()->create([
+            'role_id' => $auditeeRole->id,
+            'office_id' => $management->office_id,
+            'employee_id' => 'ERQ-AUDITEE-001',
+        ]);
+        $auditee->syncRoleAssignments([$auditeeRole->id], $auditeeRole->id);
+
+        Sanctum::actingAs($auditor);
+        $request = $this->postJson("/api/aems/engagements/{$engagement->id}/evidence-requests", [
+            'title' => 'CMS evidence response',
+            'purpose' => 'Receive the signed records needed for testing.',
+            'requestedFromOfficeId' => $auditee->office_id,
+            'requestedItems' => ['Signed register'],
+        ])->assertCreated()->json('data.evidenceRequest');
+        $request = $this->transition($engagement, $request, 'SUBMIT')->assertOk()->json('data.evidenceRequest');
+
+        Sanctum::actingAs($management);
+        $request = $this->transition($engagement, $request, 'SEND')->assertOk()->json('data.evidenceRequest');
+
+        Sanctum::actingAs($auditee);
+        $this->getJson('/api/cms/evidence-requests')
+            ->assertOk()
+            ->assertJsonPath('data.requests.0.requestCode', $request['requestCode']);
+        $response = $this->post("/api/cms/evidence-requests/{$request['id']}/responses", [
+            'lockVersion' => $request['lockVersion'],
+            'title' => 'Signed register response',
+            'sourceDescription' => 'Signed register supplied through the CMS recipient portal.',
+            'dateObtained' => now()->toDateString(),
+            'responseNote' => 'Submitted for auditor receipt.',
+            'file' => UploadedFile::fake()->create('signed-register.pdf', 20, 'application/pdf'),
+        ])->assertCreated()->json('data.response');
+
+        $this->assertDatabaseHas('aems_evidence_request_responses', [
+            'evidence_request_id' => $request['id'],
+            'audit_evidence_id' => $response['evidenceId'],
+            'submitted_by' => $auditee->id,
+        ]);
+        $this->assertDatabaseHas('audit_evidence', [
+            'id' => $response['evidenceId'],
+            'evidence_source_type_id' => $this->masterItem('AEMS_EVIDENCE_SOURCE_TYPE', 'AUDITEE'),
+            'status' => 'DRAFT',
+        ]);
     }
 
     private function transition(AuditEngagement $engagement, array $request, string $action, ?string $comment = null)

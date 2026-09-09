@@ -2409,6 +2409,27 @@ export const aemsEvidenceRequestApi = {
   },
 };
 
+export const cmsEvidenceRequestApi = {
+  async list() {
+    const data = await request("/api/cms/evidence-requests");
+    return data?.requests ?? [];
+  },
+  async acknowledge(requestId, payload) {
+    const data = await request(
+      `/api/cms/evidence-requests/${requestId}/acknowledge`,
+      { method: "POST", body: payload, csrf: true },
+    );
+    return data?.evidenceRequest ?? null;
+  },
+  async submitResponse(requestId, payload) {
+    const data = await request(
+      `/api/cms/evidence-requests/${requestId}/responses`,
+      { method: "POST", body: evidenceForm(payload), csrf: true },
+    );
+    return data?.response ?? null;
+  },
+};
+
 export const aemsFindingApi = {
   async engagements() {
     const data = await request("/api/aems/findings-workspaces");

@@ -5,13 +5,20 @@ namespace App\Services;
 use App\Models\AemsEvidenceAssessment;
 use App\Models\AemsEvidenceRequest;
 use App\Models\AemsEvidenceRequestEvidence;
+use App\Models\AemsEvidenceRequestResponse;
 use App\Models\AemsEvidenceRequestVersion;
 use App\Models\AuditEngagement;
 use App\Models\AuditEvidence;
+use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\EngagementEvent;
+use App\Models\MasterList;
+use App\Models\MasterListItem;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -60,6 +67,13 @@ class AemsEvidenceRequestService
                 'status' => $engagement->status,
             ],
             'requestStatuses' => AemsEvidenceRequest::STATUSES,
+            'requestReferences' => [
+                'offices' => $engagement->offices()->orderBy('name')->get(['offices.id', 'offices.code', 'offices.name'])->map(fn ($office): array => ['id' => $office->id, 'code' => $office->code, 'name' => $office->name])->values(),
+                'users' => User::query()->where('is_active', true)->where(function ($query) use ($engagement): void {
+                    $query->whereIn('office_id', $engagement->offices()->pluck('offices.id'))
+                        ->orWhereIn('id', $engagement->teamMembers()->where('is_active', true)->whereNull('ended_at')->pluck('user_id'));
+                })->orderBy('name')->get(['id', 'name', 'office_id'])->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name, 'officeId' => $user->office_id])->values(),
+            ],
             'requestActions' => ['SUBMIT', 'SEND', 'ACKNOWLEDGE', 'MARK_OVERDUE', 'REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION', 'ESCALATE', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'FOR_REVIEW', 'ASSESS', 'CLOSE_WITHOUT_SUBMISSION', 'CANCEL', 'CLOSE'],
             'assessmentStatuses' => AemsEvidenceAssessment::STATUSES,
             'requests' => $requests->map(fn (AemsEvidenceRequest $item): array => $this->requestData($item))->values(),
@@ -74,6 +88,175 @@ class AemsEvidenceRequestService
                 ->map(fn (AuditEvidence $item): array => $this->evidenceSummary($item))
                 ->values(),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function cmsWorkspace(Request $request): array
+    {
+        $user = $request->user();
+        throw_unless(
+            $user->hasPermission('aems.evidence-request.view')
+                && $user->hasPermission('access.auditee_scope'),
+            new \Symfony\Component\HttpKernel\Exception\HttpException(403, 'You do not have auditee Evidence Request access.'),
+        );
+
+        $requests = AemsEvidenceRequest::query()
+            ->whereNotIn('status', ['DRAFT', 'SUBMITTED', 'CANCELLED'])
+            ->where(function ($query) use ($user): void {
+                $query
+                    ->where('requested_from_user_id', $user->id)
+                    ->orWhere(function ($office) use ($user): void {
+                        $office->whereNull('requested_from_user_id')
+                            ->where('requested_from_office_id', $user->office_id);
+                    })
+                    ->orWhere(function ($office) use ($user): void {
+                        $office->whereNull('requested_from_user_id')
+                            ->where('requested_from_office_id', $user->office_id);
+                    })
+                    ->orWhere(function ($unassigned) use ($user): void {
+                        $unassigned->whereNull('requested_from_user_id')
+                            ->whereNull('requested_from_office_id')
+                            ->whereHas('engagement.offices', fn ($office) => $office->whereKey($user->office_id));
+                    });
+            })
+            ->with($this->requestRelations())
+            ->with('engagement:id,engagement_code,title,status')
+            ->orderByDesc('sent_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return [
+            'requests' => $requests->map(function (AemsEvidenceRequest $record): array {
+                $data = $this->requestData($record);
+                $data['engagement'] = [
+                    'id' => $record->engagement?->id,
+                    'engagementCode' => $record->engagement?->engagement_code,
+                    'title' => $record->engagement?->title,
+                    'status' => $record->engagement?->status,
+                ];
+                return $data;
+            })->values(),
+        ];
+    }
+
+    public function respondWithEvidence(
+        Request $request,
+        AemsEvidenceRequest $record,
+        array $attributes,
+        UploadedFile $file,
+    ): AemsEvidenceRequestResponse {
+        $record = $record->fresh(['engagement']);
+        $this->access->authorizeEvidenceRequestResponse($request->user(), $record);
+        if (! in_array($record->status, self::REQUEST_OPEN_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Evidence can only be submitted while this request is open.'],
+            ]);
+        }
+        $stored = $this->storeResponseFile($file, $record->engagement);
+
+        try {
+            return DB::transaction(function () use ($request, $record, $attributes, $stored): AemsEvidenceRequestResponse {
+                $locked = $this->lockRequest($record->engagement, $record, (int) $attributes['lockVersion']);
+                $this->access->authorizeEvidenceRequestResponse($request->user(), $locked);
+                if (! in_array($locked->status, self::REQUEST_OPEN_STATUSES, true)) {
+                    throw ValidationException::withMessages(['status' => ['Evidence can only be submitted while this request is open.']]);
+                }
+                $this->ensureFieldworkAvailable($locked->engagement);
+
+                $documentType = MasterList::query()->where('code', 'DOCUMENT_TYPE')->firstOrFail()
+                    ->items()->where('code', 'OTHER')->firstOrFail();
+                $classification = MasterList::query()->where('code', 'DOCUMENT_CONFIDENTIALITY')->firstOrFail()
+                    ->items()->where('code', 'INTERNAL')->firstOrFail();
+                $category = MasterList::query()->where('code', 'AEMS_EVIDENCE_CATEGORY')->firstOrFail()
+                    ->items()->where('code', 'DOCUMENTARY')->firstOrFail();
+                $source = MasterList::query()->where('code', 'AEMS_EVIDENCE_SOURCE_TYPE')->firstOrFail()
+                    ->items()->where('code', 'AUDITEE')->firstOrFail();
+
+                $document = Document::query()->create([
+                    'document_type_id' => $documentType->id,
+                    'confidentiality_level_id' => $classification->id,
+                    'title' => $attributes['title'],
+                    'description' => $attributes['sourceDescription'],
+                    'owner_module' => 'AEMS',
+                    'library_visible' => false,
+                    ...$stored,
+                    'uploaded_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
+                    'is_active' => true,
+                ]);
+                $document->forceFill([
+                    'document_code' => app(RuntimeConfiguration::class)->formatNumber('document_number_format', $document->id),
+                ])->save();
+                $documentVersion = $document->versions()->create([
+                    'version_number' => 1,
+                    'version_label' => 'Evidence Request response version 1',
+                    'change_summary' => 'Auditee response to an AEMS Evidence Request.',
+                    ...$stored,
+                    'uploaded_by' => $request->user()->id,
+                ]);
+                $document->forceFill([
+                    'current_version_id' => $documentVersion->id,
+                    'version' => $documentVersion->version_label,
+                ])->save();
+                $document->links()->create([
+                    'module_code' => 'AEMS',
+                    'record_type' => 'AUDIT_ENGAGEMENT',
+                    'record_id' => $locked->engagement->id,
+                    'record_code' => $locked->engagement->engagement_code,
+                    'record_label' => "{$locked->engagement->engagement_code} — {$locked->engagement->title}",
+                    'linked_by' => $request->user()->id,
+                ]);
+
+                $evidence = AuditEvidence::query()->create([
+                    'evidence_family_uuid' => (string) Str::uuid(),
+                    'version_number' => 1,
+                    'is_current_revision' => true,
+                    'audit_engagement_id' => $locked->engagement->id,
+                    'evidence_code' => $this->nextEvidenceCode($locked->engagement),
+                    'title' => $attributes['title'],
+                    'evidence_category_id' => $category->id,
+                    'evidence_source_type_id' => $source->id,
+                    'source_description' => $attributes['sourceDescription'],
+                    'date_obtained' => $attributes['dateObtained'],
+                    'custodian_name' => $request->user()->name,
+                    'custodian_office_id' => $request->user()->office_id,
+                    'confidentiality_level_id' => $classification->id,
+                    'document_version_id' => $documentVersion->id,
+                    'checksum_sha256' => $stored['checksum_sha256'],
+                    'status' => 'DRAFT',
+                    'outcome' => 'REGISTERED',
+                    'assessment_required' => true,
+                    'acquisition_method' => 'REQUESTED',
+                    'acquisition_form' => 'ELECTRONIC',
+                    'uploaded_by' => $request->user()->id,
+                    'lock_version' => 1,
+                ]);
+                $response = AemsEvidenceRequestResponse::query()->create([
+                    'evidence_request_id' => $locked->id,
+                    'audit_evidence_id' => $evidence->id,
+                    'document_version_id' => $documentVersion->id,
+                    'submitted_by' => $request->user()->id,
+                    'submitted_at' => now(),
+                    'response_note' => $attributes['responseNote'] ?? null,
+                ]);
+                $locked->update(['lock_version' => $locked->lock_version + 1]);
+                $this->event($request, $locked->engagement, $locked, 'RESPONSE_SUBMITTED', $locked->status, $locked->status, $attributes['responseNote'] ?? null, [$documentVersion->id]);
+                $this->support->audit(
+                    $request,
+                    'aems.evidence-request.response_submitted',
+                    $locked->engagement,
+                    null,
+                    $this->auditValues($locked),
+                    ['evidenceRequestId' => $locked->id, 'evidenceId' => $evidence->id, 'documentVersionId' => $documentVersion->id],
+                );
+                $this->notifications->evidenceRequestTransition($request, $locked->engagement, $locked, 'RESPONSE_SUBMITTED');
+
+                return $response->fresh(['evidence.documentVersion', 'documentVersion', 'submitter']);
+            }, 3);
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($stored['storage_path']);
+            throw $exception;
+        }
     }
 
     /** @param array<string, mixed> $attributes */
@@ -366,6 +549,7 @@ class AemsEvidenceRequestService
             'latestVersion' => $record->latestVersion ? $this->versionData($record->latestVersion) : null,
             'versions' => $record->versions->map(fn (AemsEvidenceRequestVersion $version): array => $this->versionData($version))->values(),
             'evidence' => $record->evidenceLinks->map(fn (AemsEvidenceRequestEvidence $link): array => $this->linkData($link))->values(),
+            'responses' => $record->responses->map(fn (AemsEvidenceRequestResponse $response): array => $this->responseData($response))->values(),
         ];
     }
 
@@ -453,7 +637,7 @@ class AemsEvidenceRequestService
     /** @return list<string> */
     private function requestRelations(): array
     {
-        return ['requestedFromOffice', 'requestedFromUser', 'preparer', 'submitter', 'sender', 'closer', 'acknowledger', 'extensionRequester', 'extensionApprover', 'escalator', 'canceller', 'latestVersion.creator', 'versions.creator', 'evidenceLinks.evidence.documentVersion', 'evidenceLinks.documentVersion', 'evidenceLinks.receiver', 'events.actor'];
+        return ['requestedFromOffice', 'requestedFromUser', 'preparer', 'submitter', 'sender', 'closer', 'acknowledger', 'extensionRequester', 'extensionApprover', 'escalator', 'canceller', 'latestVersion.creator', 'versions.creator', 'evidenceLinks.evidence.documentVersion', 'evidenceLinks.documentVersion', 'evidenceLinks.receiver', 'responses.evidence.documentVersion', 'responses.documentVersion', 'responses.submitter', 'events.actor'];
     }
 
     private function loadRequest(AemsEvidenceRequest $record): AemsEvidenceRequest
@@ -494,7 +678,10 @@ class AemsEvidenceRequestService
     private function assertOfficeAndUser(AuditEngagement $engagement, array $attributes): void
     {
         if (! empty($attributes['requestedFromOfficeId']) && ! $engagement->offices()->whereKey((int) $attributes['requestedFromOfficeId'])->exists()) throw ValidationException::withMessages(['requestedFromOfficeId' => ['The requested office must be covered by this engagement.']]);
-        if (! empty($attributes['requestedFromUserId']) && ! $engagement->teamMembers()->where('user_id', (int) $attributes['requestedFromUserId'])->where('is_active', true)->whereNull('ended_at')->exists()) throw ValidationException::withMessages(['requestedFromUserId' => ['The requested user must be an active engagement participant.']]);
+        if (! empty($attributes['requestedFromUserId']) && ! User::query()->whereKey((int) $attributes['requestedFromUserId'])->where('is_active', true)->where(function ($query) use ($engagement): void {
+            $query->whereIn('office_id', $engagement->offices()->pluck('offices.id'))
+                ->orWhereIn('id', $engagement->teamMembers()->where('is_active', true)->whereNull('ended_at')->pluck('user_id'));
+        })->exists()) throw ValidationException::withMessages(['requestedFromUserId' => ['The requested user must belong to the engagement office or active engagement team.']]);
     }
 
     private function lockRequest(AuditEngagement $engagement, AemsEvidenceRequest $record, int $lockVersion): AemsEvidenceRequest
@@ -578,6 +765,46 @@ class AemsEvidenceRequestService
 
     private function versionData(AemsEvidenceRequestVersion $version): array { return ['id' => $version->id, 'versionNumber' => $version->version_number, 'title' => $version->title, 'purpose' => $version->purpose, 'requestedFromOfficeId' => $version->requested_from_office_id, 'requestedFromUserId' => $version->requested_from_user_id, 'dueDate' => $version->due_date?->toDateString(), 'requestedItems' => $version->requested_items ?? [], 'changeReason' => $version->change_reason, 'createdBy' => $this->user($version->creator), 'createdAt' => $version->created_at?->toIso8601String()]; }
     private function linkData(AemsEvidenceRequestEvidence $link): array { return ['id' => $link->id, 'evidenceId' => $link->audit_evidence_id, 'evidenceCode' => $link->evidence?->evidence_code, 'documentVersionId' => $link->document_version_id, 'fileName' => $link->documentVersion?->original_file_name, 'checksumSha256' => $link->documentVersion?->checksum_sha256, 'receivedBy' => $this->user($link->receiver), 'receivedAt' => $link->received_at?->toIso8601String(), 'receiptNotes' => $link->receipt_notes, 'receiptStatus' => $link->receipt_status, 'receiptOutcome' => $link->receipt_outcome, 'receivedForm' => $link->received_form, 'acquisitionMethod' => $link->acquisition_method, 'assessment' => $link->evidence?->currentAssessment ? $this->assessmentData($link->evidence->currentAssessment) : null]; }
+    private function responseData(AemsEvidenceRequestResponse $response): array { return ['id' => $response->id, 'evidenceId' => $response->audit_evidence_id, 'evidenceCode' => $response->evidence?->evidence_code, 'documentVersionId' => $response->document_version_id, 'fileName' => $response->documentVersion?->original_file_name, 'checksumSha256' => $response->documentVersion?->checksum_sha256, 'submittedBy' => $this->user($response->submitter), 'submittedAt' => $response->submitted_at?->toIso8601String(), 'responseNote' => $response->response_note, 'evidenceStatus' => $response->evidence?->status]; }
     private function evidenceSummary(AuditEvidence $evidence): array { return ['id' => $evidence->id, 'evidenceCode' => $evidence->evidence_code, 'title' => $evidence->title, 'status' => $evidence->status, 'outcome' => $evidence->outcome, 'versionNumber' => $evidence->version_number, 'documentVersionId' => $evidence->document_version_id, 'acquisitionMethod' => $evidence->acquisition_method, 'acquisitionForm' => $evidence->acquisition_form, 'planningObjectiveId' => $evidence->planning_objective_id, 'riskMatrixItemId' => $evidence->risk_matrix_item_id, 'controlReference' => $evidence->control_reference, 'assessment' => $evidence->currentAssessment ? $this->assessmentData($evidence->currentAssessment) : null]; }
     private function user(mixed $user): ?array { return $user ? ['id' => $user->id, 'employeeId' => $user->employee_id, 'name' => $user->name, 'initials' => $user->initials] : null; }
+
+    /** @return array<string, mixed> */
+    private function storeResponseFile(UploadedFile $file, AuditEngagement $engagement): array
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $path = Storage::disk('local')->putFileAs(
+            "aems/engagements/{$engagement->id}/evidence",
+            $file,
+            Str::uuid().($extension ? ".{$extension}" : ''),
+        );
+        if (! $path) {
+            throw ValidationException::withMessages(['file' => ['The evidence file could not be stored. Please try again.']]);
+        }
+
+        return [
+            'original_file_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+            'storage_path' => $path,
+            'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
+            'file_extension' => $extension ?: null,
+            'file_size' => $file->getSize(),
+            'checksum_sha256' => hash_file('sha256', $file->getRealPath()),
+        ];
+    }
+
+    private function ensureFieldworkAvailable(AuditEngagement $engagement): void
+    {
+        if (! $engagement->programs()->where('is_current_revision', true)->where('status', 'ACTIVE')->exists()) {
+            throw ValidationException::withMessages(['engagement' => ['Evidence can be submitted only after the approved Audit Program is active.']]);
+        }
+    }
+
+    private function nextEvidenceCode(AuditEngagement $engagement): string
+    {
+        $sequence = AuditEvidence::query()->withTrashed()->where('audit_engagement_id', $engagement->id)->distinct('evidence_family_uuid')->count('evidence_family_uuid') + 1;
+        do {
+            $code = sprintf('EVD-%s-%03d', $engagement->engagement_code, $sequence++);
+        } while (AuditEvidence::query()->withTrashed()->where('audit_engagement_id', $engagement->id)->where('evidence_code', $code)->exists());
+        return $code;
+    }
 }

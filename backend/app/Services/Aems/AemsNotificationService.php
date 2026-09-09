@@ -180,7 +180,7 @@ class AemsNotificationService
         \App\Models\AemsEvidenceRequest $record,
         string $action,
     ): void {
-        if (! in_array($action, ['SUBMIT', 'SEND', 'ACKNOWLEDGE', 'MARK_OVERDUE', 'REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION', 'ESCALATE', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'FOR_REVIEW', 'ASSESS', 'CLOSE_WITHOUT_SUBMISSION', 'CANCEL', 'CLOSE'], true)) {
+        if (! in_array($action, ['SUBMIT', 'SEND', 'ACKNOWLEDGE', 'RESPONSE_SUBMITTED', 'MARK_OVERDUE', 'REQUEST_EXTENSION', 'APPROVE_EXTENSION', 'REJECT_EXTENSION', 'ESCALATE', 'MARK_PARTIALLY_RECEIVED', 'MARK_RECEIVED', 'FOR_REVIEW', 'ASSESS', 'CLOSE_WITHOUT_SUBMISSION', 'CANCEL', 'CLOSE'], true)) {
             return;
         }
         $recipientIds = $record->requested_from_user_id
@@ -192,7 +192,7 @@ class AemsNotificationService
             ->filter()->reject(fn ($id): bool => (int) $id === (int) $request->user()->id)->unique()->values();
         $verb = match ($action) {
             'SUBMIT' => 'submitted', 'SEND' => 'sent', 'MARK_PARTIALLY_RECEIVED' => 'partially received',
-            'MARK_RECEIVED' => 'received', 'ACKNOWLEDGE' => 'acknowledged', 'MARK_OVERDUE' => 'marked overdue',
+            'MARK_RECEIVED' => 'received', 'ACKNOWLEDGE' => 'acknowledged', 'RESPONSE_SUBMITTED' => 'received a response', 'MARK_OVERDUE' => 'marked overdue',
             'REQUEST_EXTENSION' => 'requested an extension', 'APPROVE_EXTENSION' => 'received an approved extension',
             'REJECT_EXTENSION' => 'had its extension declined', 'ESCALATE' => 'escalated',
             'FOR_REVIEW' => 'queued for assessment', 'ASSESS' => 'assessed', 'CLOSE_WITHOUT_SUBMISSION' => 'closed without submission',
@@ -496,8 +496,8 @@ class AemsNotificationService
                 .($rescheduled ? 'rescheduled' : 'scheduled'),
             'message' => "The Exit Conference for {$engagement->title} is scheduled for "
                 .$conference->scheduled_start_at?->format('M j, Y g:i A').'.',
-            'actionUrl' => "/audit-engagement-management/conferences?engagementId={$engagement->id}",
-            'actionLabel' => 'Open Conference Management',
+            'actionUrl' => "/compliance-management/entry-conference-acknowledgements?engagementId={$engagement->id}",
+            'actionLabel' => 'Review Entry Conference notes',
             'subjectType' => ExitConference::class,
             'subjectId' => $conference->id,
             'subjectCode' => $conference->conference_code,

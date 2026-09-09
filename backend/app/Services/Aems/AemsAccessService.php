@@ -376,9 +376,36 @@ class AemsAccessService
         $allowed = $user->hasGlobalEngagementAccess()
             || ($user->hasPermission('access.auditee_scope')
                 && (($record->requested_from_user_id && (int) $record->requested_from_user_id === (int) $user->id)
-                    || ($record->requested_from_office_id && (int) $record->requested_from_office_id === (int) $user->office_id)))
+                    || ($record->requested_from_office_id && ! $record->requested_from_user_id && (int) $record->requested_from_office_id === (int) $user->office_id)
+                    || (! $record->requested_from_user_id && ! $record->requested_from_office_id
+                        && $record->engagement->offices()->whereKey($user->office_id)->exists())))
             || $this->isAssigned($user, $record->engagement);
         throw_unless($allowed, new HttpException(403, 'Only the requested custodian office or user may acknowledge this request.'));
+    }
+
+    public function authorizeEvidenceRequestResponse(User $user, AemsEvidenceRequest $record): void
+    {
+        throw_unless(
+            $user->hasPermission('aems.evidence-request.respond'),
+            new HttpException(403, 'You do not have permission to submit Evidence Request responses.'),
+        );
+        throw_unless(
+            $user->hasPermission('access.auditee_scope') && $user->office_id,
+            new HttpException(403, 'Only an auditee-scoped user may submit an Evidence Request response.'),
+        );
+        $requestedUser = $record->requested_from_user_id
+            && (int) $record->requested_from_user_id === (int) $user->id;
+        $requestedOffice = $record->requested_from_office_id
+            && ! $record->requested_from_user_id
+            && (int) $record->requested_from_office_id === (int) $user->office_id;
+        $engagementOffice = ! $record->requested_from_user_id
+            && ! $record->requested_from_office_id
+            && $record->engagement
+            && $record->engagement->offices()->whereKey($user->office_id)->exists();
+        throw_unless(
+            $requestedUser || $requestedOffice || $engagementOffice,
+            new HttpException(403, 'Only the requested custodian office or user may submit evidence.'),
+        );
     }
 
     public function visibleFindings(Builder $query, User $user): Builder

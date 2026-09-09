@@ -83,5 +83,6 @@ class AemsEvidenceRequest extends Model
     public function versions(): HasMany { return $this->hasMany(AemsEvidenceRequestVersion::class, 'evidence_request_id')->orderByDesc('version_number'); }
     public function latestVersion(): HasOne { return $this->hasOne(AemsEvidenceRequestVersion::class, 'evidence_request_id')->latestOfMany('version_number'); }
     public function evidenceLinks(): HasMany { return $this->hasMany(AemsEvidenceRequestEvidence::class, 'evidence_request_id'); }
+    public function responses(): HasMany { return $this->hasMany(AemsEvidenceRequestResponse::class, 'evidence_request_id'); }
     public function events(): HasMany { return $this->hasMany(AemsEvidenceRequestEvent::class, 'evidence_request_id')->orderByDesc('created_at'); }
 }

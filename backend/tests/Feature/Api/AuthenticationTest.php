@@ -31,7 +31,12 @@ class AuthenticationTest extends TestCase
         $this->getJson('/api/demo-accounts')
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonCount(9, 'data')
+            ->assertJsonCount(10, 'data')
+            ->assertJsonFragment([
+                'employeeId' => 'BPLD-HEAD',
+                'name' => 'Oxanna S. Custodio',
+                'office' => 'Business Permits and Licensing Division',
+            ])
             ->assertJsonFragment([
                 'employeeId' => 'CIAS-HEAD-001',
                 'roleCode' => 'cias_management',
@@ -55,6 +60,22 @@ class AuthenticationTest extends TestCase
         config(['demo.enabled' => false]);
 
         $this->getJson('/api/demo-accounts')->assertNotFound();
+    }
+
+    public function test_oxanna_demo_credentials_sign_in_to_the_existing_bpld_account(): void
+    {
+        $account = collect($this->getJson('/api/demo-accounts')->assertOk()->json('data'))
+            ->firstWhere('employeeId', 'BPLD-HEAD');
+
+        $this->assertNotNull($account);
+        $this->assertSame(1, User::query()->where('username', 'bpld.head')->count());
+        $this->postJson('/api/login', [
+            'employeeId' => $account['employeeId'],
+            'password' => $account['password'],
+        ])->assertOk()
+            ->assertJsonPath('data.user.name', 'Oxanna S. Custodio')
+            ->assertJsonPath('data.user.office', 'Business Permits and Licensing Division')
+            ->assertJsonPath('data.user.roleCode', 'auditee_representative');
     }
 
     public function test_user_can_sign_in_restore_the_session_and_sign_out(): void

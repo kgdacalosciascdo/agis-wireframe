@@ -10,6 +10,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -75,9 +76,33 @@ return Application::configure(basePath: dirname(__DIR__))
 
             report($exception);
 
+            $details = strtolower($exception->getMessage());
+            $isPlanningPackage = str_contains($request->path(), 'planning-package')
+                || str_contains($details, 'aems_risk_matrix');
+            $reference = 'DB-'.strtoupper(Str::random(8));
+            $message = match (true) {
+                $isPlanningPackage && (
+                    str_contains($details, 'invalid input syntax for type numeric')
+                    || str_contains($details, 'incorrect decimal value')
+                    || str_contains($details, 'numeric value out of range')
+                ) => 'The planning package contains a risk-matrix likelihood, impact, or score that is not a valid number. Enter numeric values only, such as 1, 2, or 2.5.',
+                $isPlanningPackage && str_contains($details, 'all_audit_focuses') => 'The planning package cannot be saved because the server database is missing the latest risk-matrix focus field. Run the pending database migrations, then retry.',
+                $isPlanningPackage && (
+                    str_contains($details, 'duplicate key')
+                    || str_contains($details, 'unique constraint')
+                ) => 'The planning package contains a duplicate code or relationship. Check risk codes, objective links, procedure links, and working-paper references.',
+                $isPlanningPackage && (
+                    str_contains($details, 'foreign key')
+                    || str_contains($details, 'violates foreign key constraint')
+                ) => 'The planning package contains a link to a record that no longer exists or is outside this engagement. Refresh the workspace and reselect the affected relationship.',
+                default => 'The server rejected the request because of a database constraint. Review the entered values and retry.',
+            };
+
             return response()->json([
                 'success' => false,
-                'message' => 'The request could not be completed. Please retry or contact an administrator.',
+                'message' => $message.' Reference: '.$reference.'.',
+                'errors' => ['save' => [$message]],
+                'errorReference' => $reference,
             ], 500, [
                 'Cache-Control' => 'no-store',
                 'X-Content-Type-Options' => 'nosniff',

@@ -39,6 +39,25 @@ class AemsPlanningPackageTest extends TestCase
         $this->assertDatabaseHas('aems_planning_packages', ['audit_engagement_id' => $engagement->id, 'source_type' => 'PLANNED']);
     }
 
+    public function test_risk_matrix_numeric_fields_return_actionable_validation_errors(): void
+    {
+        [$prepared, , , $engagement, $procedure] = $this->fixture();
+        Sanctum::actingAs($prepared);
+        $payload = $this->completePayload($procedure->id);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $payload)
+            ->assertCreated();
+        $package = $engagement->planningPackage()->firstOrFail();
+        $payload['riskItems'][0]['inherentLikelihood'] = 'test';
+
+        $this->putJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}", [
+            ...$payload,
+            'lockVersion' => 1,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('riskItems.0.inherentLikelihood')
+            ->assertSeeText('The riskItems.0.inherentLikelihood field must be a number.');
+    }
+
     public function test_readiness_review_approval_and_immutable_revision_workflow(): void
     {
         [$prepared, $reviewer, $approver, $engagement, $procedure] = $this->fixture();

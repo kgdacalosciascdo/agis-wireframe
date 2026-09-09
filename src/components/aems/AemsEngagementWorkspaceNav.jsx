@@ -169,10 +169,10 @@ export default function AemsEngagementWorkspaceNav({
   return (
     <nav
       aria-label="Engagement workspace tabs"
-      className="mb-4 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+      className="aems-workspace-tabs mb-4 min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
       data-testid="aems-engagement-tabs"
     >
-      <div className="flex flex-nowrap gap-1 overflow-x-auto sm:flex-wrap sm:overflow-visible">
+      <div className="aems-workspace-tabs-scroll flex min-w-0 max-w-full flex-nowrap gap-1 overflow-x-scroll overflow-y-hidden sm:flex-wrap sm:overflow-visible">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const active = isCurrentTab(

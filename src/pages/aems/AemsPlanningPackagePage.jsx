@@ -772,7 +772,12 @@ export default function AemsPlanningPackagePage() {
   }
 
   function handleRequestError(requestError) {
-    if (requestError instanceof ApiError) setErrors(requestError.errors ?? {});
+    const requestErrors =
+      requestError instanceof ApiError ? requestError.errors ?? {} : {};
+    setErrors(requestErrors);
+    setError(
+      Object.keys(requestErrors).length ? "" : requestError.message,
+    );
     if (isStaleLockError(requestError)) setStaleLock(true);
     toast.error(requestError.message);
   }
@@ -783,6 +788,7 @@ export default function AemsPlanningPackagePage() {
       return;
     }
     setSaving(true);
+    setError("");
     setErrors({});
     setStaleLock(false);
     try {
@@ -1134,7 +1140,7 @@ export default function AemsPlanningPackagePage() {
           />
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div
-              className="flex min-w-max gap-1 overflow-x-auto"
+              className="aems-workspace-tabs-scroll flex min-w-0 max-w-full flex-nowrap gap-1 overflow-x-scroll overflow-y-hidden sm:flex-wrap sm:overflow-visible"
               role="tablist"
               aria-label="Planning Package sections"
             >
@@ -2634,6 +2640,9 @@ function RiskItemEditor({
           <TextInput
             disabled={!editable}
             inputMode="decimal"
+            min="0"
+            step="0.01"
+            type="number"
             value={item.inherentLikelihood}
             onChange={(event) =>
               update("inherentLikelihood", event.target.value)
@@ -2644,6 +2653,9 @@ function RiskItemEditor({
           <TextInput
             disabled={!editable}
             inputMode="decimal"
+            min="0"
+            step="0.01"
+            type="number"
             value={item.inherentImpact}
             onChange={(event) => update("inherentImpact", event.target.value)}
           />
@@ -2652,6 +2664,9 @@ function RiskItemEditor({
           <TextInput
             disabled={!editable}
             inputMode="decimal"
+            min="0"
+            step="0.01"
+            type="number"
             value={item.inherentScore}
             onChange={(event) => update("inherentScore", event.target.value)}
           />
@@ -2660,6 +2675,9 @@ function RiskItemEditor({
           <TextInput
             disabled={!editable}
             inputMode="decimal"
+            min="0"
+            step="0.01"
+            type="number"
             value={item.residualLikelihood}
             onChange={(event) =>
               update("residualLikelihood", event.target.value)
@@ -2670,6 +2688,9 @@ function RiskItemEditor({
           <TextInput
             disabled={!editable}
             inputMode="decimal"
+            min="0"
+            step="0.01"
+            type="number"
             value={item.residualImpact}
             onChange={(event) => update("residualImpact", event.target.value)}
           />
@@ -2678,6 +2699,9 @@ function RiskItemEditor({
           <TextInput
             disabled={!editable}
             inputMode="decimal"
+            min="0"
+            step="0.01"
+            type="number"
             value={item.residualScore}
             onChange={(event) => update("residualScore", event.target.value)}
           />

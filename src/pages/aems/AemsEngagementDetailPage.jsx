@@ -486,8 +486,9 @@ export default function AemsEngagementDetailPage() {
 
       <nav
         aria-label="Engagement workspace sections"
-        className="mb-5 flex flex-nowrap gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:flex-wrap sm:overflow-visible"
+        className="aems-workspace-tabs mb-5 min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
       >
+        <div className="aems-workspace-tabs-scroll flex min-w-0 max-w-full flex-nowrap gap-1 overflow-x-scroll overflow-y-hidden sm:flex-wrap sm:overflow-visible">
         {tabs.map(([value, label]) => {
           const gateKey = secondaryGateByTab[value];
           const gate = gateKey
@@ -522,6 +523,7 @@ export default function AemsEngagementDetailPage() {
             </button>
           );
         })}
+        </div>
       </nav>
 
       {activeWorkspaceGate && !activeWorkspaceGate.unlocked ? (

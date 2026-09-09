@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\AemsPlanningPackageVersion;
 use App\Models\AemsRiskMatrix;
+use App\Models\AemsRiskMatrixItem;
 use App\Models\AuditEngagement;
 use App\Models\AuditEngagementPlan;
 use App\Models\AuditProgram;
@@ -56,6 +57,59 @@ class AemsPlanningPackageTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('riskItems.0.inherentLikelihood')
             ->assertSeeText('The riskItems.0.inherentLikelihood field must be a number.');
+    }
+
+    public function test_risk_item_details_survive_saving_a_new_planning_package_version(): void
+    {
+        [$prepared, , , $engagement, $procedure] = $this->fixture();
+        Sanctum::actingAs($prepared);
+        $payload = $this->completePayload($procedure->id);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $payload)
+            ->assertCreated();
+        $package = $engagement->planningPackage()->firstOrFail();
+        $payload['riskItems'][0] = [
+            ...$payload['riskItems'][0],
+            'riskCategory' => 'Financial reporting',
+            'inherentLikelihood' => 3,
+            'inherentImpact' => 4,
+            'inherentScore' => 12,
+            'controlDescription' => 'Supervisory review of assessment calculations.',
+            'controlEffectiveness' => 'Partially effective',
+            'residualLikelihood' => 2,
+            'residualImpact' => 3,
+            'residualScore' => 6,
+            'residualRating' => 'Moderate',
+            'riskResponse' => 'Mitigate',
+            'processName' => 'Permit assessment',
+            'riskArea' => 'Assessment calculation',
+            'plannedAuditApproach' => 'Recalculate a sample of assessments.',
+            'criteria' => 'Applicable revenue ordinance and assessment policy.',
+            'responseRationale' => 'Residual risk requires additional substantive testing.',
+            'sourceReference' => 'BPLD-REV-2026-01',
+        ];
+
+        $this->putJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}", [
+            ...$payload,
+            'lockVersion' => 1,
+        ])->assertOk();
+
+        $item = AemsRiskMatrixItem::query()
+            ->whereHas('matrix.version', fn ($query) => $query
+                ->where('planning_package_id', $package->id)
+                ->where('version_number', 2))
+            ->firstOrFail();
+
+        $this->assertSame('Financial reporting', $item->risk_category);
+        $this->assertSame('Supervisory review of assessment calculations.', $item->control_description);
+        $this->assertSame('Partially effective', $item->control_effectiveness);
+        $this->assertSame('Moderate', $item->residual_rating);
+        $this->assertSame('Mitigate', $item->risk_response);
+        $this->assertSame('Permit assessment', $item->process_name);
+        $this->assertSame('Assessment calculation', $item->risk_area);
+        $this->assertSame('Recalculate a sample of assessments.', $item->planned_audit_approach);
+        $this->assertSame('Applicable revenue ordinance and assessment policy.', $item->criteria);
+        $this->assertSame('Residual risk requires additional substantive testing.', $item->response_rationale);
+        $this->assertSame('BPLD-REV-2026-01', $item->source_reference);
     }
 
     public function test_readiness_review_approval_and_immutable_revision_workflow(): void

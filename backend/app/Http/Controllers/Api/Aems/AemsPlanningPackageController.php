@@ -73,10 +73,51 @@ class AemsPlanningPackageController extends Controller
             'kpis' => ['nullable','array'], 'kpis.*' => ['array'], 'kpis.*.code' => ['nullable','string','max:80'], 'kpis.*.name' => ['required_with:kpis.*','string','max:255'], 'kpis.*.target' => ['required_with:kpis.*','string','max:255'], 'kpis.*.measurementMethod' => ['required_with:kpis.*','string','max:10000'], 'kpis.*.responsibleOfficeId' => ['nullable','integer','exists:offices,id'],
             'riskMatrix' => ['nullable','array'], 'riskMatrix.code' => ['nullable','string','max:80'], 'riskMatrix.title' => ['nullable','string','max:255'], 'riskMatrix.methodology' => ['nullable','string','max:10000'], 'riskMatrix.riskAppetite' => ['nullable','string','max:100'], 'riskMatrix.overallConclusion' => ['nullable','string','max:10000'], 'riskMatrix.auditAreaId' => ['nullable','integer','exists:audit_areas,id'], 'riskMatrix.auditFocusId' => ['nullable','integer','exists:audit_focuses,id'], 'riskMatrix.allAuditFocuses' => ['nullable','boolean'],
             'riskMatrices' => ['nullable','array'], 'riskMatrices.*' => ['array'], 'riskMatrices.*.code' => ['required_with:riskMatrices.*','string','max:80'], 'riskMatrices.*.title' => ['required_with:riskMatrices.*','string','max:255'], 'riskMatrices.*.methodology' => ['nullable','string','max:10000'], 'riskMatrices.*.riskAppetite' => ['nullable','string','max:100'], 'riskMatrices.*.overallConclusion' => ['nullable','string','max:10000'], 'riskMatrices.*.auditAreaId' => ['nullable','integer','exists:audit_areas,id'], 'riskMatrices.*.auditFocusId' => ['nullable','integer','exists:audit_focuses,id'], 'riskMatrices.*.allAuditFocuses' => ['nullable','boolean'], 'riskMatrices.*.riskItems' => ['nullable','array'],
-            'riskItems' => ['nullable','array'], 'riskItems.*' => ['array'], 'riskItems.*.riskCode' => ['required_with:riskItems.*','string','max:80'], 'riskItems.*.riskStatement' => ['required_with:riskItems.*','string','max:10000'], 'riskItems.*.inherentLikelihood' => ['nullable','numeric'], 'riskItems.*.inherentImpact' => ['nullable','numeric'], 'riskItems.*.inherentScore' => ['nullable','numeric'], 'riskItems.*.residualLikelihood' => ['nullable','numeric'], 'riskItems.*.residualImpact' => ['nullable','numeric'], 'riskItems.*.residualScore' => ['nullable','numeric'], 'riskItems.*.objectiveCodes' => ['nullable','array'], 'riskItems.*.procedureIds' => ['nullable','array'], 'riskItems.*.workingPapers' => ['nullable','array'], 'riskItems.*.auditAreaId' => ['nullable','integer','exists:audit_areas,id'], 'riskItems.*.auditFocusId' => ['nullable','integer','exists:audit_focuses,id'], 'riskItems.*.processFlowId' => ['nullable','integer','exists:aems_process_flow_documents,id'], 'riskItems.*.processName' => ['nullable','string','max:255'], 'riskItems.*.riskArea' => ['nullable','string','max:255'], 'riskItems.*.plannedAuditApproach' => ['nullable','string','max:10000'], 'riskItems.*.criteria' => ['nullable','string','max:10000'],
-            'riskMatrices.*.riskItems.*.riskCode' => ['required_with:riskMatrices.*.riskItems.*','string','max:80'], 'riskMatrices.*.riskItems.*.riskStatement' => ['required_with:riskMatrices.*.riskItems.*','string','max:10000'], 'riskMatrices.*.riskItems.*.inherentLikelihood' => ['nullable','numeric'], 'riskMatrices.*.riskItems.*.inherentImpact' => ['nullable','numeric'], 'riskMatrices.*.riskItems.*.inherentScore' => ['nullable','numeric'], 'riskMatrices.*.riskItems.*.residualLikelihood' => ['nullable','numeric'], 'riskMatrices.*.riskItems.*.residualImpact' => ['nullable','numeric'], 'riskMatrices.*.riskItems.*.residualScore' => ['nullable','numeric'],
+            'riskItems' => ['nullable','array'], 'riskItems.*' => ['array'],
+            ...$this->riskItemRules('riskItems.*'),
+            ...$this->riskItemRules('riskMatrices.*.riskItems.*'),
             'plannedWorkingPapers' => ['nullable','array'], 'plannedWorkingPapers.*' => ['array'], 'plannedWorkingPapers.*.procedureId' => ['nullable','integer','exists:audit_program_procedures,id'], 'plannedWorkingPapers.*.riskItemId' => ['nullable','integer','exists:aems_risk_matrix_items,id'], 'plannedWorkingPapers.*.reference' => ['required_with:plannedWorkingPapers.*','string','max:120'], 'plannedWorkingPapers.*.title' => ['required_with:plannedWorkingPapers.*','string','max:255'], 'plannedWorkingPapers.*.requiredEvidence' => ['required_with:plannedWorkingPapers.*','string','max:10000'],
             'changeReason' => ['nullable','string','max:4000'],
         ]);
+    }
+
+    /** @return array<string, array<int, string>> */
+    private function riskItemRules(string $itemPath): array
+    {
+        return [
+            "{$itemPath}.riskCode" => ["required_with:{$itemPath}", 'string', 'max:80'],
+            "{$itemPath}.riskStatement" => ["required_with:{$itemPath}", 'string', 'max:10000'],
+            "{$itemPath}.riskCategory" => ['nullable', 'string', 'max:100'],
+            "{$itemPath}.inherentLikelihood" => ['nullable', 'numeric'],
+            "{$itemPath}.inherentImpact" => ['nullable', 'numeric'],
+            "{$itemPath}.inherentScore" => ['nullable', 'numeric'],
+            "{$itemPath}.controlDescription" => ['nullable', 'string', 'max:10000'],
+            "{$itemPath}.controlEffectiveness" => ['nullable', 'string', 'max:50'],
+            "{$itemPath}.residualLikelihood" => ['nullable', 'numeric'],
+            "{$itemPath}.residualImpact" => ['nullable', 'numeric'],
+            "{$itemPath}.residualScore" => ['nullable', 'numeric'],
+            "{$itemPath}.residualRating" => ['nullable', 'string', 'max:50'],
+            "{$itemPath}.riskResponse" => ['nullable', 'string', 'max:100'],
+            "{$itemPath}.responsibleOfficeId" => ['nullable', 'integer', 'exists:offices,id'],
+            "{$itemPath}.sequence" => ['nullable', 'integer', 'min:0'],
+            "{$itemPath}.status" => ['nullable', 'string', 'max:30'],
+            "{$itemPath}.objectiveCodes" => ['nullable', 'array'],
+            "{$itemPath}.objectiveCodes.*" => ['string', 'max:80'],
+            "{$itemPath}.procedureIds" => ['nullable', 'array'],
+            "{$itemPath}.procedureIds.*" => ['integer', 'exists:audit_program_procedures,id'],
+            "{$itemPath}.workingPapers" => ['nullable', 'array'],
+            "{$itemPath}.workingPapers.*.workingPaperId" => ['nullable', 'integer', 'exists:working_papers,id'],
+            "{$itemPath}.workingPapers.*.reference" => ['required_with:'.$itemPath.'.workingPapers.*', 'string', 'max:160'],
+            "{$itemPath}.workingPapers.*.basis" => ['nullable', 'string', 'max:500'],
+            "{$itemPath}.auditAreaId" => ['nullable', 'integer', 'exists:audit_areas,id'],
+            "{$itemPath}.auditFocusId" => ['nullable', 'integer', 'exists:audit_focuses,id'],
+            "{$itemPath}.processFlowId" => ['nullable', 'integer', 'exists:aems_process_flow_documents,id'],
+            "{$itemPath}.processName" => ['nullable', 'string', 'max:255'],
+            "{$itemPath}.riskArea" => ['nullable', 'string', 'max:255'],
+            "{$itemPath}.plannedAuditApproach" => ['nullable', 'string', 'max:10000'],
+            "{$itemPath}.criteria" => ['nullable', 'string', 'max:10000'],
+            "{$itemPath}.responseRationale" => ['nullable', 'string', 'max:10000'],
+            "{$itemPath}.sourceReference" => ['nullable', 'string', 'max:160'],
+        ];
     }
 }

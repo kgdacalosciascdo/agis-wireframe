@@ -126,7 +126,7 @@ class AemsPlanningPackageTest extends TestCase
         $payload = $this->completePayload($procedure->id);
         $payload['riskMatrices'] = [
             ['code' => 'RM-1', 'title' => 'Planning risk matrix', 'methodology' => 'Initial methodology', 'riskAppetite' => 'Moderate', 'overallConclusion' => 'Initial conclusion', 'riskItems' => $payload['riskItems']],
-            ['code' => 'RM-2', 'title' => 'Second matrix', 'methodology' => 'Second methodology', 'riskAppetite' => 'Low', 'overallConclusion' => 'Second conclusion', 'riskItems' => []],
+            ['code' => 'RM-2', 'title' => 'Second matrix', 'methodology' => 'Second methodology', 'riskAppetite' => 'Low', 'overallConclusion' => 'Second conclusion', 'allAuditFocuses' => true, 'riskItems' => []],
         ];
         $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $payload)->assertCreated();
         $package = $engagement->planningPackage()->firstOrFail();
@@ -137,7 +137,15 @@ class AemsPlanningPackageTest extends TestCase
         $this->putJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}", [...$payload, 'lockVersion' => 1])->assertOk();
 
         $this->assertDatabaseHas('aems_risk_matrices', ['planning_package_version_id' => 2, 'matrix_code' => 'RM-1', 'methodology' => 'Updated methodology', 'risk_appetite' => 'High', 'overall_conclusion' => 'Updated conclusion']);
-        $this->assertDatabaseHas('aems_risk_matrices', ['planning_package_version_id' => 2, 'matrix_code' => 'RM-2', 'methodology' => 'Second methodology', 'risk_appetite' => 'Low', 'overall_conclusion' => 'Second conclusion']);
+        $this->assertDatabaseHas('aems_risk_matrices', ['planning_package_version_id' => 2, 'matrix_code' => 'RM-2', 'methodology' => 'Second methodology', 'risk_appetite' => 'Low', 'overall_conclusion' => 'Second conclusion', 'all_audit_focuses' => true]);
+
+        unset($payload['riskMatrices'][1]);
+        $payload['riskMatrices'] = array_values($payload['riskMatrices']);
+        $this->putJson("/api/aems/engagements/{$engagement->id}/planning-package/{$package->id}", [...$payload, 'lockVersion' => 2])->assertOk();
+
+        $this->assertDatabaseCount('aems_risk_matrices', 5);
+        $this->assertDatabaseHas('aems_risk_matrices', ['planning_package_version_id' => 3, 'matrix_code' => 'RM-1']);
+        $this->assertDatabaseMissing('aems_risk_matrices', ['planning_package_version_id' => 3, 'matrix_code' => 'RM-2']);
     }
 
     /** @return array{User,User,User,AuditEngagement,AuditProgramProcedure} */

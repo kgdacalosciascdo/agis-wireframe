@@ -127,6 +127,9 @@ const emptyForm = {
     methodology: "",
     riskAppetite: "",
     overallConclusion: "",
+    auditAreaId: "",
+    auditFocusId: "",
+    allAuditFocuses: false,
   },
   riskItems: [],
   riskMatrices: [],
@@ -216,6 +219,7 @@ function normalizeVersion(version) {
     overallConclusion: entry.overallConclusion ?? "",
     auditAreaId: entry.auditAreaId ?? "",
     auditFocusId: entry.auditFocusId ?? "",
+    allAuditFocuses: Boolean(entry.allAuditFocuses),
     matrixType: entry.matrixType ?? "",
     status: entry.status ?? "DRAFT",
     riskItems: (entry.items ?? entry.riskItems ?? []).map((item, index) => ({
@@ -270,6 +274,9 @@ function normalizeVersion(version) {
       methodology: matrix.methodology ?? "",
       riskAppetite: matrix.riskAppetite ?? "",
       overallConclusion: matrix.overallConclusion ?? "",
+      auditAreaId: matrix.auditAreaId ?? "",
+      auditFocusId: matrix.auditFocusId ?? "",
+      allAuditFocuses: Boolean(matrix.allAuditFocuses),
     },
     riskItems: (matrix.items ?? []).map((item, index) => ({
       ...makeItem(index),
@@ -610,21 +617,53 @@ export default function AemsPlanningPackagePage() {
   }
 
   function updateMatrix(index, key, value) {
-    setForm((current) => ({
-      ...current,
-      riskMatrices: (current.riskMatrices?.length
+    setForm((current) => {
+      const hasMatrixCollection = current.riskMatrices?.length > 0;
+      const matrices = hasMatrixCollection
         ? current.riskMatrices
-        : [current.riskMatrix]
-      ).map((matrix, matrixIndex) =>
+        : [current.riskMatrix];
+      const nextMatrices = matrices.map((matrix, matrixIndex) =>
         matrixIndex === index
           ? {
               ...matrix,
               [key]: value,
-              ...(key === "auditAreaId" ? { auditFocusId: "" } : {}),
+              ...(key === "auditAreaId"
+                ? { auditFocusId: "", allAuditFocuses: false }
+                : {}),
             }
           : matrix,
-      ),
-    }));
+      );
+      return {
+        ...current,
+        ...(hasMatrixCollection
+          ? { riskMatrices: nextMatrices }
+          : { riskMatrix: nextMatrices[0] }),
+      };
+    });
+  }
+
+  function updateMatrixFocus(index, value) {
+    setForm((current) => {
+      const hasMatrixCollection = current.riskMatrices?.length > 0;
+      const matrices = hasMatrixCollection
+        ? current.riskMatrices
+        : [current.riskMatrix];
+      const nextMatrices = matrices.map((matrix, matrixIndex) =>
+        matrixIndex === index
+          ? {
+              ...matrix,
+              auditFocusId: value === "ALL" ? "" : value,
+              allAuditFocuses: value === "ALL",
+            }
+          : matrix,
+      );
+      return {
+        ...current,
+        ...(hasMatrixCollection
+          ? { riskMatrices: nextMatrices }
+          : { riskMatrix: nextMatrices[0] }),
+      };
+    });
   }
 
   function addMatrix() {
@@ -642,6 +681,29 @@ export default function AemsPlanningPackagePage() {
         },
       ],
     }));
+  }
+
+  function removeMatrix(index) {
+    setForm((current) => {
+      const matrices = current.riskMatrices?.length
+        ? current.riskMatrices
+        : [current.riskMatrix];
+      const nextMatrices = matrices.filter(
+        (_, matrixIndex) => matrixIndex !== index,
+      );
+      const firstMatrix = nextMatrices[0] ?? {
+        ...emptyForm.riskMatrix,
+        riskItems: [],
+      };
+      return {
+        ...current,
+        riskMatrices: nextMatrices,
+        riskMatrix: firstMatrix,
+        riskItems: nextMatrices.length
+          ? firstMatrix.riskItems ?? current.riskItems
+          : [],
+      };
+    });
   }
 
   function updateKpi(index, key, value) {
@@ -1236,7 +1298,9 @@ export default function AemsPlanningPackagePage() {
               procedureOptions={procedureOptions}
               onChange={updateNested}
               onChangeMatrix={updateMatrix}
+              onChangeFocus={updateMatrixFocus}
               onAddMatrix={addMatrix}
+              onRemoveMatrix={removeMatrix}
               onAdd={startNewItem}
               onEdit={editItem}
               onRemove={(index) =>
@@ -2230,6 +2294,8 @@ function RiskMatrixSection({
   onRemove,
   areaOptions,
   focusOptions,
+  onChangeFocus,
+  onRemoveMatrix,
 }) {
   return (
     <div className="space-y-5">
@@ -2261,7 +2327,21 @@ function RiskMatrixSection({
               className="grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2"
               key={`${matrix.code}-${index}`}
             >
-              <Field label={`Matrix ${index + 1} code`}>
+              <div className="flex items-center justify-between sm:col-span-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Matrix {index + 1}
+                </span>
+                {editable && (
+                  <SmallButton
+                    icon={XCircle}
+                    tone="danger"
+                    onClick={() => onRemoveMatrix(index)}
+                  >
+                    Remove matrix
+                  </SmallButton>
+                )}
+              </div>
+              <Field label="Matrix code">
                 <TextInput
                   disabled={!editable}
                   value={matrix.code ?? ""}
@@ -2296,9 +2376,22 @@ function RiskMatrixSection({
               <Field label="Audit focus">
                 <SearchableSelect
                   disabled={!editable || !matrix.auditAreaId}
-                  options={focusOptions.filter((focus) => !focus.areaId || String(focus.areaId) === String(matrix.auditAreaId))}
-                  value={matrix.auditFocusId ?? ""}
-                  onChange={(value) => onChangeMatrix(index, "auditFocusId", value)}
+                  options={[
+                    {
+                      value: "ALL",
+                      label: "All scoped audit focuses",
+                      keywords: "all focuses every focus",
+                    },
+                    ...focusOptions.filter(
+                      (focus) =>
+                        !focus.areaId ||
+                        String(focus.areaId) === String(matrix.auditAreaId),
+                    ),
+                  ]}
+                  value={
+                    matrix.allAuditFocuses ? "ALL" : matrix.auditFocusId ?? ""
+                  }
+                  onChange={(value) => onChangeFocus(index, value)}
                   placeholder={matrix.auditAreaId ? "Select scoped audit focus" : "Select an audit area first"}
                   searchPlaceholder="Search scoped audit focuses..."
                 />

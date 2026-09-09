@@ -58,6 +58,58 @@ class AemsEngagementLifecycleTest extends TestCase
             ->assertJsonStructure(['data' => ['actions', 'states', 'timeline']]);
     }
 
+    public function test_approved_unissued_order_allows_own_authorization_with_self_review_permission(): void
+    {
+        [$management, $auditor, , $engagement] = $this->engagement('AUTHORIZATION_PREPARATION');
+        $engagement->update(['created_by' => $management->id]);
+        AuditEngagementOrder::create([
+            'audit_engagement_id' => $engagement->id,
+            'order_code' => 'AEO-APPROVED-ONLY',
+            'status' => 'APPROVED',
+            'current_version_number' => 1,
+            'prepared_by' => $auditor->id,
+            'approved_by' => $management->id,
+            'approved_at' => now(),
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($management);
+        $actions = $this->getJson("/api/aems/engagements/{$engagement->id}/lifecycle")
+            ->assertOk()->json('data.actions');
+        $this->assertTrue(collect($actions)->firstWhere('action', 'ISSUE_AUTHORIZATION')['canExecute']);
+        $this->postJson("/api/aems/engagements/{$engagement->id}/transitions/ISSUE_AUTHORIZATION", [
+            'lockVersion' => 1,
+        ])->assertOk()->assertJsonPath('data.engagement.status', 'AUTHORIZED');
+        $this->postJson("/api/aems/engagements/{$engagement->id}/transitions/START_PLANNING", [
+            'lockVersion' => 2,
+        ])->assertUnprocessable()->assertJsonValidationErrors('requirements');
+    }
+
+    public function test_planning_requires_current_version_acknowledgement_for_canonical_office(): void
+    {
+        [$management, $auditor, $auditee, $engagement] = $this->engagement('AUTHORIZED');
+        $this->installRequiredTeamAndAeo($engagement, $management, $auditor);
+        $engagement->update(['engagement_office_id' => $auditee->office_id]);
+        $engagement->offices()->detach();
+        $order = AuditEngagementOrder::where('audit_engagement_id', $engagement->id)->firstOrFail();
+        $order->update(['current_version_number' => 2]);
+        $distribution = $order->distributions()->firstOrFail();
+        Sanctum::actingAs($management);
+        $url = "/api/aems/engagements/{$engagement->id}/transitions/START_PLANNING";
+        $this->postJson($url, ['lockVersion' => 1])->assertUnprocessable();
+        $distribution->update([
+            'version_number' => 2,
+            'recipient_office_id' => Office::where('id', '!=', $auditee->office_id)->firstOrFail()->id,
+        ]);
+        $this->postJson($url, ['lockVersion' => 1])->assertUnprocessable();
+        $distribution->update([
+            'recipient_type' => 'USER',
+            'recipient_office_id' => null,
+            'recipient_user_id' => $auditee->id,
+        ]);
+        $this->postJson($url, ['lockVersion' => 1])->assertOk()
+            ->assertJsonPath('data.engagement.status', 'ENGAGEMENT_PLANNING');
+    }
+
     public function test_sole_cias_head_can_authorize_an_issued_aeo_and_start_planning(): void
     {
         [$management, $auditor, , $engagement] = $this->engagement('DRAFT');

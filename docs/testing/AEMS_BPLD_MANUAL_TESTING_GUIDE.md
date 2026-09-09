@@ -190,7 +190,7 @@ Generate/assess safeguards, then use an eligible independent approver. Expected:
 | Signature method if prompted | IN_APP_ATTESTATION |
 | Signature reference | DEMO-AEO-ATTEST-01 |
 
-Save → Submit → Record review → Approve → Issue the AEO. If issuance requires an independent issuer, use an appropriately assigned/permitted actor. Then from Lifecycle run Issue Authorization: its separation gate checks that the AEO issuer has already been recorded. Verify both aggregate AUTHORIZED and child AEO ISSUED rather than assuming one implies the other.
+Save → Submit → Record review → Approve the AEO. From Lifecycle run Issue Authorization to move from AUTHORIZATION_PREPARATION to AUTHORIZED; the current active AEO must be APPROVED or ISSUED. Then issue and transmit the AEO using an appropriately permitted actor. Start Planning becomes available once the issued AEO's current version has been acknowledged by the engagement office or a recipient belonging to that office. Verify the aggregate lifecycle and child AEO status separately; one does not automatically advance the other. Authorizing your own engagement still requires the explicit own-submission review permission.
 
 **AEO-02** — Transmit the issued version.
 

@@ -326,7 +326,7 @@ class AemsAccessService
     /**
      * The aggregate engagement authorization may be performed by the
      * originating user only when the explicit self-review permission is
-     * granted and the complete AEO authority sequence belongs to that user.
+     * granted and the AEO has already been approved. Issuance is a later gate.
      */
     public function mayUseSingleCiasEngagementAuthorization(
         User $user,
@@ -342,10 +342,8 @@ class AemsAccessService
 
         $order = $engagement->engagementOrder;
         if (! $order
-            || $order->status !== 'ISSUED'
-            || (int) $order->prepared_by !== (int) $user->id
-            || (int) $order->approved_by !== (int) $user->id
-            || (int) $order->issued_by !== (int) $user->id) {
+            || ! $order->is_active
+            || ! in_array($order->status, ['APPROVED', 'ISSUED'], true)) {
             return false;
         }
 

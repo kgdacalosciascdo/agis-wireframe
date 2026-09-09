@@ -524,13 +524,18 @@ class AemsEngagementTransitionService
             ->whereNull('ended_at')
             ->pluck('assignment_role_code');
         $requiredRoles = collect(['SUPERVISOR', 'TEAM_LEADER', 'AUDITOR', 'REVIEWER']);
-        $approvedAeo = in_array($engagement->engagementOrder?->status, ['APPROVED', 'ISSUED'], true);
-        $issuedAeo = $engagement->engagementOrder?->status === 'ISSUED';
-        $auditeeOfficeIds = $engagement->offices->pluck('id')->map(fn ($id): int => (int) $id);
+        $order = $engagement->engagementOrder;
+        $approvedAeo = $order?->is_active && in_array($order->status, ['APPROVED', 'ISSUED'], true);
+        $issuedAeo = $approvedAeo && $order->status === 'ISSUED';
+        $auditeeOfficeIds = $engagement->engagement_office_id
+            ? collect([(int) $engagement->engagement_office_id])
+            : $engagement->offices->pluck('id')->map(fn ($id): int => (int) $id);
         $acknowledgedAeo = $issuedAeo
             && $auditeeOfficeIds->isNotEmpty()
             && $engagement->engagementOrder?->distributions()
                 ->where('status', 'ACKNOWLEDGED')
+                ->when((int) $order->current_version_number > 0, fn ($query) => $query
+                    ->where('version_number', $order->current_version_number))
                 ->where(function ($query) use ($auditeeOfficeIds): void {
                     $query
                         ->whereIn('recipient_office_id', $auditeeOfficeIds->all())
@@ -562,19 +567,8 @@ class AemsEngagementTransitionService
             ],
             'ISSUE_AUTHORIZATION' => [
                 $this->gate('approvedAeo', 'Current AEO is approved', $approvedAeo, 'aeo'),
-                $this->gate(
-                    'teamRoles',
-                    'Supervisor, Team Leader, Auditor, and Reviewer are active',
-                    $requiredRoles->diff($teamRoles)->isEmpty(),
-                    'team',
-                ),
-                $this->gate(
-                    'separation',
-                    'AEO preparer, approver, and issuer separation is recorded',
-                    $this->validAeoSeparation($engagement),
-                    'aeo',
-                ),
-                ...$teamSafeguardGates,
+                // AEO approval owns its review controls. Issuance and office
+                // acknowledgement are prerequisites for planning, not authorization.
             ],
             'START_PLANNING' => [
                 $this->gate('issuedAeo', 'Issued AEO exists', $issuedAeo, 'aeo'),
@@ -959,40 +953,6 @@ class AemsEngagementTransitionService
             : filled($engagement->special_authority_reference)
                 && $engagement->special_authority_date !== null
                 && $engagement->special_authority_approved_by !== null;
-    }
-
-    private function validAeoSeparation(AuditEngagement $engagement): bool
-    {
-        $order = $engagement->engagementOrder;
-
-        if (! $order
-            || ! in_array($order->status, ['APPROVED', 'ISSUED'], true)
-            || ! $order->prepared_by
-            || ! $order->approved_by
-            || ! $order->issued_by) {
-            return false;
-        }
-
-        $normallySeparated = (int) $order->prepared_by !== (int) $order->approved_by
-            && (int) $order->prepared_by !== (int) $order->issued_by;
-        if ($normallySeparated) {
-            return true;
-        }
-
-        // The sole active CIAS Head is the controlled exception already used
-        // by the AEO workflow. Keep the aggregate gate consistent with that
-        // exception when the same authority prepared, approved, and issued
-        // the current AEO version.
-        if ((int) $order->prepared_by !== (int) $order->approved_by
-            || (int) $order->prepared_by !== (int) $order->issued_by) {
-            return false;
-        }
-
-        $preparedBy = User::query()->find($order->prepared_by);
-
-        return $preparedBy !== null
-            && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.approve')
-            && $this->access->mayUseCiasHeadAeoReviewException($preparedBy, 'aems.aeo.issue');
     }
 
     /** @return array{key: string, label: string, met: bool, link?: string} */

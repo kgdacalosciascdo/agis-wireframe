@@ -38,6 +38,7 @@ import {
   aemsEngagementApi,
   aemsPlanningPackageApi,
   ApiError,
+  masterListApi,
 } from "../../services/api";
 import { useToast } from "../../ui/toast-context";
 
@@ -168,6 +169,25 @@ function listValue(value) {
     .split("\n")
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function masterListOptions(masterLists, code) {
+  return (masterLists.find((list) => list.code === code)?.items ?? [])
+    .filter((item) => item.isActive)
+    .map((item) => ({ value: item.code, label: item.label }));
+}
+
+function masterListCode(value, options) {
+  const match = options.find(
+    (option) =>
+      String(option.value).toLowerCase() === String(value ?? "").toLowerCase() ||
+      String(option.label).toLowerCase() === String(value ?? "").toLowerCase(),
+  );
+  return match?.value ?? value ?? "";
+}
+
+function masterListLabel(value, options) {
+  return options.find((option) => String(option.value) === String(value))?.label ?? value;
 }
 
 function makeItem(sequence = 0) {
@@ -460,6 +480,7 @@ export default function AemsPlanningPackagePage() {
     params.get("section") ?? "overview",
   );
   const [workspace, setWorkspace] = useState(null);
+  const [masterLists, setMasterLists] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [flowDraft, setFlowDraft] = useState(null);
   const [itemDraft, setItemDraft] = useState(null);
@@ -488,6 +509,14 @@ export default function AemsPlanningPackagePage() {
   const currentVersion = packageRecord?.latestVersion;
   const planningGate = getAemsWorkspaceGate("planning", workspace?.engagement);
   const planningUnlocked = planningGate.unlocked;
+  const controlEffectivenessOptions = useMemo(
+    () => masterListOptions(masterLists, "AEMS_CONTROL_EFFECTIVENESS"),
+    [masterLists],
+  );
+  const residualRatingOptions = useMemo(
+    () => masterListOptions(masterLists, "AEMS_RESIDUAL_RATING"),
+    [masterLists],
+  );
   const editable = Boolean(
     packageRecord?.status && workspace?.capabilities?.canEdit && canUpdate,
   );
@@ -574,6 +603,33 @@ export default function AemsPlanningPackagePage() {
     const timer = window.setTimeout(loadEngagements, 0);
     return () => window.clearTimeout(timer);
   }, [loadEngagements]);
+
+  useEffect(() => {
+    let active = true;
+    masterListApi.list().then((lists) => {
+      if (active) setMasterLists(lists);
+    }).catch(() => {
+      // The planning workspace remains usable; save validation will explain a missing list.
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!controlEffectivenessOptions.length && !residualRatingOptions.length) return;
+    const normalizeItems = (items = []) => items.map((item) => ({
+      ...item,
+      controlEffectiveness: masterListCode(item.controlEffectiveness, controlEffectivenessOptions),
+      residualRating: masterListCode(item.residualRating, residualRatingOptions),
+    }));
+    setForm((current) => ({
+      ...current,
+      riskItems: normalizeItems(current.riskItems),
+      riskMatrices: (current.riskMatrices ?? []).map((matrix) => ({
+        ...matrix,
+        riskItems: normalizeItems(matrix.riskItems),
+      })),
+    }));
+  }, [controlEffectivenessOptions, residualRatingOptions]);
 
   useEffect(() => {
     const timer = window.setTimeout(loadWorkspace, 0);
@@ -1485,6 +1541,8 @@ export default function AemsPlanningPackagePage() {
               value: flow.id,
               label: `${flow.code} — ${flow.title || "Untitled process flow"}`,
             }))}
+            controlEffectivenessOptions={controlEffectivenessOptions}
+            residualRatingOptions={residualRatingOptions}
             editable={editable}
           />
         )}
@@ -2480,14 +2538,19 @@ function RiskMatrixSection({
                     <td className="px-3 py-3">
                       <StatusBadge
                         tone={
-                          item.residualRating?.toLowerCase().includes("high")
+                          String(item.residualRating).toLowerCase().includes("high")
                             ? "danger"
                             : item.residualRating
                               ? "warning"
                               : "inactive"
                         }
                       >
-                        {valueOrDash(item.residualRating)}
+                        {valueOrDash(
+                          masterListLabel(
+                            item.residualRating,
+                            residualRatingOptions,
+                          ),
+                        )}
                       </StatusBadge>
                     </td>
                     <td className="px-3 py-3 text-xs text-slate-600">
@@ -2539,6 +2602,8 @@ function RiskItemEditor({
   areaOptions,
   focusOptions,
   processFlowOptions,
+  controlEffectivenessOptions,
+  residualRatingOptions,
   editable = true,
 }) {
   const update = (key, value) =>
@@ -2707,19 +2772,21 @@ function RiskItemEditor({
           />
         </Field>
         <Field label="Residual rating">
-          <TextInput
+          <SearchableSelect
             disabled={!editable}
+            options={residualRatingOptions}
             value={item.residualRating}
-            onChange={(event) => update("residualRating", event.target.value)}
+            onChange={(value) => update("residualRating", value)}
+            placeholder="Select residual rating"
           />
         </Field>
         <Field label="Control effectiveness">
-          <TextInput
+          <SearchableSelect
             disabled={!editable}
+            options={controlEffectivenessOptions}
             value={item.controlEffectiveness}
-            onChange={(event) =>
-              update("controlEffectiveness", event.target.value)
-            }
+            onChange={(value) => update("controlEffectiveness", value)}
+            placeholder="Select control effectiveness"
           />
         </Field>
       </div>

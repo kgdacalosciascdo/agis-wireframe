@@ -43,6 +43,28 @@ class MasterListSeeder extends Seeder
             ],
         ],
         [
+            'code' => 'AEMS_CONTROL_EFFECTIVENESS',
+            'name' => 'AEMS Control Effectiveness',
+            'description' => 'Controlled assessment of how well a risk-mitigating control is designed and operating.',
+            'items' => [
+                ['EFFECTIVE', 'Effective', 'The control is suitably designed and operating as intended.'],
+                ['PARTIALLY_EFFECTIVE', 'Partially effective', 'The control exists but has design or operating gaps that require follow-up.'],
+                ['INEFFECTIVE', 'Ineffective', 'The control is absent, poorly designed, or not operating as intended.'],
+                ['NOT_ASSESSED', 'Not assessed', 'Control effectiveness has not yet been assessed.'],
+            ],
+        ],
+        [
+            'code' => 'AEMS_RESIDUAL_RATING',
+            'name' => 'AEMS Residual Rating',
+            'description' => 'Controlled residual-risk ratings used for AEMS risk matrix items.',
+            'items' => [
+                ['LOW', 'Low', 'Residual exposure is within normal tolerance.'],
+                ['MODERATE', 'Moderate', 'Residual exposure requires monitoring or planned treatment.'],
+                ['HIGH', 'High', 'Residual exposure requires prompt management attention.'],
+                ['CRITICAL', 'Critical', 'Residual exposure requires immediate escalation and action.'],
+            ],
+        ],
+        [
             'code' => 'FINDING_CLASSIFICATION',
             'name' => 'Finding Classification',
             'description' => 'Common classifications for audit findings.',

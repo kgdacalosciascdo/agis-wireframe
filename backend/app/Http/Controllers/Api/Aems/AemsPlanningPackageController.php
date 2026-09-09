@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Aems;
 use App\Http\Controllers\Controller;
 use App\Models\AemsPlanningPackage;
 use App\Models\AuditEngagement;
+use App\Models\MasterList;
 use App\Services\AemsAccessService;
 use App\Services\AemsPlanningPackageService;
 use Illuminate\Http\JsonResponse;
@@ -92,11 +93,15 @@ class AemsPlanningPackageController extends Controller
             "{$itemPath}.inherentImpact" => ['nullable', 'numeric'],
             "{$itemPath}.inherentScore" => ['nullable', 'numeric'],
             "{$itemPath}.controlDescription" => ['nullable', 'string', 'max:10000'],
-            "{$itemPath}.controlEffectiveness" => ['nullable', 'string', 'max:50'],
+            "{$itemPath}.controlEffectiveness" => ['nullable', 'string', 'max:50', Rule::exists('master_list_items', 'code')->where(fn ($query) => $query
+                ->where('master_list_id', MasterList::query()->where('code', 'AEMS_CONTROL_EFFECTIVENESS')->value('id'))
+                ->where('is_active', true))],
             "{$itemPath}.residualLikelihood" => ['nullable', 'numeric'],
             "{$itemPath}.residualImpact" => ['nullable', 'numeric'],
             "{$itemPath}.residualScore" => ['nullable', 'numeric'],
-            "{$itemPath}.residualRating" => ['nullable', 'string', 'max:50'],
+            "{$itemPath}.residualRating" => ['nullable', 'string', 'max:50', Rule::exists('master_list_items', 'code')->where(fn ($query) => $query
+                ->where('master_list_id', MasterList::query()->where('code', 'AEMS_RESIDUAL_RATING')->value('id'))
+                ->where('is_active', true))],
             "{$itemPath}.riskResponse" => ['nullable', 'string', 'max:100'],
             "{$itemPath}.responsibleOfficeId" => ['nullable', 'integer', 'exists:offices,id'],
             "{$itemPath}.sequence" => ['nullable', 'integer', 'min:0'],

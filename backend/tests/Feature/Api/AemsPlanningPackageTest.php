@@ -59,6 +59,25 @@ class AemsPlanningPackageTest extends TestCase
             ->assertSeeText('The riskItems.0.inherentLikelihood field must be a number.');
     }
 
+    public function test_risk_item_control_effectiveness_and_residual_rating_must_use_active_master_list_values(): void
+    {
+        [$prepared, , , $engagement, $procedure] = $this->fixture();
+        Sanctum::actingAs($prepared);
+        $payload = $this->completePayload($procedure->id);
+        $payload['riskItems'][0] = [
+            ...$payload['riskItems'][0],
+            'controlEffectiveness' => 'Narrative assessment',
+            'residualRating' => 'Unlisted rating',
+        ];
+
+        $this->postJson("/api/aems/engagements/{$engagement->id}/planning-package", $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'riskItems.0.controlEffectiveness',
+                'riskItems.0.residualRating',
+            ]);
+    }
+
     public function test_risk_item_details_survive_saving_a_new_planning_package_version(): void
     {
         [$prepared, , , $engagement, $procedure] = $this->fixture();
@@ -74,11 +93,11 @@ class AemsPlanningPackageTest extends TestCase
             'inherentImpact' => 4,
             'inherentScore' => 12,
             'controlDescription' => 'Supervisory review of assessment calculations.',
-            'controlEffectiveness' => 'Partially effective',
+            'controlEffectiveness' => 'PARTIALLY_EFFECTIVE',
             'residualLikelihood' => 2,
             'residualImpact' => 3,
             'residualScore' => 6,
-            'residualRating' => 'Moderate',
+            'residualRating' => 'MODERATE',
             'riskResponse' => 'Mitigate',
             'processName' => 'Permit assessment',
             'riskArea' => 'Assessment calculation',
@@ -101,8 +120,8 @@ class AemsPlanningPackageTest extends TestCase
 
         $this->assertSame('Financial reporting', $item->risk_category);
         $this->assertSame('Supervisory review of assessment calculations.', $item->control_description);
-        $this->assertSame('Partially effective', $item->control_effectiveness);
-        $this->assertSame('Moderate', $item->residual_rating);
+        $this->assertSame('PARTIALLY_EFFECTIVE', $item->control_effectiveness);
+        $this->assertSame('MODERATE', $item->residual_rating);
         $this->assertSame('Mitigate', $item->risk_response);
         $this->assertSame('Permit assessment', $item->process_name);
         $this->assertSame('Assessment calculation', $item->risk_area);

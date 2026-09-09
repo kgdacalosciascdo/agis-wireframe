@@ -38,6 +38,19 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+/* Keep native controls from imposing an intrinsic width in either a routed
+ * form or a portaled dialog. */
+:where(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agis-route-content :where(input, select, textarea),
+.agis-modal :where(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Login fields use the surrounding container for a quiet focus indication.
  * Suppress the browser/global outline that otherwise draws a harsh blue line
  * through the white credential controls. */
@@ -69,6 +82,17 @@ textarea:focus-visible {
 
 .agis-route-content table {
   max-width: 100%;
+}
+
+/* Form controls must shrink with their grid cell. Native controls otherwise
+ * keep an intrinsic minimum width and can push long AEMS values outside the
+ * phone viewport. */
+.agis-route-content :where(label, .grid > *) {
+  min-width: 0;
+}
+
+.agis-modal :where(label, .grid > *) {
+  min-width: 0;
 }
 
 /* Keep the standalone AEMS operational surfaces aligned with the rest of the

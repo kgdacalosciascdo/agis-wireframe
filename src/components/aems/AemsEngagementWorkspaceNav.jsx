@@ -172,7 +172,7 @@ export default function AemsEngagementWorkspaceNav({
       className="mb-4 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
       data-testid="aems-engagement-tabs"
     >
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-nowrap gap-1 overflow-x-auto sm:flex-wrap sm:overflow-visible">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const active = isCurrentTab(
@@ -190,7 +190,7 @@ export default function AemsEngagementWorkspaceNav({
             locked ? (
               <span
                 aria-disabled="true"
-                className="inline-flex min-h-10 min-w-0 flex-1 cursor-not-allowed items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 text-slate-400 sm:flex-none sm:px-4 sm:text-sm"
+                className="inline-flex min-h-10 min-w-max shrink-0 cursor-not-allowed items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 text-slate-400 sm:flex-none sm:px-4 sm:text-sm"
                 key={tab.key}
                 title={`${gate.title}: ${gate.reason}`}
               >
@@ -201,7 +201,7 @@ export default function AemsEngagementWorkspaceNav({
             ) : (
               <Link
                 aria-current={active ? "page" : undefined}
-                className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 transition sm:flex-none sm:px-4 sm:text-sm ${
+                className={`inline-flex min-h-10 min-w-max shrink-0 items-center justify-center gap-2 px-3 text-center text-xs font-bold leading-4 transition sm:flex-none sm:px-4 sm:text-sm ${
                   active
                     ? "bg-sky-700 text-white shadow-sm"
                     : "text-slate-600 hover:bg-slate-100 hover:text-sky-800"

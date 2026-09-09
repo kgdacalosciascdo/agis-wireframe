@@ -486,7 +486,7 @@ export default function AemsEngagementDetailPage() {
 
       <nav
         aria-label="Engagement workspace sections"
-        className="mb-5 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+        className="mb-5 flex flex-nowrap gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:flex-wrap sm:overflow-visible"
       >
         {tabs.map(([value, label]) => {
           const gateKey = secondaryGateByTab[value];
@@ -497,7 +497,7 @@ export default function AemsEngagementDetailPage() {
           return locked ? (
             <span
               aria-disabled="true"
-              className="inline-flex min-h-10 min-w-0 flex-1 cursor-not-allowed items-center justify-center gap-2 px-3 py-2.5 text-center text-sm font-bold leading-4 text-slate-400 sm:flex-none sm:px-4"
+              className="inline-flex min-h-10 min-w-max shrink-0 cursor-not-allowed items-center justify-center gap-2 px-3 py-2.5 text-center text-sm font-bold leading-4 text-slate-400 sm:flex-none sm:px-4"
               key={value}
               title={`${gate.title}: ${gate.reason}`}
             >
@@ -507,7 +507,7 @@ export default function AemsEngagementDetailPage() {
           ) : (
             <button
               aria-current={activeTab === value ? "page" : undefined}
-              className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center px-3 py-2.5 text-center text-sm font-bold leading-4 transition sm:flex-none sm:px-4 ${
+              className={`inline-flex min-h-10 min-w-max shrink-0 items-center justify-center px-3 py-2.5 text-center text-sm font-bold leading-4 transition sm:flex-none sm:px-4 ${
                 activeTab === value
                   ? "bg-sky-700 text-white"
                   : "text-slate-600 hover:bg-slate-100"

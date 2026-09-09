@@ -43,7 +43,7 @@ export default function Modal({
         aria-describedby={description ? "modal-description" : undefined}
         aria-labelledby="modal-title"
         aria-modal="true"
-        className={`my-auto w-full ${widths[size] ?? widths.md} overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl`}
+        className={`agis-modal my-auto min-w-0 w-full max-w-[calc(100vw-2rem)] ${widths[size] ?? widths.md} overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl`}
         role="dialog"
       >
         <header className="flex items-start gap-4 border-b border-slate-200 px-5 py-4">
@@ -69,7 +69,7 @@ export default function Modal({
             <X size={20} />
           </button>
         </header>
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-5">{children}</div>
+        <div className="min-w-0 max-h-[70vh] overflow-y-auto px-5 py-5">{children}</div>
         {footer && (
           <footer className="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
             {footer}

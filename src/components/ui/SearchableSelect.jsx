@@ -158,7 +158,7 @@ export default function SearchableSelect({
       </button>
 
       {open && !disabled && (
-        <div className="absolute z-[130] mt-1 w-full min-w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+        <div className="absolute z-[130] mt-1 w-full min-w-0 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl sm:min-w-64">
           <label className="flex h-11 items-center gap-2 border-b border-slate-200 px-3 text-slate-400">
             <Search size={16} />
             <input
